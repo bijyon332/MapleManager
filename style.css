@@ -1,0 +1,77 @@
+body {
+    background-color: #0f172a;
+    color: #e2e8f0;
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+.hidden-page {
+    display: none !important;
+}
+
+.fade-in {
+    animation: fadeIn 0.2s ease-out;
+}
+
+.tab-active {
+    border-bottom: 2px solid #6366f1;
+    color: #fff;
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.tab-inactive {
+    color: #64748b;
+    border-bottom: 2px solid transparent;
+}
+
+.tab-inactive:hover {
+    color: #94a3b8;
+    background: rgba(30, 41, 59, 0.5);
+}
+
+.nav-active {
+    background-color: rgba(99, 102, 241, 0.15);
+    color: #fff;
+}
+
+.nav-inactive {
+    color: #94a3b8;
+}
+
+.nav-inactive:hover {
+    background-color: rgba(30, 41, 59, 0.5);
+    color: #cbd5e1;
+}
+
+.badge-easy { background-color: #374151; color: #9ca3af; border: 1px solid #4b5563; }
+.badge-normal { background-color: #0e7490; color: #cffafe; border: 1px solid #22d3ee; }
+.badge-hard { background-color: #991b1b; color: #fecaca; border: 1px solid #f87171; }
+.badge-chaos { background-color: #282206; color: #facc15; border: 1px solid #ca8a04; }
+.badge-extreme { background-color: #450a0a; color: #f87171; border: 1px solid #ef4444; }
+
+.task-btn-compact {
+    min-height: 34px !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}

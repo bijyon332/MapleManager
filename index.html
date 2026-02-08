@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMS Manager V32.1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { slate: { 850: '#151f32', 900: '#0f172a', 950: '#020617' } }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="style.css">
+    <script src="config.js" defer></script>
+    <script src="class_data.js" defer></script>
+    <script src="script.js" defer></script>
+</head>
+
+<body class="h-screen flex font-sans text-sm bg-slate-950 overflow-hidden">
+
+    <aside
+        class="w-16 bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0 z-20 transition-all duration-300">
+        <div class="h-16 flex items-center justify-center border-b border-slate-800">
+            <div class="bg-indigo-600 p-1.5 rounded-lg shadow-lg shadow-indigo-500/20">
+                <i data-lucide="leaf" class="text-white w-5 h-5"></i>
+            </div>
+        </div>
+        <nav class="flex-1 py-6 flex flex-col items-center">
+            <div class="space-y-2 flex flex-col items-center w-full">
+                <button onclick="app.navigate('dashboard')" id="nav-dashboard"
+                    class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-active"
+                    title="Dashboard">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                </button>
+                <button onclick="app.navigate('characters')" id="nav-characters"
+                    class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
+                    title="Characters">
+                    <i data-lucide="users" class="w-5 h-5"></i>
+                </button>
+                <button onclick="app.navigate('tasks')" id="nav-tasks"
+                    class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
+                    title="Task Master">
+                    <i data-lucide="list-checks" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <button onclick="app.navigate('system')" id="nav-system"
+                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive mt-auto"
+                title="System Config">
+                <i data-lucide="settings-2" class="w-5 h-5"></i>
+            </button>
+        </nav>
+    </aside>
+
+    <div class="flex-1 flex flex-col overflow-hidden min-w-0">
+        <header
+            class="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 shrink-0 z-10">
+            <div class="flex items-center gap-6">
+                <div class="flex bg-slate-800 p-1 rounded-lg border border-slate-700 flex-shrink-0 gap-2">
+                    <button onclick="app.setServer('KRONOS')" id="btn-server-kronos"
+                        class="px-3 py-1.5 rounded text-xs font-bold transition-all text-slate-400 border border-transparent hover:text-white">Kronos</button>
+                    <button onclick="app.setServer('CHALLENGER')" id="btn-server-challenger"
+                        class="px-3 py-1.5 rounded text-xs font-bold transition-all text-slate-400 border border-transparent hover:text-white">Challenger</button>
+                </div>
+                <div class="h-8 w-px bg-slate-800"></div>
+                <div id="dashboard-stats-container" class="flex items-center gap-4 flex-1 justify-center"></div>
+            </div>
+            <div
+                class="flex items-center gap-4 text-xs font-mono bg-slate-800/50 px-3 py-1.5 rounded border border-slate-700/50 ml-auto">
+                <div class="flex gap-2"><span class="text-slate-500">UTC</span><span id="clock-utc"
+                        class="text-indigo-300 font-bold">--:--:--</span></div>
+                <div class="w-px h-3 bg-slate-600"></div>
+                <div class="flex gap-2"><span class="text-slate-500">JST</span><span id="clock-jst"
+                        class="text-emerald-300 font-bold">--:--:--</span></div>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-950">
+            <div class="max-w-[1920px] mx-auto pb-10">
+                <div id="view-dashboard" class="fade-in">
+                    <div id="dashboard-list" class="space-y-4"></div>
+                    <div id="empty-state" class="hidden text-center py-20">
+                        <div class="bg-slate-900/50 inline-block p-6 rounded-full mb-4"><i data-lucide="ghost"
+                                class="w-12 h-12 text-slate-600"></i></div>
+                        <h3 class="text-slate-300 font-bold text-lg">No Characters in <span
+                                class="server-label text-indigo-400">Kronos</span></h3>
+                        <p class="text-slate-500 text-xs mt-1">Add characters in the "Characters" tab.</p>
+                        <button onclick="app.navigate('characters')"
+                            class="mt-4 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-lg font-medium transition-colors">Manage
+                            Characters</button>
+                    </div>
+                </div>
+
+                <div id="view-characters" class="hidden-page fade-in">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="users"
+                                class="w-5 h-5 text-indigo-400"></i> Character Management <span
+                                class="text-sm font-normal text-slate-500 ml-2 char-view-server-label"></span></h2>
+                        <div class="flex gap-3">
+                            <button onclick="app.updateAllCharacters()" id="btn-update-all"
+                                class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><i
+                                    data-lucide="refresh-cw" class="w-4 h-4"></i> Update All</button>
+                            <button onclick="app.openCharModal()"
+                                class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"><i
+                                    data-lucide="plus" class="w-4 h-4"></i> Add Character</button>
+                        </div>
+                    </div>
+                    <div id="char-list-container" class="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6"></div>
+                </div>
+
+                <div id="view-tasks" class="hidden-page fade-in flex flex-col h-[calc(100vh-8rem)]">
+                    <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2 flex-shrink-0"><i
+                            data-lucide="list-checks" class="w-5 h-5 text-emerald-400"></i> Task Master Settings</h2>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl flex flex-col flex-1 overflow-hidden">
+                        <div class="flex border-b border-slate-800 bg-slate-900/50 flex-shrink-0">
+                            <button onclick="app.switchTaskTab('daily')" id="task-tab-btn-daily"
+                                class="flex-1 py-3 text-xs font-bold transition-colors tab-active">Daily Tasks</button>
+                            <button onclick="app.switchTaskTab('weekly')" id="task-tab-btn-weekly"
+                                class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive">Weekly
+                                Tasks</button>
+                            <button onclick="app.switchTaskTab('boss')" id="task-tab-btn-boss"
+                                class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive">Boss Data</button>
+                        </div>
+                        <div class="flex-1 overflow-hidden relative">
+                            <div id="task-content-daily" class="absolute inset-0 flex flex-col p-6">
+                                <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-2"
+                                    id="master-daily-list"></div>
+                                <form onsubmit="app.addMasterItem(event, 'masterDailies')"
+                                    class="mt-4 pt-4 border-t border-slate-800 flex flex-wrap gap-2 flex-shrink-0 items-center">
+                                    <input type="text" name="name" placeholder="Name (English)" required
+                                        class="flex-1 min-w-[150px] bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white outline-none focus:border-indigo-500">
+                                    <input type="text" name="kana" placeholder="日本語"
+                                        class="flex-1 min-w-[150px] bg-slate-800 border border-slate-700 rounded px-3 py-2 text-slate-300 outline-none focus:border-indigo-500">
+                                    <select name="type"
+                                        class="bg-slate-800 border border-slate-700 rounded px-2 py-2 text-xs text-white outline-none focus:border-indigo-500">
+                                        <option value="OTHER">Other</option>
+                                        <option value="EVENT">Event</option>
+                                        <option value="SYMBOL">Symbol</option>
+                                        <option value="MONPA">Monster Park</option>
+                                        <option value="EPIC_DUNGEON">Epic Dungeon</option>
+                                        <option value="HEXA">HEXA</option>
+                                        <option value="GUILD">Guild</option>
+                                    </select>
+                                    <button type="submit"
+                                        class="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-500 font-bold transition-colors">ADD</button>
+                                </form>
+                            </div>
+                            <div id="task-content-weekly" class="absolute inset-0 flex flex-col p-6 hidden">
+                                <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-2"
+                                    id="master-weekly-list"></div>
+                                <form onsubmit="app.addMasterItem(event, 'masterWeeklies')"
+                                    class="mt-4 pt-4 border-t border-slate-800 flex flex-wrap gap-2 flex-shrink-0 items-center">
+                                    <input type="text" name="name" placeholder="Name (English)" required
+                                        class="flex-1 min-w-[150px] bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white outline-none focus:border-emerald-500">
+                                    <input type="text" name="kana" placeholder="日本語"
+                                        class="flex-1 min-w-[150px] bg-slate-800 border border-slate-700 rounded px-3 py-2 text-slate-300 outline-none focus:border-emerald-500">
+                                    <select name="type"
+                                        class="bg-slate-800 border border-slate-700 rounded px-2 py-2 text-xs text-white outline-none focus:border-emerald-500">
+                                        <option value="OTHER">Other</option>
+                                        <option value="EVENT">Event</option>
+                                        <option value="SYMBOL">Symbol</option>
+                                        <option value="MONPA">Monster Park</option>
+                                        <option value="EPIC_DUNGEON">Epic Dungeon</option>
+                                        <option value="HEXA">HEXA</option>
+                                        <option value="GUILD">Guild</option>
+                                    </select>
+                                    <button type="submit"
+                                        class="bg-emerald-600 text-white px-6 py-2 rounded hover:bg-emerald-500 font-bold transition-colors">ADD</button>
+                                </form>
+                            </div>
+                            <div id="task-content-boss" class="absolute inset-0 flex flex-col p-6 hidden">
+                                <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-2"
+                                    id="master-boss-list"></div>
+                                <form onsubmit="app.addBoss(event)"
+                                    class="mt-4 pt-4 border-t border-slate-800 flex gap-3 flex-shrink-0 items-center">
+                                    <div class="flex-1 flex gap-2"><input type="text" name="name"
+                                            placeholder="Boss Name" required
+                                            class="w-1/2 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white outline-none focus:border-rose-500"><input
+                                            type="text" name="kana" placeholder="日本語"
+                                            class="w-1/2 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-slate-300 outline-none focus:border-rose-500">
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <select name="diff"
+                                            class="w-24 bg-slate-800 border border-slate-700 rounded px-2 py-2 text-xs text-white outline-none focus:border-rose-500">
+                                            <option value="EASY">Easy</option>
+                                            <option value="NORMAL" selected>Normal</option>
+                                            <option value="HARD">Hard</option>
+                                            <option value="CHAOS">Chaos</option>
+                                            <option value="EXTREME">Extreme</option>
+                                        </select>
+                                        <select name="type"
+                                            class="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-2 text-xs text-slate-300 outline-none focus:border-rose-500">
+                                            <option value="WEEKLY" selected>Week</option>
+                                            <option value="MONTHLY">Month</option>
+                                            <option value="DAILY">Daily</option>
+                                        </select>
+                                        <input type="number" name="meso" placeholder="Meso"
+                                            class="w-24 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white outline-none focus:border-rose-500">
+                                        <button type="submit"
+                                            class="bg-rose-600 text-white px-4 py-2 rounded hover:bg-rose-500 font-bold transition-colors">ADD</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="view-system" class="hidden-page fade-in">
+                    <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2"><i data-lucide="settings-2"
+                            class="w-5 h-5 text-slate-400"></i> System Configuration</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                            <h3 class="text-white font-bold text-sm uppercase tracking-wider mb-4">Revenue Calculation
+                            </h3>
+                            <div class="flex justify-between items-center mb-4">
+                                <div>
+                                    <div class="text-slate-300 text-sm font-medium">World Max Crystals</div>
+                                    <div class="text-slate-500 text-[10px]">Total limit for account</div>
+                                </div>
+                                <input type="number" id="config-world-crystals"
+                                    class="w-20 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-right text-white"
+                                    value="180" min="1" onchange="app.saveConfig()">
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <div class="text-slate-300 text-sm font-medium">Character Max Crystals</div>
+                                    <div class="text-slate-500 text-[10px]">Per character limit</div>
+                                </div>
+                                <input type="number" id="config-char-crystals"
+                                    class="w-20 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-right text-white"
+                                    value="14" min="1" onchange="app.saveConfig()">
+                            </div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                            <h3 class="text-white font-bold text-sm uppercase tracking-wider mb-4">Server Names</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1">Server 1
+                                        (Default: Kronos)</label>
+                                    <input type="text" id="config-server-kronos"
+                                        class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white outline-none focus:border-indigo-500"
+                                        placeholder="Kronos" onchange="app.saveConfig()">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1">Server 2
+                                        (Default: Challenger)</label>
+                                    <input type="text" id="config-server-challenger"
+                                        class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white outline-none focus:border-indigo-500"
+                                        placeholder="Challenger" onchange="app.saveConfig()">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 border-l-4 border-l-red-500/50">
+                            <h3 class="text-white font-bold text-sm uppercase tracking-wider mb-4">Data Management</h3>
+                            <button onclick="app.resetAllData()"
+                                class="w-full border border-red-500/30 text-red-400 hover:bg-red-500/10 py-2 rounded-lg text-sm transition-colors flex justify-center gap-2"><i
+                                    data-lucide="trash-2" class="w-4 h-4"></i> Factory Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="char-modal"
+        class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div
+            class="bg-slate-900 border border-slate-700 w-full max-w-3xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950">
+                <h3 class="text-white font-bold text-lg" id="modal-title">Edit Character</h3>
+                <button type="button" onclick="app.closeCharModal()" class="text-slate-400 hover:text-white"><i
+                        data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form id="char-form" onsubmit="app.saveCharacter(event)" class="flex flex-col flex-1 overflow-hidden">
+                <input type="hidden" name="id">
+                <div class="p-6 bg-slate-900 border-b border-slate-800 flex-shrink-0 space-y-4">
+                    <div class="grid grid-cols-12 gap-4">
+                        <div class="col-span-12 md:col-span-9">
+                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1">Character Name /
+                                IGN</label>
+                            <div class="flex gap-2">
+                                <input type="text" name="name" required
+                                    class="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none"
+                                    onblur="app.fetchCharacterData()">
+                                <button type="button" onclick="app.fetchCharacterData()"
+                                    class="bg-indigo-600 text-white px-3 py-2 rounded text-xs font-bold hover:bg-indigo-500 whitespace-nowrap">Fetch</button>
+                            </div>
+                        </div>
+                        <div class="col-span-12 md:col-span-3">
+                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1">Level</label>
+                            <input type="number" name="level"
+                                class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-12 gap-4">
+                        <div class="col-span-12 md:col-span-4">
+                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1">Role</label>
+                            <select name="role"
+                                class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none">
+                                <option value="MAIN">Main</option>
+                                <option value="SUB">Sub</option>
+                                <option value="MULE">Mule</option>
+                            </select>
+                        </div>
+                        <div class="col-span-12 md:col-span-8">
+                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1">Job
+                                Selection</label>
+                            <select name="job-select" id="char-job-select" onchange="app.onJobSelect(this.value)"
+                                class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none">
+                                <option value="">Select a Class</option>
+                            </select>
+                            <input type="hidden" name="job">
+                            <input type="hidden" name="image">
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4">
+                        <!-- Class Image Preview -->
+                        <div id="preview-class-container"
+                            class="hidden flex-1 flex items-center gap-3 bg-slate-900/50 p-3 rounded-lg border border-slate-800/50">
+                            <img id="preview-class-img" src="" class="w-12 h-12 object-contain rounded">
+                            <div class="min-w-0">
+                                <div class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-0.5">Class
+                                </div>
+                                <div id="preview-class-name" class="text-white text-sm font-bold truncate"></div>
+                            </div>
+                        </div>
+                        <!-- API Image Preview -->
+                        <div id="preview-api-container"
+                            class="hidden flex-1 flex items-center gap-3 bg-slate-900/50 p-3 rounded-lg border border-slate-800/50">
+                            <img id="preview-api-img" src="" class="w-12 h-12 object-contain rounded hidden">
+                            <div id="preview-api-placeholder"
+                                class="w-12 h-12 flex items-center justify-center bg-slate-800 rounded text-[8px] text-slate-500 font-bold tracking-widest text-center leading-tight">
+                                NO<br>IMG</div>
+                            <div class="min-w-0">
+                                <div class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-0.5">API /
+                                    Custom</div>
+                                <div id="preview-api-name" class="text-white text-xs font-mono truncate">--</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-slate-500 text-[10px] uppercase font-bold mb-2">Server</label>
+                        <div class="flex gap-4">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="server"
+                                    value="KRONOS" class="accent-indigo-500 w-4 h-4"><span id="lbl-server-KRONOS"
+                                    class="text-white text-sm ml-1">Kronos (Reboot)</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="server"
+                                    value="CHALLENGER" class="accent-indigo-500 w-4 h-4"><span
+                                    id="lbl-server-CHALLENGER" class="text-white text-sm ml-1">Challenger
+                                    (Reg)</span></label>
+                        </div>
+                    </div>
+
+                    <div class="mt-2">
+                        <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1">Memo</label>
+                        <textarea name="memo"
+                            class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none resize-none h-16"></textarea>
+                    </div>
+                </div>
+                <div class="flex bg-slate-900/50 flex-shrink-0">
+                    <button type="button" onclick="app.switchCharTab('daily')" id="char-tab-btn-daily"
+                        class="flex-1 py-3 text-xs font-bold transition-colors tab-active">Daily</button>
+                    <button type="button" onclick="app.switchCharTab('weekly')" id="char-tab-btn-weekly"
+                        class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive">Weekly</button>
+                    <button type="button" onclick="app.switchCharTab('boss')" id="char-tab-btn-boss"
+                        class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive">Bosses</button>
+                </div>
+                <div id="char-boss-filters"
+                    class="hidden flex gap-2 p-3 bg-slate-900 border-b border-slate-800 overflow-x-auto flex-shrink-0">
+                    <button type="button" onclick="app.filterCharBosses('ALL')"
+                        class="px-2 py-1 rounded text-[10px] border border-slate-600 text-slate-300 hover:bg-slate-700">ALL</button>
+                    <button type="button" onclick="app.filterCharBosses('EASY')"
+                        class="px-2 py-1 rounded text-[10px] badge-easy">EASY</button>
+                    <button type="button" onclick="app.filterCharBosses('NORMAL')"
+                        class="px-2 py-1 rounded text-[10px] badge-normal">NORMAL</button>
+                    <button type="button" onclick="app.filterCharBosses('HARD')"
+                        class="px-2 py-1 rounded text-[10px] badge-hard">HARD</button>
+                    <button type="button" onclick="app.filterCharBosses('CHAOS')"
+                        class="px-2 py-1 rounded text-[10px] badge-chaos">CHAOS</button>
+                    <button type="button" onclick="app.filterCharBosses('EXTREME')"
+                        class="px-2 py-1 rounded text-[10px] badge-extreme">EXTREME</button>
+                </div>
+                <div class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-900">
+                    <div id="char-content-daily" class="block">
+                        <div class="space-y-1" id="modal-daily-list"></div>
+                    </div>
+                    <div id="char-content-weekly" class="hidden">
+                        <div class="space-y-1" id="modal-weekly-list"></div>
+                    </div>
+                    <div id="char-content-boss" class="hidden">
+                        <div class="space-y-1" id="modal-boss-list"></div>
+                    </div>
+                </div>
+                <div class="p-4 border-t border-slate-800 bg-slate-950 flex justify-end gap-3 flex-shrink-0">
+                    <button type="button" onclick="app.closeCharModal()"
+                        class="px-4 py-2 text-slate-400 hover:text-white text-sm">Cancel</button>
+                    <button type="submit"
+                        class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-lg font-bold text-sm">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+
+</html>
