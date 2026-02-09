@@ -503,7 +503,7 @@ const app = {
                         ${char.classImage ? `<img src="${char.classImage}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">` : `<div class="flex flex-col items-center justify-center text-slate-700"><i data-lucide="user" class="w-16 h-16 mb-2 opacity-50"></i><span class="text-[10px] font-bold tracking-widest opacity-30">NO IMAGE</span></div>`}
                         <div class="absolute top-3 left-3 flex flex-col gap-1 items-start z-10">
                             <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${char.role === 'MAIN' ? 'border-yellow-500/50 text-yellow-400 bg-yellow-950/40' : (char.role === 'SUB' ? 'border-cyan-500/50 text-cyan-400 bg-cyan-950/40' : 'border-slate-600 text-slate-400 bg-slate-900/60')} backdrop-blur-sm shadow-md">${char.role}</span>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold border border-slate-700 text-slate-200 bg-slate-950/60 backdrop-blur-sm shadow-md">Lv.${char.level || '---'}</span>
+
                         </div>
                         <div class="absolute top-3 right-3 z-10 drop-shadow-md">
                              <div class="bg-slate-950/80 backdrop-blur-md px-2 py-0.5 rounded-md border border-slate-700/30 flex items-baseline gap-1 shadow-lg">
