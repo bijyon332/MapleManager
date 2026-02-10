@@ -371,30 +371,35 @@ const app = {
             const statsContainer = document.getElementById('dashboard-stats-container');
             if (statsContainer) {
                 statsContainer.innerHTML = `
-                    <div class="flex items-center gap-4 opacity-40">
-                        <div class="text-right">
-                            <div class="text-[10px] uppercase font-bold text-emerald-500 tracking-wider">Kronos</div>
-                            <div class="text-xs font-mono text-emerald-300 font-bold">0</div>
+                    <div class="flex items-center gap-2">
+                        <!-- Total Revenue Section -->
+                        <div class="min-w-[200px] flex flex-col items-start justify-center border-r border-slate-700/50 pr-4 mr-1 cursor-pointer group" onclick="app.toggleRevenueMode()">
+                            <div class="text-[10px] uppercase font-black text-slate-400 tracking-widest transition-colors mb-0.5">Total ${(this.data.config.revenueMode || 'weekly') === 'monthly' ? 'Monthly' : 'Weekly'}</div>
+                            <div class="text-xl font-bold font-mono text-amber-300 tracking-tight group-hover:scale-105 transition-transform leading-none shadow-amber-900/20 drop-shadow-md">0</div>
                         </div>
-                        <div class="flex flex-col items-center justify-center bg-slate-800/50 rounded px-2 py-1 border border-emerald-900/30">
-                            <i data-lucide="gem" class="w-3 h-3 text-emerald-400 mb-0.5"></i>
-                            <div class="text-[10px] font-mono font-bold text-white">0/${this.data.config.worldMaxCrystals || 180}</div>
-                        </div>
-                    </div>
 
-                    <div class="flex flex-col items-center justify-center px-6 border-x border-slate-800 cursor-pointer group" onclick="app.toggleRevenueMode()">
-                        <div class="text-[9px] uppercase font-bold text-slate-500 tracking-widest group-hover:text-indigo-400 transition-colors mb-0.5">Total Weekly Revenue</div>
-                        <div class="text-xl font-bold font-mono text-white tracking-tight group-hover:scale-105 transition-transform">0</div>
-                    </div>
-
-                    <div class="flex items-center gap-4 opacity-40">
-                        <div class="flex flex-col items-center justify-center bg-slate-800/50 rounded px-2 py-1 border border-purple-900/30">
-                            <i data-lucide="gem" class="w-3 h-3 text-purple-400 mb-0.5"></i>
-                            <div class="text-[10px] font-mono font-bold text-white">0/${this.data.config.worldMaxCrystals || 180}</div>
+                        <!-- Kronos Section -->
+                        <div class="w-52 flex items-center gap-2 opacity-40">
+                            <div class="flex flex-col items-center justify-center bg-slate-800/50 rounded px-2 py-1 border border-emerald-900/30 min-w-[54px]">
+                                <i data-lucide="gem" class="w-3.5 h-3.5 text-emerald-400 mb-0.5"></i>
+                                <span class="text-xs font-mono font-bold text-white">0/${this.data.config.worldMaxCrystals || 180}</span>
+                            </div>
+                            <div class="flex flex-col items-start justify-center min-w-0 flex-1">
+                                <span class="text-[11px] uppercase font-bold text-emerald-500 tracking-wider leading-none mb-0.5">Kronos</span>
+                                <span class="text-base font-mono text-emerald-300 font-bold leading-none truncate w-full">0</span>
+                            </div>
                         </div>
-                        <div class="text-left">
-                            <div class="text-[10px] uppercase font-bold text-purple-500 tracking-wider">Challenger</div>
-                            <div class="text-xs font-mono text-purple-300 font-bold">0</div>
+
+                        <!-- Challenger Section -->
+                        <div class="w-52 flex items-center gap-2 opacity-40">
+                            <div class="flex flex-col items-center justify-center bg-slate-800/50 rounded px-2 py-1 border border-purple-900/30 min-w-[54px]">
+                                <i data-lucide="gem" class="w-3.5 h-3.5 text-purple-400 mb-0.5"></i>
+                                <span class="text-xs font-mono font-bold text-white">0/${this.data.config.worldMaxCrystals || 180}</span>
+                            </div>
+                            <div class="flex flex-col items-start justify-center min-w-0 flex-1">
+                                <span class="text-[11px] uppercase font-bold text-purple-500 tracking-wider leading-none mb-0.5">Challenger</span>
+                                <span class="text-base font-mono text-purple-300 font-bold leading-none truncate w-full">0</span>
+                            </div>
                         </div>
                     </div>
                 `;
