@@ -363,7 +363,7 @@ const app = {
         const labelParent = document.getElementById('revenue-label-container');
         if (!c) return;
         const activeChars = this.data.characters
-            .filter(char => this.data.config.activeServer === 'ALL' || char.server === this.data.config.activeServer)
+            .filter(char => (this.data.config.activeServer === 'ALL' || char.server === this.data.config.activeServer) && !char.hidden)
             .sort((a, b) => (parseInt(b.level) || 0) - (parseInt(a.level) || 0));
 
         if (activeChars.length === 0) {
@@ -415,7 +415,7 @@ const app = {
 
         const calcStats = (chars) => {
             let allCrystals = [], monthlyRev = 0;
-            chars.forEach(char => {
+            chars.filter(c => !c.hidden).forEach(char => {
                 const settings = char.settings || { daily_ids: [], weekly_ids: [], boss_ids: [] };
                 const partySizes = settings.boss_party_sizes || {};
                 const charWeekly = this.data.masterBosses
@@ -589,7 +589,6 @@ const app = {
                 <div class="flex-1 p-4 flex flex-col gap-3 min-w-0">
                     <div class="flex justify-between items-start gap-2">
                         <div class="min-w-0"><h3 class="text-base font-bold text-white truncate leading-tight">${x.name}</h3><p class="text-[11px] text-indigo-400 font-medium truncate mt-0.5">${x.job} ${x.level ? `Lv.${x.level}` : ''}</p></div>
-                        <div class="text-[9px] font-mono border px-1.5 py-0.5 rounded uppercase tracking-widest ${badgeClass}">${x.server === 'KRONOS' ? (this.data.config.serverKName || 'Kronos (Reboot)') : (this.data.config.serverCName || 'Challenger')}</div>
                     </div>
                     <div class="grid grid-cols-3 gap-1.5">
                         <div class="bg-indigo-900/10 border border-indigo-500/20 p-1.5 rounded flex flex-col items-center"><span class="text-[8px] text-indigo-400 uppercase font-bold tracking-tighter">Daily</span><span class="text-xs font-bold text-slate-200">${counts.daily}</span></div>
@@ -712,6 +711,9 @@ const app = {
 
             const radio = f.querySelector(`input[name="server"][value="${c.server || 'KRONOS'}"]`);
             if (radio) radio.checked = true;
+
+            const hiddenCheck = f.querySelector('input[name="hidden"]');
+            if (hiddenCheck) hiddenCheck.checked = !!c.hidden;
         } else {
             this.tempBossIds = new Set();
             this.tempPartySizes = {};
@@ -725,6 +727,10 @@ const app = {
             // Reset Job Select
             const jobSel = document.getElementById('char-job-select');
             if (jobSel) jobSel.value = "";
+
+            // Reset Hidden Check
+            const hiddenCheck = f.querySelector('input[name="hidden"]');
+            if (hiddenCheck) hiddenCheck.checked = false;
 
             // Default Server Selection
             const targetServer = this.data.config.activeServer === 'ALL' ? 'KRONOS' : this.data.config.activeServer;
@@ -822,6 +828,7 @@ const app = {
             image: f.image.value, // This is now reserved for API fetched image (or custom URL if user enters One)
             level: f.level.value,
             memo: f.memo.value,
+            hidden: f.querySelector('input[name="hidden"]')?.checked || false,
             server: f.querySelector('input[name="server"]:checked')?.value || 'KRONOS',
             settings: { daily_ids: Array.from(f.querySelectorAll('input[name="chk_daily"]:checked')).map(c => c.value), weekly_ids: Array.from(f.querySelectorAll('input[name="chk_weekly"]:checked')).map(c => c.value), boss_ids: Array.from(this.tempBossIds), boss_party_sizes: { ...this.tempPartySizes } },
             progress: { daily: pc?.progress?.daily || [], weekly: pc?.progress?.weekly || [], boss: pc?.progress?.boss || [] }
