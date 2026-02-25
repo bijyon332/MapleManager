@@ -142,21 +142,20 @@ const app = {
         }
 
         try {
-            const nexonUrl = `https://www.nexon.com/api/maplestory/no-auth/ranking/v2/na?type=overall&id=legendary&reboot_index=0&page_index=1&character_name=${name}`;
-            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(nexonUrl)}`;
+            const apiUrl = `/api?name=${encodeURIComponent(name)}`;
 
-            if (log) log.innerHTML += `<br>Target: ${nexonUrl}<br>Proxy: ${proxyUrl}`;
+            if (log) log.innerHTML += `<br>API: ${apiUrl}`;
 
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-            const res = await fetch(proxyUrl, { signal: controller.signal });
+            const res = await fetch(apiUrl, { signal: controller.signal });
             clearTimeout(timeoutId);
 
             if (!res.ok) throw new Error(`API Error: ${res.status} ${res.statusText}`);
             const data = await res.json();
 
-            if (log) log.innerHTML += `<br>Response: ${JSON.stringify(data).substring(0, 100)}...`;
+            if (log) log.innerHTML += `<br>Response: ${JSON.stringify(data).substring(0, 200)}...`;
 
             if (data.ranks && data.ranks.length > 0) {
                 // The API returns exact matches usually, but let's filter just in case
@@ -777,12 +776,11 @@ const app = {
             const c = this.data.characters[i];
             if (btn) btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> ${i + 1}/${total}`;
             try {
-                const nexonUrl = `https://www.nexon.com/api/maplestory/no-auth/ranking/v2/na?type=overall&id=legendary&reboot_index=0&page_index=1&character_name=${c.name}`;
-                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(nexonUrl)}`;
+                const apiUrl = `/api?name=${encodeURIComponent(c.name)}`;
 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-                const res = await fetch(proxyUrl, { signal: controller.signal });
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                const res = await fetch(apiUrl, { signal: controller.signal });
                 clearTimeout(timeoutId);
 
                 if (res.ok) {
