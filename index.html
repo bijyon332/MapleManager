@@ -287,8 +287,11 @@
                                 <input type="text" name="name" required
                                     class="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none"
                                     onblur="app.fetchCharacterData()">
-                                <button type="button" onclick="app.fetchCharacterData()"
-                                    class="bg-indigo-600 text-white px-3 py-2 rounded text-xs font-bold hover:bg-indigo-500 whitespace-nowrap">Fetch</button>
+                                <button type="button" id="btn-fetch" onclick="app.fetchCharacterData()"
+                                    class="bg-indigo-600 text-white px-3 py-2 rounded text-xs font-bold hover:bg-indigo-500 whitespace-nowrap flex items-center gap-1.5 min-w-[60px] justify-center">Fetch</button>
+                            </div>
+                            <div id="fetch-debug-log"
+                                class="hidden mt-2 bg-slate-950 border border-slate-700 rounded p-3 text-[11px] font-mono text-slate-300 max-h-[200px] overflow-y-auto custom-scrollbar whitespace-pre-wrap break-all">
                             </div>
                         </div>
                         <div class="col-span-12 md:col-span-3">

@@ -154,39 +154,73 @@ const app = {
         if (e && e.preventDefault) e.preventDefault();
         const f = document.getElementById('char-form');
         const log = document.getElementById('fetch-debug-log');
+        const fetchBtn = document.getElementById('btn-fetch');
 
         if (!f) return;
         const name = f.name.value;
         if (!name) return;
 
+        // Fetchボタンをスピナー状態にする
+        if (fetchBtn) {
+            fetchBtn.disabled = true;
+            fetchBtn.innerHTML = `<svg class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Fetching...`;
+            fetchBtn.classList.add('opacity-70', 'cursor-not-allowed');
+        }
+
+        // ログヘルパー関数
+        const L = (step, status, msg) => {
+            if (!log) return;
+            const colors = { OK: 'text-emerald-400', FAIL: 'text-rose-400', INFO: 'text-sky-400', WARN: 'text-amber-400', DATA: 'text-violet-400' };
+            const col = colors[status] || 'text-slate-400';
+            log.innerHTML += `<div class="flex gap-2 py-0.5 border-b border-slate-800/50"><span class="font-bold ${col} w-10 shrink-0">[${status}]</span><span class="text-slate-500 w-24 shrink-0">${step}</span><span class="text-slate-300">${msg}</span></div>`;
+            log.scrollTop = log.scrollHeight;
+        };
+
+        // Fetchボタンを元に戻す関数
+        const resetBtn = () => {
+            if (fetchBtn) {
+                fetchBtn.disabled = false;
+                fetchBtn.innerHTML = 'Fetch';
+                fetchBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+            }
+        };
+
         if (log) {
-            log.innerHTML = `Fetching info for: ${name}...`;
+            log.innerHTML = `<div class="text-indigo-400 font-bold mb-1 pb-1 border-b border-slate-700">🔍 API Debug Log — "${name}"</div>`;
             log.classList.remove('hidden');
         }
 
         try {
-            if (log) log.innerHTML += `<br>Fetching via API...`;
-
+            // ======== STEP 1: API呼び出し ========
+            L('API', 'INFO', 'Fetching ranking data...');
             const { data, usedUrl } = await this._fetchRanking(name);
+            L('API', 'OK', `Source: ${usedUrl}`);
 
-            if (log) log.innerHTML += `<br>Source: ${usedUrl}<br>Response: ${JSON.stringify(data).substring(0, 200)}...`;
+            // ======== STEP 2: 生JSONを表示 ========
+            const rawJson = JSON.stringify(data, null, 2);
+            L('RAW JSON', 'DATA', `<details><summary class="cursor-pointer text-violet-300 hover:text-violet-200">Click to expand raw JSON (${rawJson.length} chars)</summary><pre class="mt-1 p-2 bg-slate-900 rounded border border-slate-700 text-[10px] text-green-300 max-h-[120px] overflow-auto">${rawJson.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre></details>`);
+
+            // ======== STEP 3: データ解析 ========
+            L('PARSE', 'INFO', `totalCount=${data.totalCount ?? 'N/A'}, ranks=${Array.isArray(data.ranks) ? data.ranks.length : 'missing'}`);
 
             if (data.ranks && data.ranks.length > 0) {
-                // The API returns exact matches usually, but let's filter just in case
                 const char = data.ranks.find(r => r.characterName.toLowerCase() === name.toLowerCase()) || data.ranks[0];
 
-                if (log) log.innerHTML += `<br>Found: ${char.characterName}, Lv.${char.level}, Job:${char.jobName}`;
+                L('MATCH', 'OK', `Found: <span class="text-white font-bold">${char.characterName}</span> Lv.${char.level} (${char.jobName})`);
+                L('FIELDS', 'INFO', `characterImgURL: ${char.characterImgURL ? '✅ present' : '❌ missing'}`);
+                L('FIELDS', 'INFO', `worldID: ${char.worldID}, rank: ${char.rank}, exp: ${char.exp}`);
 
                 // Update basic form fields
                 f.level.value = char.level;
                 f.job.value = char.jobName;
+                L('FORM', 'OK', `level=${char.level}, job=${char.jobName}`);
 
                 // Job Mapping to CLASS_DATA
                 let foundJobId = "";
                 let foundJobImg = "";
                 if (typeof CLASS_DATA !== 'undefined') {
                     const allJobs = Object.values(CLASS_DATA).flat();
-                    const targetJob = char.jobName.toLowerCase().replace(/[^a-z0-9]/g, ''); // Normalize API job name
+                    const targetJob = char.jobName.toLowerCase().replace(/[^a-z0-9]/g, '');
 
                     const matchedJob = allJobs.find(j => {
                         const dbJob = j.name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -196,24 +230,25 @@ const app = {
                     if (matchedJob) {
                         foundJobId = matchedJob.id;
                         foundJobImg = matchedJob.path;
-                        if (log) log.innerHTML += `<br>Matched Key Job: ${matchedJob.name} (${matchedJob.id})`;
+                        L('JOB MAP', 'OK', `"${char.jobName}" → ${matchedJob.name} (id:${matchedJob.id})`);
                     } else {
-                        if (log) log.innerHTML += `<br>No matching key job found for ${char.jobName}`;
+                        L('JOB MAP', 'WARN', `No CLASS_DATA match for "${char.jobName}" (normalized: "${targetJob}")`);
                     }
+                } else {
+                    L('JOB MAP', 'FAIL', 'CLASS_DATA is undefined');
                 }
 
                 // Update Job Select Dropdown
                 const jobSelect = document.getElementById('char-job-select');
                 if (jobSelect && foundJobId) {
                     jobSelect.value = foundJobId;
-                    this.onJobSelect(foundJobId); // This updates preview with class icon
+                    this.onJobSelect(foundJobId);
+                    L('DROPDOWN', 'OK', `Job select updated to: ${foundJobId}`);
                 }
 
                 // Image Handling
-                // Priority: API Character Image > Class Icon > Default/Empty
                 if (char.characterImgURL) {
                     f.image.value = char.characterImgURL;
-                    // API Image Preview - Show Image
                     const apiPrev = document.getElementById('preview-api-container');
                     const apiImg = document.getElementById('preview-api-img');
                     const apiPh = document.getElementById('preview-api-placeholder');
@@ -224,8 +259,8 @@ const app = {
                         document.getElementById('preview-api-name').innerText = "Fetched";
                         apiPrev.classList.remove('hidden');
                     }
+                    L('IMAGE', 'OK', `Set: ${char.characterImgURL.substring(0, 80)}...`);
                 } else {
-                    // API Image Preview - No Image (Placeholder)
                     const apiPrev = document.getElementById('preview-api-container');
                     const apiImg = document.getElementById('preview-api-img');
                     const apiPh = document.getElementById('preview-api-placeholder');
@@ -235,16 +270,18 @@ const app = {
                         document.getElementById('preview-api-name').innerText = "--";
                         apiPrev.classList.remove('hidden');
                     }
+                    L('IMAGE', 'WARN', 'No characterImgURL in API response');
                 }
+
+                L('DONE', 'OK', '✅ Fetch complete');
             } else {
-                if (log) log.innerHTML += `<br>No character found with name: ${name}`;
+                L('PARSE', 'FAIL', `No character found. ranks array is ${data.ranks ? 'empty' : 'missing'}`);
             }
         } catch (error) {
             console.error("Failed to fetch character data:", error);
-            if (log) log.innerHTML += `<br>Error: ${error.message}`;
+            L('ERROR', 'FAIL', `${error.message}`);
         } finally {
-            // Optionally hide log after a delay or on success
-            // setTimeout(() => { if (log) log.classList.add('hidden'); }, 5000);
+            resetBtn();
         }
     },
     checkResets() {
