@@ -2,11 +2,12 @@ const app = {
     data: { config: { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' }, characters: [], masterDailies: [], masterWeeklies: [], masterBosses: [], memo: "" },
     lastLoginDate: null, editingBossId: null, currentTaskTab: 'daily', activeCharId: null, currentBossFilter: 'ALL', tempBossIds: new Set(), tempPartySizes: {},
 
-    // Nexon Ranking APIへのリクエスト: 自前API優先 → corsproxy.ioフォールバック
+    // Nexon Ranking APIへのリクエスト: 自前API優先 → CORSプロキシフォールバック
     async _fetchRanking(characterName, timeoutMs = 10000) {
         const nexonUrl = `https://www.nexon.com/api/maplestory/no-auth/ranking/v2/na?type=overall&id=legendary&reboot_index=0&page_index=1&character_name=${encodeURIComponent(characterName)}`;
         const endpoints = [
             `/api?name=${encodeURIComponent(characterName)}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(nexonUrl)}`,
             `https://corsproxy.io/?${encodeURIComponent(nexonUrl)}`
         ];
         for (const url of endpoints) {
