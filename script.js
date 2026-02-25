@@ -2,6 +2,29 @@ const app = {
     data: { config: { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' }, characters: [], masterDailies: [], masterWeeklies: [], masterBosses: [], memo: "" },
     lastLoginDate: null, editingBossId: null, currentTaskTab: 'daily', activeCharId: null, currentBossFilter: 'ALL', tempBossIds: new Set(), tempPartySizes: {},
 
+    // Nexon Ranking APIへのリクエスト: 自前API優先 → corsproxy.ioフォールバック
+    async _fetchRanking(characterName, timeoutMs = 10000) {
+        const nexonUrl = `https://www.nexon.com/api/maplestory/no-auth/ranking/v2/na?type=overall&id=legendary&reboot_index=0&page_index=1&character_name=${encodeURIComponent(characterName)}`;
+        const endpoints = [
+            `/api?name=${encodeURIComponent(characterName)}`,
+            `https://corsproxy.io/?${encodeURIComponent(nexonUrl)}`
+        ];
+        for (const url of endpoints) {
+            try {
+                const controller = new AbortController();
+                const tid = setTimeout(() => controller.abort(), timeoutMs);
+                const res = await fetch(url, { signal: controller.signal });
+                clearTimeout(tid);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return { data: await res.json(), usedUrl: url };
+            } catch (e) {
+                console.warn(`API attempt failed (${url}):`, e.message);
+            }
+        }
+        throw new Error('All API endpoints failed');
+    },
+
+
     init() {
         this.loadData();
         // Ensure ALL is default if activeServer is invalid
@@ -142,20 +165,11 @@ const app = {
         }
 
         try {
-            const apiUrl = `/api?name=${encodeURIComponent(name)}`;
+            if (log) log.innerHTML += `<br>Fetching via API...`;
 
-            if (log) log.innerHTML += `<br>API: ${apiUrl}`;
+            const { data, usedUrl } = await this._fetchRanking(name);
 
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-            const res = await fetch(apiUrl, { signal: controller.signal });
-            clearTimeout(timeoutId);
-
-            if (!res.ok) throw new Error(`API Error: ${res.status} ${res.statusText}`);
-            const data = await res.json();
-
-            if (log) log.innerHTML += `<br>Response: ${JSON.stringify(data).substring(0, 200)}...`;
+            if (log) log.innerHTML += `<br>Source: ${usedUrl}<br>Response: ${JSON.stringify(data).substring(0, 200)}...`;
 
             if (data.ranks && data.ranks.length > 0) {
                 // The API returns exact matches usually, but let's filter just in case
@@ -776,20 +790,13 @@ const app = {
             const c = this.data.characters[i];
             if (btn) btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> ${i + 1}/${total}`;
             try {
-                const apiUrl = `/api?name=${encodeURIComponent(c.name)}`;
+                const { data } = await this._fetchRanking(c.name, 10000);
 
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000);
-                const res = await fetch(apiUrl, { signal: controller.signal });
-                clearTimeout(timeoutId);
-
-                if (res.ok) {
-                    const data = await res.json();
+                if (data) {
                     if (data.ranks && data.ranks.length > 0) {
                         const info = data.ranks.find(r => r.characterName.toLowerCase() === c.name.toLowerCase()) || data.ranks[0];
                         c.level = info.level;
                         if (info.characterImgURL) c.image = info.characterImgURL;
-                        // c.job = info.jobName; // Optional: update job name if changed? Risk of breaking ID mapping if name format differs.
                         count++;
                     }
                 }
