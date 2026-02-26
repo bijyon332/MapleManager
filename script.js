@@ -1,6 +1,7 @@
 const app = {
     data: { config: { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' }, characters: [], masterDailies: [], masterWeeklies: [], masterBosses: [], memo: "" },
     lastLoginDate: null, editingBossId: null, currentTaskTab: 'daily', activeCharId: null, currentBossFilter: 'ALL', tempBossIds: new Set(), tempPartySizes: {},
+    currentApp: 'planner', expInitialized: false,
 
     // Nexon Ranking APIへのリクエスト: CORSプロキシ経由（フォールバック付き）
     async _fetchRanking(characterName, timeoutMs = 10000) {
@@ -121,7 +122,7 @@ const app = {
         const cBtn = document.getElementById('btn-server-challenger');
 
         if (kBtn && cBtn) {
-            const base = "px-3 py-1.5 rounded text-xs font-bold transition-all border";
+            const base = "px-2.5 py-1 rounded text-[10px] font-bold transition-all border";
 
             const kActive = "bg-emerald-950/40 text-emerald-200 border-emerald-800 shadow-sm";
             const cActive = "bg-purple-950/40 text-purple-200 border-purple-800 shadow-sm";
@@ -153,12 +154,15 @@ const app = {
     async fetchCharacterData(e) {
         if (e && e.preventDefault) e.preventDefault();
         const f = document.getElementById('char-form');
-        const log = document.getElementById('fetch-debug-log');
         const fetchBtn = document.getElementById('btn-fetch');
+        const errMsg = document.getElementById('fetch-error-msg');
 
         if (!f) return;
         const name = f.name.value;
         if (!name) return;
+
+        // エラーメッセージを非表示にリセット
+        if (errMsg) { errMsg.classList.add('hidden'); errMsg.textContent = ''; }
 
         // Fetchボタンをスピナー状態にする
         if (fetchBtn) {
@@ -167,14 +171,8 @@ const app = {
             fetchBtn.classList.add('opacity-70', 'cursor-not-allowed');
         }
 
-        // ログヘルパー関数
-        const L = (step, status, msg) => {
-            if (!log) return;
-            const colors = { OK: 'text-emerald-400', FAIL: 'text-rose-400', INFO: 'text-sky-400', WARN: 'text-amber-400', DATA: 'text-violet-400' };
-            const col = colors[status] || 'text-slate-400';
-            log.innerHTML += `<div class="flex gap-2 py-0.5 border-b border-slate-800/50"><span class="font-bold ${col} w-10 shrink-0">[${status}]</span><span class="text-slate-500 w-24 shrink-0">${step}</span><span class="text-slate-300">${msg}</span></div>`;
-            log.scrollTop = log.scrollHeight;
-        };
+        // コンソールログヘルパー
+        const L = (step, status, msg) => console.log(`[Fetch][${status}] ${step}: ${msg}`);
 
         // Fetchボタンを元に戻す関数
         const resetBtn = () => {
@@ -185,32 +183,19 @@ const app = {
             }
         };
 
-        if (log) {
-            log.innerHTML = `<div class="text-indigo-400 font-bold mb-1 pb-1 border-b border-slate-700">🔍 API Debug Log — "${name}"</div>`;
-            log.classList.remove('hidden');
-        }
-
         try {
-            // ======== STEP 1: API呼び出し ========
-            L('API', 'INFO', 'Fetching ranking data...');
+            L('API', 'INFO', `Fetching ranking data for "${name}"...`);
             const { data, usedUrl } = await this._fetchRanking(name);
             L('API', 'OK', `Source: ${usedUrl}`);
-
-            // ======== STEP 2: 生JSONを表示 ========
-            const rawJson = JSON.stringify(data, null, 2);
-            L('RAW JSON', 'DATA', `<details><summary class="cursor-pointer text-violet-300 hover:text-violet-200">Click to expand raw JSON (${rawJson.length} chars)</summary><pre class="mt-1 p-2 bg-slate-900 rounded border border-slate-700 text-[10px] text-green-300 max-h-[120px] overflow-auto">${rawJson.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre></details>`);
-
-            // ======== STEP 3: データ解析 ========
+            L('RAW JSON', 'DATA', JSON.stringify(data));
             L('PARSE', 'INFO', `totalCount=${data.totalCount ?? 'N/A'}, ranks=${Array.isArray(data.ranks) ? data.ranks.length : 'missing'}`);
 
             if (data.ranks && data.ranks.length > 0) {
                 const char = data.ranks.find(r => r.characterName.toLowerCase() === name.toLowerCase()) || data.ranks[0];
 
-                L('MATCH', 'OK', `Found: <span class="text-white font-bold">${char.characterName}</span> Lv.${char.level} (${char.jobName})`);
-                L('FIELDS', 'INFO', `characterImgURL: ${char.characterImgURL ? '✅ present' : '❌ missing'}`);
-                L('FIELDS', 'INFO', `worldID: ${char.worldID}, rank: ${char.rank}, exp: ${char.exp}`);
+                L('MATCH', 'OK', `Found: ${char.characterName} Lv.${char.level} (${char.jobName})`);
+                L('FIELDS', 'INFO', `imgURL=${char.characterImgURL ? 'present' : 'missing'}, worldID=${char.worldID}, rank=${char.rank}`);
 
-                // Update basic form fields
                 f.level.value = char.level;
                 f.job.value = char.jobName;
                 L('FORM', 'OK', `level=${char.level}, job=${char.jobName}`);
@@ -234,8 +219,6 @@ const app = {
                     } else {
                         L('JOB MAP', 'WARN', `No CLASS_DATA match for "${char.jobName}" (normalized: "${targetJob}")`);
                     }
-                } else {
-                    L('JOB MAP', 'FAIL', 'CLASS_DATA is undefined');
                 }
 
                 // Update Job Select Dropdown
@@ -273,13 +256,14 @@ const app = {
                     L('IMAGE', 'WARN', 'No characterImgURL in API response');
                 }
 
-                L('DONE', 'OK', '✅ Fetch complete');
+                L('DONE', 'OK', 'Fetch complete');
             } else {
                 L('PARSE', 'FAIL', `No character found. ranks array is ${data.ranks ? 'empty' : 'missing'}`);
+                if (errMsg) { errMsg.textContent = `Failed to fetch: No character found with name "${name}".`; errMsg.classList.remove('hidden'); }
             }
         } catch (error) {
             console.error("Failed to fetch character data:", error);
-            L('ERROR', 'FAIL', `${error.message}`);
+            if (errMsg) { errMsg.textContent = `Failed to fetch character data. Please try again later.`; errMsg.classList.remove('hidden'); }
         } finally {
             resetBtn();
         }
@@ -312,11 +296,46 @@ const app = {
     },
     startClock() { setInterval(() => { const n = new Date(); document.getElementById('clock-jst').innerText = n.toLocaleTimeString('ja-JP', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }); document.getElementById('clock-utc').innerText = n.toISOString().split('T')[1].split('.')[0]; }, 1000); },
     navigate(view) {
-        document.querySelectorAll('[id^="view-"]').forEach(e => e.classList.add('hidden-page'));
+        ['dashboard', 'characters', 'tasks', 'system'].forEach(v => {
+            const el = document.getElementById(`view-${v}`);
+            if (el) el.classList.add('hidden-page');
+        });
         document.querySelectorAll('[id^="nav-"]').forEach(e => { e.classList.remove('nav-active'); e.classList.add('nav-inactive'); });
         document.getElementById(`view-${view}`).classList.remove('hidden-page');
-        document.getElementById(`nav-${view}`).classList.add('nav-active');
+        document.querySelectorAll(`[id="nav-${view}"]`).forEach(e => { e.classList.add('nav-active'); e.classList.remove('nav-inactive'); });
         if (view === 'dashboard') this.renderDashboard(); if (view === 'characters') this.renderCharacters(); if (view === 'tasks') this.renderTaskMaster();
+    },
+
+    switchApp(appName) {
+        this.currentApp = appName;
+        document.querySelectorAll('[id^="app-"]').forEach(e => { e.classList.remove('nav-active'); e.classList.add('nav-inactive'); });
+        const appBtn = document.getElementById(`app-${appName}`);
+        if (appBtn) { appBtn.classList.add('nav-active'); appBtn.classList.remove('nav-inactive'); }
+
+        document.querySelectorAll('[id^="view-"]').forEach(e => e.classList.add('hidden-page'));
+
+        const headerNav = document.querySelector('header nav');
+        const dashStats = document.getElementById('dashboard-stats-container');
+        const clockEl = document.querySelector('header > div:last-child');
+
+        if (appName === 'planner') {
+            if (headerNav) headerNav.style.display = '';
+            if (dashStats) dashStats.style.display = '';
+            if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = '';
+            if (clockEl) clockEl.classList.remove('ml-auto');
+            this.navigate('dashboard');
+        } else if (appName === 'exp') {
+            if (headerNav) headerNav.style.display = 'none';
+            if (dashStats) dashStats.style.display = 'none';
+            if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = 'none';
+            if (clockEl) clockEl.classList.add('ml-auto');
+            document.getElementById('view-exp-sim').classList.remove('hidden-page');
+            if (!this.expInitialized) {
+                expSim.init();
+                this.expInitialized = true;
+                lucide.createIcons();
+            }
+        }
     },
 
     getRoleStyle(role) {

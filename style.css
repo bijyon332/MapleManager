@@ -59,11 +59,35 @@ body {
     color: #cbd5e1;
 }
 
-.badge-easy { background-color: #374151; color: #9ca3af; border: 1px solid #4b5563; }
-.badge-normal { background-color: #0e7490; color: #cffafe; border: 1px solid #22d3ee; }
-.badge-hard { background-color: #991b1b; color: #fecaca; border: 1px solid #f87171; }
-.badge-chaos { background-color: #282206; color: #facc15; border: 1px solid #ca8a04; }
-.badge-extreme { background-color: #450a0a; color: #f87171; border: 1px solid #ef4444; }
+.badge-easy {
+    background-color: #374151;
+    color: #9ca3af;
+    border: 1px solid #4b5563;
+}
+
+.badge-normal {
+    background-color: #0e7490;
+    color: #cffafe;
+    border: 1px solid #22d3ee;
+}
+
+.badge-hard {
+    background-color: #991b1b;
+    color: #fecaca;
+    border: 1px solid #f87171;
+}
+
+.badge-chaos {
+    background-color: #282206;
+    color: #facc15;
+    border: 1px solid #ca8a04;
+}
+
+.badge-extreme {
+    background-color: #450a0a;
+    color: #f87171;
+    border: 1px solid #ef4444;
+}
 
 .task-btn-compact {
     min-height: 34px !important;
@@ -72,6 +96,177 @@ body {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== EXP Simulator Styles ===== */
+.exp-cb-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+}
+
+.exp-cb-divider {
+    height: 1px;
+    background: #1e293b;
+    margin: 4px 0;
+    opacity: 0.5;
+}
+
+.exp-cb-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 11px;
+    color: #94a3b8;
+    transition: background 0.1s, color 0.1s;
+}
+
+.exp-cb-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: #e2e8f0;
+}
+
+.exp-cb-item input[type="checkbox"] {
+    width: 13px;
+    height: 13px;
+    accent-color: #6366f1;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.exp-lv-tag {
+    font-size: 9px;
+    font-family: monospace;
+    color: #475569;
+    background: #1e293b;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: auto;
+}
+
+.exp-potion-row,
+.exp-event-row {
+    display: grid;
+    gap: 6px;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(30, 41, 59, 0.6);
+}
+
+.exp-potion-row {
+    grid-template-columns: 1fr 60px 110px 28px;
+}
+
+.exp-event-row {
+    grid-template-columns: 1fr 28px;
+}
+
+.exp-potion-row:last-child,
+.exp-event-row:last-child {
+    border-bottom: none;
+}
+
+.exp-del-btn {
+    background: none;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    color: #475569;
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.exp-del-btn:hover {
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
+#view-exp-sim input[type="date"],
+#view-exp-sim input[type="number"],
+#view-exp-sim input[type="text"],
+#view-exp-sim select {
+    font-family: 'Courier New', monospace;
+}
+
+#view-exp-sim input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.7);
+    cursor: pointer;
+    opacity: 0.6;
+}
+
+#view-exp-sim select option {
+    background: #0f172a;
+}
+
+.exp-stat-card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+
+.exp-stat-lbl {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #475569;
+    margin-bottom: 5px;
+}
+
+.exp-stat-val {
+    font-family: monospace;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.exp-stat-sub {
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 4px;
+    font-family: monospace;
+}
+
+.exp-section-toggle {
+    transition: transform 0.2s;
+}
+
+.exp-section-toggle.open {
+    transform: rotate(180deg);
+}
+
+#view-exp-sim table td {
+    padding: 6px 12px;
+    color: #94a3b8;
+    white-space: nowrap;
+    font-size: 11px;
+}
+
+#view-exp-sim table tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.exp-is-lvup td {
+    background: rgba(34, 197, 94, 0.04) !important;
+}
+
+.exp-is-pot td {
+    background: rgba(168, 85, 247, 0.04) !important;
 }
