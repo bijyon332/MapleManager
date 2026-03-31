@@ -16,11 +16,13 @@
             }
         }
     </script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="config.js" defer></script>
     <script src="class_data.js" defer></script>
     <script src="exp_data.js" defer></script>
     <script src="exp_sim.js" defer></script>
+    <script src="cost_calc.js" defer></script>
     <script src="script.js" defer></script>
 </head>
 
@@ -42,6 +44,11 @@
                 class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
                 title="EXP Simulator">
                 <i data-lucide="activity" class="w-5 h-5"></i>
+            </button>
+            <button onclick="app.switchApp('cost')" id="app-cost"
+                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
+                title="Cost Calculator">
+                <i data-lucide="calculator" class="w-5 h-5"></i>
             </button>
         </nav>
     </aside>
@@ -450,6 +457,11 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- ========== COST CALCULATOR APP ========== -->
+                <div id="view-cost-calc" class="hidden-page fade-in">
+                    <div id="cost-calc-root"></div>
                 </div>
 
                 <div id="view-system" class="hidden-page fade-in">

@@ -1,7 +1,7 @@
 const app = {
     data: { config: { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' }, characters: [], masterDailies: [], masterWeeklies: [], masterBosses: [], memo: "" },
     lastLoginDate: null, editingBossId: null, currentTaskTab: 'daily', activeCharId: null, currentBossFilter: 'ALL', tempBossIds: new Set(), tempPartySizes: {},
-    currentApp: 'planner', expInitialized: false,
+    currentApp: 'planner', expInitialized: false, costInitialized: false,
 
     // Nexon Ranking APIへのリクエスト: CORSプロキシ経由（フォールバック付き）
     async _fetchRanking(characterName, timeoutMs = 10000) {
@@ -334,6 +334,16 @@ const app = {
                 expSim.init();
                 this.expInitialized = true;
                 lucide.createIcons();
+            }
+        } else if (appName === 'cost') {
+            if (headerNav) headerNav.style.display = 'none';
+            if (dashStats) dashStats.style.display = 'none';
+            if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = 'none';
+            if (clockEl) clockEl.classList.add('ml-auto');
+            document.getElementById('view-cost-calc').classList.remove('hidden-page');
+            if (!this.costInitialized) {
+                costCalc.init();
+                this.costInitialized = true;
             }
         }
     },
