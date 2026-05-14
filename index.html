@@ -114,16 +114,31 @@
                 </div>
 
                 <div id="view-characters" class="hidden-page fade-in">
-                    <!-- Characters Actions (Layer 3: Feature Actions) -->
-                    <div class="flex items-center justify-end gap-2 mb-4">
-                        <button onclick="app.updateAllCharacters()" id="btn-update-all"
-                            class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><i
-                                data-lucide="refresh-cw" class="w-4 h-4"></i>Update All</button>
-                        <button onclick="app.openCharModal()"
-                            class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"><i
-                                data-lucide="plus" class="w-4 h-4"></i>Add Character</button>
+                    <!-- Manage Roster Header (MapleHub style) -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-5">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="bg-indigo-600/20 border border-indigo-500/30 rounded-lg p-2"><i data-lucide="users" class="w-4 h-4 text-indigo-400"></i></div>
+                            <div class="flex-1">
+                                <h2 class="text-white font-bold text-base leading-tight">Manage Roster</h2>
+                                <p class="text-[11px] text-slate-500">Add characters and pull live data from the Ranking API</p>
+                            </div>
+                            <span id="roster-count-badge" class="px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-[11px] text-slate-300 font-bold">0 Characters</span>
+                        </div>
+                        <form onsubmit="app.quickAddCharacter(event)" class="flex items-center gap-2 max-w-2xl mx-auto">
+                            <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+                                <button type="button" onclick="app.setServer('KRONOS')" id="btn-quick-srv-kronos" class="px-3 py-1.5 rounded text-[11px] font-bold transition-all">Kronos</button>
+                                <button type="button" onclick="app.setServer('CHALLENGER')" id="btn-quick-srv-challenger" class="px-3 py-1.5 rounded text-[11px] font-bold transition-all">Challenger</button>
+                            </div>
+                            <div class="flex-1 relative">
+                                <i data-lucide="user-plus" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                                <input type="text" id="quick-add-name" required placeholder="Add character to roster..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white outline-none focus:border-indigo-500">
+                            </div>
+                            <button type="submit" id="btn-quick-add" class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors min-w-[44px]"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                            <button type="button" onclick="app.updateAllCharacters()" id="btn-update-all" title="Refresh all characters" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>Update All</button>
+                        </form>
+                        <div id="quick-add-msg" class="hidden mt-2 text-[11px] font-medium text-center"></div>
                     </div>
-                    <div id="char-list-container" class="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6"></div>
+                    <div id="char-list-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"></div>
                 </div>
 
                 <div id="view-tasks" class="hidden-page fade-in flex flex-col h-[calc(100vh-7rem)]">
@@ -631,26 +646,9 @@
                 </div>
                 <div class="flex bg-slate-900/50 flex-shrink-0">
                     <button type="button" onclick="app.switchCharTab('daily')" id="char-tab-btn-daily"
-                        class="flex-1 py-3 text-xs font-bold transition-colors tab-active">Daily</button>
+                        class="flex-1 py-3 text-xs font-bold transition-colors tab-active">Daily Tasks</button>
                     <button type="button" onclick="app.switchCharTab('weekly')" id="char-tab-btn-weekly"
-                        class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive">Weekly</button>
-                    <button type="button" onclick="app.switchCharTab('boss')" id="char-tab-btn-boss"
-                        class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive">Bosses</button>
-                </div>
-                <div id="char-boss-filters"
-                    class="hidden flex gap-2 p-3 bg-slate-900 border-b border-slate-800 overflow-x-auto flex-shrink-0">
-                    <button type="button" onclick="app.filterCharBosses('ALL')"
-                        class="px-2 py-1 rounded text-[10px] border border-slate-600 text-slate-300 hover:bg-slate-700">ALL</button>
-                    <button type="button" onclick="app.filterCharBosses('EASY')"
-                        class="px-2 py-1 rounded text-[10px] badge-easy">EASY</button>
-                    <button type="button" onclick="app.filterCharBosses('NORMAL')"
-                        class="px-2 py-1 rounded text-[10px] badge-normal">NORMAL</button>
-                    <button type="button" onclick="app.filterCharBosses('HARD')"
-                        class="px-2 py-1 rounded text-[10px] badge-hard">HARD</button>
-                    <button type="button" onclick="app.filterCharBosses('CHAOS')"
-                        class="px-2 py-1 rounded text-[10px] badge-chaos">CHAOS</button>
-                    <button type="button" onclick="app.filterCharBosses('EXTREME')"
-                        class="px-2 py-1 rounded text-[10px] badge-extreme">EXTREME</button>
+                        class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive">Weekly Tasks</button>
                 </div>
                 <div class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-900">
                     <div id="char-content-daily" class="block">
@@ -658,9 +656,6 @@
                     </div>
                     <div id="char-content-weekly" class="hidden">
                         <div class="space-y-1" id="modal-weekly-list"></div>
-                    </div>
-                    <div id="char-content-boss" class="hidden">
-                        <div class="space-y-1" id="modal-boss-list"></div>
                     </div>
                 </div>
                 <div class="p-4 border-t border-slate-800 bg-slate-950 flex justify-end gap-3 flex-shrink-0">
@@ -670,6 +665,55 @@
                         class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-lg font-bold text-sm">Save</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- ========== BOSS CONFIG MODAL (MapleHub style) ========== -->
+    <div id="boss-config-modal" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-700 w-full max-w-6xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            <div class="p-5 border-b border-slate-800 flex justify-between items-start bg-slate-950">
+                <div class="min-w-0">
+                    <h3 class="text-white font-bold text-lg leading-tight">Choose bosses for <span id="bc-char-name" class="text-indigo-300"></span></h3>
+                    <p class="text-[11px] text-slate-500 mt-1">Select bosses and configure party sizes. Monthly bosses have no restrictions, while weekly bosses are limited per character.</p>
+                    <div class="mt-2 text-xs text-slate-400">
+                        <span id="bc-counter" class="font-mono text-white font-bold">0/14</span>
+                        <span class="text-slate-600 mx-1">•</span>
+                        <span id="bc-total-selected">0 total selected</span>
+                    </div>
+                </div>
+                <button type="button" onclick="app.closeBossConfigModal()" class="text-slate-400 hover:text-white flex-shrink-0"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="flex-1 flex overflow-hidden">
+                <!-- Sidebar -->
+                <aside class="w-56 bg-slate-950/50 border-r border-slate-800 flex-shrink-0 flex flex-col">
+                    <nav class="p-3 space-y-1">
+                        <button type="button" onclick="app.switchBossConfigTab('MONTHLY')" id="bc-tab-MONTHLY" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold transition-colors text-slate-400 hover:bg-slate-800/50 hover:text-white"><i data-lucide="calendar" class="w-3.5 h-3.5"></i>Monthly</button>
+                        <button type="button" onclick="app.switchBossConfigTab('WEEKLY')" id="bc-tab-WEEKLY" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold transition-colors bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"><i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i>Weekly</button>
+                        <button type="button" onclick="app.switchBossConfigTab('DAILY')" id="bc-tab-DAILY" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold transition-colors text-slate-400 hover:bg-slate-800/50 hover:text-white"><i data-lucide="sun" class="w-3.5 h-3.5"></i>Daily</button>
+                    </nav>
+                    <div class="border-t border-slate-800 mx-3"></div>
+                    <div class="p-3 mt-auto">
+                        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Weekly Earnings</div>
+                        <div id="bc-weekly-earnings" class="text-amber-300 font-mono font-bold text-base">0</div>
+                    </div>
+                </aside>
+                <!-- Main content -->
+                <div class="flex-1 flex flex-col overflow-hidden bg-slate-900">
+                    <div class="p-4 border-b border-slate-800 flex items-center gap-2 flex-shrink-0">
+                        <div class="relative flex-1">
+                            <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                            <input type="text" id="bc-search" placeholder="Search bosses..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-xs text-white outline-none focus:border-indigo-500" oninput="app.renderBossConfigGrid()">
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
+                        <div id="bc-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-800 bg-slate-950 flex justify-end gap-3 flex-shrink-0">
+                <button type="button" onclick="app.closeBossConfigModal()" class="px-4 py-2 text-slate-400 hover:text-white text-sm">Cancel</button>
+                <button type="button" onclick="app.saveBossConfig()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2"><i data-lucide="save" class="w-4 h-4"></i>Save Configuration</button>
+            </div>
         </div>
     </div>
 </body>

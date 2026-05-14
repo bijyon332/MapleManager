@@ -2,6 +2,7 @@ const app = {
     data: { config: { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' }, characters: [], masterDailies: [], masterWeeklies: [], masterBosses: [], memo: "" },
     lastLoginDate: null, editingBossId: null, currentTaskTab: 'daily', activeCharId: null, currentBossFilter: 'ALL', tempBossIds: new Set(), tempPartySizes: {},
     currentApp: 'planner', expInitialized: false, costInitialized: false,
+    bcCharId: null, bcTab: 'WEEKLY', bcSelected: {}, bcParty: {}, bcDiff: {},
 
     // Nexon Ranking APIへのリクエスト: CORSプロキシ経由（フォールバック付き）
     async _fetchRanking(characterName, timeoutMs = 10000) {
@@ -135,10 +136,22 @@ const app = {
                 kBtn.className = `${base} ${inactive}`;
                 cBtn.className = `${base} ${cActive}`;
             } else {
-                // ALL
                 kBtn.className = `${base} ${kActive}`;
                 cBtn.className = `${base} ${cActive}`;
             }
+        }
+
+        // Quick-add server toggle on Characters view
+        const qK = document.getElementById('btn-quick-srv-kronos');
+        const qC = document.getElementById('btn-quick-srv-challenger');
+        if (qK && qC) {
+            const qBase = "px-3 py-1.5 rounded text-[11px] font-bold transition-all";
+            const qkActive = "bg-emerald-600 text-white shadow-sm";
+            const qcActive = "bg-purple-600 text-white shadow-sm";
+            const qIn = "text-slate-400 hover:text-white";
+            if (srv === 'KRONOS') { qK.className = `${qBase} ${qkActive}`; qC.className = `${qBase} ${qIn}`; }
+            else if (srv === 'CHALLENGER') { qK.className = `${qBase} ${qIn}`; qC.className = `${qBase} ${qcActive}`; }
+            else { qK.className = `${qBase} ${qkActive}`; qC.className = `${qBase} ${qcActive}`; }
         }
     },
     saveConfig() {
@@ -650,40 +663,137 @@ const app = {
     renderCharacters() {
         const c = document.getElementById('char-list-container');
         const activeChars = this.data.characters.filter(char => this.data.config.activeServer === 'ALL' || char.server === this.data.config.activeServer);
-        if (c) c.innerHTML = activeChars.map(x => {
+        const countBadge = document.getElementById('roster-count-badge');
+        if (countBadge) countBadge.innerText = `${activeChars.length} Character${activeChars.length === 1 ? '' : 's'}`;
+
+        if (c) c.innerHTML = activeChars.map((x, idx) => {
             const settings = x.settings || { daily_ids: [], weekly_ids: [], boss_ids: [] };
-            const charBosses = this.data.masterBosses.filter(b => (settings.boss_ids || []).includes(b.id));
-            const counts = { daily: (settings.daily_ids || []).length, weekly: (settings.weekly_ids || []).length, bossD: charBosses.filter(b => b.type === 'DAILY').length, bossW: charBosses.filter(b => b.type === 'WEEKLY').length, bossM: charBosses.filter(b => b.type === 'MONTHLY').length };
+            const bossCount = (settings.boss_ids || []).length;
             const isKronos = x.server === 'KRONOS';
             const sCol = isKronos ? (this.data.config.serverKColor || 'emerald') : (this.data.config.serverCColor || 'purple');
-            const cardClass = `border-${sCol}-500/50`;
-            const badgeClass = `text-${sCol}-300 border-${sCol}-500/30 bg-${sCol}-950/30`;
+            const charLimit = this.data.config.charMaxCrystals || 14;
+            const charWeekly = this.data.masterBosses.filter(b => (settings.boss_ids || []).includes(b.id) && b.type === 'WEEKLY').length;
 
             return `
-            <div class="bg-slate-900 border ${cardClass} rounded-xl overflow-hidden flex flex-col md:flex-row transition-all group shadow-2xl">
-                <div class="w-full md:w-48 aspect-square bg-slate-950 flex-shrink-0 relative overflow-hidden border-b md:border-b-0 md:border-r border-slate-800">
-                    ${x.classImage ? `<img src="${x.classImage}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">` : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-800 bg-slate-900/50"><i data-lucide="user" class="w-16 h-16"></i></div>`}
-                    <div class="absolute bottom-2 left-2"><span class="text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-tighter ${app.getRoleStyle(x.role)}">${x.role}</span></div>
+            <div class="bg-slate-900 border border-${sCol}-500/40 rounded-xl overflow-hidden flex flex-col group shadow-lg transition-all hover:border-${sCol}-500/70 relative">
+                <span class="absolute top-2 left-2 z-10 text-[10px] font-bold text-slate-500 bg-slate-950/70 px-1.5 py-0.5 rounded">#${idx + 1}</span>
+                ${x.hidden ? `<span class="absolute top-2 right-2 z-10 text-[9px] font-bold text-slate-400 bg-slate-950/80 border border-slate-700 px-1.5 py-0.5 rounded flex items-center gap-1"><i data-lucide="eye-off" class="w-2.5 h-2.5"></i>Hidden</span>` : ''}
+                <div class="w-full aspect-square bg-slate-950 relative overflow-hidden flex items-center justify-center">
+                    ${x.classImage ? `<img src="${x.classImage}" class="w-full h-full object-cover">` : `<div class="text-slate-800"><i data-lucide="user" class="w-16 h-16"></i></div>`}
+                    ${x.image && x.image.startsWith('http') ? `<img src="${x.image}" class="absolute bottom-0 right-0 w-20 h-20 object-contain opacity-90 pointer-events-none">` : ''}
                 </div>
-                <div class="flex-1 p-4 flex flex-col gap-3 min-w-0">
-                    <div class="flex justify-between items-start gap-2">
-                        <div class="min-w-0"><h3 class="text-base font-bold text-white truncate leading-tight">${x.name}</h3><p class="text-[11px] text-indigo-400 font-medium truncate mt-0.5">${x.job} ${x.level ? `Lv.${x.level}` : ''}</p></div>
+                <div class="p-3 flex flex-col gap-1.5 min-w-0">
+                    <div class="text-center min-w-0">
+                        <h3 class="text-sm font-bold text-white truncate leading-tight">${x.name}</h3>
+                        <div class="flex items-center justify-center gap-1.5 mt-0.5 flex-wrap">
+                            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-${sCol}-500/20 text-${sCol}-300 border border-${sCol}-500/30">LV.${x.level || '?'}</span>
+                            <span class="text-[10px] text-slate-400 font-medium truncate">${x.job || '—'}</span>
+                        </div>
+                        <div class="text-[9px] text-${sCol}-500 font-bold uppercase tracking-wider mt-0.5">${isKronos ? 'Kronos' : 'Challenger'}</div>
                     </div>
-                    <div class="grid grid-cols-3 gap-1.5">
-                        <div class="bg-indigo-900/10 border border-indigo-500/20 p-1.5 rounded flex flex-col items-center"><span class="text-[8px] text-indigo-400 uppercase font-bold tracking-tighter">Daily</span><span class="text-xs font-bold text-slate-200">${counts.daily}</span></div>
-                        <div class="bg-emerald-900/10 border border-emerald-500/20 p-1.5 rounded flex flex-col items-center"><span class="text-[8px] text-emerald-400 uppercase font-bold tracking-tighter">Weekly</span><span class="text-xs font-bold text-slate-200">${counts.weekly}</span></div>
-                        <div class="bg-cyan-900/10 border border-cyan-500/20 p-1.5 rounded flex flex-col items-center"><span class="text-[8px] text-cyan-400 uppercase font-bold tracking-tighter">Boss D</span><span class="text-xs font-bold text-slate-200">${counts.bossD}</span></div>
-                        <div class="bg-purple-900/10 border border-purple-500/20 p-1.5 rounded flex flex-col items-center"><span class="text-[8px] text-purple-400 uppercase font-bold tracking-tighter">Boss W</span><span class="text-xs font-bold text-slate-200">${counts.bossW}</span></div>
-                        <div class="bg-yellow-900/10 border border-yellow-500/20 p-1.5 rounded flex flex-col items-center"><span class="text-[8px] text-yellow-400 uppercase font-bold tracking-tighter">Boss M</span><span class="text-xs font-bold text-slate-200">${counts.bossM}</span></div>
+                    <div class="flex items-center justify-center gap-1 mt-1">
+                        <span class="text-[9px] text-slate-500">Bosses:</span>
+                        <span class="text-[10px] font-mono font-bold ${charWeekly > charLimit ? 'text-amber-400' : 'text-slate-300'}">${charWeekly}/${charLimit}</span>
+                        <span class="text-[9px] text-slate-600 mx-0.5">·</span>
+                        <span class="text-[10px] font-mono text-slate-400">${bossCount} total</span>
                     </div>
-                    <div class="flex justify-end gap-2 mt-auto pt-2 border-t border-slate-800/50">
-                        <button onclick="app.openCharModal('${x.id}')" class="flex-1 py-1.5 text-[10px] font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-indigo-600 rounded transition-colors flex items-center justify-center gap-1.5"><i data-lucide="settings" class="w-3 h-3"></i> Configure</button>
-                        <button onclick="app.deleteCharacter('${x.id}')" class="px-2 py-1.5 bg-slate-800 hover:bg-rose-600 rounded text-slate-500 hover:text-white transition-colors"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+                    <div class="grid grid-cols-5 gap-1 mt-1 pt-2 border-t border-slate-800/60">
+                        <button onclick="app.openBossConfigModal('${x.id}')" title="Configure bosses" class="p-1.5 bg-slate-800 hover:bg-indigo-600 rounded text-slate-400 hover:text-white transition-colors flex justify-center"><i data-lucide="skull" class="w-3 h-3"></i></button>
+                        <button onclick="app.openCharModal('${x.id}')" title="Edit details" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors flex justify-center"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                        <button onclick="app.refreshCharacter('${x.id}')" title="Refresh from API" class="p-1.5 bg-slate-800 hover:bg-emerald-600 rounded text-slate-400 hover:text-white transition-colors flex justify-center"><i data-lucide="refresh-cw" class="w-3 h-3"></i></button>
+                        <button onclick="app.toggleCharHidden('${x.id}')" title="${x.hidden ? 'Show' : 'Hide'} on dashboard" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors flex justify-center"><i data-lucide="${x.hidden ? 'eye-off' : 'eye'}" class="w-3 h-3"></i></button>
+                        <button onclick="app.deleteCharacter('${x.id}')" title="Delete" class="p-1.5 bg-slate-800 hover:bg-rose-600 rounded text-slate-400 hover:text-white transition-colors flex justify-center"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
                     </div>
                 </div>
             </div>`;
         }).join('');
         lucide.createIcons();
+    },
+
+    toggleCharHidden(id) {
+        const c = this.data.characters.find(x => x.id === id);
+        if (!c) return;
+        c.hidden = !c.hidden;
+        this.saveData();
+        this.renderCharacters();
+        this.renderDashboard();
+    },
+
+    async refreshCharacter(id) {
+        const c = this.data.characters.find(x => x.id === id);
+        if (!c) return;
+        try {
+            const { data } = await this._fetchRanking(c.name, 10000);
+            if (data && data.ranks && data.ranks.length) {
+                const info = data.ranks.find(r => r.characterName.toLowerCase() === c.name.toLowerCase()) || data.ranks[0];
+                c.level = info.level;
+                c.job = info.jobName || c.job;
+                if (info.characterImgURL) c.image = info.characterImgURL;
+                if (typeof CLASS_DATA !== 'undefined') {
+                    const all = Object.values(CLASS_DATA).flat();
+                    const target = (info.jobName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const m = all.find(j => j.name.toLowerCase().replace(/[^a-z0-9]/g, '') === target);
+                    if (m) c.classImage = m.path;
+                }
+                this.saveData();
+                this.renderCharacters();
+                this.renderDashboard();
+            }
+        } catch (e) { console.error(e); alert('Failed to refresh character'); }
+    },
+
+    async quickAddCharacter(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        const input = document.getElementById('quick-add-name');
+        const btn = document.getElementById('btn-quick-add');
+        const msg = document.getElementById('quick-add-msg');
+        const name = (input?.value || '').trim();
+        if (!name) return;
+        if (this.data.characters.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+            if (msg) { msg.textContent = `"${name}" is already in your roster.`; msg.className = 'mt-2 text-[11px] font-medium text-center text-amber-400'; msg.classList.remove('hidden'); }
+            return;
+        }
+
+        if (btn) { btn.disabled = true; btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>`; lucide.createIcons(); }
+        if (msg) { msg.textContent = `Fetching "${name}"...`; msg.className = 'mt-2 text-[11px] font-medium text-center text-slate-400'; msg.classList.remove('hidden'); }
+
+        let level = 0, job = '', classImage = '', image = '';
+        try {
+            const { data } = await this._fetchRanking(name, 10000);
+            if (data && data.ranks && data.ranks.length) {
+                const info = data.ranks.find(r => r.characterName.toLowerCase() === name.toLowerCase()) || data.ranks[0];
+                level = info.level;
+                job = info.jobName || '';
+                image = info.characterImgURL || '';
+                if (typeof CLASS_DATA !== 'undefined') {
+                    const all = Object.values(CLASS_DATA).flat();
+                    const target = job.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const m = all.find(j => j.name.toLowerCase().replace(/[^a-z0-9]/g, '') === target);
+                    if (m) classImage = m.path;
+                }
+            } else {
+                if (msg) { msg.textContent = `No character found: "${name}". Added anyway with defaults.`; msg.className = 'mt-2 text-[11px] font-medium text-center text-amber-400'; }
+            }
+        } catch (err) {
+            console.error(err);
+            if (msg) { msg.textContent = `API failed. Added "${name}" with defaults.`; msg.className = 'mt-2 text-[11px] font-medium text-center text-amber-400'; }
+        }
+
+        const server = this.data.config.activeServer === 'CHALLENGER' ? 'CHALLENGER' : 'KRONOS';
+        const newChar = {
+            id: 'c' + Date.now(),
+            name, job, classImage, image,
+            level, role: 'MAIN', server, hidden: false, memo: '',
+            settings: { daily_ids: [], weekly_ids: [], boss_ids: [], boss_party_sizes: {} },
+            progress: { daily: [], weekly: [], boss: [] }
+        };
+        this.data.characters.push(newChar);
+        this.saveData();
+        if (input) input.value = '';
+        if (btn) { btn.disabled = false; btn.innerHTML = `<i data-lucide="plus" class="w-4 h-4"></i>`; lucide.createIcons(); }
+        if (msg) { msg.textContent = `Added "${name}"${level ? ` (Lv.${level} ${job})` : ''}`; msg.className = 'mt-2 text-[11px] font-medium text-center text-emerald-400'; setTimeout(() => msg.classList.add('hidden'), 3000); }
+        this.renderCharacters();
+        this.renderDashboard();
     },
 
     renderTaskMaster() { this.switchTaskTab(this.currentTaskTab); },
@@ -909,6 +1019,210 @@ const app = {
         this.saveData(); this.closeCharModal(); this.renderCharacters(); this.renderDashboard();
     },
     deleteCharacter(id) { if (confirm('Delete?')) { this.data.characters = this.data.characters.filter(x => x.id !== id); this.saveData(); this.renderCharacters(); this.renderDashboard(); } },
-    resetAllData() { if (confirm('Factory Reset?')) { localStorage.removeItem('gms_v24_data'); location.reload(); } }
+    resetAllData() { if (confirm('Factory Reset?')) { localStorage.removeItem('gms_v24_data'); location.reload(); } },
+
+    // ========== Boss Config Modal (MapleHub style) ==========
+    DIFF_ORDER: ['EASY', 'NORMAL', 'HARD', 'CHAOS', 'EXTREME'],
+
+    getBossGroups(type) {
+        const groups = {};
+        this.data.masterBosses.filter(b => b.type === type).forEach(b => {
+            if (!groups[b.name]) groups[b.name] = { name: b.name, kana: b.kana, variants: [] };
+            groups[b.name].variants.push(b);
+        });
+        Object.values(groups).forEach(g => {
+            g.variants.sort((a, b) => this.DIFF_ORDER.indexOf(a.difficulty) - this.DIFF_ORDER.indexOf(b.difficulty));
+        });
+        return Object.values(groups).sort((a, b) => {
+            const maxA = Math.max(...a.variants.map(v => v.meso));
+            const maxB = Math.max(...b.variants.map(v => v.meso));
+            return maxB - maxA;
+        });
+    },
+
+    openBossConfigModal(charId) {
+        const c = this.data.characters.find(x => x.id === charId);
+        if (!c) return;
+        this.bcCharId = charId;
+        this.bcTab = 'WEEKLY';
+        this.bcSelected = {};
+        this.bcParty = {};
+        this.bcDiff = {};
+
+        const settings = c.settings || { boss_ids: [], boss_party_sizes: {} };
+        const partySizes = settings.boss_party_sizes || {};
+        (settings.boss_ids || []).forEach(bid => {
+            const b = this.data.masterBosses.find(x => x.id === bid);
+            if (!b) return;
+            const key = `${b.type}:${b.name}`;
+            this.bcSelected[key] = true;
+            this.bcDiff[key] = b.difficulty;
+            this.bcParty[key] = partySizes[bid] || 1;
+        });
+
+        document.getElementById('bc-char-name').innerText = c.name;
+        document.getElementById('boss-config-modal').classList.remove('hidden');
+        this.switchBossConfigTab('WEEKLY');
+        lucide.createIcons();
+    },
+
+    closeBossConfigModal() {
+        document.getElementById('boss-config-modal').classList.add('hidden');
+    },
+
+    switchBossConfigTab(type) {
+        this.bcTab = type;
+        ['MONTHLY', 'WEEKLY', 'DAILY'].forEach(t => {
+            const btn = document.getElementById(`bc-tab-${t}`);
+            if (!btn) return;
+            const base = "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold transition-colors";
+            if (t === type) btn.className = `${base} bg-indigo-600/20 text-indigo-300 border border-indigo-500/30`;
+            else btn.className = `${base} text-slate-400 hover:bg-slate-800/50 hover:text-white`;
+        });
+        const search = document.getElementById('bc-search');
+        if (search) search.placeholder = `Search ${type.toLowerCase()} bosses...`;
+        this.renderBossConfigGrid();
+    },
+
+    renderBossConfigGrid() {
+        const grid = document.getElementById('bc-grid');
+        if (!grid) return;
+        const search = (document.getElementById('bc-search')?.value || '').toLowerCase().trim();
+        const groups = this.getBossGroups(this.bcTab).filter(g => {
+            if (!search) return true;
+            return g.name.toLowerCase().includes(search) || (g.kana || '').toLowerCase().includes(search);
+        });
+
+        grid.innerHTML = groups.map(g => {
+            const key = `${this.bcTab}:${g.name}`;
+            const isSel = !!this.bcSelected[key];
+            const currentDiff = this.bcDiff[key] || g.variants[0].difficulty;
+            const variant = g.variants.find(v => v.difficulty === currentDiff) || g.variants[0];
+            const pSize = this.bcParty[key] || 1;
+            const eff = Math.floor(variant.meso / pSize);
+            const cardCls = isSel ? 'bg-indigo-950/40 border-indigo-500/60 ring-1 ring-indigo-500/30' : 'bg-slate-800/40 border-slate-700/60 hover:border-slate-600';
+
+            return `
+            <div class="border rounded-lg p-3 transition-all ${cardCls}">
+                <div class="flex items-start justify-between gap-2 mb-2">
+                    <div class="min-w-0">
+                        <div class="text-sm font-bold text-white truncate">${g.name}</div>
+                        ${g.kana ? `<div class="text-[10px] text-slate-500 truncate">${g.kana}</div>` : ''}
+                    </div>
+                    <button type="button" onclick="app.bcToggleSelect('${key}')" class="flex-shrink-0 w-5 h-5 rounded-full border-2 ${isSel ? 'bg-indigo-500 border-indigo-400' : 'border-slate-600 hover:border-indigo-400'} flex items-center justify-center transition-colors">
+                        ${isSel ? '<i data-lucide="check" class="w-3 h-3 text-white"></i>' : ''}
+                    </button>
+                </div>
+                <div class="space-y-2">
+                    <select onchange="app.bcSetDiff('${key}', this.value)" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs text-white outline-none focus:border-indigo-500">
+                        ${g.variants.map(v => `<option value="${v.difficulty}" ${v.difficulty === currentDiff ? 'selected' : ''}>${v.difficulty.charAt(0) + v.difficulty.slice(1).toLowerCase()}</option>`).join('')}
+                    </select>
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Party</span>
+                        <div class="flex items-center gap-1">
+                            <button type="button" onclick="app.bcAdjustParty('${key}', -1)" class="w-6 h-6 bg-slate-900 hover:bg-slate-700 border border-slate-700 rounded text-slate-400 text-xs">−</button>
+                            <span class="w-6 text-center text-xs font-mono font-bold text-white">${pSize}</span>
+                            <button type="button" onclick="app.bcAdjustParty('${key}', 1)" class="w-6 h-6 bg-slate-900 hover:bg-slate-700 border border-slate-700 rounded text-slate-400 text-xs">+</button>
+                        </div>
+                    </div>
+                    <div class="pt-2 border-t border-slate-700/50">
+                        <div class="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Est. Mesos</div>
+                        <div class="text-${isSel ? 'amber-300' : 'slate-400'} font-mono font-bold text-sm">${eff.toLocaleString()}</div>
+                    </div>
+                </div>
+            </div>`;
+        }).join('') || `<div class="col-span-full text-center text-slate-500 text-xs py-8">No ${this.bcTab.toLowerCase()} bosses found</div>`;
+
+        this.updateBossConfigCounter();
+        lucide.createIcons();
+    },
+
+    bcToggleSelect(key) {
+        this.bcSelected[key] = !this.bcSelected[key];
+        if (this.bcSelected[key] && !this.bcDiff[key]) {
+            const type = key.split(':')[0], name = key.split(':').slice(1).join(':');
+            const group = this.getBossGroups(type).find(g => g.name === name);
+            if (group) this.bcDiff[key] = group.variants[0].difficulty;
+        }
+        if (!this.bcParty[key]) this.bcParty[key] = 1;
+        this.renderBossConfigGrid();
+    },
+
+    bcSetDiff(key, diff) {
+        this.bcDiff[key] = diff;
+        this.renderBossConfigGrid();
+    },
+
+    bcAdjustParty(key, delta) {
+        const cur = this.bcParty[key] || 1;
+        const next = Math.max(1, Math.min(6, cur + delta));
+        this.bcParty[key] = next;
+        this.renderBossConfigGrid();
+    },
+
+    updateBossConfigCounter() {
+        const charLimit = this.data.config.charMaxCrystals || 14;
+        let weeklyCount = 0, totalCount = 0, weeklyEarnings = 0;
+        Object.keys(this.bcSelected).filter(k => this.bcSelected[k]).forEach(key => {
+            const [type, ...rest] = key.split(':');
+            const name = rest.join(':');
+            const group = this.getBossGroups(type).find(g => g.name === name);
+            if (!group) return;
+            const diff = this.bcDiff[key] || group.variants[0].difficulty;
+            const variant = group.variants.find(v => v.difficulty === diff);
+            if (!variant) return;
+            totalCount++;
+            if (type === 'WEEKLY') {
+                weeklyCount++;
+                const eff = variant.meso / (this.bcParty[key] || 1);
+                weeklyEarnings += eff;
+            }
+        });
+        const sortedWeekly = Object.keys(this.bcSelected).filter(k => this.bcSelected[k] && k.startsWith('WEEKLY:')).map(key => {
+            const name = key.split(':').slice(1).join(':');
+            const group = this.getBossGroups('WEEKLY').find(g => g.name === name);
+            if (!group) return 0;
+            const diff = this.bcDiff[key] || group.variants[0].difficulty;
+            const variant = group.variants.find(v => v.difficulty === diff);
+            return variant ? variant.meso / (this.bcParty[key] || 1) : 0;
+        }).sort((a, b) => b - a).slice(0, charLimit);
+        const cappedEarnings = sortedWeekly.reduce((s, v) => s + v, 0);
+
+        const counter = document.getElementById('bc-counter');
+        const totalEl = document.getElementById('bc-total-selected');
+        const earnEl = document.getElementById('bc-weekly-earnings');
+        if (counter) {
+            counter.innerText = `${weeklyCount}/${charLimit}`;
+            counter.className = weeklyCount > charLimit ? 'font-mono text-amber-400 font-bold' : 'font-mono text-white font-bold';
+        }
+        if (totalEl) totalEl.innerText = `${totalCount} total selected`;
+        if (earnEl) earnEl.innerText = Math.floor(cappedEarnings).toLocaleString();
+    },
+
+    saveBossConfig() {
+        const c = this.data.characters.find(x => x.id === this.bcCharId);
+        if (!c) return;
+        const boss_ids = [];
+        const boss_party_sizes = {};
+        Object.keys(this.bcSelected).filter(k => this.bcSelected[k]).forEach(key => {
+            const [type, ...rest] = key.split(':');
+            const name = rest.join(':');
+            const group = this.getBossGroups(type).find(g => g.name === name);
+            if (!group) return;
+            const diff = this.bcDiff[key] || group.variants[0].difficulty;
+            const variant = group.variants.find(v => v.difficulty === diff);
+            if (!variant) return;
+            boss_ids.push(variant.id);
+            const ps = this.bcParty[key] || 1;
+            if (ps > 1) boss_party_sizes[variant.id] = ps;
+        });
+        if (!c.settings) c.settings = { daily_ids: [], weekly_ids: [], boss_ids: [], boss_party_sizes: {} };
+        c.settings.boss_ids = boss_ids;
+        c.settings.boss_party_sizes = boss_party_sizes;
+        this.saveData();
+        this.closeBossConfigModal();
+        this.renderCharacters();
+        this.renderDashboard();
+    }
 };
 window.onload = () => app.init();
