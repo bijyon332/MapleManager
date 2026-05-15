@@ -100,7 +100,7 @@
         <main class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-950">
             <div class="max-w-[1920px] mx-auto pb-10">
                 <div id="view-dashboard" class="fade-in">
-                    <div id="dashboard-list" class="space-y-4"></div>
+                    <div id="dashboard-list" class="grid grid-cols-[repeat(auto-fill,minmax(0,32rem))] justify-start gap-2"></div>
                     <div id="empty-state" class="hidden text-center py-20">
                         <div class="bg-slate-900/50 inline-block p-6 rounded-full mb-4"><i data-lucide="ghost"
                                 class="w-12 h-12 text-slate-600"></i></div>
@@ -133,12 +133,13 @@
                                 <i data-lucide="user-plus" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
                                 <input type="text" id="quick-add-name" required placeholder="Add character to roster..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white outline-none focus:border-indigo-500">
                             </div>
-                            <button type="submit" id="btn-quick-add" class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors min-w-[44px]"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                            <button type="submit" id="btn-quick-add" title="Add with API fetch" class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors min-w-[44px]"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                            <button type="button" onclick="app.openCharModal()" title="Add manually (no API)" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"><i data-lucide="pencil" class="w-3.5 h-3.5"></i>Manual</button>
                             <button type="button" onclick="app.updateAllCharacters()" id="btn-update-all" title="Refresh all characters" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>Update All</button>
                         </form>
                         <div id="quick-add-msg" class="hidden mt-2 text-[11px] font-medium text-center"></div>
                     </div>
-                    <div id="char-list-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"></div>
+                    <div id="char-list-container" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-3"></div>
                 </div>
 
                 <div id="view-tasks" class="hidden-page fade-in flex flex-col h-[calc(100vh-7rem)]">
@@ -539,183 +540,179 @@
     <div id="char-modal"
         class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm">
         <div
-            class="bg-slate-900 border border-slate-700 w-full max-w-3xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950">
-                <h3 class="text-white font-bold text-lg" id="modal-title">Edit Character</h3>
+            class="bg-slate-900 border border-slate-700 w-full max-w-6xl rounded-xl shadow-2xl overflow-hidden flex flex-col h-[92vh]">
+            <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950">
+                <div>
+                    <h3 class="text-white font-bold text-lg leading-tight" id="modal-title">Edit Character</h3>
+                    <p class="text-[11px] text-slate-500 mt-1">Update character details and pick the recurring tasks shown on the dashboard</p>
+                </div>
                 <button type="button" onclick="app.closeCharModal()" class="text-slate-400 hover:text-white"><i
                         data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             <form id="char-form" onsubmit="app.saveCharacter(event)" class="flex flex-col flex-1 overflow-hidden">
                 <input type="hidden" name="id">
-                <div class="p-6 bg-slate-900 border-b border-slate-800 flex-shrink-0 space-y-4">
-                    <div class="grid grid-cols-12 gap-4">
-                        <div class="col-span-12 md:col-span-9">
-                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1">Character Name /
-                                IGN</label>
+                <input type="hidden" name="job">
+                <input type="hidden" name="image">
+                <div class="flex-1 grid grid-cols-1 lg:grid-cols-[420px_1fr] overflow-hidden">
+                    <!-- ===== LEFT: Character info ===== -->
+                    <aside class="overflow-y-auto custom-scrollbar bg-slate-950/40 border-r border-slate-800 p-5 space-y-4">
+                        <!-- Name + Fetch -->
+                        <div>
+                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1.5 tracking-wider">Character Name / IGN</label>
                             <div class="flex gap-2">
                                 <input type="text" name="name" required
-                                    class="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none"
+                                    class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-indigo-500 outline-none"
                                     onblur="app.fetchCharacterData()">
                                 <button type="button" id="btn-fetch" onclick="app.fetchCharacterData()"
-                                    class="bg-indigo-600 text-white px-3 py-2 rounded text-xs font-bold hover:bg-indigo-500 whitespace-nowrap flex items-center gap-1.5 min-w-[60px] justify-center">Fetch</button>
+                                    class="bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-indigo-500 whitespace-nowrap flex items-center gap-1.5 min-w-[72px] justify-center"><i data-lucide="download" class="w-3.5 h-3.5"></i>Fetch</button>
                             </div>
                             <div id="fetch-error-msg" class="hidden mt-2 text-xs text-rose-400 font-medium"></div>
                         </div>
-                        <div class="col-span-12 md:col-span-3">
-                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1">Level</label>
-                            <input type="number" name="level"
-                                class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none">
-                        </div>
-                    </div>
 
-                    <div class="grid grid-cols-12 gap-4">
-                        <div class="col-span-12 md:col-span-4">
-                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1">Role</label>
-                            <select name="role"
-                                class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none">
-                                <option value="MAIN">Main</option>
-                                <option value="SUB">Sub</option>
-                                <option value="MULE">Mule</option>
-                            </select>
+                        <!-- Level + Role -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1.5 tracking-wider">Level</label>
+                                <input type="number" name="level" placeholder="—"
+                                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-indigo-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1.5 tracking-wider">Role</label>
+                                <select name="role"
+                                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-indigo-500 outline-none">
+                                    <option value="MAIN">Main</option>
+                                    <option value="SUB">Sub</option>
+                                    <option value="MULE">Mule</option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="col-span-12 md:col-span-8">
-                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1">Job
-                                Selection</label>
+
+                        <!-- Job Selection -->
+                        <div>
+                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1.5 tracking-wider">Job / Class</label>
                             <select name="job-select" id="char-job-select" onchange="app.onJobSelect(this.value)"
-                                class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none">
+                                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-indigo-500 outline-none">
                                 <option value="">Select a Class</option>
                             </select>
-                            <input type="hidden" name="job">
-                            <input type="hidden" name="image">
                         </div>
-                    </div>
 
-                    <div class="flex gap-4">
-                        <!-- Class Image Preview -->
-                        <div id="preview-class-container"
-                            class="hidden flex-1 flex items-center gap-3 bg-slate-900/50 p-3 rounded-lg border border-slate-800/50">
-                            <img id="preview-class-img" src="" class="w-12 h-12 object-contain rounded">
-                            <div class="min-w-0">
-                                <div class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-0.5">Class
+                        <!-- Previews -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div id="preview-class-container" class="hidden flex items-center gap-3 bg-slate-900/60 p-3 rounded-lg border border-slate-700/60">
+                                <img id="preview-class-img" src="" class="w-14 h-14 object-contain rounded flex-shrink-0">
+                                <div class="min-w-0">
+                                    <div class="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Class</div>
+                                    <div id="preview-class-name" class="text-white text-xs font-bold truncate"></div>
                                 </div>
-                                <div id="preview-class-name" class="text-white text-sm font-bold truncate"></div>
+                            </div>
+                            <div id="preview-api-container" class="flex items-center gap-3 bg-slate-900/60 p-3 rounded-lg border border-slate-700/60">
+                                <img id="preview-api-img" src="" class="w-14 h-14 object-contain rounded hidden flex-shrink-0">
+                                <div id="preview-api-placeholder"
+                                    class="w-14 h-14 flex items-center justify-center bg-slate-800 rounded text-[8px] text-slate-500 font-bold tracking-widest text-center leading-tight flex-shrink-0">
+                                    NO<br>IMG</div>
+                                <div class="min-w-0">
+                                    <div class="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">API / Custom</div>
+                                    <div id="preview-api-name" class="text-white text-[11px] font-mono truncate">--</div>
+                                </div>
                             </div>
                         </div>
-                        <!-- API Image Preview -->
-                        <div id="preview-api-container"
-                            class="hidden flex-1 flex items-center gap-3 bg-slate-900/50 p-3 rounded-lg border border-slate-800/50">
-                            <img id="preview-api-img" src="" class="w-12 h-12 object-contain rounded hidden">
-                            <div id="preview-api-placeholder"
-                                class="w-12 h-12 flex items-center justify-center bg-slate-800 rounded text-[8px] text-slate-500 font-bold tracking-widest text-center leading-tight">
-                                NO<br>IMG</div>
-                            <div class="min-w-0">
-                                <div class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-0.5">API /
-                                    Custom</div>
-                                <div id="preview-api-name" class="text-white text-xs font-mono truncate">--</div>
+
+                        <!-- Image position editor (Dashboard slim portrait preview) -->
+                        <div>
+                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1.5 tracking-wider">Dashboard Image Position</label>
+                            <div class="flex gap-3 items-center bg-slate-900/60 p-3 rounded-lg border border-slate-700/60">
+                                <div class="w-20 h-36 bg-gradient-to-b from-slate-800 to-slate-950 border border-slate-700 rounded overflow-hidden flex-shrink-0 relative" title="Matches the dashboard's slim portrait layout">
+                                    <img id="pos-preview-img" src="" style="position:absolute;left:0;width:100%;height:100%;top:0;object-fit:cover;object-position:50% center;" onerror="this.style.display='none'">
+                                </div>
+                                <div class="flex-1 space-y-2 min-w-0">
+                                    <div>
+                                        <div class="flex items-center justify-between text-[10px] mb-0.5">
+                                            <span class="text-slate-400 font-bold uppercase tracking-wider">Horizontal (← left / right →)</span>
+                                            <span id="pos-x-val" class="text-slate-300 font-mono font-bold">50%</span>
+                                        </div>
+                                        <input type="range" id="pos-x-slider" name="imgOffsetX" min="0" max="100" value="50" step="1" oninput="app.onImagePosChange()" class="w-full accent-indigo-500">
+                                    </div>
+                                    <button type="button" onclick="app.resetImagePos()" class="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1"><i data-lucide="crosshair" class="w-3 h-3"></i>Reset to center</button>
+                                    <p class="text-[9px] text-slate-600">Drag right to shift the image right, left to shift left.</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div>
-                        <label class="block text-slate-500 text-[10px] uppercase font-bold mb-2">Server</label>
-                        <div class="flex gap-4">
-                            <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="server"
-                                    value="KRONOS" class="accent-indigo-500 w-4 h-4"><span id="lbl-server-KRONOS"
-                                    class="text-white text-sm ml-1">Kronos (Reboot)</span></label>
-                            <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="server"
-                                    value="CHALLENGER" class="accent-indigo-500 w-4 h-4"><span
-                                    id="lbl-server-CHALLENGER" class="text-white text-sm ml-1">Challenger
-                                    (Reg)</span></label>
+                        <!-- Server -->
+                        <div>
+                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1.5 tracking-wider">Server</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="flex items-center gap-2 cursor-pointer bg-slate-800 border border-slate-700 hover:border-emerald-500/60 rounded-lg px-3 py-2.5 transition-colors">
+                                    <input type="radio" name="server" value="KRONOS" class="accent-emerald-500 w-4 h-4">
+                                    <span id="lbl-server-KRONOS" class="text-white text-sm font-medium">Kronos</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer bg-slate-800 border border-slate-700 hover:border-purple-500/60 rounded-lg px-3 py-2.5 transition-colors">
+                                    <input type="radio" name="server" value="CHALLENGER" class="accent-purple-500 w-4 h-4">
+                                    <span id="lbl-server-CHALLENGER" class="text-white text-sm font-medium">Challenger</span>
+                                </label>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="mt-2">
-                        <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1">Visibility</label>
-                        <label
-                            class="flex items-center gap-2 cursor-pointer bg-slate-800 border border-slate-700 rounded px-3 py-2 w-full md:w-auto">
-                            <input type="checkbox" name="hidden" class="accent-indigo-500 w-4 h-4">
-                            <span class="text-white text-sm">Hidden (Exclude from Dashboard & Total)</span>
-                        </label>
-                    </div>
+                        <input type="hidden" name="hidden" value="false">
+                        <!-- Memo -->
+                        <div>
+                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1.5 tracking-wider">Memo</label>
+                            <textarea name="memo" placeholder="Notes, goals, reminders..."
+                                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-indigo-500 outline-none resize-none h-24"></textarea>
+                        </div>
+                    </aside>
 
-                    <div class="mt-2">
-                        <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1">Memo</label>
-                        <textarea name="memo"
-                            class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none resize-none h-16"></textarea>
-                    </div>
-                </div>
-                <div class="flex bg-slate-900/50 flex-shrink-0">
-                    <button type="button" onclick="app.switchCharTab('daily')" id="char-tab-btn-daily"
-                        class="flex-1 py-3 text-xs font-bold transition-colors tab-active">Daily Tasks</button>
-                    <button type="button" onclick="app.switchCharTab('weekly')" id="char-tab-btn-weekly"
-                        class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive">Weekly Tasks</button>
-                </div>
-                <div class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-900">
-                    <div id="char-content-daily" class="block">
-                        <div class="space-y-1" id="modal-daily-list"></div>
-                    </div>
-                    <div id="char-content-weekly" class="hidden">
-                        <div class="space-y-1" id="modal-weekly-list"></div>
-                    </div>
+                    <!-- ===== RIGHT: Tasks + Bosses ===== -->
+                    <section class="flex flex-col overflow-hidden bg-slate-900">
+                        <div class="flex border-b border-slate-800 bg-slate-900/60 flex-shrink-0">
+                            <button type="button" onclick="app.switchCharTab('boss')" id="char-tab-btn-boss"
+                                class="flex-1 py-3 text-xs font-bold transition-colors tab-active flex items-center justify-center gap-1.5"><i data-lucide="skull" class="w-3.5 h-3.5"></i>Bosses</button>
+                            <button type="button" onclick="app.switchCharTab('daily')" id="char-tab-btn-daily"
+                                class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive flex items-center justify-center gap-1.5"><i data-lucide="sun" class="w-3.5 h-3.5"></i>Daily Tasks</button>
+                            <button type="button" onclick="app.switchCharTab('weekly')" id="char-tab-btn-weekly"
+                                class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive flex items-center justify-center gap-1.5"><i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i>Weekly Tasks</button>
+                        </div>
+                        <!-- Boss sub-toolbar (only visible on Bosses tab) -->
+                        <div id="cm-boss-toolbar" class="hidden border-b border-slate-800 bg-slate-900/30 px-4 py-2.5 flex flex-wrap items-center gap-2 flex-shrink-0">
+                            <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+                                <button type="button" onclick="app.switchBossConfigTab('WEEKLY')" id="bc-tab-WEEKLY" class="px-2.5 py-1 rounded text-[11px] font-bold transition-colors flex items-center gap-1"><i data-lucide="bar-chart-3" class="w-3 h-3"></i>Weekly</button>
+                                <button type="button" onclick="app.switchBossConfigTab('MONTHLY')" id="bc-tab-MONTHLY" class="px-2.5 py-1 rounded text-[11px] font-bold transition-colors flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i>Monthly</button>
+                            </div>
+                            <div class="flex-1"></div>
+                            <div class="text-[10px] text-slate-400 flex items-center gap-1.5">
+                                <span id="bc-counter" class="font-mono text-white font-bold">0/14</span>
+                                <span class="text-slate-600">·</span>
+                                <span id="bc-total-selected">0 total</span>
+                                <span class="text-slate-600">·</span>
+                                <span class="text-slate-500">Earnings:</span>
+                                <span id="bc-weekly-earnings" class="text-amber-300 font-mono font-bold">0</span>
+                            </div>
+                        </div>
+                        <div class="flex-1 overflow-y-auto custom-scrollbar p-5">
+                            <div id="char-content-daily" class="block">
+                                <p class="text-[11px] text-slate-500 mb-3">Choose the daily quests/activities this character should track. Toggle completion later from the dashboard.</p>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2" id="modal-daily-list"></div>
+                            </div>
+                            <div id="char-content-weekly" class="hidden">
+                                <p class="text-[11px] text-slate-500 mb-3">Choose the weekly activities this character should track.</p>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2" id="modal-weekly-list"></div>
+                            </div>
+                            <div id="char-content-boss" class="hidden">
+                                <div id="bc-grid" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
+                            </div>
+                        </div>
+                    </section>
                 </div>
                 <div class="p-4 border-t border-slate-800 bg-slate-950 flex justify-end gap-3 flex-shrink-0">
                     <button type="button" onclick="app.closeCharModal()"
                         class="px-4 py-2 text-slate-400 hover:text-white text-sm">Cancel</button>
                     <button type="submit"
-                        class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-lg font-bold text-sm">Save</button>
+                        class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2"><i data-lucide="save" class="w-4 h-4"></i>Save</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- ========== BOSS CONFIG MODAL (MapleHub style) ========== -->
-    <div id="boss-config-modal" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-slate-900 border border-slate-700 w-full max-w-6xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-            <div class="p-5 border-b border-slate-800 flex justify-between items-start bg-slate-950">
-                <div class="min-w-0">
-                    <h3 class="text-white font-bold text-lg leading-tight">Choose bosses for <span id="bc-char-name" class="text-indigo-300"></span></h3>
-                    <p class="text-[11px] text-slate-500 mt-1">Select bosses and configure party sizes. Monthly bosses have no restrictions, while weekly bosses are limited per character.</p>
-                    <div class="mt-2 text-xs text-slate-400">
-                        <span id="bc-counter" class="font-mono text-white font-bold">0/14</span>
-                        <span class="text-slate-600 mx-1">•</span>
-                        <span id="bc-total-selected">0 total selected</span>
-                    </div>
-                </div>
-                <button type="button" onclick="app.closeBossConfigModal()" class="text-slate-400 hover:text-white flex-shrink-0"><i data-lucide="x" class="w-5 h-5"></i></button>
-            </div>
-            <div class="flex-1 flex overflow-hidden">
-                <!-- Sidebar -->
-                <aside class="w-56 bg-slate-950/50 border-r border-slate-800 flex-shrink-0 flex flex-col">
-                    <nav class="p-3 space-y-1">
-                        <button type="button" onclick="app.switchBossConfigTab('MONTHLY')" id="bc-tab-MONTHLY" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold transition-colors text-slate-400 hover:bg-slate-800/50 hover:text-white"><i data-lucide="calendar" class="w-3.5 h-3.5"></i>Monthly</button>
-                        <button type="button" onclick="app.switchBossConfigTab('WEEKLY')" id="bc-tab-WEEKLY" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold transition-colors bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"><i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i>Weekly</button>
-                        <button type="button" onclick="app.switchBossConfigTab('DAILY')" id="bc-tab-DAILY" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold transition-colors text-slate-400 hover:bg-slate-800/50 hover:text-white"><i data-lucide="sun" class="w-3.5 h-3.5"></i>Daily</button>
-                    </nav>
-                    <div class="border-t border-slate-800 mx-3"></div>
-                    <div class="p-3 mt-auto">
-                        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Weekly Earnings</div>
-                        <div id="bc-weekly-earnings" class="text-amber-300 font-mono font-bold text-base">0</div>
-                    </div>
-                </aside>
-                <!-- Main content -->
-                <div class="flex-1 flex flex-col overflow-hidden bg-slate-900">
-                    <div class="p-4 border-b border-slate-800 flex items-center gap-2 flex-shrink-0">
-                        <div class="relative flex-1">
-                            <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
-                            <input type="text" id="bc-search" placeholder="Search bosses..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-xs text-white outline-none focus:border-indigo-500" oninput="app.renderBossConfigGrid()">
-                        </div>
-                    </div>
-                    <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
-                        <div id="bc-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="p-4 border-t border-slate-800 bg-slate-950 flex justify-end gap-3 flex-shrink-0">
-                <button type="button" onclick="app.closeBossConfigModal()" class="px-4 py-2 text-slate-400 hover:text-white text-sm">Cancel</button>
-                <button type="button" onclick="app.saveBossConfig()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2"><i data-lucide="save" class="w-4 h-4"></i>Save Configuration</button>
-            </div>
-        </div>
-    </div>
 </body>
 
 </html>
