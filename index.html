@@ -490,7 +490,7 @@
                 <!-- ========== RANK COMPARE APP ========== -->
                 <div id="view-ranks" class="hidden-page fade-in">
                     <div class="max-w-[1600px] mx-auto space-y-4">
-                        <!-- Header -->
+                        <!-- Header + Import panel -->
                         <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
                             <div class="flex items-center gap-3 mb-3">
                                 <div class="bg-indigo-600/20 border border-indigo-500/30 rounded-lg p-2">
@@ -498,29 +498,49 @@
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <h2 class="text-white font-bold text-base leading-tight">EXP Progress Compare</h2>
-                                    <p class="text-[11px] text-slate-500">Compare level progress curves for multiple characters (data via MapleRanks)</p>
+                                    <p class="text-[11px] text-slate-500">Overlay multiple characters' Level Progress curves. Data is imported manually from MapleRanks because Cloudflare blocks server-side scraping.</p>
                                 </div>
-                                <span id="ranks-status" class="text-[11px] text-slate-400"></span>
                             </div>
 
-                            <!-- Add character form -->
-                            <form id="ranks-add-form" class="flex flex-wrap items-center gap-2">
-                                <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
-                                    <button type="button" data-region="na" class="ranks-region-btn px-3 py-1.5 rounded text-[11px] font-bold transition-all">NA</button>
-                                    <button type="button" data-region="eu" class="ranks-region-btn px-3 py-1.5 rounded text-[11px] font-bold transition-all">EU</button>
+                            <!-- How-to bar -->
+                            <div class="rounded-lg border border-slate-800 bg-slate-950/40 p-3 mb-3 text-[11px] text-slate-400 leading-relaxed">
+                                <div class="font-bold text-slate-300 mb-1 flex items-center gap-1.5">
+                                    <i data-lucide="info" class="w-3.5 h-3.5 text-indigo-400"></i>How to import a character
                                 </div>
-                                <div class="flex-1 relative min-w-[220px]">
-                                    <i data-lucide="user-plus" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
-                                    <input type="text" id="ranks-input" required placeholder="Add character (case sensitive)..."
-                                        class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white outline-none focus:border-indigo-500">
+                                <ol class="list-decimal list-inside space-y-0.5 ml-1">
+                                    <li>Open <a href="https://mapleranks.com" target="_blank" rel="noopener" class="text-indigo-400 hover:underline">mapleranks.com</a> and load your character page (e.g. <span class="font-mono text-slate-300">mapleranks.com/u/YourName</span>).</li>
+                                    <li>Press <kbd class="bg-slate-800 border border-slate-700 rounded px-1 text-[10px]">F12</kbd> → <b>Console</b> tab.</li>
+                                    <li>Click <b>Copy console snippet</b> below, paste it into the console, press <kbd class="bg-slate-800 border border-slate-700 rounded px-1 text-[10px]">Enter</kbd>.</li>
+                                    <li>Come back here, paste your clipboard into the <b>Data</b> box, then click <b>Import</b>.</li>
+                                </ol>
+                                <button type="button" id="ranks-copy-snippet" class="mt-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3 py-1 rounded text-[11px] font-medium inline-flex items-center gap-1.5 transition-colors">
+                                    <i data-lucide="clipboard-copy" class="w-3 h-3"></i>Copy console snippet
+                                </button>
+                            </div>
+
+                            <!-- Import form -->
+                            <form id="ranks-import-form" class="space-y-2">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+                                        <button type="button" data-region="na" class="ranks-region-btn px-3 py-1.5 rounded text-[11px] font-bold transition-all">NA</button>
+                                        <button type="button" data-region="eu" class="ranks-region-btn px-3 py-1.5 rounded text-[11px] font-bold transition-all">EU</button>
+                                    </div>
+                                    <div class="flex-1 relative min-w-[220px]">
+                                        <i data-lucide="user" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                                        <input type="text" id="ranks-input-name" placeholder="Character name (auto-filled if using the snippet)"
+                                            class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white outline-none focus:border-indigo-500">
+                                    </div>
                                 </div>
-                                <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors">
-                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>Add
-                                </button>
-                                <button type="button" id="ranks-refresh-btn" title="Re-fetch all"
-                                    class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors">
-                                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>Refresh All
-                                </button>
+                                <textarea id="ranks-input-data" rows="3" placeholder='Paste here — either the raw window.__MR__ string, or the JSON {"n":"Name","r":"na","d":"..."} from the snippet.'
+                                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono outline-none focus:border-indigo-500 resize-y"></textarea>
+                                <div class="flex items-center justify-end gap-2">
+                                    <button type="button" id="ranks-clear-form" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors">
+                                        <i data-lucide="eraser" class="w-3.5 h-3.5"></i>Clear
+                                    </button>
+                                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors">
+                                        <i data-lucide="download" class="w-3.5 h-3.5"></i>Import
+                                    </button>
+                                </div>
                             </form>
                             <div id="ranks-msg" class="hidden mt-2 text-[11px] font-medium"></div>
                         </div>
@@ -552,7 +572,7 @@
                         <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
                             <div id="ranks-empty" class="flex flex-col items-center justify-center py-20 text-slate-600">
                                 <i data-lucide="bar-chart-2" class="w-12 h-12 mb-3 opacity-25"></i>
-                                <p class="text-xs font-mono">Add characters to start comparing</p>
+                                <p class="text-xs font-mono">Import characters above to start comparing</p>
                             </div>
                             <div id="ranks-chart-wrap" class="hidden">
                                 <div class="relative h-[480px]">
