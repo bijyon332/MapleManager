@@ -18,11 +18,13 @@
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
     <script src="config.js" defer></script>
     <script src="class_data.js" defer></script>
     <script src="exp_data.js" defer></script>
     <script src="exp_sim.js" defer></script>
     <script src="cost_calc.js" defer></script>
+    <script src="ranks.js" defer></script>
     <script src="script.js" defer></script>
 </head>
 
@@ -49,6 +51,11 @@
                 class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
                 title="Cost Calculator">
                 <i data-lucide="calculator" class="w-5 h-5"></i>
+            </button>
+            <button onclick="app.switchApp('ranks')" id="app-ranks"
+                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
+                title="Rank Compare">
+                <i data-lucide="line-chart" class="w-5 h-5"></i>
             </button>
         </nav>
     </aside>
@@ -478,6 +485,82 @@
                 <!-- ========== COST CALCULATOR APP ========== -->
                 <div id="view-cost-calc" class="hidden-page fade-in">
                     <div id="cost-calc-root"></div>
+                </div>
+
+                <!-- ========== RANK COMPARE APP ========== -->
+                <div id="view-ranks" class="hidden-page fade-in">
+                    <div class="max-w-[1600px] mx-auto space-y-4">
+                        <!-- Header -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="bg-indigo-600/20 border border-indigo-500/30 rounded-lg p-2">
+                                    <i data-lucide="line-chart" class="w-4 h-4 text-indigo-400"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <h2 class="text-white font-bold text-base leading-tight">EXP Progress Compare</h2>
+                                    <p class="text-[11px] text-slate-500">Compare level progress curves for multiple characters (data via MapleRanks)</p>
+                                </div>
+                                <span id="ranks-status" class="text-[11px] text-slate-400"></span>
+                            </div>
+
+                            <!-- Add character form -->
+                            <form id="ranks-add-form" class="flex flex-wrap items-center gap-2">
+                                <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+                                    <button type="button" data-region="na" class="ranks-region-btn px-3 py-1.5 rounded text-[11px] font-bold transition-all">NA</button>
+                                    <button type="button" data-region="eu" class="ranks-region-btn px-3 py-1.5 rounded text-[11px] font-bold transition-all">EU</button>
+                                </div>
+                                <div class="flex-1 relative min-w-[220px]">
+                                    <i data-lucide="user-plus" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                                    <input type="text" id="ranks-input" required placeholder="Add character (case sensitive)..."
+                                        class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white outline-none focus:border-indigo-500">
+                                </div>
+                                <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>Add
+                                </button>
+                                <button type="button" id="ranks-refresh-btn" title="Re-fetch all"
+                                    class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors">
+                                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>Refresh All
+                                </button>
+                            </form>
+                            <div id="ranks-msg" class="hidden mt-2 text-[11px] font-medium"></div>
+                        </div>
+
+                        <!-- Roster chips + range filter -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                            <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Range</span>
+                                    <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+                                        <button type="button" data-range="7" class="ranks-range-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all">7d</button>
+                                        <button type="button" data-range="14" class="ranks-range-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all">14d</button>
+                                        <button type="button" data-range="30" class="ranks-range-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all">30d</button>
+                                        <button type="button" data-range="90" class="ranks-range-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all">90d</button>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Y-Axis</span>
+                                    <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+                                        <button type="button" data-mode="absolute" class="ranks-mode-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all" title="Lv.XXX.XX%">Absolute</button>
+                                        <button type="button" data-mode="delta" class="ranks-mode-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all" title="Levels gained from start of range">Delta</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="ranks-roster" class="flex flex-wrap gap-2"></div>
+                        </div>
+
+                        <!-- Chart -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                            <div id="ranks-empty" class="flex flex-col items-center justify-center py-20 text-slate-600">
+                                <i data-lucide="bar-chart-2" class="w-12 h-12 mb-3 opacity-25"></i>
+                                <p class="text-xs font-mono">Add characters to start comparing</p>
+                            </div>
+                            <div id="ranks-chart-wrap" class="hidden">
+                                <div class="relative h-[480px]">
+                                    <canvas id="ranks-chart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="view-system" class="hidden-page fade-in">
