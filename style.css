@@ -210,8 +210,61 @@ body {
     opacity: 0.6;
 }
 
+#view-exp-sim select {
+    background: #020617;
+    color: #e2e8f0;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 8px 10px;
+    outline: none;
+}
+
+#view-exp-sim select:focus {
+    border-color: #6366f1;
+}
+
 #view-exp-sim select option {
     background: #0f172a;
+    color: #e2e8f0;
+}
+
+.exp-toggle-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 8px 6px;
+    background: #020617;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.exp-toggle-btn:hover {
+    border-color: #475569;
+    color: #e2e8f0;
+}
+
+.exp-toggle-sub {
+    font-size: 9px;
+    font-weight: 400;
+    font-family: monospace;
+    color: #475569;
+}
+
+.exp-toggle-btn.active {
+    background: rgba(249, 115, 22, 0.15);
+    border-color: #f97316;
+    color: #fdba74;
+}
+
+.exp-toggle-btn.active .exp-toggle-sub {
+    color: #fb923c;
 }
 
 .exp-stat-card {

@@ -1,7 +1,7 @@
 const app = {
     data: { config: { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' }, characters: [], masterDailies: [], masterWeeklies: [], masterBosses: [], memo: "" },
     lastLoginDate: null, editingBossId: null, currentTaskTab: 'daily', activeCharId: null, currentBossFilter: 'ALL', tempBossIds: new Set(), tempPartySizes: {},
-    currentApp: 'planner', expInitialized: false, costInitialized: false, ranksInitialized: false,
+    currentApp: 'planner', expInitialized: false, costInitialized: false, ranksInitialized: false, hexaInitialized: false,
     bcCharId: null, bcTab: 'WEEKLY', bcSelected: {}, bcParty: {}, bcDiff: {},
     DEFAULT_IMG_OFFSET_X: 50,
     DEFAULT_IMG_OFFSET_Y: 50,
@@ -410,6 +410,16 @@ const app = {
                 if (typeof ranks !== 'undefined') ranks.init();
                 this.ranksInitialized = true;
                 lucide.createIcons();
+            }
+        } else if (appName === 'hexa') {
+            if (headerNav) headerNav.style.display = 'none';
+            if (dashStats) dashStats.style.display = 'none';
+            if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = 'none';
+            if (clockEl) clockEl.classList.add('ml-auto');
+            document.getElementById('view-hexa').classList.remove('hidden-page');
+            if (!this.hexaInitialized) {
+                if (typeof hexaTracker !== 'undefined') hexaTracker.init();
+                this.hexaInitialized = true;
             }
         }
     },

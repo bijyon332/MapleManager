@@ -56,6 +56,11 @@ const expSim = {
         const runBtn = document.getElementById('exp-runBtn');
         if (runBtn) runBtn.addEventListener('click', () => this.calculate());
 
+        ['exp-hyperBurning', 'exp-hyperBurningBeyond'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.addEventListener('click', () => btn.classList.toggle('active'));
+        });
+
         // Section toggles
         document.querySelectorAll('#view-exp-sim .exp-section-head').forEach(head => {
             head.addEventListener('click', () => {
@@ -177,10 +182,23 @@ const expSim = {
         }
     },
 
+    // Hyper Burning: grant bonus levels for free after a natural level-up.
+    // Hyper Burning  -> +5 per step up to Lv.260
+    // Hyper Burning Beyond -> +2 per step from Lv.260 to Lv.270
+    applyBurn(curLv, goalLv) {
+        if (this.hyperBurning && curLv < 260) {
+            curLv = Math.min(260, curLv + 4, goalLv);
+        } else if (this.hyperBurningBeyond && curLv >= 260 && curLv < 270) {
+            curLv = Math.min(270, curLv + 1, goalLv);
+        }
+        return curLv;
+    },
+
     addExp(expGain, curLv, curExp, goalLv) {
         curExp += expGain;
         while (curLv < goalLv && tnlData[curLv] && curExp >= tnlData[curLv]) {
             curExp -= tnlData[curLv]; curLv++;
+            curLv = this.applyBurn(curLv, goalLv);
         }
         return [curLv, curExp];
     },
@@ -191,6 +209,9 @@ const expSim = {
         const goalLv = parseInt(document.getElementById('exp-targetLv').value);
         const monpaRunsVal = parseInt(document.getElementById('exp-monpaRuns').value);
         const farmRunsWeekly = parseInt(document.getElementById('exp-farmRuns').value);
+        const mechaFarmRunsWeekly = parseInt(document.getElementById('exp-mechaFarmRuns').value) || 0;
+        this.hyperBurning = document.getElementById('exp-hyperBurning').classList.contains('active');
+        this.hyperBurningBeyond = document.getElementById('exp-hyperBurningBeyond').classList.contains('active');
         const dailyMultVal = parseFloat(document.getElementById('exp-dailyMult').value);
         const monpaBaseMultVal = parseFloat(document.getElementById('exp-monpaMult').value);
         const monpaEventDates = this.getMonpaEventDates();
@@ -224,7 +245,7 @@ const expSim = {
             return lbls;
         }
 
-        let loopDays = 0, log = [], farmUsedThisWeek = false;
+        let loopDays = 0, log = [], farmUsedThisWeek = false, mechaFarmUsedThisWeek = false;
         let endDateLv = null, endDatePct = null, goalReachedDay = null;
 
         while (true) {
@@ -241,7 +262,7 @@ const expSim = {
             const dayIdx = loopDate.getDay();
             const isSun = dayIdx === 0;
             const isThu = dayIdx === 4;
-            if (isThu) farmUsedThisWeek = false;
+            if (isThu) { farmUsedThisWeek = false; mechaFarmUsedThisWeek = false; }
 
             const lvBefore = curLv;
 
@@ -254,11 +275,28 @@ const expSim = {
                         if (!epm) break;
                         const toNext = tnlData[curLv] - curExp;
                         const mobs2lv = Math.ceil(toNext / epm);
-                        if (mobs2lv <= mobsLeft) { curExp = 0; curLv++; mobsLeft -= mobs2lv; }
+                        if (mobs2lv <= mobsLeft) { curExp = 0; curLv++; curLv = this.applyBurn(curLv, goalLv); mobsLeft -= mobs2lv; }
                         else { curExp += epm * mobsLeft; mobsLeft = 0; }
                     }
                 }
                 farmUsedThisWeek = true;
+            }
+
+            // Mecha Strawberry Farm (Lv.280+, 1000 mobs per run, level-ups mid-run handled)
+            if (!mechaFarmUsedThisWeek) {
+                for (let fi = 0; fi < mechaFarmRunsWeekly; fi++) {
+                    if (curLv < 280) break;
+                    let mobsLeft = 1000;
+                    while (mobsLeft > 0 && curLv < goalLv && tnlData[curLv]) {
+                        const epm = mechaFarmTable[curLv] || 0;
+                        if (!epm) break;
+                        const toNext = tnlData[curLv] - curExp;
+                        const mobs2lv = Math.ceil(toNext / epm);
+                        if (mobs2lv <= mobsLeft) { curExp = 0; curLv++; mobsLeft -= mobs2lv; }
+                        else { curExp += epm * mobsLeft; mobsLeft = 0; }
+                    }
+                }
+                mechaFarmUsedThisWeek = true;
             }
 
             // Daily Quests
