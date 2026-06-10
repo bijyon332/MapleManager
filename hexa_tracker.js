@@ -1338,6 +1338,25 @@ const HEXA_CLASS_SKILLS = [
   ]},
 ];
 
+// Sol Erda Fragment cost per level (index 0 = cost to go from Lv0→Lv1, ... index 29 = Lv29→Lv30)
+// Source: spreadsheet "Full Numbers" sheet. Ascent shares the Origin (VI Skill) cost table.
+// Common 1/2 use "Common"; Common 3 uses the dedicated "3rd Common Core" table.
+const HEXA_FRAG_COST = {
+    origin:  [100,30,35,40,45,50,55,60,65,200,80,90,100,110,120,130,140,150,160,350,170,180,190,200,210,220,230,240,250,500],
+    mastery: [50,15,18,20,23,25,28,30,33,100,40,45,50,55,60,65,70,75,80,175,85,90,95,100,105,110,115,120,125,250],
+    enhance: [75,23,27,30,34,38,42,45,49,150,60,68,75,83,90,98,105,113,120,263,128,135,143,150,158,165,173,180,188,375],
+    common:  [125,38,44,50,57,63,69,75,82,300,110,124,138,152,165,179,193,207,220,525,234,248,262,275,289,303,317,330,344,750],
+    common3: [90,25,30,35,40,35,50,55,60,180,73,81,90,98,107,115,124,132,141,315,151,160,170,179,189,198,208,217,227,450],
+};
+// Sol Erda (whole) cost per level — same indexing as above.
+const HEXA_ERDA_COST = {
+    origin:  [5,1,1,1,2,2,2,3,3,10,3,3,4,4,4,4,4,4,5,15,5,5,5,5,5,6,6,6,7,20],
+    mastery: [3,1,1,1,1,1,1,2,2,5,2,2,2,2,2,2,2,2,3,8,3,3,3,3,3,3,3,3,4,10],
+    enhance: [4,1,1,1,2,2,2,3,3,8,3,3,3,3,3,3,3,3,4,12,4,4,4,4,4,5,5,5,6,15],
+    common:  [7,2,2,2,3,3,3,5,5,14,5,5,6,6,6,6,6,6,7,17,7,7,7,7,7,9,9,9,10,20],
+    common3: [4,1,1,1,2,2,2,3,3,9,3,3,3,3,4,4,4,4,4,14,4,5,5,5,5,5,5,5,6,18],
+};
+
 const hexaTracker = {
     STORAGE_KEY: 'mapleManager_hexa_v1',
     MAX_LEVEL: 30,
@@ -1393,19 +1412,49 @@ const hexaTracker = {
         return HEXA_SKILL_ICONS[classId + '.' + skillKey] || null;
     },
 
+    // Determine which cost table a skill uses.
+    costCat(skill) {
+        if (skill.type === 'ascent') return 'origin';          // Ascent shares Origin cost
+        if (skill.type === 'origin') return 'origin';
+        if (skill.type === 'mastery') return 'mastery';
+        if (skill.type === 'enhance') return 'enhance';
+        if (skill.type === 'common') return skill.key === 'common3' ? 'common3' : 'common';
+        return 'mastery';
+    },
+
+    // Cumulative Sol Erda Fragments to reach `level` for a cost category.
+    fragSpent(cat, level) {
+        const a = HEXA_FRAG_COST[cat] || HEXA_FRAG_COST.mastery;
+        let t = 0;
+        for (let i = 0; i < level && i < a.length; i++) t += a[i];
+        return t;
+    },
+
+    // Cumulative Sol Erda to reach `level` for a cost category.
+    erdaSpent(cat, level) {
+        const a = HEXA_ERDA_COST[cat] || HEXA_ERDA_COST.mastery;
+        let t = 0;
+        for (let i = 0; i < level && i < a.length; i++) t += a[i];
+        return t;
+    },
+
     getProgress(classId) {
         const cls = this.getClassSkills(classId);
-        if (!cls) return { pct: 0, current: 0, max: 0 };
+        if (!cls) return { pct: 0, fragSpent: 0, fragMax: 0, erdaSpent: 0, erdaMax: 0 };
         const d = this.data[classId] || {};
         const levels = d.levels || {};
         const excluded = d.excluded || {};
-        let current = 0, max = 0;
+        let fs = 0, fm = 0, es = 0, em = 0;
         for (const s of cls.skills) {
             if (excluded[s.key]) continue;
-            current += (levels[s.key] || 0);
-            max += this.MAX_LEVEL;
+            const cat = this.costCat(s);
+            const lvl = levels[s.key] || 0;
+            fs += this.fragSpent(cat, lvl);
+            fm += this.fragSpent(cat, this.MAX_LEVEL);
+            es += this.erdaSpent(cat, lvl);
+            em += this.erdaSpent(cat, this.MAX_LEVEL);
         }
-        return { pct: max > 0 ? Math.round(current / max * 100) : 0, current, max };
+        return { pct: fm > 0 ? Math.round(fs / fm * 100) : 0, fragSpent: fs, fragMax: fm, erdaSpent: es, erdaMax: em };
     },
 
     render() {
@@ -1473,7 +1522,7 @@ const hexaTracker = {
         const d = this.data[classId] || {};
         const levels = d.levels || {};
         const excluded = d.excluded || {};
-        const { pct, current, max } = this.getProgress(classId);
+        const { pct, fragSpent, fragMax, erdaSpent, erdaMax } = this.getProgress(classId);
 
         const grouped = { mastery: [], origin_ascent: [], enhance: [], common: [] };
         for (const s of cls.skills) {
@@ -1490,7 +1539,7 @@ const hexaTracker = {
                 <img src="${info.path}" class="w-16 h-16 object-contain shrink-0" loading="lazy">
                 <div class="flex-1 min-w-0">
                     <div class="text-base font-bold text-white">${this.escHtml(info.name)}</div>
-                    <div class="text-xs text-slate-500 mb-2">HEXAスキル進捗 — 各スキル最大Lv ${this.MAX_LEVEL}</div>
+                    <div class="text-xs text-slate-500 mb-2">ソルエルダフラグメント進捗 — 各スキル最大Lv ${this.MAX_LEVEL}</div>
                     <div class="flex items-center gap-3">
                         <div class="flex-1 h-2.5 bg-slate-800 rounded-full overflow-hidden">
                             <div id="hexa-pbar" class="h-full rounded-full transition-all duration-500"
@@ -1498,7 +1547,18 @@ const hexaTracker = {
                         </div>
                         <span id="hexa-pct" class="text-lg font-bold w-14 text-right" style="color:${pctColor}">${pct}%</span>
                     </div>
-                    <div id="hexa-count" class="text-[11px] text-slate-500 mt-1">総Lv: ${current} / ${max}</div>
+                    <div id="hexa-count" class="flex items-center gap-3 text-[11px] mt-1.5">
+                        <span class="flex items-center gap-1 text-violet-300" title="ソルエルダフラグメント">
+                            <span class="inline-block w-2 h-2 rounded-full" style="background:#a78bfa"></span>
+                            フラグメント <span class="font-bold tabular-nums">${fragSpent.toLocaleString()}</span>
+                            <span class="text-slate-500">/ ${fragMax.toLocaleString()}</span>
+                        </span>
+                        <span class="flex items-center gap-1 text-amber-300" title="ソルエルダ">
+                            <span class="inline-block w-2 h-2 rounded-full" style="background:#fcd34d"></span>
+                            エルダ <span class="font-bold tabular-nums">${erdaSpent.toLocaleString()}</span>
+                            <span class="text-slate-500">/ ${erdaMax.toLocaleString()}</span>
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -1521,7 +1581,10 @@ const hexaTracker = {
             const sCfg = this.SKILL_TYPE_CONFIG[s.type] || cfg;
             const lvl = levels[s.key] || 0;
             const isExcl = excluded[s.key] || false;
-            const pct = Math.round(lvl / this.MAX_LEVEL * 100);
+            const cat = this.costCat(s);
+            const skillFrag = this.fragSpent(cat, lvl);
+            const skillFragMax = this.fragSpent(cat, this.MAX_LEVEL);
+            const pct = skillFragMax > 0 ? Math.round(skillFrag / skillFragMax * 100) : 0;
             const iconUrl = this.getSkillIcon(classId, s.key);
             const iconHtml = iconUrl
                 ? `<img src="${iconUrl}" class="w-6 h-6 object-contain shrink-0 rounded" loading="lazy">`
@@ -1530,7 +1593,10 @@ const hexaTracker = {
             rows += `<div class="flex items-center gap-2 py-1.5 border-b border-slate-800/50 last:border-0 ${isExcl ? 'opacity-40' : ''}">
                 ${iconHtml}
                 <div class="flex-1 min-w-0">
-                    <div class="text-[11px] text-slate-300 leading-snug truncate" title="${this.escHtml(s.name)}">${this.escHtml(s.name)}</div>
+                    <div class="flex items-baseline justify-between gap-1.5">
+                        <div class="text-[11px] text-slate-300 leading-snug truncate" title="${this.escHtml(s.name)}">${this.escHtml(s.name)}</div>
+                        <div class="text-[9px] text-slate-500 shrink-0 tabular-nums" title="ソルエルダフラグメント">${isExcl ? '除外' : skillFrag.toLocaleString()}</div>
+                    </div>
                     <div class="h-1 bg-slate-700/60 rounded-full mt-1 overflow-hidden">
                         <div class="h-full rounded-full transition-all" style="width:${isExcl ? 0 : pct}%;background:${sCfg.badge}"></div>
                     </div>
