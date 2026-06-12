@@ -1438,10 +1438,25 @@ const hexaTracker = {
         return t;
     },
 
-    getProgress(classId) {
+    // Resolve a dashboard character's job name to a HEXA classId (or null if no HEXA data).
+    resolveClassId(jobName) {
+        if (!jobName || typeof window === 'undefined' || !window.CLASS_DATA) return null;
+        const norm = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+        const target = norm(jobName);
+        for (const arr of Object.values(window.CLASS_DATA)) {
+            const m = arr.find(j => norm(j.name) === target || norm(j.id) === target);
+            if (m && this.getClassSkills(m.id)) return m.id;
+        }
+        return null;
+    },
+
+    // trackingId selects which saved data set to use (classId for the tab, 'char:<id>' for a character).
+    // classId selects which skill list/cost tables to use; defaults to trackingId for the standalone tab.
+    getProgress(trackingId, classId) {
+        if (classId === undefined) classId = trackingId;
         const cls = this.getClassSkills(classId);
         if (!cls) return { pct: 0, fragSpent: 0, fragMax: 0, erdaSpent: 0, erdaMax: 0 };
-        const d = this.data[classId] || {};
+        const d = this.data[trackingId] || {};
         const levels = d.levels || {};
         const excluded = d.excluded || {};
         let fs = 0, fm = 0, es = 0, em = 0;
@@ -1487,7 +1502,7 @@ const hexaTracker = {
                 <div class="space-y-0.5">`;
             for (const cls of hexaClasses) {
                 const isActive = this.currentClassId === cls.id;
-                const { pct } = this.getProgress(cls.id);
+                const { pct } = this.getProgress(cls.id, cls.id);
                 const pctHtml = pct > 0
                     ? `<span class="text-[9px] font-bold shrink-0" style="color:#8b5cf6">${pct}%</span>`
                     : '';
@@ -1513,16 +1528,17 @@ const hexaTracker = {
         </div>`;
     },
 
-    buildSkillPanel() {
-        const classId = this.currentClassId;
+    buildSkillPanel(classId, trackingId) {
+        if (classId === undefined) classId = this.currentClassId;
+        if (trackingId === undefined) trackingId = classId;
         const cls = this.getClassSkills(classId);
         const info = this.getClassInfo(classId);
         if (!cls || !info) return this.buildEmptyState();
 
-        const d = this.data[classId] || {};
+        const d = this.data[trackingId] || {};
         const levels = d.levels || {};
         const excluded = d.excluded || {};
-        const { pct, fragSpent, fragMax, erdaSpent, erdaMax } = this.getProgress(classId);
+        const { pct, fragSpent, fragMax, erdaSpent, erdaMax } = this.getProgress(trackingId, classId);
 
         const grouped = { mastery: [], origin_ascent: [], enhance: [], common: [] };
         for (const s of cls.skills) {
@@ -1563,15 +1579,16 @@ const hexaTracker = {
             </div>
 
             <div class="grid grid-cols-2 gap-3">
-                ${this.buildSkillGroup('Mastery Skills', grouped.mastery, levels, excluded, classId)}
-                ${this.buildSkillGroup('Origin / Ascent Skills', grouped.origin_ascent, levels, excluded, classId)}
-                ${this.buildSkillGroup('Enhancement Skills', grouped.enhance, levels, excluded, classId)}
-                ${this.buildSkillGroup('Common Skills', grouped.common, levels, excluded, classId)}
+                ${this.buildSkillGroup('Mastery Skills', grouped.mastery, levels, excluded, classId, trackingId)}
+                ${this.buildSkillGroup('Origin / Ascent Skills', grouped.origin_ascent, levels, excluded, classId, trackingId)}
+                ${this.buildSkillGroup('Enhancement Skills', grouped.enhance, levels, excluded, classId, trackingId)}
+                ${this.buildSkillGroup('Common Skills', grouped.common, levels, excluded, classId, trackingId)}
             </div>
         </div>`;
     },
 
-    buildSkillGroup(title, skills, levels, excluded, classId) {
+    buildSkillGroup(title, skills, levels, excluded, classId, trackingId) {
+        if (trackingId === undefined) trackingId = classId;
         if (!skills || !skills.length) return '';
         const firstType = skills[0].type;
         const cfg = this.SKILL_TYPE_CONFIG[firstType] || this.SKILL_TYPE_CONFIG.mastery;
@@ -1602,10 +1619,10 @@ const hexaTracker = {
                     </div>
                 </div>
                 <input type="number" min="0" max="${this.MAX_LEVEL}" value="${lvl}"
-                    oninput="hexaTracker.updateLevel('${classId}','${s.key}',this.value)"
+                    oninput="hexaTracker.updateLevel('${trackingId}','${s.key}',this.value)"
                     class="w-10 bg-slate-800 border border-slate-700 rounded text-center text-xs text-white py-0.5 focus:outline-none focus:border-violet-500 shrink-0">
                 <span class="text-[10px] text-slate-600 w-5 shrink-0 text-center">/30</span>
-                <button onclick="hexaTracker.toggleExclude('${classId}','${s.key}')"
+                <button onclick="hexaTracker.toggleExclude('${trackingId}','${s.key}')"
                     title="${isExcl ? '進捗に含める' : '進捗から除外'}"
                     class="w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors ${isExcl ? 'bg-slate-700 border-slate-600' : 'border-slate-600 hover:border-slate-400 hover:bg-slate-800'}">
                     ${isExcl ? `<svg viewBox="0 0 12 12" width="10" height="10"><line x1="2" y1="2" x2="10" y2="10" stroke="#94a3b8" stroke-width="1.5"/><line x1="10" y1="2" x2="2" y2="10" stroke="#94a3b8" stroke-width="1.5"/></svg>` : ''}
@@ -1621,37 +1638,114 @@ const hexaTracker = {
 
     selectClass(classId) {
         this.currentClassId = classId;
-        const panel = document.getElementById('hexa-skill-panel');
-        if (panel) { panel.innerHTML = this.buildSkillPanel(); lucide.createIcons(); }
-        const list = document.getElementById('hexa-class-list');
-        if (list) list.innerHTML = this.buildClassList();
+        this.refreshAll();
     },
 
-    updateLevel(classId, skillKey, value) {
+    // Re-render every live HEXA surface (standalone tab panel/list + character modal body).
+    refreshAll() {
+        const panel = document.getElementById('hexa-skill-panel');
+        if (panel && this.currentClassId) { panel.innerHTML = this.buildSkillPanel(this.currentClassId, this.currentClassId); }
+        const list = document.getElementById('hexa-class-list');
+        if (list) list.innerHTML = this.buildClassList();
+        const mbody = document.getElementById('hexa-modal-body');
+        if (mbody && this.modalClassId) { mbody.innerHTML = this.buildSkillPanel(this.modalClassId, this.modalTrackingId); }
+        const mhead = document.getElementById('hexa-modal-progress');
+        if (mhead && this.modalTrackingId) mhead.innerHTML = this.buildModalHeaderStat();
+        if (window.lucide) lucide.createIcons();
+    },
+
+    updateLevel(trackingId, skillKey, value) {
         const lvl = Math.max(0, Math.min(this.MAX_LEVEL, parseInt(value) || 0));
-        if (!this.data[classId]) this.data[classId] = { levels: {}, excluded: {} };
-        if (!this.data[classId].levels) this.data[classId].levels = {};
-        this.data[classId].levels[skillKey] = lvl;
+        if (!this.data[trackingId]) this.data[trackingId] = { levels: {}, excluded: {} };
+        if (!this.data[trackingId].levels) this.data[trackingId].levels = {};
+        this.data[trackingId].levels[skillKey] = lvl;
         this.saveData();
-
-        // Update mini progress bar for this skill row
-        const rows = document.querySelectorAll('#hexa-skill-panel .flex.items-center.gap-2.py-1\\.5');
-        // Re-render skill panel for full accuracy
-        const panel = document.getElementById('hexa-skill-panel');
-        if (panel) { panel.innerHTML = this.buildSkillPanel(); lucide.createIcons(); }
-        const list = document.getElementById('hexa-class-list');
-        if (list) list.innerHTML = this.buildClassList();
+        this.refreshAll();
     },
 
-    toggleExclude(classId, skillKey) {
-        if (!this.data[classId]) this.data[classId] = { levels: {}, excluded: {} };
-        if (!this.data[classId].excluded) this.data[classId].excluded = {};
-        this.data[classId].excluded[skillKey] = !this.data[classId].excluded[skillKey];
+    toggleExclude(trackingId, skillKey) {
+        if (!this.data[trackingId]) this.data[trackingId] = { levels: {}, excluded: {} };
+        if (!this.data[trackingId].excluded) this.data[trackingId].excluded = {};
+        this.data[trackingId].excluded[skillKey] = !this.data[trackingId].excluded[skillKey];
         this.saveData();
-        const panel = document.getElementById('hexa-skill-panel');
-        if (panel) { panel.innerHTML = this.buildSkillPanel(); lucide.createIcons(); }
-        const list = document.getElementById('hexa-class-list');
-        if (list) list.innerHTML = this.buildClassList();
+        this.refreshAll();
+    },
+
+    // ========== Character-linked modal ==========
+    modalCharId: null,
+    modalClassId: null,
+    modalTrackingId: null,
+
+    openForCharacter(charId) {
+        const char = (window.app && window.app.data && window.app.data.characters || []).find(c => c.id === charId);
+        if (!char) return;
+        const classId = this.resolveClassId(char.job);
+        if (!classId) {
+            alert('この職業のHEXAスキルデータは登録されていません: ' + (char.job || '不明'));
+            return;
+        }
+        this.modalCharId = charId;
+        this.modalClassId = classId;
+        this.modalTrackingId = 'char:' + charId;
+        this.renderModal(char);
+    },
+
+    buildModalHeaderStat() {
+        const { pct, fragSpent, fragMax } = this.getProgress(this.modalTrackingId, this.modalClassId);
+        return `<span class="font-bold tabular-nums">${pct}%</span>
+            <span class="text-violet-200/80">·</span>
+            <span class="tabular-nums">${fragSpent.toLocaleString()} / ${fragMax.toLocaleString()}</span>
+            <span class="text-violet-200/80">フラグメント</span>`;
+    },
+
+    renderModal(char) {
+        const info = this.getClassInfo(this.modalClassId) || {};
+        const portrait = (char.image && char.image.startsWith('http')) ? char.image : (char.classImage || info.path || '');
+        let overlay = document.getElementById('hexa-modal-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'hexa-modal-overlay';
+            document.body.appendChild(overlay);
+        }
+        overlay.className = 'fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4';
+        overlay.setAttribute('onclick', 'if(event.target===this)hexaTracker.closeModal()');
+        overlay.innerHTML = `
+            <div class="bg-slate-900 border border-violet-500/40 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+                <div class="flex items-center justify-between gap-3 px-5 py-3 bg-gradient-to-r from-violet-700 via-fuchsia-600 to-indigo-700 shrink-0">
+                    <div class="flex items-center gap-3 min-w-0">
+                        ${portrait ? `<img src="${portrait}" class="w-11 h-11 rounded-lg object-cover bg-slate-950/40 shrink-0">` : ''}
+                        <div class="min-w-0">
+                            <div class="text-white font-extrabold text-sm truncate flex items-center gap-2">
+                                <i data-lucide="hexagon" class="w-4 h-4 shrink-0"></i>${this.escHtml(char.name)}
+                                ${char.level ? `<span class="text-[11px] font-mono font-bold text-violet-100/90">Lv.${this.escHtml(char.level)}</span>` : ''}
+                            </div>
+                            <div id="hexa-modal-progress" class="text-[11px] text-violet-100 flex items-center gap-1.5 mt-0.5">${this.buildModalHeaderStat()}</div>
+                        </div>
+                    </div>
+                    <button onclick="hexaTracker.closeModal()" title="閉じる" class="shrink-0 w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <div id="hexa-modal-body" class="overflow-y-auto custom-scrollbar p-5 flex-1">
+                    ${this.buildSkillPanel(this.modalClassId, this.modalTrackingId)}
+                </div>
+            </div>`;
+        if (!this._escHandler) {
+            this._escHandler = (e) => { if (e.key === 'Escape') this.closeModal(); };
+            document.addEventListener('keydown', this._escHandler);
+        }
+        if (window.lucide) lucide.createIcons();
+    },
+
+    closeModal() {
+        const overlay = document.getElementById('hexa-modal-overlay');
+        if (overlay) overlay.remove();
+        if (this._escHandler) { document.removeEventListener('keydown', this._escHandler); this._escHandler = null; }
+        this.modalCharId = null;
+        this.modalClassId = null;
+        this.modalTrackingId = null;
+        // Refresh roster cards so the HEXA % badge reflects the latest progress.
+        if (window.app && typeof window.app.renderCharacters === 'function') window.app.renderCharacters();
     },
 
     escHtml(s) {

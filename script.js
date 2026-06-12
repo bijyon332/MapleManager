@@ -755,6 +755,8 @@ const app = {
             const sCol = isKronos ? (this.data.config.serverKColor || 'emerald') : (this.data.config.serverCColor || 'purple');
             const charLimit = this.data.config.charMaxCrystals || 14;
             const charWeekly = this.data.masterBosses.filter(b => (settings.boss_ids || []).includes(b.id) && b.type === 'WEEKLY').length;
+            const hexaClassId = (typeof hexaTracker !== 'undefined') ? hexaTracker.resolveClassId(x.job) : null;
+            const hexaPct = hexaClassId ? hexaTracker.getProgress('char:' + x.id, hexaClassId).pct : 0;
 
             return `
             <div class="bg-slate-900 border border-${sCol}-500/40 rounded-xl overflow-hidden flex flex-col group shadow-lg transition-all hover:border-${sCol}-500/70 relative">
@@ -764,6 +766,14 @@ const app = {
                     ${x.classImage ? `<img src="${x.classImage}" class="w-full h-full object-cover">` : `<div class="text-slate-800"><i data-lucide="user" class="w-16 h-16"></i></div>`}
                     ${x.image && x.image.startsWith('http') ? `<img src="${x.image}" class="absolute bottom-0 right-0 w-20 h-20 object-contain opacity-90 pointer-events-none">` : ''}
                 </div>
+                ${hexaClassId ? `
+                <button onclick="hexaTracker.openForCharacter('${x.id}')" title="HEXA Matrix 進捗を開く"
+                    class="relative w-full py-1.5 px-2 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-indigo-600 hover:from-violet-500 hover:via-fuchsia-400 hover:to-indigo-500 text-white flex items-center justify-center gap-1.5 transition-all overflow-hidden group/hexa">
+                    <span class="absolute inset-0 opacity-30 pointer-events-none" style="background:radial-gradient(circle at 20% 50%, rgba(255,255,255,.5) 0, transparent 40%), radial-gradient(circle at 75% 30%, rgba(255,255,255,.35) 0, transparent 35%)"></span>
+                    <i data-lucide="hexagon" class="w-3.5 h-3.5 relative shrink-0"></i>
+                    <span class="text-[11px] font-extrabold tracking-widest relative">HEXA</span>
+                    ${hexaPct > 0 ? `<span class="text-[10px] font-bold tabular-nums relative ml-0.5 text-violet-100">${hexaPct}%</span>` : ''}
+                </button>` : ''}
                 <div class="p-2 flex flex-col gap-1 min-w-0">
                     <div class="flex items-baseline gap-1 min-w-0">
                         <h3 class="text-[13px] font-extrabold text-white truncate leading-tight flex-1 min-w-0" title="${x.name}">${x.name}</h3>
