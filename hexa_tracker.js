@@ -1676,18 +1676,97 @@ const hexaTracker = {
     modalClassId: null,
     modalTrackingId: null,
 
+    // Resolve the HEXA classId for a character: manual assignment first, then auto-match by job name.
+    getCharClassId(char) {
+        if (!char) return null;
+        const saved = this.data['char:' + char.id];
+        if (saved && saved.classId && this.getClassSkills(saved.classId)) return saved.classId;
+        return this.resolveClassId(char.job);
+    },
+
     openForCharacter(charId) {
         const char = (window.app && window.app.data && window.app.data.characters || []).find(c => c.id === charId);
         if (!char) return;
-        const classId = this.resolveClassId(char.job);
+        const classId = this.getCharClassId(char);
         if (!classId) {
-            alert('この職業のHEXAスキルデータは登録されていません: ' + (char.job || '不明'));
+            // No HEXA class linked yet — let the user register one.
+            this.openClassPicker(charId);
             return;
         }
         this.modalCharId = charId;
         this.modalClassId = classId;
         this.modalTrackingId = 'char:' + charId;
         this.renderModal(char);
+    },
+
+    // Shared overlay element + Escape handler for any HEXA modal/picker.
+    ensureOverlay() {
+        let overlay = document.getElementById('hexa-modal-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'hexa-modal-overlay';
+            document.body.appendChild(overlay);
+        }
+        overlay.className = 'fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4';
+        overlay.setAttribute('onclick', 'if(event.target===this)hexaTracker.closeModal()');
+        if (!this._escHandler) {
+            this._escHandler = (e) => { if (e.key === 'Escape') this.closeModal(); };
+            document.addEventListener('keydown', this._escHandler);
+        }
+        return overlay;
+    },
+
+    // Class registration picker for characters whose job can't be auto-matched (or to re-assign).
+    openClassPicker(charId) {
+        const char = (window.app && window.app.data && window.app.data.characters || []).find(c => c.id === charId);
+        if (!char) return;
+        const guess = this.resolveClassId(char.job);
+        const current = this.getCharClassId(char);
+        let groupsHtml = '';
+        if (window.CLASS_DATA) {
+            for (const [groupId, classes] of Object.entries(CLASS_DATA)) {
+                const hexaClasses = classes.filter(c => this.getClassSkills(c.id));
+                if (!hexaClasses.length) continue;
+                const label = this.GROUP_LABELS[groupId] || groupId;
+                let cards = '';
+                for (const cls of hexaClasses) {
+                    const sel = (cls.id === current);
+                    cards += `<button onclick="hexaTracker.assignClass('${charId}','${cls.id}')"
+                        title="${this.escHtml(cls.name)}"
+                        class="flex flex-col items-center gap-1 p-2 rounded-lg border transition-colors ${sel ? 'bg-violet-700/40 border-violet-400 ring-1 ring-violet-400' : 'bg-slate-800/60 border-slate-700 hover:bg-violet-700/30 hover:border-violet-500'}">
+                        <img src="${cls.path}" class="w-9 h-9 object-contain" loading="lazy">
+                        <span class="text-[9px] text-slate-300 text-center leading-tight">${this.escHtml(cls.name)}</span>
+                    </button>`;
+                }
+                groupsHtml += `<div class="mb-3">
+                    <div class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1.5">${this.escHtml(label)}</div>
+                    <div class="grid grid-cols-5 sm:grid-cols-6 gap-1.5">${cards}</div>
+                </div>`;
+            }
+        }
+        const overlay = this.ensureOverlay();
+        overlay.innerHTML = `
+            <div class="bg-slate-900 border border-violet-500/40 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+                <div class="flex items-center justify-between gap-3 px-5 py-3 bg-gradient-to-r from-violet-700 via-fuchsia-600 to-indigo-700 shrink-0">
+                    <div class="min-w-0">
+                        <div class="text-white font-extrabold text-sm truncate flex items-center gap-2"><i data-lucide="hexagon" class="w-4 h-4 shrink-0"></i>${this.escHtml(char.name)} — HEXA職業を登録</div>
+                        <div class="text-[11px] text-violet-100 mt-0.5">進捗を管理する職業を選択してください${char.job ? `（現在の職業: ${this.escHtml(char.job)}${guess ? '' : ' — 自動判定できませんでした'}）` : ''}</div>
+                    </div>
+                    <button onclick="hexaTracker.closeModal()" title="閉じる" class="shrink-0 w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+                <div class="overflow-y-auto custom-scrollbar p-4 flex-1">${groupsHtml || '<p class="text-slate-500 text-sm text-center py-8">職業データがありません</p>'}</div>
+            </div>`;
+        if (window.lucide) lucide.createIcons();
+    },
+
+    // Save a manual class assignment for a character, then open its progress modal.
+    assignClass(charId, classId) {
+        const tid = 'char:' + charId;
+        if (!this.data[tid]) this.data[tid] = { levels: {}, excluded: {} };
+        this.data[tid].classId = classId;
+        this.saveData();
+        this.openForCharacter(charId);
+        if (window.app && typeof window.app.renderCharacters === 'function') window.app.renderCharacters();
     },
 
     buildModalHeaderStat() {
@@ -1701,14 +1780,7 @@ const hexaTracker = {
     renderModal(char) {
         const info = this.getClassInfo(this.modalClassId) || {};
         const portrait = (char.image && char.image.startsWith('http')) ? char.image : (char.classImage || info.path || '');
-        let overlay = document.getElementById('hexa-modal-overlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'hexa-modal-overlay';
-            document.body.appendChild(overlay);
-        }
-        overlay.className = 'fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4';
-        overlay.setAttribute('onclick', 'if(event.target===this)hexaTracker.closeModal()');
+        const overlay = this.ensureOverlay();
         overlay.innerHTML = `
             <div class="bg-slate-900 border border-violet-500/40 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
                 <div class="flex items-center justify-between gap-3 px-5 py-3 bg-gradient-to-r from-violet-700 via-fuchsia-600 to-indigo-700 shrink-0">
@@ -1722,18 +1794,19 @@ const hexaTracker = {
                             <div id="hexa-modal-progress" class="text-[11px] text-violet-100 flex items-center gap-1.5 mt-0.5">${this.buildModalHeaderStat()}</div>
                         </div>
                     </div>
-                    <button onclick="hexaTracker.closeModal()" title="閉じる" class="shrink-0 w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
-                        <i data-lucide="x" class="w-4 h-4"></i>
-                    </button>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button onclick="hexaTracker.openClassPicker('${this.modalCharId}')" title="HEXA職業を変更" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
+                            <i data-lucide="repeat" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="hexaTracker.closeModal()" title="閉じる" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </div>
                 <div id="hexa-modal-body" class="overflow-y-auto custom-scrollbar p-5 flex-1">
                     ${this.buildSkillPanel(this.modalClassId, this.modalTrackingId)}
                 </div>
             </div>`;
-        if (!this._escHandler) {
-            this._escHandler = (e) => { if (e.key === 'Escape') this.closeModal(); };
-            document.addEventListener('keydown', this._escHandler);
-        }
         if (window.lucide) lucide.createIcons();
     },
 
