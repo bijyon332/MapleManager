@@ -681,6 +681,9 @@ const app = {
             const sCol = isKronos ? (this.data.config.serverKColor || 'emerald') : (this.data.config.serverCColor || 'purple');
             const themeClass = `border-${sCol}-500/50`;
             const badgeClass = `text-${sCol}-400 bg-${sCol}-950/30 border-${sCol}-500/20`;
+            const hexaReady = (typeof hexaTracker !== 'undefined');
+            const hexaClassId = hexaReady ? hexaTracker.getCharClassId(char) : null;
+            const hexaPct = hexaClassId ? hexaTracker.getProgress('char:' + char.id, hexaClassId).pct : 0;
 
             // Sort each section
             const wkSorted = wB.sort((a, b) => b.effectiveMeso - a.effectiveMeso);
@@ -695,6 +698,19 @@ const app = {
                     ${char.classImage ? `<img src="${char.classImage}" style="${this.getCharImgStyle(char)}">` : `<div class="w-full h-full flex items-center justify-center text-slate-700"><i data-lucide="user" class="w-8 h-8 opacity-40"></i></div>`}
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none"></div>
                     <span class="absolute top-1 left-1 px-1 py-0.5 rounded text-[9px] font-bold border ${char.role === 'MAIN' ? 'border-yellow-500/50 text-yellow-300 bg-yellow-950/80' : (char.role === 'SUB' ? 'border-cyan-500/50 text-cyan-300 bg-cyan-950/80' : 'border-slate-600 text-slate-400 bg-slate-900/90')} backdrop-blur-sm">${char.role}</span>
+                    ${hexaReady ? (hexaClassId ? `
+                    <button onclick="event.stopPropagation(); hexaTracker.openForCharacter('${char.id}')" title="HEXA Matrix 進捗を開く"
+                        class="absolute bottom-0 left-0 right-0 z-10 py-1 px-1 bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:from-violet-600 hover:via-indigo-500 hover:to-blue-500 text-white flex items-center justify-center gap-1.5 transition-all overflow-hidden border-t border-violet-300/50 shadow-[0_-3px_10px_rgba(20,16,60,0.55)]">
+                        <span class="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/30 to-transparent pointer-events-none"></span>
+                        <i data-lucide="hexagon" class="w-3.5 h-3.5 relative shrink-0 drop-shadow-[0_1px_1px_rgba(0,0,0,.5)]"></i>
+                        <span class="text-xs font-black tracking-widest relative drop-shadow-[0_1px_1px_rgba(0,0,0,.6)]">HEXA</span>
+                        ${hexaPct > 0 ? `<span class="text-[10px] font-bold tabular-nums relative text-blue-100 drop-shadow-[0_1px_1px_rgba(0,0,0,.6)]">${hexaPct}%</span>` : ''}
+                    </button>` : `
+                    <button onclick="event.stopPropagation(); hexaTracker.openForCharacter('${char.id}')" title="HEXA職業を登録"
+                        class="absolute bottom-0 left-0 right-0 z-10 py-1 px-1 bg-violet-950/90 hover:bg-violet-800/80 text-violet-200 border-t-2 border-dashed border-violet-400/70 flex items-center justify-center gap-1 transition-all backdrop-blur-sm shadow-[0_-3px_10px_rgba(20,16,60,0.5)]">
+                        <i data-lucide="plus" class="w-3.5 h-3.5 shrink-0"></i>
+                        <span class="text-xs font-extrabold tracking-widest drop-shadow-[0_1px_1px_rgba(0,0,0,.6)]">HEXA</span>
+                    </button>`) : ''}
                 </div>
                 <!-- Right: Header + Boss checklist -->
                 <div class="flex-1 flex flex-col min-w-0">
@@ -755,9 +771,6 @@ const app = {
             const sCol = isKronos ? (this.data.config.serverKColor || 'emerald') : (this.data.config.serverCColor || 'purple');
             const charLimit = this.data.config.charMaxCrystals || 14;
             const charWeekly = this.data.masterBosses.filter(b => (settings.boss_ids || []).includes(b.id) && b.type === 'WEEKLY').length;
-            const hexaReady = (typeof hexaTracker !== 'undefined');
-            const hexaClassId = hexaReady ? hexaTracker.getCharClassId(x) : null;
-            const hexaPct = hexaClassId ? hexaTracker.getProgress('char:' + x.id, hexaClassId).pct : 0;
 
             return `
             <div class="bg-slate-900 border border-${sCol}-500/40 rounded-xl overflow-hidden flex flex-col group shadow-lg transition-all hover:border-${sCol}-500/70 relative">
@@ -767,19 +780,6 @@ const app = {
                     ${x.classImage ? `<img src="${x.classImage}" class="w-full h-full object-cover">` : `<div class="text-slate-800"><i data-lucide="user" class="w-16 h-16"></i></div>`}
                     ${x.image && x.image.startsWith('http') ? `<img src="${x.image}" class="absolute bottom-0 right-0 w-20 h-20 object-contain opacity-90 pointer-events-none">` : ''}
                 </div>
-                ${hexaReady ? (hexaClassId ? `
-                <button onclick="hexaTracker.openForCharacter('${x.id}')" title="HEXA Matrix 進捗を開く"
-                    class="relative w-full py-1.5 px-2 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-indigo-600 hover:from-violet-500 hover:via-fuchsia-400 hover:to-indigo-500 text-white flex items-center justify-center gap-1.5 transition-all overflow-hidden group/hexa">
-                    <span class="absolute inset-0 opacity-30 pointer-events-none" style="background:radial-gradient(circle at 20% 50%, rgba(255,255,255,.5) 0, transparent 40%), radial-gradient(circle at 75% 30%, rgba(255,255,255,.35) 0, transparent 35%)"></span>
-                    <i data-lucide="hexagon" class="w-3.5 h-3.5 relative shrink-0"></i>
-                    <span class="text-[11px] font-extrabold tracking-widest relative">HEXA</span>
-                    ${hexaPct > 0 ? `<span class="text-[10px] font-bold tabular-nums relative ml-0.5 text-violet-100">${hexaPct}%</span>` : ''}
-                </button>` : `
-                <button onclick="hexaTracker.openForCharacter('${x.id}')" title="HEXA職業を登録"
-                    class="relative w-full py-1.5 px-2 bg-slate-800 hover:bg-violet-800/40 text-violet-200 border-t border-dashed border-violet-500/40 flex items-center justify-center gap-1.5 transition-all">
-                    <i data-lucide="plus" class="w-3.5 h-3.5 shrink-0"></i>
-                    <span class="text-[11px] font-bold tracking-wider">HEXA 登録</span>
-                </button>`) : ''}
                 <div class="p-2 flex flex-col gap-1 min-w-0">
                     <div class="flex items-baseline gap-1 min-w-0">
                         <h3 class="text-[13px] font-extrabold text-white truncate leading-tight flex-1 min-w-0" title="${x.name}">${x.name}</h3>
@@ -1394,4 +1394,5 @@ const app = {
     },
 
 };
+window.app = app;
 window.onload = () => app.init();

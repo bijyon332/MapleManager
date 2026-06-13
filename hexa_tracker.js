@@ -1747,7 +1747,7 @@ const hexaTracker = {
         const overlay = this.ensureOverlay();
         overlay.innerHTML = `
             <div class="bg-slate-900 border border-violet-500/40 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
-                <div class="flex items-center justify-between gap-3 px-5 py-3 bg-gradient-to-r from-violet-700 via-fuchsia-600 to-indigo-700 shrink-0">
+                <div class="flex items-center justify-between gap-3 px-5 py-3 bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-700 shrink-0">
                     <div class="min-w-0">
                         <div class="text-white font-extrabold text-sm truncate flex items-center gap-2"><i data-lucide="hexagon" class="w-4 h-4 shrink-0"></i>${this.escHtml(char.name)} — HEXA職業を登録</div>
                         <div class="text-[11px] text-violet-100 mt-0.5">進捗を管理する職業を選択してください${char.job ? `（現在の職業: ${this.escHtml(char.job)}${guess ? '' : ' — 自動判定できませんでした'}）` : ''}</div>
@@ -1766,7 +1766,7 @@ const hexaTracker = {
         this.data[tid].classId = classId;
         this.saveData();
         this.openForCharacter(charId);
-        if (window.app && typeof window.app.renderCharacters === 'function') window.app.renderCharacters();
+        this.refreshRoster();
     },
 
     buildModalHeaderStat() {
@@ -1783,7 +1783,7 @@ const hexaTracker = {
         const overlay = this.ensureOverlay();
         overlay.innerHTML = `
             <div class="bg-slate-900 border border-violet-500/40 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-                <div class="flex items-center justify-between gap-3 px-5 py-3 bg-gradient-to-r from-violet-700 via-fuchsia-600 to-indigo-700 shrink-0">
+                <div class="flex items-center justify-between gap-3 px-5 py-3 bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-700 shrink-0">
                     <div class="flex items-center gap-3 min-w-0">
                         ${portrait ? `<img src="${portrait}" class="w-11 h-11 rounded-lg object-cover bg-slate-950/40 shrink-0">` : ''}
                         <div class="min-w-0">
@@ -1817,8 +1817,14 @@ const hexaTracker = {
         this.modalCharId = null;
         this.modalClassId = null;
         this.modalTrackingId = null;
-        // Refresh roster cards so the HEXA % badge reflects the latest progress.
-        if (window.app && typeof window.app.renderCharacters === 'function') window.app.renderCharacters();
+        this.refreshRoster();
+    },
+
+    // Refresh both the roster cards and the dashboard so HEXA badges reflect the latest progress.
+    refreshRoster() {
+        if (!window.app) return;
+        if (typeof window.app.renderCharacters === 'function') window.app.renderCharacters();
+        if (typeof window.app.renderDashboard === 'function') window.app.renderDashboard();
     },
 
     escHtml(s) {
