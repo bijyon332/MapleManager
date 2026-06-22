@@ -128,6 +128,8 @@ const app = {
                 if (!this.data.masterDailies) this.data.masterDailies = [...DEFAULT_DAILIES];
                 if (!this.data.masterWeeklies) this.data.masterWeeklies = [...DEFAULT_WEEKLIES];
                 if (!this.data.masterBosses) this.data.masterBosses = [...DEFAULT_BOSSES];
+                // Merge in any newly-added default bosses (by id) without overwriting user edits
+                else { const have = new Set(this.data.masterBosses.map(b => b.id)); DEFAULT_BOSSES.forEach(b => { if (!have.has(b.id)) this.data.masterBosses.push({ ...b }); }); }
                 if (!this.data.config) this.data.config = { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' };
             } else {
                 this.data.masterDailies = [...DEFAULT_DAILIES]; this.data.masterWeeklies = [...DEFAULT_WEEKLIES]; this.data.masterBosses = [...DEFAULT_BOSSES]; this.data.config = { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' };
@@ -1199,6 +1201,7 @@ const app = {
         'Kalos the Guardian': 'kalos-the-guardian',
         'Chosen Seren': 'chosen-seren',
         'Baldrix': 'baldrix',
+        'Malefic Star': 'malefic-star',
         'Limbo': 'limbo',
         'Lotus': 'lotus',
         'Verus Hilla': 'verus-hilla',
