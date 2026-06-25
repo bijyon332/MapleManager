@@ -1393,6 +1393,7 @@ const hexaTracker = {
 
     currentClassId: null,
     data: {},
+    _loaded: false,
 
     init() {
         this.loadData();
@@ -1404,6 +1405,13 @@ const hexaTracker = {
             const s = localStorage.getItem(this.STORAGE_KEY);
             if (s) this.data = JSON.parse(s);
         } catch (e) { this.data = {}; }
+        this._loaded = true;
+    },
+
+    // The character modal can be opened (from the roster) before the HEXA view
+    // runs init(); make sure saved data is loaded so we never overwrite it.
+    ensureLoaded() {
+        if (!this._loaded) this.loadData();
     },
 
     saveData() {
@@ -1691,6 +1699,7 @@ const hexaTracker = {
     modalTrackingId: null,
     modalTab: 'progress',   // 'progress' | 'order'
     modalBasis: null,       // selected skill-order pane key
+    _catsCache: null,       // memoized {id, map} of order-skill -> cost category
 
     // Resolve the HEXA classId for a character: manual assignment first, then auto-match by job name.
     getCharClassId(char) {
@@ -1701,6 +1710,7 @@ const hexaTracker = {
     },
 
     openForCharacter(charId) {
+        this.ensureLoaded();
         const char = (window.app && window.app.data && window.app.data.characters || []).find(c => c.id === charId);
         if (!char) return;
         const classId = this.getCharClassId(char);
@@ -1736,6 +1746,7 @@ const hexaTracker = {
 
     // Class registration picker for characters whose job can't be auto-matched (or to re-assign).
     openClassPicker(charId) {
+        this.ensureLoaded();
         const char = (window.app && window.app.data && window.app.data.characters || []).find(c => c.id === charId);
         if (!char) return;
         const guess = this.resolveClassId(char.job);
@@ -1889,6 +1900,71 @@ const hexaTracker = {
         return this.ORDER_BANDS.find(b => lv <= b.max) || this.ORDER_BANDS[this.ORDER_BANDS.length - 1];
     },
 
+    // Map each skill-order skill name -> cost category, by joining its reference
+    // icon back to the matching progress-page slot (exact path match), with fallbacks.
+    orderCats(classId) {
+        if (this._catsCache && this._catsCache.id === classId) return this._catsCache.map;
+        const data = this.orderData(classId);
+        const icons = (data && data.icons) || {};
+        const cls = this.getClassSkills(classId);
+        const iconToCat = {};
+        if (cls) for (const s of cls.skills) {
+            const p = this.getSkillIcon(classId, s.key);
+            if (p && !(p in iconToCat)) iconToCat[p] = this.costCat(s);
+        }
+        const map = {};
+        for (const name in icons) {
+            const ic = icons[name];
+            if (/sol-(janus|hecate)/.test(ic)) map[name] = 'common';
+            else if (iconToCat[ic]) map[name] = iconToCat[ic];
+            else map[name] = 'mastery';
+        }
+        this._catsCache = { id: classId, map };
+        return map;
+    },
+
+    // Per-step Sol Erda fragment / Sol Erda cost for a basis's ordered steps.
+    stepCosts(classId, steps) {
+        const cats = this.orderCats(classId);
+        const prev = {};
+        return steps.map(s => {
+            const name = s[0], lv = s[1], roman = s[2] || '';
+            const key = name + '|' + roman;           // HEXA stat I/II/III count separately
+            const cat = cats[name] || 'mastery';
+            const pl = prev[key] || 0;
+            const frag = this.fragSpent(cat, lv) - this.fragSpent(cat, pl);
+            const erda = this.erdaSpent(cat, lv) - this.erdaSpent(cat, pl);
+            prev[key] = Math.max(pl, lv);
+            return { frag: Math.max(0, frag), erda: Math.max(0, erda) };
+        });
+    },
+
+    // How many leading steps are marked completed for a character + basis.
+    getOrderDone(trackingId, basis) {
+        const d = this.data[trackingId];
+        return (d && d.order && d.order[basis]) || 0;
+    },
+
+    setOrderDone(trackingId, basis, n) {
+        if (!this.data[trackingId]) this.data[trackingId] = { levels: {}, excluded: {} };
+        if (!this.data[trackingId].order) this.data[trackingId].order = {};
+        this.data[trackingId].order[basis] = Math.max(0, n);
+        this.saveData();
+        const content = document.getElementById('hexa-modal-content');
+        if (content) content.innerHTML = this.buildSkillOrder(this.modalClassId);
+        if (window.lucide) lucide.createIcons();
+    },
+
+    // Click step #idx (1-based): complete up to it, or un-complete from it if already done.
+    setOrderStep(idx) {
+        const cur = this.getOrderDone(this.modalTrackingId, this.modalBasis);
+        this.setOrderDone(this.modalTrackingId, this.modalBasis, idx <= cur ? idx - 1 : idx);
+    },
+
+    clearOrder() {
+        this.setOrderDone(this.modalTrackingId, this.modalBasis, 0);
+    },
+
     // Recommended skill enhancement order (sourced from kawaii-sushi.com), shown as an icon flow.
     buildSkillOrder(classId) {
         const data = this.orderData(classId);
@@ -1922,21 +1998,64 @@ const hexaTracker = {
             return `<span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded" style="background:${b.bg}"></span>${lbl}</span>`;
         }).join('');
 
+        // Saved completion + Sol Erda progress for this character + basis.
+        const costs = this.stepCosts(classId, steps);
+        const done = Math.min(this.getOrderDone(this.modalTrackingId, basis), steps.length);
+        let totFrag = 0, totErda = 0, spFrag = 0, spErda = 0;
+        costs.forEach((c, i) => {
+            totFrag += c.frag; totErda += c.erda;
+            if (i < done) { spFrag += c.frag; spErda += c.erda; }
+        });
+        const pct = totFrag > 0 ? Math.round(spFrag / totFrag * 100) : 0;
+        const pctColor = pct >= 80 ? '#4ade80' : pct >= 50 ? '#a78bfa' : '#818cf8';
+
+        const progressHeader = `<div class="bg-slate-900 rounded-xl border border-slate-800 p-3 mb-4">
+            <div class="flex items-center justify-between gap-3 mb-2">
+                <div class="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                    <i data-lucide="flag" class="w-3.5 h-3.5 text-violet-400"></i>振り順の進捗
+                    <span class="text-slate-500 font-normal">${done} / ${steps.length} ステップ</span>
+                </div>
+                <button onclick="hexaTracker.clearOrder()" title="進捗をリセット" class="text-[10px] text-slate-500 hover:text-slate-300 flex items-center gap-1 px-2 py-0.5 rounded border border-slate-700 hover:border-slate-500 transition-colors"><i data-lucide="rotate-ccw" class="w-3 h-3"></i>クリア</button>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex-1 h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div class="h-full rounded-full transition-all duration-500" style="width:${pct}%;background:linear-gradient(90deg,#7c3aed,#8b5cf6)"></div>
+                </div>
+                <span class="text-base font-bold w-12 text-right" style="color:${pctColor}">${pct}%</span>
+            </div>
+            <div class="flex items-center gap-3 text-[11px] mt-1.5">
+                <span class="flex items-center gap-1 text-violet-300" title="ソルエルダフラグメント">
+                    <span class="inline-block w-2 h-2 rounded-full" style="background:#a78bfa"></span>
+                    フラグメント <span class="font-bold tabular-nums">${spFrag.toLocaleString()}</span><span class="text-slate-500">/ ${totFrag.toLocaleString()}</span>
+                </span>
+                <span class="flex items-center gap-1 text-amber-300" title="ソルエルダ">
+                    <span class="inline-block w-2 h-2 rounded-full" style="background:#fcd34d"></span>
+                    エルダ <span class="font-bold tabular-nums">${spErda.toLocaleString()}</span><span class="text-slate-500">/ ${totErda.toLocaleString()}</span>
+                </span>
+            </div>
+        </div>`;
+
         let cells = '';
         steps.forEach((s, idx) => {
             const name = s[0], lv = s[1], roman = s[2] || '';
             const band = this.orderBand(lv);
             const label = (roman ? `${name} ${roman}` : name);
             const icon = icons[name];
-            const iconHtml = icon
-                ? `<img src="${this.escHtml(icon)}" class="w-9 h-9 object-contain rounded" loading="lazy" alt="${this.escHtml(name)}">`
-                : `<div class="w-9 h-9 rounded bg-slate-700 flex items-center justify-center text-[8px] text-slate-300 text-center leading-none p-0.5">${this.escHtml(name.slice(0, 4))}</div>`;
-            cells += `<div class="relative shrink-0 group" title="${idx + 1}. ${this.escHtml(label)} → Lv${lv}">
-                <span class="absolute -top-1 -left-1 z-10 min-w-[14px] h-3.5 px-0.5 rounded-full bg-slate-950/90 border border-slate-600 text-[8px] font-bold text-slate-300 flex items-center justify-center tabular-nums leading-none">${idx + 1}</span>
-                ${iconHtml}
+            const stepNo = idx + 1;
+            const isDone = stepNo <= done;
+            const isCurrent = stepNo === done + 1;
+            const innerImg = icon
+                ? `<img src="${this.escHtml(icon)}" class="w-9 h-9 object-contain rounded ${isDone ? 'grayscale opacity-40' : ''}" loading="lazy" alt="${this.escHtml(name)}">`
+                : `<div class="w-9 h-9 rounded bg-slate-700 flex items-center justify-center text-[8px] text-slate-300 text-center leading-none p-0.5 ${isDone ? 'opacity-40' : ''}">${this.escHtml(name.slice(0, 4))}</div>`;
+            cells += `<button type="button" onclick="hexaTracker.setOrderStep(${stepNo})"
+                class="relative shrink-0 rounded-lg transition-shadow ${isCurrent ? 'ring-2 ring-violet-400' : ''}"
+                title="${stepNo}. ${this.escHtml(label)} → Lv${lv}${isDone ? '（完了）' : ''}　クリックでここまで完了/取り消し">
+                <span class="absolute -top-1 -left-1 z-10 min-w-[14px] h-3.5 px-0.5 rounded-full ${isDone ? 'bg-emerald-600 border-emerald-500' : 'bg-slate-950/90 border-slate-600'} border text-[8px] font-bold text-white flex items-center justify-center tabular-nums leading-none">${stepNo}</span>
+                ${innerImg}
                 ${roman ? `<span class="absolute top-0 right-0 z-10 text-[8px] font-bold text-amber-200 bg-slate-950/80 rounded px-0.5 leading-none">${this.escHtml(roman)}</span>` : ''}
-                <span class="absolute -bottom-1 right-0 z-10 text-[9px] font-bold rounded px-1 leading-tight tabular-nums shadow" style="background:${band.bg};color:${band.color}">${lv}</span>
-            </div>`;
+                <span class="absolute -bottom-1 right-0 z-10 text-[9px] font-bold rounded px-1 leading-tight tabular-nums shadow ${isDone ? 'opacity-50' : ''}" style="background:${band.bg};color:${band.color}">${lv}</span>
+                ${isDone ? `<span class="absolute inset-0 z-0 flex items-center justify-center"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#34d399" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>` : ''}
+            </button>`;
         });
 
         return `<div class="max-w-4xl mx-auto">
@@ -1944,9 +2063,10 @@ const hexaTracker = {
                 <div class="flex items-center gap-2">${toggle}</div>
                 <div class="flex items-center gap-3 text-[10px] text-slate-400">${legend}</div>
             </div>
+            ${progressHeader}
             <p class="text-[11px] text-slate-500 mb-4 flex items-center gap-1.5">
                 <i data-lucide="info" class="w-3.5 h-3.5 shrink-0"></i>
-                左上から番号順にコアを強化するのがおすすめです（全${steps.length}ステップ）。アイコンにカーソルを合わせると詳細が表示されます。
+                アイコンをクリックすると、そこまでを完了として保存し以降をグレーアウトします（番号順・全${steps.length}ステップ）。
             </p>
             <div class="flex flex-wrap gap-x-2.5 gap-y-3.5 bg-slate-900/40 border border-slate-800 rounded-xl p-3">${cells}</div>
             <p class="text-[10px] text-slate-600 mt-4 text-right">出典: kawaii-sushi.com / HEXA強化順</p>
