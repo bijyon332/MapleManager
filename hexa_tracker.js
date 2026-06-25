@@ -1722,7 +1722,7 @@ const hexaTracker = {
         this.modalCharId = charId;
         this.modalClassId = classId;
         this.modalTrackingId = 'char:' + charId;
-        this.modalTab = 'progress';
+        this.modalTab = this.orderPanes(classId).length ? 'order' : 'progress';
         this.modalBasis = this.defaultBasis(classId);
         this.renderModal(char);
     },
@@ -1870,9 +1870,9 @@ const hexaTracker = {
                 <i data-lucide="${icon}" class="w-3.5 h-3.5"></i>${label}
             </button>`;
         };
-        return tab('progress', '進捗入力', 'sliders-horizontal')
-            + (hasOrder ? tab('order', '推奨振り順', 'list-ordered')
-                : `<span class="px-3.5 py-2 text-xs text-slate-600 flex items-center gap-1.5" title="この職業の振り順データはありません"><i data-lucide="list-ordered" class="w-3.5 h-3.5"></i>推奨振り順</span>`);
+        const orderTab = hasOrder ? tab('order', '推奨振り順', 'list-ordered')
+            : `<span class="px-3.5 py-2 text-xs text-slate-600 flex items-center gap-1.5" title="この職業の振り順データはありません"><i data-lucide="list-ordered" class="w-3.5 h-3.5"></i>推奨振り順</span>`;
+        return orderTab + tab('progress', '進捗入力', 'sliders-horizontal');
     },
 
     buildModalContent() {
