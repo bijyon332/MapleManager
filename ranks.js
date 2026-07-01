@@ -1,21 +1,19 @@
 // ranks.js
-// Rank Compare: overlay multiple MapleRanks characters' Level Progress
-// curves on a single Chart.js chart.
+// EXP Progress Compare: overlay multiple characters' progression curves on a
+// single Chart.js chart.
 //
-// Why paste-import: mapleranks.com sits behind Cloudflare's bot challenge
-// for `/u/...` paths, so any server-side or CORS-proxy fetch is blocked.
-// Only a real browser session (with cf_clearance) can read the data. The
-// user provides it by pasting `window.__MR__` from the MapleRanks tab; we
-// decode it client-side using the same XOR-with-LCG-key algorithm the
-// MapleRanks bundle uses.
+// Data source: MapleHub (maplehub.app) keeps ~90 days of daily snapshots for
+// every ranked character in its own backend DB. We fetch it through our own
+// Cloudflare Pages Function proxy (/maplehub?name=...&region=...) which adds the
+// required `X-MapleHub-Request: true` header and CORS. No more console paste.
 //
 // Persistence:
 //   - Roster:  localStorage[gmsManager.ranks.roster] = [{name, region}, ...]
-//   - Decoded: localStorage[gmsManager.ranks.cache]  = { 'na:name': { labels, values, charInfo, importedAt } }
+//   - Cache:   localStorage[gmsManager.ranks.cache]  = { 'na:name': { labels, values, expDaily, charInfo, importedAt } }
 //   - Prefs:   localStorage[gmsManager.ranks.prefs]  = { range, yMode, region }
 //
-// Both roster and cache are persisted so a page reload restores the chart
-// without requiring another paste.
+//   values[]   : fractional level per day  (Lv + withinLevelExp / TNL(level))
+//   expDaily[] : EXP gained that day (raw number)
 
 const ranks = {
     STORAGE_KEY: 'gmsManager.ranks.roster',
@@ -24,11 +22,12 @@ const ranks = {
 
     initialized: false,
     roster: [],          // [{ name, region }]
-    cache: {},           // { 'na:name': { labels, values, charInfo, importedAt } }
+    cache: {},           // { 'na:name': { labels, values, expDaily, charInfo, importedAt } }
     selectedRange: 14,   // 7 | 14 | 30 | 90
-    yMode: 'absolute',   // 'absolute' | 'delta'
+    yMode: 'absolute',   // 'absolute' | 'delta' | 'exp'
     pickedRegion: 'na',  // for the import form
     chart: null,
+    busy: false,
 
     PALETTE: [
         '#6366f1', '#22d3ee', '#f59e0b', '#10b981', '#f43f5e',
@@ -69,10 +68,9 @@ const ranks = {
         } catch (_) { this.cache = {}; }
     },
     saveCache() {
-        // Keep persisted form lean — never save raw payload to localStorage.
         const lean = {};
         for (const [k, v] of Object.entries(this.cache)) {
-            lean[k] = { labels: v.labels, values: v.values, charInfo: v.charInfo, importedAt: v.importedAt };
+            lean[k] = { labels: v.labels, values: v.values, expDaily: v.expDaily, charInfo: v.charInfo, importedAt: v.importedAt };
         }
         localStorage.setItem(this.CACHE_KEY, JSON.stringify(lean));
     },
@@ -83,7 +81,7 @@ const ranks = {
             if (!raw) return;
             const p = JSON.parse(raw);
             if ([7, 14, 30, 90].includes(p.range)) this.selectedRange = p.range;
-            if (['absolute', 'delta'].includes(p.yMode)) this.yMode = p.yMode;
+            if (['absolute', 'delta', 'exp'].includes(p.yMode)) this.yMode = p.yMode;
             if (['na', 'eu'].includes(p.region)) this.pickedRegion = p.region;
         } catch (_) { /* ignore */ }
     },
@@ -96,7 +94,7 @@ const ranks = {
 
     bindUI() {
         const form = document.getElementById('ranks-import-form');
-        if (form) form.addEventListener('submit', e => { e.preventDefault(); this.importFromPaste(); });
+        if (form) form.addEventListener('submit', e => { e.preventDefault(); this.importFromApi(); });
 
         document.querySelectorAll('.ranks-range-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -124,8 +122,8 @@ const ranks = {
             });
         });
 
-        const copyBtn = document.getElementById('ranks-copy-snippet');
-        if (copyBtn) copyBtn.addEventListener('click', () => this.copyConsoleSnippet());
+        const refreshBtn = document.getElementById('ranks-refresh-all');
+        if (refreshBtn) refreshBtn.addEventListener('click', () => this.refreshAll());
 
         const clearBtn = document.getElementById('ranks-clear-form');
         if (clearBtn) clearBtn.addEventListener('click', () => this.clearForm());
@@ -150,119 +148,90 @@ const ranks = {
         });
     },
 
-    /* ---------- import ---------- */
+    /* ---------- import (API) ---------- */
 
-    copyConsoleSnippet() {
-        // Snippet for the user to run on mapleranks.com in DevTools console.
-        // Copies the encoded MR payload + detected name/region to the clipboard.
-        // window.__MR__ is only injected on the initial server-rendered page
-        // load, so if the user navigated via the in-app search it'll be absent.
-        // We alert in that case instead of silently copying a half-empty JSON.
-        const snippet =
-            "(()=>{" +
-            "if(typeof window.__MR__!=='string'){" +
-            "alert('window.__MR__ is missing. Open https://mapleranks.com/u/YOURNAME directly in the URL bar and press F5, then re-run this snippet.');return;" +
-            "}" +
-            "copy(JSON.stringify({" +
-            "n:location.pathname.split('/').filter(Boolean).pop()," +
-            "r:location.pathname.includes('/eu/')?'eu':'na'," +
-            "d:window.__MR__" +
-            "}));" +
-            "console.log('Copied %d bytes — paste into the GMS Manager Rank Compare tab.',window.__MR__.length);" +
-            "})()";
-        navigator.clipboard.writeText(snippet).then(
-            () => this.showMsg('Snippet copied. Paste it into the MapleRanks DevTools console (F12) and press Enter.', 'ok'),
-            () => this.showMsg('Could not write to clipboard. Copy the snippet from the textarea hint manually.', 'err')
-        );
+    async importFromApi() {
+        if (this.busy) return;
+        const nameEl = document.getElementById('ranks-input-name');
+        if (!nameEl) return;
+
+        const typedName = (nameEl.value || '').trim();
+        const region = this.pickedRegion;
+        if (!typedName) { this.showMsg('Enter a character name.', 'warn'); return; }
+
+        this.setBusy(true);
+        this.showMsg(`Fetching ${typedName} (${region.toUpperCase()})…`, 'info');
+        try {
+            const parsed = await this._fetchCharacter(typedName, region);
+            if (!parsed.labels.length) {
+                this.showMsg('No progression data found for that character.', 'err');
+                return;
+            }
+
+            const canonicalName = (parsed.charInfo && parsed.charInfo.name) || typedName;
+            const cacheKey = `${region}:${canonicalName.toLowerCase()}`;
+            this.cache[cacheKey] = { ...parsed, importedAt: Date.now() };
+
+            const existing = this.roster.findIndex(r => r.region === region && r.name.toLowerCase() === canonicalName.toLowerCase());
+            if (existing === -1) this.roster.push({ name: canonicalName, region });
+            else this.roster[existing].name = canonicalName;
+
+            this.saveRoster();
+            this.saveCache();
+            this.renderRoster();
+            this.renderChart();
+            nameEl.value = '';
+            this.showMsg(`Imported ${canonicalName} (${region.toUpperCase()}) · ${parsed.labels.length} days of data.`, 'ok');
+        } catch (e) {
+            this.showMsg(`Failed to fetch: ${e.message}`, 'err');
+        } finally {
+            this.setBusy(false);
+        }
+    },
+
+    async refreshAll() {
+        if (this.busy || this.roster.length === 0) return;
+        this.setBusy(true);
+        let ok = 0, fail = 0;
+        for (const r of this.roster) {
+            try {
+                const parsed = await this._fetchCharacter(r.name, r.region);
+                if (parsed.labels.length) {
+                    this.cache[`${r.region}:${r.name.toLowerCase()}`] = { ...parsed, importedAt: Date.now() };
+                    ok++;
+                } else { fail++; }
+            } catch (_) { fail++; }
+        }
+        this.saveCache();
+        this.renderRoster();
+        this.renderChart();
+        this.setBusy(false);
+        this.showMsg(`Refreshed ${ok} character(s)${fail ? `, ${fail} failed` : ''}.`, fail ? 'warn' : 'ok');
+    },
+
+    // Fetch + parse a single character from the MapleHub proxy.
+    async _fetchCharacter(name, region) {
+        const url = `/maplehub?name=${encodeURIComponent(name)}&region=${region}`;
+        const res = await fetch(url, { cache: 'no-cache' });
+        let data;
+        try { data = await res.json(); } catch (_) { data = null; }
+        if (!res.ok || !data || data.error) {
+            throw new Error((data && data.error) || `HTTP ${res.status}`);
+        }
+        return this._parseApiResponse(data);
+    },
+
+    setBusy(on) {
+        this.busy = on;
+        const btn = document.getElementById('ranks-import-btn');
+        const refresh = document.getElementById('ranks-refresh-all');
+        [btn, refresh].forEach(b => { if (b) b.disabled = on; if (b) b.classList.toggle('opacity-50', on); });
     },
 
     clearForm() {
         const name = document.getElementById('ranks-input-name');
-        const data = document.getElementById('ranks-input-data');
         if (name) name.value = '';
-        if (data) data.value = '';
         this.showMsg('', 'info');
-    },
-
-    importFromPaste() {
-        const nameEl = document.getElementById('ranks-input-name');
-        const dataEl = document.getElementById('ranks-input-data');
-        if (!nameEl || !dataEl) return;
-
-        let typedName = (nameEl.value || '').trim();
-        let region = this.pickedRegion;
-        let encoded = (dataEl.value || '').trim();
-        if (!encoded) { this.showMsg('Paste the MapleRanks data first.', 'warn'); return; }
-
-        // The pasted value may be either:
-        //   (a) the raw base64 string from `copy(window.__MR__)`
-        //   (b) a JSON object {n, r, d} produced by our console snippet
-        if (encoded.startsWith('{')) {
-            try {
-                const obj = JSON.parse(encoded);
-                if (obj && typeof obj === 'object') {
-                    if (!typedName && obj.n) typedName = String(obj.n).trim();
-                    if (obj.r && ['na', 'eu'].includes(obj.r)) region = obj.r;
-                    if (obj.d) {
-                        encoded = String(obj.d).trim();
-                    } else {
-                        this.showMsg(
-                            'Snippet captured the name/region but window.__MR__ was empty. ' +
-                            'Open https://mapleranks.com/u/' + (obj.n || 'YourName') +
-                            ' directly in a new tab, press F5, then re-run the snippet.',
-                            'err'
-                        );
-                        return;
-                    }
-                }
-            } catch (e) {
-                this.showMsg('Pasted JSON could not be parsed.', 'err');
-                return;
-            }
-        }
-
-        // Strip quotes if the user pasted `copy(window.__MR__)` literally (sometimes the
-        // copied form is wrapped in quotes by the browser).
-        encoded = encoded.replace(/^["']|["']$/g, '');
-
-        if (!typedName) { this.showMsg('Enter the character name (or use the console snippet).', 'warn'); return; }
-        if (encoded.length < 100) { this.showMsg('Pasted data looks too short to be a MapleRanks payload.', 'err'); return; }
-
-        // Decode locally
-        let decoded;
-        try {
-            const key = this._genKey(typedName.toLowerCase());
-            decoded = this._decode(encoded, key);
-        } catch (e) {
-            this.showMsg(`Decode failed: ${e.message}. Make sure the character name matches the one in the MapleRanks URL.`, 'err');
-            return;
-        }
-
-        const parsed = this._extractFromPayload(decoded);
-        if (!parsed.labels.length) {
-            this.showMsg('Decoded the payload but found no Level Progress data inside.', 'err');
-            return;
-        }
-
-        // Use the character name MapleRanks reports rather than the typed casing
-        const canonicalName = (parsed.charInfo && parsed.charInfo.name) || typedName;
-        const cacheKey = `${region}:${canonicalName.toLowerCase()}`;
-        this.cache[cacheKey] = { ...parsed, importedAt: Date.now() };
-
-        // Upsert into roster (preserve original entry order)
-        const existing = this.roster.findIndex(r => r.region === region && r.name.toLowerCase() === canonicalName.toLowerCase());
-        if (existing === -1) {
-            this.roster.push({ name: canonicalName, region });
-        } else {
-            this.roster[existing].name = canonicalName;
-        }
-
-        this.saveRoster();
-        this.saveCache();
-        this.renderRoster();
-        this.renderChart();
-        this.clearForm();
-        this.showMsg(`Imported ${canonicalName} (${region.toUpperCase()}) · ${parsed.labels.length} days of data.`, 'ok');
     },
 
     removeCharacter(name, region) {
@@ -274,6 +243,50 @@ const ranks = {
         this.renderChart();
     },
 
+    /* ---------- API parsing ---------- */
+
+    // MapleHub /api/character response → { labels, values, expDaily, charInfo }.
+    // The time series lives under additionalData.graphData; the fallback endpoint
+    // may expose it at the top level, so accept either.
+    _parseApiResponse(data) {
+        const g = (data.additionalData && data.additionalData.graphData) || data.graphData || {};
+        const labels    = Array.isArray(g.labels)    ? g.labels.slice()    : [];
+        const levelData = Array.isArray(g.levelData) ? g.levelData         : [];
+        const expValues = Array.isArray(g.expValues) ? g.expValues         : []; // within-level EXP
+        const expDataA  = Array.isArray(g.expData)   ? g.expData           : []; // daily EXP gained
+
+        const tnl = (typeof tnlData !== 'undefined') ? tnlData : {};
+
+        // Fractional level: Lv + (within-level EXP / EXP-to-next-level).
+        const values = labels.map((_, i) => {
+            const lv = Number(levelData[i]);
+            if (!Number.isFinite(lv)) return null;
+            const within = Number(expValues[i]);
+            const need = tnl[lv];
+            if (need && Number.isFinite(within)) return lv + Math.min(within / need, 0.9999);
+            return lv;
+        });
+
+        const expDaily = labels.map((_, i) => {
+            const v = Number(expDataA[i]);
+            return Number.isFinite(v) ? v : null;
+        });
+
+        const level = Number(data.level) || (levelData.length ? Number(levelData[levelData.length - 1]) : null);
+        let expPct = null;
+        const curWithin = Number(expValues[expValues.length - 1]);
+        if (level && tnl[level] && Number.isFinite(curWithin)) expPct = (curWithin / tnl[level]) * 100;
+
+        const charInfo = {
+            name: data.name || null,
+            level,
+            expPct,
+            world: data.worldName || null
+        };
+
+        return { labels, values, expDaily, charInfo };
+    },
+
     /* ---------- rendering ---------- */
 
     renderRoster() {
@@ -281,7 +294,7 @@ const ranks = {
         if (!wrap) return;
 
         if (this.roster.length === 0) {
-            wrap.innerHTML = '<span class="text-[11px] text-slate-500 italic">No characters yet. Import one above to start.</span>';
+            wrap.innerHTML = '<span class="text-[11px] text-slate-500 italic">No characters yet. Add one above to start.</span>';
             return;
         }
 
@@ -290,10 +303,10 @@ const ranks = {
             const key = `${r.region}:${r.name.toLowerCase()}`;
             const cached = this.cache[key];
             let info = '';
-            if (cached && cached.charInfo) {
+            if (cached && cached.charInfo && cached.charInfo.level != null) {
                 info = `<span class="text-[10px] text-slate-400 ml-1.5">Lv.${cached.charInfo.level}</span>`;
             } else {
-                info = `<span class="text-[10px] text-amber-400 ml-1.5" title="No data cached. Paste again to refresh.">no data</span>`;
+                info = `<span class="text-[10px] text-amber-400 ml-1.5" title="No data cached. Refresh to load.">no data</span>`;
             }
             const importedAgo = cached && cached.importedAt
                 ? `<span class="text-[9px] text-slate-600 ml-1" title="${new Date(cached.importedAt).toLocaleString()}">${this._timeAgo(cached.importedAt)}</span>`
@@ -321,6 +334,7 @@ const ranks = {
         const el = document.getElementById('ranks-msg');
         if (!el) return;
         if (!text) { el.classList.add('hidden'); el.textContent = ''; return; }
+        el.classList.remove('hidden');
         const palette = { warn: 'text-amber-400', err: 'text-rose-400', ok: 'text-emerald-400', info: 'text-slate-400' };
         el.className = `mt-2 text-[11px] font-medium ${palette[kind] || palette.info}`;
         el.textContent = text;
@@ -333,6 +347,8 @@ const ranks = {
         const empty = document.getElementById('ranks-empty');
         const canvas = document.getElementById('ranks-chart');
         if (!wrap || !empty || !canvas) return;
+
+        const isExp = this.yMode === 'exp';
 
         const ready = this.roster.filter(r => {
             const c = this.cache[`${r.region}:${r.name.toLowerCase()}`];
@@ -349,8 +365,7 @@ const ranks = {
         empty.classList.add('hidden');
         wrap.classList.remove('hidden');
 
-        // Union of label dates, ordered as they appear in the longest cached
-        // series, then clipped to the selected range from the right end.
+        // Union of label dates (from the longest cached series), clipped to range.
         let unionLabels = [];
         for (const r of ready) {
             const c = this.cache[`${r.region}:${r.name.toLowerCase()}`];
@@ -363,10 +378,11 @@ const ranks = {
         const datasets = this.roster.map((r, idx) => {
             const c = this.cache[`${r.region}:${r.name.toLowerCase()}`];
             if (!c || !c.labels) return null;
+            const src = isExp ? (c.expDaily || []) : (c.values || []);
             const aligned = new Array(labels.length).fill(null);
             for (let i = 0; i < c.labels.length; i++) {
                 const li = labelIndex[c.labels[i]];
-                if (li != null) aligned[li] = c.values[i];
+                if (li != null) aligned[li] = src[i];
             }
             let display = aligned;
             if (this.yMode === 'delta') {
@@ -389,6 +405,7 @@ const ranks = {
             };
         }).filter(Boolean);
 
+        const fmtExp = this._fmtExp;
         const cfg = {
             type: 'line',
             data: { labels, datasets },
@@ -403,6 +420,7 @@ const ranks = {
                             label: (ctx) => {
                                 const v = ctx.parsed.y;
                                 if (v == null) return `${ctx.dataset.label}: —`;
+                                if (isExp) return `${ctx.dataset.label}: ${fmtExp(v)} EXP`;
                                 if (this.yMode === 'delta') return `${ctx.dataset.label}: +${v.toFixed(4)} lv`;
                                 const lv = Math.floor(v);
                                 const pct = (v - lv) * 100;
@@ -414,9 +432,11 @@ const ranks = {
                 scales: {
                     x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(148,163,184,0.08)' } },
                     y: {
+                        beginAtZero: isExp,
                         ticks: {
                             color: '#94a3b8', font: { size: 10 },
                             callback: (v) => {
+                                if (isExp) return fmtExp(v);
                                 if (this.yMode === 'delta') return `+${Number(v).toFixed(2)}`;
                                 const lv = Math.floor(v);
                                 const pct = ((v - lv) * 100).toFixed(0);
@@ -438,86 +458,18 @@ const ranks = {
         }
     },
 
-    /* ---------- payload parsing ---------- */
-
-    _extractFromPayload(data) {
-        // MapleRanks ships its decoded payload with obfuscated property names
-        // that happen to be stable. We avoid hardcoding them and instead
-        // discover entries by shape:
-        //   - lineChart: nested object with { type:'line', data:{labels,...} }
-        //   - charInfo:  nested object that has a short string name, an
-        //                integer level, and a fractional exp percentage.
-        const flat = this._flatten(data);
-
-        let lineChart = null;
-        for (const o of flat.objects) {
-            if (o && o.type === 'line' && o.data && Array.isArray(o.data.labels)) {
-                lineChart = o; break;
-            }
-        }
-
-        let charInfo = null;
-        for (const o of flat.objects) {
-            if (!o || typeof o !== 'object') continue;
-            const entries = Object.entries(o);
-            const nameVal = entries.find(([k, v]) => typeof v === 'string' && v.length > 0 && v.length < 30)?.[1];
-            const lvlVal = entries.find(([k, v]) => typeof v === 'number' && v > 0 && v < 350 && Number.isInteger(v))?.[1];
-            const pctVal = entries.find(([k, v]) => typeof v === 'number' && v >= 0 && v <= 100 && !Number.isInteger(v))?.[1];
-            const worldStr = entries.find(([k, v]) => typeof v === 'string' && /^[A-Z][a-z]+$/.test(v))?.[1];
-            if (nameVal && lvlVal != null && pctVal != null) {
-                charInfo = { name: nameVal, level: lvlVal, expPct: pctVal, world: worldStr || null };
-                break;
-            }
-        }
-
-        let labels = [], values = [];
-        if (lineChart && lineChart.data) {
-            labels = Array.from(lineChart.data.labels || []);
-            const ds = (lineChart.data.datasets && lineChart.data.datasets[0]) || null;
-            values = ds ? Array.from(ds.data || []) : [];
-        }
-        return { labels, values, charInfo };
-    },
-
-    _flatten(obj, depth = 0, acc = { objects: [] }) {
-        if (depth > 4 || !obj || typeof obj !== 'object') return acc;
-        acc.objects.push(obj);
-        for (const v of Object.values(obj)) {
-            if (v && typeof v === 'object' && !Array.isArray(v)) this._flatten(v, depth + 1, acc);
-        }
-        return acc;
-    },
-
-    /* ---------- decode ---------- */
-
-    _genKey(name) {
-        let h = 0;
-        for (let i = 0; i < name.length; i++) {
-            h = (h << 5) - h + name.charCodeAt(i);
-            h &= h;
-        }
-        const seed = Math.abs(h);
-        const k = new Uint8Array(16);
-        let r = seed;
-        for (let i = 0; i < 16; i++) {
-            r = (1664525 * r + 1013904223) % 4294967296;
-            k[i] = 255 & r;
-        }
-        return k;
-    },
-
-    _decode(base64, key) {
-        const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-        const saltLen = bytes[0];
-        const payload = bytes.slice(1 + saltLen);
-        const out = new Uint8Array(payload.length);
-        for (let i = 0; i < payload.length; i++) {
-            out[i] = payload[i] ^ key[i % key.length];
-        }
-        return JSON.parse(new TextDecoder().decode(out));
-    },
-
     /* ---------- misc ---------- */
+
+    _fmtExp(v) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return '—';
+        const abs = Math.abs(n);
+        if (abs >= 1e12) return (n / 1e12).toFixed(2) + 'T';
+        if (abs >= 1e9)  return (n / 1e9).toFixed(2) + 'B';
+        if (abs >= 1e6)  return (n / 1e6).toFixed(2) + 'M';
+        if (abs >= 1e3)  return (n / 1e3).toFixed(2) + 'K';
+        return String(n);
+    },
 
     _timeAgo(ts) {
         const s = Math.floor((Date.now() - ts) / 1000);

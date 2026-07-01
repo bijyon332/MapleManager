@@ -538,24 +538,8 @@
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <h2 class="text-white font-bold text-base leading-tight">EXP Progress Compare</h2>
-                                    <p class="text-[11px] text-slate-500">Overlay multiple characters' Level Progress curves. Data is imported manually from MapleRanks because Cloudflare blocks server-side scraping.</p>
+                                    <p class="text-[11px] text-slate-500">Overlay multiple characters' EXP / level progression. Data is fetched automatically from MapleHub (up to ~90 days of daily history).</p>
                                 </div>
-                            </div>
-
-                            <!-- How-to bar -->
-                            <div class="rounded-lg border border-slate-800 bg-slate-950/40 p-3 mb-3 text-[11px] text-slate-400 leading-relaxed">
-                                <div class="font-bold text-slate-300 mb-1 flex items-center gap-1.5">
-                                    <i data-lucide="info" class="w-3.5 h-3.5 text-indigo-400"></i>How to import a character
-                                </div>
-                                <ol class="list-decimal list-inside space-y-0.5 ml-1">
-                                    <li>Open <a href="https://mapleranks.com" target="_blank" rel="noopener" class="text-indigo-400 hover:underline">mapleranks.com</a> and load your character page (e.g. <span class="font-mono text-slate-300">mapleranks.com/u/YourName</span>).</li>
-                                    <li>Press <kbd class="bg-slate-800 border border-slate-700 rounded px-1 text-[10px]">F12</kbd> → <b>Console</b> tab.</li>
-                                    <li>Click <b>Copy console snippet</b> below, paste it into the console, press <kbd class="bg-slate-800 border border-slate-700 rounded px-1 text-[10px]">Enter</kbd>.</li>
-                                    <li>Come back here, paste your clipboard into the <b>Data</b> box, then click <b>Import</b>.</li>
-                                </ol>
-                                <button type="button" id="ranks-copy-snippet" class="mt-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3 py-1 rounded text-[11px] font-medium inline-flex items-center gap-1.5 transition-colors">
-                                    <i data-lucide="clipboard-copy" class="w-3 h-3"></i>Copy console snippet
-                                </button>
                             </div>
 
                             <!-- Import form -->
@@ -567,18 +551,14 @@
                                     </div>
                                     <div class="flex-1 relative min-w-[220px]">
                                         <i data-lucide="user" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
-                                        <input type="text" id="ranks-input-name" placeholder="Character name (auto-filled if using the snippet)"
+                                        <input type="text" id="ranks-input-name" placeholder="Character name"
                                             class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white outline-none focus:border-indigo-500">
                                     </div>
-                                </div>
-                                <textarea id="ranks-input-data" rows="3" placeholder='Paste here — either the raw window.__MR__ string, or the JSON {"n":"Name","r":"na","d":"..."} from the snippet.'
-                                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono outline-none focus:border-indigo-500 resize-y"></textarea>
-                                <div class="flex items-center justify-end gap-2">
                                     <button type="button" id="ranks-clear-form" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors">
                                         <i data-lucide="eraser" class="w-3.5 h-3.5"></i>Clear
                                     </button>
-                                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors">
-                                        <i data-lucide="download" class="w-3.5 h-3.5"></i>Import
+                                    <button type="submit" id="ranks-import-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors">
+                                        <i data-lucide="download" class="w-3.5 h-3.5"></i>Add
                                     </button>
                                 </div>
                             </form>
@@ -600,9 +580,13 @@
                                 <div class="flex items-center gap-2">
                                     <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Y-Axis</span>
                                     <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
-                                        <button type="button" data-mode="absolute" class="ranks-mode-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all" title="Lv.XXX.XX%">Absolute</button>
+                                        <button type="button" data-mode="absolute" class="ranks-mode-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all" title="Lv.XXX.XX%">Level</button>
                                         <button type="button" data-mode="delta" class="ranks-mode-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all" title="Levels gained from start of range">Delta</button>
+                                        <button type="button" data-mode="exp" class="ranks-mode-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all" title="EXP gained per day">Daily EXP</button>
                                     </div>
+                                    <button type="button" id="ranks-refresh-all" class="ml-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-2.5 py-1 rounded text-[11px] font-bold flex items-center gap-1.5 transition-colors" title="Re-fetch all characters from MapleHub">
+                                        <i data-lucide="refresh-cw" class="w-3 h-3"></i>Refresh all
+                                    </button>
                                 </div>
                             </div>
                             <div id="ranks-roster" class="flex flex-wrap gap-2"></div>
