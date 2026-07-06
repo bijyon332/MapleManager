@@ -423,7 +423,28 @@ const app = {
                 if (typeof hexaTracker !== 'undefined') hexaTracker.init();
                 this.hexaInitialized = true;
             }
+        } else if (appName === 'liberation') {
+            if (headerNav) headerNav.style.display = 'none';
+            if (dashStats) dashStats.style.display = 'none';
+            if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = 'none';
+            if (clockEl) clockEl.classList.add('ml-auto');
+            document.getElementById('view-liberation-calc').classList.remove('hidden-page');
+            if (!this.liberationInitialized) {
+                if (typeof genesisCalc !== 'undefined') genesisCalc.init('genesis-calc-root');
+                if (typeof destinyCalc !== 'undefined') destinyCalc.init('destiny-calc-root');
+                if (typeof astraCalc !== 'undefined') astraCalc.init('astra-calc-root');
+                this.liberationInitialized = true;
+            }
         }
+    },
+
+    switchLiberationTab(tab) {
+        ['genesis', 'destiny', 'astra'].forEach(t => {
+            document.getElementById(`lib-content-${t}`).classList.toggle('hidden', t !== tab);
+            const btn = document.getElementById(`lib-tab-btn-${t}`);
+            btn.classList.toggle('tab-active', t === tab);
+            btn.classList.toggle('tab-inactive', t !== tab);
+        });
     },
 
     getRoleStyle(role) {

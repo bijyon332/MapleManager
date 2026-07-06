@@ -25,6 +25,10 @@
     <script src="exp_sim.js" defer></script>
     <script src="cost_calc.js" defer></script>
     <script src="ranks.js" defer></script>
+    <script src="liberation_calc.js" defer></script>
+    <script src="genesis_calc.js" defer></script>
+    <script src="destiny_calc.js" defer></script>
+    <script src="astra_calc.js" defer></script>
     <script src="hexa_skill_order.js" defer></script>
     <script src="hexa_tracker.js" defer></script>
     <script src="script.js" defer></script>
@@ -63,6 +67,11 @@
                 class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
                 title="HEXA Matrix Tracker">
                 <i data-lucide="layers" class="w-5 h-5"></i>
+            </button>
+            <button onclick="app.switchApp('liberation')" id="app-liberation"
+                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
+                title="Liberation Calculators (Genesis / Destiny / Astra)">
+                <i data-lucide="gem" class="w-5 h-5"></i>
             </button>
         </nav>
     </aside>
@@ -525,6 +534,25 @@
                 <!-- ========== COST CALCULATOR APP ========== -->
                 <div id="view-cost-calc" class="hidden-page fade-in">
                     <div id="cost-calc-root"></div>
+                </div>
+
+                <!-- ========== LIBERATION CALCULATORS APP (Genesis / Destiny / Astra) ========== -->
+                <div id="view-liberation-calc" class="hidden-page fade-in">
+                    <div class="max-w-[760px] mx-auto">
+                        <div class="flex border-b border-slate-800 bg-slate-900/50 rounded-t-xl overflow-hidden">
+                            <button onclick="app.switchLiberationTab('genesis')" id="lib-tab-btn-genesis"
+                                class="flex-1 py-3 text-xs font-bold transition-colors tab-active">Genesis Weapon</button>
+                            <button onclick="app.switchLiberationTab('destiny')" id="lib-tab-btn-destiny"
+                                class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive">Destiny Weapon</button>
+                            <button onclick="app.switchLiberationTab('astra')" id="lib-tab-btn-astra"
+                                class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive">Astra Weapon</button>
+                        </div>
+                        <div class="pt-5">
+                            <div id="lib-content-genesis"><div id="genesis-calc-root"></div></div>
+                            <div id="lib-content-destiny" class="hidden"><div id="destiny-calc-root"></div></div>
+                            <div id="lib-content-astra" class="hidden"><div id="astra-calc-root"></div></div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- ========== RANK COMPARE APP ========== -->
