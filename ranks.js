@@ -446,10 +446,13 @@ const ranks = {
     },
 
     // Rank roster characters by predicted arrival at `target` level.
-    // Returns { cacheKey: rank } counting already-reached characters as rank 1, 2, ...
+    // Characters that have already reached the target are excluded from the
+    // ranking entirely (not counted, not shown as a position), so the fastest
+    // not-yet-there character gets rank 1.
+    // Returns { cacheKey: rank }.
     _reachRanks(rows, prop) {
         const ranked = rows
-            .filter(row => row.s[prop])
+            .filter(row => row.s[prop] && !row.s[prop].reached)
             .sort((a, b) => {
                 const d = a.s[prop].days - b.s[prop].days;
                 if (d !== 0) return d;
@@ -462,21 +465,39 @@ const ranks = {
 
     /* ---------- leaderboard ---------- */
 
+    // group: buckets columns that share a meaning so each gets its own tint.
+    //   avg   = 実績(昨日/n日平均)  · sky
+    //   pred  = +nLv 予測           · violet
+    //   reach = 到達予想ランキング   · amber
     BOARD_COLUMNS: [
-        { key: 'char',      label: 'キャラ',        align: 'left' },
-        { key: 'yesterday', label: '昨日の獲得EXP', align: 'right' },
-        { key: 'avg7',      label: '7日平均',       align: 'right' },
-        { key: 'avg14',     label: '14日平均',      align: 'right' },
-        { key: 'avg30',     label: '30日平均',      align: 'right' },
-        { key: 'lv1',       label: '+1Lv予測',      align: 'center' },
-        { key: 'lv2',       label: '+2Lv予測',      align: 'center' },
-        { key: 'lv3',       label: '+3Lv予測',      align: 'center' },
-        { key: 'lv4',       label: '+4Lv予測',      align: 'center' },
-        { key: 'lv5',       label: '+5Lv予測',      align: 'center' },
-        { key: 'r290',      label: '290到達予想',   align: 'center' },
-        { key: 'r295',      label: '295到達予想',   align: 'center' },
-        { key: 'del',       label: '',              align: 'center', sortable: false }
+        { key: 'char',      label: 'キャラ',        align: 'left',   group: null },
+        { key: 'yesterday', label: '昨日の獲得EXP', align: 'right',  group: 'avg' },
+        { key: 'avg7',      label: '7日平均',       align: 'right',  group: 'avg' },
+        { key: 'avg14',     label: '14日平均',      align: 'right',  group: 'avg' },
+        { key: 'avg30',     label: '30日平均',      align: 'right',  group: 'avg' },
+        { key: 'lv1',       label: '+1Lv予測',      align: 'center', group: 'pred' },
+        { key: 'lv2',       label: '+2Lv予測',      align: 'center', group: 'pred' },
+        { key: 'lv3',       label: '+3Lv予測',      align: 'center', group: 'pred' },
+        { key: 'lv4',       label: '+4Lv予測',      align: 'center', group: 'pred' },
+        { key: 'lv5',       label: '+5Lv予測',      align: 'center', group: 'pred' },
+        { key: 'r290',      label: '290到達予想',   align: 'center', group: 'reach' },
+        { key: 'r295',      label: '295到達予想',   align: 'center', group: 'reach' },
+        { key: 'del',       label: '',              align: 'center', sortable: false, group: null }
     ],
+
+    GROUP_BG: {
+        avg:   { head: 'bg-sky-500/10',    cell: 'bg-sky-500/5' },
+        pred:  { head: 'bg-violet-500/10', cell: 'bg-violet-500/5' },
+        reach: { head: 'bg-amber-500/10',  cell: 'bg-amber-500/5' }
+    },
+    ACTIVE_BG: { head: 'bg-indigo-500/25', cell: 'bg-indigo-500/10' },
+
+    // td background for a column: active-sort highlight wins, else group tint.
+    _colBg(col, which) {
+        const active = this.sortKey === col.key && col.sortable !== false;
+        if (active) return this.ACTIVE_BG[which];
+        return col.group ? this.GROUP_BG[col.group][which] : (which === 'head' ? 'bg-slate-800/40' : '');
+    },
 
     // Sort value accessor. Returns null for "no data" (always sorted last).
     _sortValue(row, key, rank290, rank295) {
@@ -548,12 +569,13 @@ const ranks = {
             return this.sortDir === 'desc' ? vb - va : va - vb;
         });
 
-        head.innerHTML = '<tr class="border-b border-slate-800 bg-slate-800/40">' + this.BOARD_COLUMNS.map(col => {
+        head.innerHTML = '<tr class="border-b border-slate-700">' + this.BOARD_COLUMNS.map(col => {
             const sortable = col.sortable !== false;
             const active = this.sortKey === col.key;
             const arrow = active ? (this.sortDir === 'desc' ? ' ▼' : ' ▲') : '';
             const alignCls = col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left';
-            return `<th data-sort="${sortable ? col.key : ''}" class="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wide whitespace-nowrap ${alignCls} ${sortable ? 'cursor-pointer select-none hover:text-white' : ''} ${active ? 'text-indigo-400' : 'text-slate-500'}">${col.label}${arrow}</th>`;
+            const textCls = active ? 'text-indigo-300' : 'text-slate-400';
+            return `<th data-sort="${sortable ? col.key : ''}" class="px-3 py-3 text-xs font-bold tracking-wide whitespace-nowrap ${alignCls} ${this._colBg(col, 'head')} ${textCls} ${sortable ? 'cursor-pointer select-none hover:text-white' : ''}">${col.label}${arrow}</th>`;
         }).join('') + '</tr>';
 
         body.innerHTML = rows.map(row => this._boardRowHtml(row, rank290, rank295)).join('');
@@ -585,83 +607,31 @@ const ranks = {
         const info = (row.c && row.c.charInfo) || {};
         const expanded = this.expandedKey === key;
 
-        const img = info.img
-            ? `<img src="${this._escape(info.img)}" alt="" class="w-10 h-10 object-contain object-bottom flex-shrink-0 -my-1" loading="lazy">`
-            : `<div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0"><i data-lucide="user" class="w-4 h-4 text-slate-600"></i></div>`;
-
-        const lvTxt = s.level != null
-            ? `Lv.${s.level}${s.expPct != null ? ` <span class="text-indigo-400">(${s.expPct.toFixed(2)}%)</span>` : ''}`
-            : '<span class="text-amber-400">データなし</span>';
-        const sub = [info.job, info.world].filter(Boolean).join(' · ');
-
-        const charCell = `
-            <td class="px-3 py-2">
-                <div class="flex items-center gap-2.5 min-w-[180px]">
-                    ${img}
-                    <div class="min-w-0">
-                        <div class="text-xs font-bold text-white truncate">${this._escape(r.name)}
-                            <span class="text-[9px] uppercase tracking-wider text-slate-500 ml-1">${r.region}</span>
-                        </div>
-                        <div class="text-[10px] text-slate-400">${lvTxt}</div>
-                        ${sub ? `<div class="text-[9px] text-slate-600 truncate">${this._escape(sub)}</div>` : ''}
-                    </div>
-                </div>
-            </td>`;
-
-        const expCell = v => {
-            if (v == null) return '<td class="px-3 py-2 text-right text-slate-600 text-xs">—</td>';
-            const pct = s.tnl ? (v / s.tnl) * 100 : null;
-            return `<td class="px-3 py-2 text-right whitespace-nowrap">
-                <div class="text-xs font-bold text-white font-mono">${this._fmtExp(v)}</div>
-                <div class="text-[10px] text-slate-500">${pct != null ? pct.toFixed(2) + '%' : '—'}</div>
-            </td>`;
+        // inner content per column key (no <td> wrapper — the loop adds it)
+        const inner = {
+            char:      this._charCellInner(r, info, s),
+            yesterday: this._expInner(s.yesterday, s),
+            avg7:      this._expInner(s.avg7, s),
+            avg14:     this._expInner(s.avg14, s),
+            avg30:     this._expInner(s.avg30, s),
+            lv1:       this._predInner(s.preds[0]),
+            lv2:       this._predInner(s.preds[1]),
+            lv3:       this._predInner(s.preds[2]),
+            lv4:       this._predInner(s.preds[3]),
+            lv5:       this._predInner(s.preds[4]),
+            r290:      this._reachInner(s.to290, rank290[key]),
+            r295:      this._reachInner(s.to295, rank295[key]),
+            del:       this._delInner(key)
         };
 
-        const predCell = p => {
-            if (!p) return '<td class="px-3 py-2 text-center text-slate-600 text-xs">—</td>';
-            return `<td class="px-3 py-2 text-center whitespace-nowrap">
-                <div class="text-xs text-white font-mono">${this._fmtDate(p.date)}</div>
-                <div class="text-[10px] text-slate-500">${p.days}日後</div>
-            </td>`;
-        };
-
-        const reachCell = (eta, rank) => {
-            if (!eta) return '<td class="px-3 py-2 text-center text-slate-600 text-xs">—</td>';
-            if (eta.reached) {
-                return `<td class="px-3 py-2 text-center whitespace-nowrap">
-                    <div class="text-xs font-bold text-emerald-400">到達済</div>
-                    ${rank != null ? `<div class="text-[10px] text-slate-500">${rank}位</div>` : ''}
-                </td>`;
-            }
-            return `<td class="px-3 py-2 text-center whitespace-nowrap">
-                <div class="text-xs font-bold text-amber-400">${rank != null ? rank + '位' : '—'}</div>
-                <div class="text-[10px] text-slate-500">${this._fmtDate(eta.date)} · ${eta.days}日後</div>
-            </td>`;
-        };
-
-        const delCell = `
-            <td class="px-3 py-2 text-center">
-                <button type="button" data-del="${this._escape(key)}" title="削除"
-                        class="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors">
-                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                </button>
-            </td>`;
+        const tds = this.BOARD_COLUMNS.map(col => {
+            const alignCls = col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left';
+            return `<td class="px-3 py-2.5 align-middle ${alignCls} ${this._colBg(col, 'cell')}">${inner[col.key]}</td>`;
+        }).join('');
 
         const rowHtml = `
-            <tr data-key="${this._escape(key)}" class="border-b border-slate-800 cursor-pointer transition-colors ${expanded ? 'bg-slate-800/60' : 'hover:bg-slate-800/40'}">
-                ${charCell}
-                ${expCell(s.yesterday)}
-                ${expCell(s.avg7)}
-                ${expCell(s.avg14)}
-                ${expCell(s.avg30)}
-                ${predCell(s.preds[0])}
-                ${predCell(s.preds[1])}
-                ${predCell(s.preds[2])}
-                ${predCell(s.preds[3])}
-                ${predCell(s.preds[4])}
-                ${reachCell(s.to290, rank290[key])}
-                ${reachCell(s.to295, rank295[key])}
-                ${delCell}
+            <tr data-key="${this._escape(key)}" class="border-b border-slate-800 cursor-pointer transition-colors ${expanded ? 'bg-slate-800/60' : 'hover:bg-slate-800/30'}">
+                ${tds}
             </tr>`;
 
         if (!expanded) return rowHtml;
@@ -690,6 +660,66 @@ const ranks = {
                     </div>
                 </td>
             </tr>`;
+    },
+
+    /* ---------- board cell renderers (inner HTML, no <td>) ---------- */
+
+    _charCellInner(r, info, s) {
+        const img = info.img
+            ? `<img src="${this._escape(info.img)}" alt="" class="w-16 h-16 object-contain object-bottom flex-shrink-0 -my-2" loading="lazy">`
+            : `<div class="w-16 h-16 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0"><i data-lucide="user" class="w-6 h-6 text-slate-600"></i></div>`;
+
+        const pct = (s.expPct != null) ? Math.max(0, Math.min(100, s.expPct)) : null;
+        const lvTxt = s.level != null
+            ? `<span class="text-sm font-bold text-white">Lv.${s.level}</span>${s.expPct != null ? ` <span class="text-xs font-bold text-indigo-300">${s.expPct.toFixed(2)}%</span>` : ''}`
+            : '<span class="text-sm font-bold text-amber-400">データなし</span>';
+        const sub = [info.job, info.world].filter(Boolean).join(' · ');
+        const bar = pct != null
+            ? `<div class="mt-1.5 h-2 w-full rounded-full bg-slate-800/80 overflow-hidden shadow-inner">
+                   <div class="h-full rounded-full bg-gradient-to-r from-indigo-500 via-blue-500 to-sky-400" style="width:${pct.toFixed(2)}%"></div>
+               </div>`
+            : '';
+
+        return `
+            <div class="flex items-center gap-3 min-w-[220px]">
+                ${img}
+                <div class="min-w-0 flex-1">
+                    <div class="text-base font-bold text-white truncate leading-tight">${this._escape(r.name)}
+                        <span class="text-[10px] uppercase tracking-wider text-slate-500 ml-1">${r.region}</span>
+                    </div>
+                    <div class="leading-tight mt-0.5">${lvTxt}</div>
+                    ${sub ? `<div class="text-[11px] text-slate-500 truncate">${this._escape(sub)}</div>` : ''}
+                    ${bar}
+                </div>
+            </div>`;
+    },
+
+    _expInner(v, s) {
+        if (v == null) return '<span class="text-slate-600 text-sm">—</span>';
+        const pct = s.tnl ? (v / s.tnl) * 100 : null;
+        return `<div class="text-sm font-bold text-white font-mono whitespace-nowrap">${this._fmtExp(v)}</div>
+                <div class="text-xs text-slate-400">${pct != null ? pct.toFixed(2) + '%' : '—'}</div>`;
+    },
+
+    _predInner(p) {
+        if (!p) return '<span class="text-slate-600 text-sm">—</span>';
+        return `<div class="text-sm font-bold text-white font-mono whitespace-nowrap">${this._fmtDate(p.date)}</div>
+                <div class="text-xs text-slate-400">${p.days}日後</div>`;
+    },
+
+    // Reached characters are not ranked, so show only a muted "到達済" (no position).
+    _reachInner(eta, rank) {
+        if (!eta) return '<span class="text-slate-600 text-sm">—</span>';
+        if (eta.reached) return '<span class="text-xs font-bold text-slate-500">到達済</span>';
+        return `<div class="text-base font-black text-amber-300 whitespace-nowrap leading-tight">${rank != null ? rank + '位' : '—'}</div>
+                <div class="text-xs text-slate-400 whitespace-nowrap">${this._fmtDate(eta.date)} · ${eta.days}日後</div>`;
+    },
+
+    _delInner(key) {
+        return `<button type="button" data-del="${this._escape(key)}" title="削除"
+                    class="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>`;
     },
 
     _destroyDetailChart() {
