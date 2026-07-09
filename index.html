@@ -43,36 +43,47 @@
             </div>
         </div>
         <nav class="flex-1 py-4 flex flex-col items-center gap-1">
+            <!-- Ready apps -->
             <button onclick="app.switchApp('planner')" id="app-planner"
                 class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-active"
                 title="GMS Planner">
                 <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
             </button>
-            <button onclick="app.switchApp('exp')" id="app-exp"
-                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
-                title="EXP Simulator">
-                <i data-lucide="activity" class="w-5 h-5"></i>
-            </button>
-            <button onclick="app.switchApp('cost')" id="app-cost"
-                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
-                title="Cost Calculator">
-                <i data-lucide="calculator" class="w-5 h-5"></i>
-            </button>
             <button onclick="app.switchApp('ranks')" id="app-ranks"
                 class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
-                title="Rank Compare">
+                title="EXP Leaderboard & Progress">
                 <i data-lucide="line-chart" class="w-5 h-5"></i>
             </button>
-            <button onclick="app.switchApp('hexa')" id="app-hexa"
-                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
-                title="HEXA Matrix Tracker">
-                <i data-lucide="layers" class="w-5 h-5"></i>
-            </button>
-            <button onclick="app.switchApp('liberation')" id="app-liberation"
-                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
-                title="Liberation Calculators (Genesis / Destiny / Astra)">
-                <i data-lucide="gem" class="w-5 h-5"></i>
-            </button>
+
+            <!-- In-development apps -->
+            <div class="w-full flex flex-col items-center gap-1.5 mt-3 pt-3 border-t border-slate-700/70">
+                <span class="text-[8px] font-bold uppercase tracking-widest text-amber-500/70 leading-none"
+                    title="開発中 / In Development">DEV</span>
+                <button onclick="app.switchApp('exp')" id="app-exp"
+                    class="dev-app relative w-10 h-10 flex items-center justify-center rounded-xl transition-all nav-inactive"
+                    title="EXP Simulator(開発中)">
+                    <i data-lucide="activity" class="w-5 h-5"></i>
+                    <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                </button>
+                <button onclick="app.switchApp('cost')" id="app-cost"
+                    class="dev-app relative w-10 h-10 flex items-center justify-center rounded-xl transition-all nav-inactive"
+                    title="Cost Calculator(開発中)">
+                    <i data-lucide="calculator" class="w-5 h-5"></i>
+                    <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                </button>
+                <button onclick="app.switchApp('hexa')" id="app-hexa"
+                    class="dev-app relative w-10 h-10 flex items-center justify-center rounded-xl transition-all nav-inactive"
+                    title="HEXA Matrix Tracker(開発中)">
+                    <i data-lucide="layers" class="w-5 h-5"></i>
+                    <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                </button>
+                <button onclick="app.switchApp('liberation')" id="app-liberation"
+                    class="dev-app relative w-10 h-10 flex items-center justify-center rounded-xl transition-all nav-inactive"
+                    title="Liberation Calculators (Genesis / Destiny / Astra)(開発中)">
+                    <i data-lucide="gem" class="w-5 h-5"></i>
+                    <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                </button>
+            </div>
         </nav>
     </aside>
 

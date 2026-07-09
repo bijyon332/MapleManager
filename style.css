@@ -50,6 +50,17 @@ body {
     color: #fff;
 }
 
+/* In-development apps: dim only while NOT selected. switchApp() toggles
+   nav-inactive on/off, so the selected dev app loses this class and no dim rule
+   applies (defaults to full opacity) — avoids any specificity/cascade-layer
+   fight over overriding a base .dev-app opacity. */
+.dev-app.nav-inactive {
+    opacity: 0.45;
+}
+.dev-app.nav-inactive:hover {
+    opacity: 1;
+}
+
 .nav-inactive {
     color: #94a3b8;
 }
