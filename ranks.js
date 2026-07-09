@@ -1,19 +1,26 @@
 // ranks.js
-// EXP Progress Compare: overlay multiple characters' progression curves on a
-// single Chart.js chart.
+// EXP Leaderboard & Progress: per-character EXP tracking with two tabs.
+//   - リーダーボード: sortable table (yesterday / 7d / 14d / 30d averages,
+//     +1..+5 level ETAs, predicted order of reaching Lv.290 / Lv.295).
+//     Clicking a row expands an inline level / daily-EXP chart (7/14/30/90d).
+//   - 推移: pick characters from the roster list and overlay their curves
+//     on a single Chart.js chart (level / delta / daily EXP).
 //
 // Data source: MapleHub (maplehub.app) keeps ~90 days of daily snapshots for
 // every ranked character in its own backend DB. We fetch it through our own
 // Cloudflare Pages Function proxy (/maplehub?name=...&region=...) which adds the
-// required `X-MapleHub-Request: true` header and CORS. No more console paste.
+// required `X-MapleHub-Request: true` header and CORS.
+//
+// Level predictions use tnlData (exp_data.js, Lv.200-299). Characters outside
+// that table show "—" instead of a forecast.
 //
 // Persistence:
 //   - Roster:  localStorage[gmsManager.ranks.roster] = [{name, region}, ...]
 //   - Cache:   localStorage[gmsManager.ranks.cache]  = { 'na:name': { labels, values, expDaily, charInfo, importedAt } }
-//   - Prefs:   localStorage[gmsManager.ranks.prefs]  = { range, yMode, region }
+//   - Prefs:   localStorage[gmsManager.ranks.prefs]  = { range, yMode, region, tab, sortKey, sortDir, selected, detailMode, detailRange }
 //
 //   values[]   : fractional level per day  (Lv + withinLevelExp / TNL(level))
-//   expDaily[] : EXP gained that day (raw number)
+//   expDaily[] : EXP gained that day (raw number; the series ends on yesterday)
 
 const ranks = {
     STORAGE_KEY: 'gmsManager.ranks.roster',
@@ -23,11 +30,23 @@ const ranks = {
     initialized: false,
     roster: [],          // [{ name, region }]
     cache: {},           // { 'na:name': { labels, values, expDaily, charInfo, importedAt } }
+    busy: false,
+
+    // tabs & leaderboard state
+    activeTab: 'board',  // 'board' | 'trend'
+    sortKey: 'char',     // column key
+    sortDir: 'desc',
+    expandedKey: null,   // cache key of the expanded leaderboard row
+    detailMode: 'level', // 'level' | 'exp'
+    detailRange: 30,     // 7 | 14 | 30 | 90
+    detailChart: null,
+
+    // trend tab state
+    selectedKeys: null,  // array of cache keys shown in the trend chart (null = all)
     selectedRange: 14,   // 7 | 14 | 30 | 90
     yMode: 'absolute',   // 'absolute' | 'delta' | 'exp'
     pickedRegion: 'na',  // for the import form
     chart: null,
-    busy: false,
 
     PALETTE: [
         '#6366f1', '#22d3ee', '#f59e0b', '#10b981', '#f43f5e',
@@ -42,12 +61,18 @@ const ranks = {
         this.loadRoster();
         this.loadCache();
         this.bindUI();
-        this.renderRangeButtons();
-        this.renderModeButtons();
         this.renderRegionButtons();
-        this.renderRoster();
-        this.renderChart();
+        this.renderAll();
+        this._refreshMissing(); // pull icon/withinExp for entries cached by the old version
     },
+
+    renderAll() {
+        this.renderTabs();
+        this.renderBoard();
+        this.renderTrend();
+    },
+
+    _key(r) { return `${r.region}:${r.name.toLowerCase()}`; },
 
     /* ---------- storage ---------- */
 
@@ -83,10 +108,20 @@ const ranks = {
             if ([7, 14, 30, 90].includes(p.range)) this.selectedRange = p.range;
             if (['absolute', 'delta', 'exp'].includes(p.yMode)) this.yMode = p.yMode;
             if (['na', 'eu'].includes(p.region)) this.pickedRegion = p.region;
+            if (['board', 'trend'].includes(p.tab)) this.activeTab = p.tab;
+            if (typeof p.sortKey === 'string' && this.BOARD_COLUMNS.some(c => c.key === p.sortKey && c.sortable !== false)) this.sortKey = p.sortKey;
+            if (['asc', 'desc'].includes(p.sortDir)) this.sortDir = p.sortDir;
+            if (Array.isArray(p.selected)) this.selectedKeys = p.selected;
+            if (['level', 'exp'].includes(p.detailMode)) this.detailMode = p.detailMode;
+            if ([7, 14, 30, 90].includes(p.detailRange)) this.detailRange = p.detailRange;
         } catch (_) { /* ignore */ }
     },
     savePrefs() {
-        const p = { range: this.selectedRange, yMode: this.yMode, region: this.pickedRegion };
+        const p = {
+            range: this.selectedRange, yMode: this.yMode, region: this.pickedRegion,
+            tab: this.activeTab, sortKey: this.sortKey, sortDir: this.sortDir,
+            selected: this.selectedKeys, detailMode: this.detailMode, detailRange: this.detailRange
+        };
         localStorage.setItem(this.PREFS_KEY, JSON.stringify(p));
     },
 
@@ -95,6 +130,14 @@ const ranks = {
     bindUI() {
         const form = document.getElementById('ranks-import-form');
         if (form) form.addEventListener('submit', e => { e.preventDefault(); this.importFromApi(); });
+
+        document.querySelectorAll('.ranks-tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.activeTab = btn.dataset.tab;
+                this.savePrefs();
+                this.renderAll();
+            });
+        });
 
         document.querySelectorAll('.ranks-range-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -124,9 +167,19 @@ const ranks = {
 
         const refreshBtn = document.getElementById('ranks-refresh-all');
         if (refreshBtn) refreshBtn.addEventListener('click', () => this.refreshAll());
+    },
 
-        const clearBtn = document.getElementById('ranks-clear-form');
-        if (clearBtn) clearBtn.addEventListener('click', () => this.clearForm());
+    renderTabs() {
+        document.querySelectorAll('.ranks-tab-btn').forEach(btn => {
+            const active = btn.dataset.tab === this.activeTab;
+            btn.classList.toggle('bg-indigo-600', active);
+            btn.classList.toggle('text-white', active);
+            btn.classList.toggle('text-slate-400', !active);
+        });
+        const board = document.getElementById('ranks-tab-board');
+        const trend = document.getElementById('ranks-tab-trend');
+        if (board) board.classList.toggle('hidden', this.activeTab !== 'board');
+        if (trend) trend.classList.toggle('hidden', this.activeTab !== 'trend');
     },
 
     renderRangeButtons() {
@@ -157,14 +210,14 @@ const ranks = {
 
         const typedName = (nameEl.value || '').trim();
         const region = this.pickedRegion;
-        if (!typedName) { this.showMsg('Enter a character name.', 'warn'); return; }
+        if (!typedName) { this.showMsg('キャラクター名を入力してください。', 'warn'); return; }
 
         this.setBusy(true);
-        this.showMsg(`Fetching ${typedName} (${region.toUpperCase()})…`, 'info');
+        this.showMsg(`${typedName} (${region.toUpperCase()}) を取得中…`, 'info');
         try {
             const parsed = await this._fetchCharacter(typedName, region);
             if (!parsed.labels.length) {
-                this.showMsg('No progression data found for that character.', 'err');
+                this.showMsg('このキャラクターの推移データが見つかりませんでした。', 'err');
                 return;
             }
 
@@ -176,14 +229,19 @@ const ranks = {
             if (existing === -1) this.roster.push({ name: canonicalName, region });
             else this.roster[existing].name = canonicalName;
 
+            // newly added characters join the trend chart selection
+            if (Array.isArray(this.selectedKeys) && !this.selectedKeys.includes(cacheKey)) {
+                this.selectedKeys.push(cacheKey);
+            }
+
             this.saveRoster();
             this.saveCache();
-            this.renderRoster();
-            this.renderChart();
+            this.savePrefs();
+            this.renderAll();
             nameEl.value = '';
-            this.showMsg(`Imported ${canonicalName} (${region.toUpperCase()}) · ${parsed.labels.length} days of data.`, 'ok');
+            this.showMsg(`${canonicalName} (${region.toUpperCase()}) を追加しました · ${parsed.labels.length}日分のデータ`, 'ok');
         } catch (e) {
-            this.showMsg(`Failed to fetch: ${e.message}`, 'err');
+            this.showMsg(`取得に失敗しました: ${e.message}`, 'err');
         } finally {
             this.setBusy(false);
         }
@@ -197,16 +255,35 @@ const ranks = {
             try {
                 const parsed = await this._fetchCharacter(r.name, r.region);
                 if (parsed.labels.length) {
-                    this.cache[`${r.region}:${r.name.toLowerCase()}`] = { ...parsed, importedAt: Date.now() };
+                    this.cache[this._key(r)] = { ...parsed, importedAt: Date.now() };
                     ok++;
                 } else { fail++; }
             } catch (_) { fail++; }
         }
         this.saveCache();
-        this.renderRoster();
-        this.renderChart();
+        this.renderAll();
         this.setBusy(false);
-        this.showMsg(`Refreshed ${ok} character(s)${fail ? `, ${fail} failed` : ''}.`, fail ? 'warn' : 'ok');
+        this.showMsg(`${ok}キャラを更新しました${fail ? `(${fail}件失敗)` : ''}。`, fail ? 'warn' : 'ok');
+    },
+
+    // Entries cached by the old ranks.js lack charInfo.img / withinExp.
+    // Silently re-fetch just those so the leaderboard fills in without a manual refresh.
+    async _refreshMissing() {
+        const stale = this.roster.filter(r => {
+            const c = this.cache[this._key(r)];
+            return c && (!c.charInfo || !('img' in c.charInfo));
+        });
+        if (this.busy || stale.length === 0) return;
+        this.setBusy(true);
+        for (const r of stale) {
+            try {
+                const parsed = await this._fetchCharacter(r.name, r.region);
+                if (parsed.labels.length) this.cache[this._key(r)] = { ...parsed, importedAt: Date.now() };
+            } catch (_) { /* keep old data */ }
+        }
+        this.saveCache();
+        this.setBusy(false);
+        this.renderAll();
     },
 
     // Fetch + parse a single character from the MapleHub proxy.
@@ -228,19 +305,15 @@ const ranks = {
         [btn, refresh].forEach(b => { if (b) b.disabled = on; if (b) b.classList.toggle('opacity-50', on); });
     },
 
-    clearForm() {
-        const name = document.getElementById('ranks-input-name');
-        if (name) name.value = '';
-        this.showMsg('', 'info');
-    },
-
-    removeCharacter(name, region) {
-        this.roster = this.roster.filter(r => !(r.name === name && r.region === region));
-        delete this.cache[`${region}:${name.toLowerCase()}`];
+    removeCharacter(key) {
+        this.roster = this.roster.filter(r => this._key(r) !== key);
+        delete this.cache[key];
+        if (Array.isArray(this.selectedKeys)) this.selectedKeys = this.selectedKeys.filter(k => k !== key);
+        if (this.expandedKey === key) this.expandedKey = null;
         this.saveRoster();
         this.saveCache();
-        this.renderRoster();
-        this.renderChart();
+        this.savePrefs();
+        this.renderAll();
     },
 
     /* ---------- API parsing ---------- */
@@ -273,60 +346,494 @@ const ranks = {
         });
 
         const level = Number(data.level) || (levelData.length ? Number(levelData[levelData.length - 1]) : null);
-        let expPct = null;
         const curWithin = Number(expValues[expValues.length - 1]);
+        let expPct = null;
         if (level && tnl[level] && Number.isFinite(curWithin)) expPct = (curWithin / tnl[level]) * 100;
 
         const charInfo = {
             name: data.name || null,
             level,
             expPct,
-            world: data.worldName || null
+            withinExp: Number.isFinite(curWithin) ? curWithin : null,
+            world: data.worldName || null,
+            job: data.jobName || null,
+            img: data.characterImgURL || null
         };
 
         return { labels, values, expDaily, charInfo };
     },
 
-    /* ---------- rendering ---------- */
+    /* ---------- stats & predictions ---------- */
 
-    renderRoster() {
-        const wrap = document.getElementById('ranks-roster');
+    // Per-character derived numbers for the leaderboard.
+    _computeStats(c) {
+        const s = {
+            level: null, frac: null, expPct: null, tnl: null,
+            yesterday: null, avg7: null, avg14: null, avg30: null,
+            rate: null, preds: [null, null, null, null, null],
+            to290: null, to295: null
+        };
+        if (!c || !c.charInfo) return s;
+        const tnl = (typeof tnlData !== 'undefined') ? tnlData : {};
+        const lv = Number(c.charInfo.level);
+        const within = Number.isFinite(Number(c.charInfo.withinExp)) ? Number(c.charInfo.withinExp) : 0;
+        if (Number.isFinite(lv)) {
+            s.level = lv;
+            s.tnl = tnl[lv] || null;
+            s.expPct = (s.tnl) ? (within / s.tnl) * 100 : (Number.isFinite(c.charInfo.expPct) ? c.charInfo.expPct : null);
+            s.frac = lv + (s.tnl ? Math.min(within / s.tnl, 0.9999) : 0);
+        }
+
+        const daily = Array.isArray(c.expDaily) ? c.expDaily : [];
+        const finite = n => Number.isFinite(Number(n));
+        const avgN = n => {
+            const arr = daily.slice(-n).filter(finite).map(Number);
+            if (!arr.length) return null;
+            return arr.reduce((a, b) => a + b, 0) / arr.length;
+        };
+        // series ends on yesterday → last finite value = yesterday's gain
+        for (let i = daily.length - 1; i >= 0; i--) {
+            if (finite(daily[i])) { s.yesterday = Number(daily[i]); break; }
+        }
+        s.avg7 = avgN(7);
+        s.avg14 = avgN(14);
+        s.avg30 = avgN(30);
+        s.rate = s.avg14 || s.avg7 || s.avg30 || null;
+
+        if (Number.isFinite(lv) && s.rate > 0) {
+            for (let k = 1; k <= 5; k++) {
+                const need = this._expForLevels(tnl, lv, within, k);
+                s.preds[k - 1] = (need == null) ? null : this._eta(need, s.rate);
+            }
+            s.to290 = this._reachEta(tnl, lv, within, 290, s.rate);
+            s.to295 = this._reachEta(tnl, lv, within, 295, s.rate);
+        } else if (Number.isFinite(lv)) {
+            if (lv >= 290) s.to290 = { days: 0, date: new Date(), reached: true };
+            if (lv >= 295) s.to295 = { days: 0, date: new Date(), reached: true };
+        }
+        return s;
+    },
+
+    // EXP needed to gain k levels from (lv, within). null if tnlData doesn't cover it.
+    _expForLevels(tnl, lv, within, k) {
+        let total = 0;
+        for (let i = 0; i < k; i++) {
+            const need = tnl[lv + i];
+            if (!need) return null;
+            total += (i === 0) ? Math.max(need - within, 0) : need;
+        }
+        return total;
+    },
+
+    _reachEta(tnl, lv, within, target, rate) {
+        if (lv >= target) return { days: 0, date: new Date(), reached: true };
+        const need = this._expForLevels(tnl, lv, within, target - lv);
+        if (need == null || !(rate > 0)) return null;
+        return this._eta(need, rate);
+    },
+
+    _eta(needExp, rate) {
+        const days = Math.max(Math.ceil(needExp / rate), 0);
+        const date = new Date();
+        date.setDate(date.getDate() + days);
+        return { days, date, reached: false };
+    },
+
+    // Rank roster characters by predicted arrival at `target` level.
+    // Returns { cacheKey: rank } counting already-reached characters as rank 1, 2, ...
+    _reachRanks(rows, prop) {
+        const ranked = rows
+            .filter(row => row.s[prop])
+            .sort((a, b) => {
+                const d = a.s[prop].days - b.s[prop].days;
+                if (d !== 0) return d;
+                return (b.s.frac || 0) - (a.s.frac || 0); // earlier = higher current progress
+            });
+        const map = {};
+        ranked.forEach((row, i) => { map[row.key] = i + 1; });
+        return map;
+    },
+
+    /* ---------- leaderboard ---------- */
+
+    BOARD_COLUMNS: [
+        { key: 'char',      label: 'キャラ',        align: 'left' },
+        { key: 'yesterday', label: '昨日の獲得EXP', align: 'right' },
+        { key: 'avg7',      label: '7日平均',       align: 'right' },
+        { key: 'avg14',     label: '14日平均',      align: 'right' },
+        { key: 'avg30',     label: '30日平均',      align: 'right' },
+        { key: 'lv1',       label: '+1Lv予測',      align: 'center' },
+        { key: 'lv2',       label: '+2Lv予測',      align: 'center' },
+        { key: 'lv3',       label: '+3Lv予測',      align: 'center' },
+        { key: 'lv4',       label: '+4Lv予測',      align: 'center' },
+        { key: 'lv5',       label: '+5Lv予測',      align: 'center' },
+        { key: 'r290',      label: '290到達予想',   align: 'center' },
+        { key: 'r295',      label: '295到達予想',   align: 'center' },
+        { key: 'del',       label: '',              align: 'center', sortable: false }
+    ],
+
+    // Sort value accessor. Returns null for "no data" (always sorted last).
+    _sortValue(row, key, rank290, rank295) {
+        const s = row.s;
+        switch (key) {
+            case 'char':      return s.frac;
+            case 'yesterday': return s.yesterday;
+            case 'avg7':      return s.avg7;
+            case 'avg14':     return s.avg14;
+            case 'avg30':     return s.avg30;
+            case 'lv1': case 'lv2': case 'lv3': case 'lv4': case 'lv5': {
+                const p = s.preds[parseInt(key.slice(2), 10) - 1];
+                return p ? -p.days : null; // fewer days = "bigger" so desc shows fastest first
+            }
+            case 'r290': return rank290[row.key] != null ? -rank290[row.key] : null;
+            case 'r295': return rank295[row.key] != null ? -rank295[row.key] : null;
+            default: return null;
+        }
+    },
+
+    setSort(key) {
+        if (this.sortKey === key) {
+            this.sortDir = this.sortDir === 'desc' ? 'asc' : 'desc';
+        } else {
+            this.sortKey = key;
+            this.sortDir = 'desc';
+        }
+        this.savePrefs();
+        this.renderBoard();
+    },
+
+    toggleExpand(key) {
+        this.expandedKey = (this.expandedKey === key) ? null : key;
+        this.renderBoard();
+    },
+
+    renderBoard() {
+        const wrap = document.getElementById('ranks-board-wrap');
+        const empty = document.getElementById('ranks-board-empty');
+        const head = document.getElementById('ranks-board-head');
+        const body = document.getElementById('ranks-board-body');
+        if (!wrap || !empty || !head || !body) return;
+
+        this._destroyDetailChart();
+
+        if (this.roster.length === 0) {
+            wrap.classList.add('hidden');
+            empty.classList.remove('hidden');
+            return;
+        }
+        empty.classList.add('hidden');
+        wrap.classList.remove('hidden');
+
+        const rows = this.roster.map((r, idx) => {
+            const key = this._key(r);
+            const c = this.cache[key];
+            return { r, idx, key, c, s: this._computeStats(c) };
+        });
+
+        const rank290 = this._reachRanks(rows, 'to290');
+        const rank295 = this._reachRanks(rows, 'to295');
+
+        rows.sort((a, b) => {
+            const va = this._sortValue(a, this.sortKey, rank290, rank295);
+            const vb = this._sortValue(b, this.sortKey, rank290, rank295);
+            if (va == null && vb == null) return 0;
+            if (va == null) return 1;
+            if (vb == null) return -1;
+            return this.sortDir === 'desc' ? vb - va : va - vb;
+        });
+
+        head.innerHTML = '<tr class="border-b border-slate-800 bg-slate-800/40">' + this.BOARD_COLUMNS.map(col => {
+            const sortable = col.sortable !== false;
+            const active = this.sortKey === col.key;
+            const arrow = active ? (this.sortDir === 'desc' ? ' ▼' : ' ▲') : '';
+            const alignCls = col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left';
+            return `<th data-sort="${sortable ? col.key : ''}" class="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wide whitespace-nowrap ${alignCls} ${sortable ? 'cursor-pointer select-none hover:text-white' : ''} ${active ? 'text-indigo-400' : 'text-slate-500'}">${col.label}${arrow}</th>`;
+        }).join('') + '</tr>';
+
+        body.innerHTML = rows.map(row => this._boardRowHtml(row, rank290, rank295)).join('');
+
+        // listeners
+        head.querySelectorAll('th[data-sort]').forEach(th => {
+            const key = th.dataset.sort;
+            if (key) th.addEventListener('click', () => this.setSort(key));
+        });
+        body.querySelectorAll('tr[data-key]').forEach(tr => {
+            tr.addEventListener('click', e => {
+                if (e.target.closest('[data-del]')) return;
+                this.toggleExpand(tr.dataset.key);
+            });
+        });
+        body.querySelectorAll('button[data-del]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                this.removeCharacter(btn.dataset.del);
+            });
+        });
+
+        if (this.expandedKey) this._renderDetail();
+        if (window.lucide) lucide.createIcons();
+    },
+
+    _boardRowHtml(row, rank290, rank295) {
+        const { r, key, s } = row;
+        const info = (row.c && row.c.charInfo) || {};
+        const expanded = this.expandedKey === key;
+
+        const img = info.img
+            ? `<img src="${this._escape(info.img)}" alt="" class="w-10 h-10 object-contain object-bottom flex-shrink-0 -my-1" loading="lazy">`
+            : `<div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0"><i data-lucide="user" class="w-4 h-4 text-slate-600"></i></div>`;
+
+        const lvTxt = s.level != null
+            ? `Lv.${s.level}${s.expPct != null ? ` <span class="text-indigo-400">(${s.expPct.toFixed(2)}%)</span>` : ''}`
+            : '<span class="text-amber-400">データなし</span>';
+        const sub = [info.job, info.world].filter(Boolean).join(' · ');
+
+        const charCell = `
+            <td class="px-3 py-2">
+                <div class="flex items-center gap-2.5 min-w-[180px]">
+                    ${img}
+                    <div class="min-w-0">
+                        <div class="text-xs font-bold text-white truncate">${this._escape(r.name)}
+                            <span class="text-[9px] uppercase tracking-wider text-slate-500 ml-1">${r.region}</span>
+                        </div>
+                        <div class="text-[10px] text-slate-400">${lvTxt}</div>
+                        ${sub ? `<div class="text-[9px] text-slate-600 truncate">${this._escape(sub)}</div>` : ''}
+                    </div>
+                </div>
+            </td>`;
+
+        const expCell = v => {
+            if (v == null) return '<td class="px-3 py-2 text-right text-slate-600 text-xs">—</td>';
+            const pct = s.tnl ? (v / s.tnl) * 100 : null;
+            return `<td class="px-3 py-2 text-right whitespace-nowrap">
+                <div class="text-xs font-bold text-white font-mono">${this._fmtExp(v)}</div>
+                <div class="text-[10px] text-slate-500">${pct != null ? pct.toFixed(2) + '%' : '—'}</div>
+            </td>`;
+        };
+
+        const predCell = p => {
+            if (!p) return '<td class="px-3 py-2 text-center text-slate-600 text-xs">—</td>';
+            return `<td class="px-3 py-2 text-center whitespace-nowrap">
+                <div class="text-xs text-white font-mono">${this._fmtDate(p.date)}</div>
+                <div class="text-[10px] text-slate-500">${p.days}日後</div>
+            </td>`;
+        };
+
+        const reachCell = (eta, rank) => {
+            if (!eta) return '<td class="px-3 py-2 text-center text-slate-600 text-xs">—</td>';
+            if (eta.reached) {
+                return `<td class="px-3 py-2 text-center whitespace-nowrap">
+                    <div class="text-xs font-bold text-emerald-400">到達済</div>
+                    ${rank != null ? `<div class="text-[10px] text-slate-500">${rank}位</div>` : ''}
+                </td>`;
+            }
+            return `<td class="px-3 py-2 text-center whitespace-nowrap">
+                <div class="text-xs font-bold text-amber-400">${rank != null ? rank + '位' : '—'}</div>
+                <div class="text-[10px] text-slate-500">${this._fmtDate(eta.date)} · ${eta.days}日後</div>
+            </td>`;
+        };
+
+        const delCell = `
+            <td class="px-3 py-2 text-center">
+                <button type="button" data-del="${this._escape(key)}" title="削除"
+                        class="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+            </td>`;
+
+        const rowHtml = `
+            <tr data-key="${this._escape(key)}" class="border-b border-slate-800 cursor-pointer transition-colors ${expanded ? 'bg-slate-800/60' : 'hover:bg-slate-800/40'}">
+                ${charCell}
+                ${expCell(s.yesterday)}
+                ${expCell(s.avg7)}
+                ${expCell(s.avg14)}
+                ${expCell(s.avg30)}
+                ${predCell(s.preds[0])}
+                ${predCell(s.preds[1])}
+                ${predCell(s.preds[2])}
+                ${predCell(s.preds[3])}
+                ${predCell(s.preds[4])}
+                ${reachCell(s.to290, rank290[key])}
+                ${reachCell(s.to295, rank295[key])}
+                ${delCell}
+            </tr>`;
+
+        if (!expanded) return rowHtml;
+
+        // inline detail: per-character level / daily-EXP chart
+        const modeBtn = (mode, label) => `
+            <button type="button" data-detail-mode="${mode}" class="px-2.5 py-1 rounded text-[11px] font-bold transition-all ${this.detailMode === mode ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}">${label}</button>`;
+        const rangeBtn = n => `
+            <button type="button" data-detail-range="${n}" class="px-2.5 py-1 rounded text-[11px] font-bold transition-all ${this.detailRange === n ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}">${n}d</button>`;
+
+        return rowHtml + `
+            <tr class="border-b border-slate-800 bg-slate-950/60">
+                <td colspan="${this.BOARD_COLUMNS.length}" class="px-4 py-3">
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">グラフ</span>
+                        <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+                            ${modeBtn('level', 'レベル推移')}${modeBtn('exp', '獲得経験値')}
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-2">期間</span>
+                        <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+                            ${rangeBtn(7)}${rangeBtn(14)}${rangeBtn(30)}${rangeBtn(90)}
+                        </div>
+                    </div>
+                    <div class="relative h-[300px]">
+                        <canvas id="ranks-detail-canvas"></canvas>
+                    </div>
+                </td>
+            </tr>`;
+    },
+
+    _destroyDetailChart() {
+        if (this.detailChart) { this.detailChart.destroy(); this.detailChart = null; }
+    },
+
+    _renderDetail() {
+        const canvas = document.getElementById('ranks-detail-canvas');
+        const c = this.cache[this.expandedKey];
+        if (!canvas || !c || !Array.isArray(c.labels)) return;
+
+        document.querySelectorAll('[data-detail-mode]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                this.detailMode = btn.dataset.detailMode;
+                this.savePrefs();
+                this.renderBoard();
+            });
+        });
+        document.querySelectorAll('[data-detail-range]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                this.detailRange = parseInt(btn.dataset.detailRange, 10);
+                this.savePrefs();
+                this.renderBoard();
+            });
+        });
+
+        const N = this.detailRange;
+        const labels = c.labels.slice(-N);
+        const isExp = this.detailMode === 'exp';
+        const data = (isExp ? (c.expDaily || []) : (c.values || [])).slice(-N);
+        const fmtExp = this._fmtExp;
+
+        this._destroyDetailChart();
+        this.detailChart = new Chart(canvas.getContext('2d'), {
+            type: isExp ? 'bar' : 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: (c.charInfo && c.charInfo.name) || '',
+                    data,
+                    borderColor: '#6366f1',
+                    backgroundColor: isExp ? '#3b82f6' : '#6366f122',
+                    borderWidth: 2,
+                    pointRadius: 2,
+                    pointHoverRadius: 4,
+                    tension: 0.25,
+                    spanGaps: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const v = ctx.parsed.y;
+                                if (v == null) return '—';
+                                if (isExp) return `${fmtExp(v)} EXP`;
+                                const lv = Math.floor(v);
+                                return `Lv.${lv} ${((v - lv) * 100).toFixed(2)}%`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(148,163,184,0.08)' } },
+                    y: {
+                        beginAtZero: isExp,
+                        ticks: {
+                            color: '#94a3b8', font: { size: 10 },
+                            callback: v => {
+                                if (isExp) return fmtExp(v);
+                                const lv = Math.floor(v);
+                                return `${lv}.${(((v - lv) * 100).toFixed(0)).padStart(2, '0')}%`;
+                            }
+                        },
+                        grid: { color: 'rgba(148,163,184,0.08)' }
+                    }
+                }
+            }
+        });
+    },
+
+    /* ---------- trend tab ---------- */
+
+    // null selection = "all roster characters"
+    _selKeys() {
+        if (!Array.isArray(this.selectedKeys)) return this.roster.map(r => this._key(r));
+        return this.selectedKeys;
+    },
+
+    toggleSelect(key) {
+        const cur = this._selKeys();
+        this.selectedKeys = cur.includes(key) ? cur.filter(k => k !== key) : [...cur, key];
+        this.savePrefs();
+        this.renderTrend();
+    },
+
+    renderTrend() {
+        this.renderRangeButtons();
+        this.renderModeButtons();
+        this.renderTrendList();
+        this.renderChart();
+    },
+
+    renderTrendList() {
+        const wrap = document.getElementById('ranks-trend-list');
         if (!wrap) return;
 
         if (this.roster.length === 0) {
-            wrap.innerHTML = '<span class="text-[11px] text-slate-500 italic">No characters yet. Add one above to start.</span>';
+            wrap.innerHTML = '<div class="text-[11px] text-slate-500 italic px-1 py-2">キャラクターがいません。上の検索バーから追加してください。</div>';
             return;
         }
 
-        wrap.innerHTML = this.roster.map((r, i) => {
-            const color = this.PALETTE[i % this.PALETTE.length];
-            const key = `${r.region}:${r.name.toLowerCase()}`;
-            const cached = this.cache[key];
-            let info = '';
-            if (cached && cached.charInfo && cached.charInfo.level != null) {
-                info = `<span class="text-[10px] text-slate-400 ml-1.5">Lv.${cached.charInfo.level}</span>`;
-            } else {
-                info = `<span class="text-[10px] text-amber-400 ml-1.5" title="No data cached. Refresh to load.">no data</span>`;
-            }
-            const importedAgo = cached && cached.importedAt
-                ? `<span class="text-[9px] text-slate-600 ml-1" title="${new Date(cached.importedAt).toLocaleString()}">${this._timeAgo(cached.importedAt)}</span>`
-                : '';
+        const sel = this._selKeys();
+        wrap.innerHTML = this.roster.map((r, idx) => {
+            const key = this._key(r);
+            const c = this.cache[key];
+            const info = (c && c.charInfo) || {};
+            const selected = sel.includes(key);
+            const color = this.PALETTE[idx % this.PALETTE.length];
+            const img = info.img
+                ? `<img src="${this._escape(info.img)}" alt="" class="w-9 h-9 object-contain object-bottom flex-shrink-0" loading="lazy">`
+                : `<div class="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0"><i data-lucide="user" class="w-4 h-4 text-slate-600"></i></div>`;
+            const lvTxt = info.level != null
+                ? `Lv.${info.level}${Number.isFinite(info.expPct) ? ` (${info.expPct.toFixed(2)}%)` : ''}`
+                : 'データなし';
             return `
-                <div class="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg pl-2 pr-1 py-1">
-                    <span class="w-2.5 h-2.5 rounded-full" style="background:${color}"></span>
-                    <span class="text-[11px] font-bold text-white">${this._escape(r.name)}</span>
-                    <span class="text-[9px] uppercase tracking-wider text-slate-500">${r.region}</span>
-                    ${info}
-                    ${importedAgo}
-                    <button type="button" title="Remove"
-                            onclick="ranks.removeCharacter('${this._jsAttr(r.name)}','${r.region}')"
-                            class="ml-1 w-5 h-5 flex items-center justify-center rounded text-slate-500 hover:text-rose-400 hover:bg-slate-900 transition-colors">
-                        <i data-lucide="x" class="w-3 h-3"></i>
-                    </button>
-                </div>
-            `;
+                <button type="button" data-key="${this._escape(key)}"
+                        class="ranks-trend-item w-full flex items-center gap-2.5 rounded-lg border px-2.5 py-2 transition-all text-left ${selected ? 'bg-indigo-600/20 border-indigo-500/60' : 'bg-slate-800/40 border-slate-700/60 hover:border-slate-500 opacity-60 hover:opacity-100'}">
+                    <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${selected ? color : '#475569'}"></span>
+                    ${img}
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs font-bold text-white truncate">${this._escape(r.name)}
+                            <span class="text-[9px] uppercase tracking-wider text-slate-500 ml-1">${r.region}</span>
+                        </div>
+                        <div class="text-[10px] text-slate-400">${lvTxt}</div>
+                    </div>
+                    ${selected ? '<i data-lucide="check" class="w-3.5 h-3.5 text-indigo-400 flex-shrink-0"></i>' : ''}
+                </button>`;
         }).join('');
 
+        wrap.querySelectorAll('.ranks-trend-item').forEach(btn => {
+            btn.addEventListener('click', () => this.toggleSelect(btn.dataset.key));
+        });
         if (window.lucide) lucide.createIcons();
     },
 
@@ -340,7 +847,7 @@ const ranks = {
         el.textContent = text;
     },
 
-    /* ---------- chart ---------- */
+    /* ---------- trend chart ---------- */
 
     renderChart() {
         const wrap = document.getElementById('ranks-chart-wrap');
@@ -349,10 +856,12 @@ const ranks = {
         if (!wrap || !empty || !canvas) return;
 
         const isExp = this.yMode === 'exp';
+        const sel = this._selKeys();
 
         const ready = this.roster.filter(r => {
-            const c = this.cache[`${r.region}:${r.name.toLowerCase()}`];
-            return c && Array.isArray(c.labels) && c.labels.length > 0;
+            const key = this._key(r);
+            const c = this.cache[key];
+            return sel.includes(key) && c && Array.isArray(c.labels) && c.labels.length > 0;
         });
 
         if (ready.length === 0) {
@@ -368,7 +877,7 @@ const ranks = {
         // Union of label dates (from the longest cached series), clipped to range.
         let unionLabels = [];
         for (const r of ready) {
-            const c = this.cache[`${r.region}:${r.name.toLowerCase()}`];
+            const c = this.cache[this._key(r)];
             if (c.labels.length > unionLabels.length) unionLabels = c.labels.slice();
         }
         const N = this.selectedRange;
@@ -376,7 +885,9 @@ const ranks = {
         const labelIndex = Object.fromEntries(labels.map((l, i) => [l, i]));
 
         const datasets = this.roster.map((r, idx) => {
-            const c = this.cache[`${r.region}:${r.name.toLowerCase()}`];
+            const key = this._key(r);
+            if (!sel.includes(key)) return null;
+            const c = this.cache[key];
             if (!c || !c.labels) return null;
             const src = isExp ? (c.expDaily || []) : (c.values || []);
             const aligned = new Array(labels.length).fill(null);
@@ -471,17 +982,12 @@ const ranks = {
         return String(n);
     },
 
-    _timeAgo(ts) {
-        const s = Math.floor((Date.now() - ts) / 1000);
-        if (s < 60) return 'just now';
-        if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-        if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-        return `${Math.floor(s / 86400)}d ago`;
+    _fmtDate(d) {
+        if (!(d instanceof Date) || isNaN(d)) return '—';
+        return `${d.getMonth() + 1}月${d.getDate()}日`;
     },
+
     _escape(s) {
         return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    },
-    _jsAttr(s) {
-        return String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     }
 };

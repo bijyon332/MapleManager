@@ -558,15 +558,15 @@
                 <!-- ========== RANK COMPARE APP ========== -->
                 <div id="view-ranks" class="hidden-page fade-in">
                     <div class="max-w-[1600px] mx-auto space-y-4">
-                        <!-- Header + Import panel -->
+                        <!-- キャラ追加用の検索バー -->
                         <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
                             <div class="flex items-center gap-3 mb-3">
                                 <div class="bg-indigo-600/20 border border-indigo-500/30 rounded-lg p-2">
                                     <i data-lucide="line-chart" class="w-4 h-4 text-indigo-400"></i>
                                 </div>
                                 <div class="flex-1 min-w-0">
-                                    <h2 class="text-white font-bold text-base leading-tight">EXP Progress Compare</h2>
-                                    <p class="text-[11px] text-slate-500">Overlay multiple characters' EXP / level progression. Data is fetched automatically from MapleHub (up to ~90 days of daily history).</p>
+                                    <h2 class="text-white font-bold text-base leading-tight">EXP Leaderboard & Progress</h2>
+                                    <p class="text-[11px] text-slate-500">キャラ名で検索して追加。データはMapleHubから自動取得(日次スナップショット 最大90日分)。</p>
                                 </div>
                             </div>
 
@@ -578,57 +578,88 @@
                                         <button type="button" data-region="eu" class="ranks-region-btn px-3 py-1.5 rounded text-[11px] font-bold transition-all">EU</button>
                                     </div>
                                     <div class="flex-1 relative min-w-[220px]">
-                                        <i data-lucide="user" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
-                                        <input type="text" id="ranks-input-name" placeholder="Character name"
+                                        <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                                        <input type="text" id="ranks-input-name" placeholder="キャラクター名で検索して追加"
                                             class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white outline-none focus:border-indigo-500">
                                     </div>
-                                    <button type="button" id="ranks-clear-form" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors">
-                                        <i data-lucide="eraser" class="w-3.5 h-3.5"></i>Clear
-                                    </button>
                                     <button type="submit" id="ranks-import-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors">
-                                        <i data-lucide="download" class="w-3.5 h-3.5"></i>Add
+                                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>追加
+                                    </button>
+                                    <button type="button" id="ranks-refresh-all" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors" title="全キャラのデータをMapleHubから再取得">
+                                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>全更新
                                     </button>
                                 </div>
                             </form>
                             <div id="ranks-msg" class="hidden mt-2 text-[11px] font-medium"></div>
                         </div>
 
-                        <!-- Roster chips + range filter -->
-                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                            <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Range</span>
-                                    <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
-                                        <button type="button" data-range="7" class="ranks-range-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all">7d</button>
-                                        <button type="button" data-range="14" class="ranks-range-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all">14d</button>
-                                        <button type="button" data-range="30" class="ranks-range-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all">30d</button>
-                                        <button type="button" data-range="90" class="ranks-range-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all">90d</button>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Y-Axis</span>
-                                    <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
-                                        <button type="button" data-mode="absolute" class="ranks-mode-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all" title="Lv.XXX.XX%">Level</button>
-                                        <button type="button" data-mode="delta" class="ranks-mode-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all" title="Levels gained from start of range">Delta</button>
-                                        <button type="button" data-mode="exp" class="ranks-mode-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all" title="EXP gained per day">Daily EXP</button>
-                                    </div>
-                                    <button type="button" id="ranks-refresh-all" class="ml-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-2.5 py-1 rounded text-[11px] font-bold flex items-center gap-1.5 transition-colors" title="Re-fetch all characters from MapleHub">
-                                        <i data-lucide="refresh-cw" class="w-3 h-3"></i>Refresh all
-                                    </button>
-                                </div>
-                            </div>
-                            <div id="ranks-roster" class="flex flex-wrap gap-2"></div>
+                        <!-- Tabs: リーダーボード / 推移 -->
+                        <div class="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-xl p-1 w-fit">
+                            <button type="button" data-tab="board" class="ranks-tab-btn px-5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5">
+                                <i data-lucide="list-ordered" class="w-3.5 h-3.5"></i>リーダーボード
+                            </button>
+                            <button type="button" data-tab="trend" class="ranks-tab-btn px-5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5">
+                                <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>推移
+                            </button>
                         </div>
 
-                        <!-- Chart -->
-                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                            <div id="ranks-empty" class="flex flex-col items-center justify-center py-20 text-slate-600">
-                                <i data-lucide="bar-chart-2" class="w-12 h-12 mb-3 opacity-25"></i>
-                                <p class="text-xs font-mono">Import characters above to start comparing</p>
+                        <!-- ===== Leaderboard tab ===== -->
+                        <div id="ranks-tab-board">
+                            <div class="bg-slate-900 border border-slate-800 rounded-xl">
+                                <div id="ranks-board-empty" class="flex flex-col items-center justify-center py-20 text-slate-600">
+                                    <i data-lucide="users" class="w-12 h-12 mb-3 opacity-25"></i>
+                                    <p class="text-xs font-mono">上の検索バーからキャラクターを追加してください</p>
+                                </div>
+                                <div id="ranks-board-wrap" class="overflow-x-auto hidden">
+                                    <table class="w-full border-collapse text-left min-w-[1200px]">
+                                        <thead id="ranks-board-head"></thead>
+                                        <tbody id="ranks-board-body"></tbody>
+                                    </table>
+                                </div>
+                                <div class="px-4 py-2 border-t border-slate-800 text-[10px] text-slate-600">
+                                    ヘッダークリックでソート / 行クリックで推移グラフを展開 / 予測は14日平均(無い場合は7日→30日平均)ベース
+                                </div>
                             </div>
-                            <div id="ranks-chart-wrap" class="hidden">
-                                <div class="relative h-[480px]">
-                                    <canvas id="ranks-chart"></canvas>
+                        </div>
+
+                        <!-- ===== Trend tab ===== -->
+                        <div id="ranks-tab-trend" class="hidden">
+                            <div class="flex flex-col lg:flex-row gap-4 items-stretch">
+                                <!-- Character list (click to toggle) -->
+                                <div class="lg:w-[320px] flex-shrink-0 bg-slate-900 border border-slate-800 rounded-xl p-3">
+                                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 px-1">キャラクター(クリックでグラフ表示切替)</div>
+                                    <div id="ranks-trend-list" class="space-y-1.5"></div>
+                                </div>
+                                <!-- Chart -->
+                                <div class="flex-1 bg-slate-900 border border-slate-800 rounded-xl p-4 min-w-0">
+                                    <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">期間</span>
+                                            <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+                                                <button type="button" data-range="7" class="ranks-range-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all">7d</button>
+                                                <button type="button" data-range="14" class="ranks-range-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all">14d</button>
+                                                <button type="button" data-range="30" class="ranks-range-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all">30d</button>
+                                                <button type="button" data-range="90" class="ranks-range-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all">90d</button>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Y軸</span>
+                                            <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+                                                <button type="button" data-mode="absolute" class="ranks-mode-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all" title="Lv.XXX.XX%">レベル</button>
+                                                <button type="button" data-mode="delta" class="ranks-mode-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all" title="期間開始からの上昇レベル">Δレベル</button>
+                                                <button type="button" data-mode="exp" class="ranks-mode-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all" title="日別獲得EXP">獲得EXP</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="ranks-empty" class="flex flex-col items-center justify-center py-20 text-slate-600">
+                                        <i data-lucide="bar-chart-2" class="w-12 h-12 mb-3 opacity-25"></i>
+                                        <p class="text-xs font-mono">左のリストからキャラクターを選択してください</p>
+                                    </div>
+                                    <div id="ranks-chart-wrap" class="hidden">
+                                        <div class="relative h-[480px]">
+                                            <canvas id="ranks-chart"></canvas>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
