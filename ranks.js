@@ -369,8 +369,8 @@ const ranks = {
     _computeStats(c) {
         const s = {
             level: null, frac: null, expPct: null, tnl: null,
-            yesterday: null, avg7: null, avg14: null, avg30: null,
-            rate: null, preds: [null, null, null, null, null],
+            yesterday: null, avg7: null, avg14: null, avg30: null, avg90: null,
+            rate: null, longRate: null, preds: [null, null, null, null, null],
             to290: null, to295: null
         };
         if (!c || !c.charInfo) return s;
@@ -398,15 +398,21 @@ const ranks = {
         s.avg7 = avgN(7);
         s.avg14 = avgN(14);
         s.avg30 = avgN(30);
+        s.avg90 = avgN(90);
+        // Short-term rate for the +1..+5 level ETAs (reacts to recent pace).
         s.rate = s.avg14 || s.avg7 || s.avg30 || null;
+        // Long-term rate for the 290/295 milestones: 30-day first (stable, reflects
+        // sustained motivation), then 90-day. Avoids event-day spikes skewing the
+        // far-out forecast. Falls back to the short rate only for very new characters.
+        s.longRate = s.avg30 || s.avg90 || s.rate;
 
         if (Number.isFinite(lv) && s.rate > 0) {
             for (let k = 1; k <= 5; k++) {
                 const need = this._expForLevels(tnl, lv, within, k);
                 s.preds[k - 1] = (need == null) ? null : this._eta(need, s.rate);
             }
-            s.to290 = this._reachEta(tnl, lv, within, 290, s.rate);
-            s.to295 = this._reachEta(tnl, lv, within, 295, s.rate);
+            s.to290 = this._reachEta(tnl, lv, within, 290, s.longRate);
+            s.to295 = this._reachEta(tnl, lv, within, 295, s.longRate);
         } else if (Number.isFinite(lv)) {
             if (lv >= 290) s.to290 = { days: 0, date: new Date(), reached: true };
             if (lv >= 295) s.to295 = { days: 0, date: new Date(), reached: true };
