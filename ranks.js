@@ -890,9 +890,9 @@ const ranks = {
     // whole-level lines (integers) stand out over the fractional ticks; in EXP
     // mode every auto-tick is already a round value so they share one weight.
     _yGrid(isLevel) {
-        const FAINT = 'rgba(148,163,184,0.06)';
-        const MID   = 'rgba(148,163,184,0.16)';
-        const STRONG = 'rgba(148,163,184,0.38)';
+        const FAINT  = 'rgba(148,163,184,0.05)';
+        const MID    = 'rgba(148,163,184,0.55)';   // clean reference lines
+        const STRONG = 'rgba(226,232,240,0.85)';   // zero baseline (near-white)
         const isWhole = v => Math.abs(v - Math.round(v)) < 1e-6;
         return {
             color: (ctx) => {
@@ -905,9 +905,9 @@ const ranks = {
             lineWidth: (ctx) => {
                 const v = ctx.tick && ctx.tick.value;
                 if (v == null) return 1;
-                if (Math.abs(v) < 1e-9) return 1.5;                    // thicker baseline
-                if (isLevel && isWhole(v)) return 1.25;
-                return 1;
+                if (Math.abs(v) < 1e-9) return 2.5;                    // bold baseline
+                if (isLevel && isWhole(v)) return 2;
+                return isLevel ? 1 : 1.75;                             // exp: all lines bolder
             }
         };
     },
