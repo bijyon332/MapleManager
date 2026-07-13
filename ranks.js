@@ -801,7 +801,7 @@ const ranks = {
                                 return `${lv}.${(((v - lv) * 100).toFixed(0)).padStart(2, '0')}%`;
                             }
                         },
-                        grid: { color: 'rgba(148,163,184,0.08)' }
+                        grid: this._yGrid(!isExp)
                     }
                 }
             }
@@ -884,6 +884,33 @@ const ranks = {
     },
 
     /* ---------- trend chart ---------- */
+
+    // Scriptable y-axis grid: emphasize the "clean" reference lines so the chart
+    // reads at a glance. The zero baseline is strongest; in level modes the
+    // whole-level lines (integers) stand out over the fractional ticks; in EXP
+    // mode every auto-tick is already a round value so they share one weight.
+    _yGrid(isLevel) {
+        const FAINT = 'rgba(148,163,184,0.06)';
+        const MID   = 'rgba(148,163,184,0.16)';
+        const STRONG = 'rgba(148,163,184,0.38)';
+        const isWhole = v => Math.abs(v - Math.round(v)) < 1e-6;
+        return {
+            color: (ctx) => {
+                const v = ctx.tick && ctx.tick.value;
+                if (v == null) return FAINT;
+                if (Math.abs(v) < 1e-9) return STRONG;                 // zero baseline
+                if (isLevel) return isWhole(v) ? MID : FAINT;          // whole levels only
+                return MID;                                            // exp: all ticks round
+            },
+            lineWidth: (ctx) => {
+                const v = ctx.tick && ctx.tick.value;
+                if (v == null) return 1;
+                if (Math.abs(v) < 1e-9) return 1.5;                    // thicker baseline
+                if (isLevel && isWhole(v)) return 1.25;
+                return 1;
+            }
+        };
+    },
 
     renderChart() {
         const wrap = document.getElementById('ranks-chart-wrap');
@@ -990,7 +1017,7 @@ const ranks = {
                                 return `${lv}.${pct.padStart(2, '0')}%`;
                             }
                         },
-                        grid: { color: 'rgba(148,163,184,0.08)' }
+                        grid: this._yGrid(this.yMode !== 'exp')
                     }
                 }
             }
