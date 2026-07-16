@@ -357,7 +357,7 @@ const ranks = {
             withinExp: Number.isFinite(curWithin) ? curWithin : null,
             world: data.worldName || null,
             job: data.jobName || null,
-            img: data.characterImgURL || null
+            img: this._fixImgUrl(data.characterImgURL)
         };
 
         return { labels, values, expDaily, charInfo };
@@ -665,8 +665,9 @@ const ranks = {
     /* ---------- board cell renderers (inner HTML, no <td>) ---------- */
 
     _charCellInner(r, info, s) {
-        const img = info.img
-            ? `<img src="${this._escape(info.img)}" alt="" class="w-16 h-16 object-contain object-bottom flex-shrink-0 -my-2" loading="lazy">`
+        const imgUrl = this._fixImgUrl(info.img);
+        const img = imgUrl
+            ? `<img src="${this._escape(imgUrl)}" alt="" class="w-16 h-16 object-contain object-bottom flex-shrink-0 -my-2" loading="lazy">`
             : `<div class="w-16 h-16 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0"><i data-lucide="user" class="w-6 h-6 text-slate-600"></i></div>`;
 
         const pct = (s.expPct != null) ? Math.max(0, Math.min(100, s.expPct)) : null;
@@ -846,8 +847,9 @@ const ranks = {
             const info = (c && c.charInfo) || {};
             const selected = sel.includes(key);
             const color = this.PALETTE[idx % this.PALETTE.length];
-            const img = info.img
-                ? `<img src="${this._escape(info.img)}" alt="" class="w-9 h-9 object-contain object-bottom flex-shrink-0" loading="lazy">`
+            const imgUrl = this._fixImgUrl(info.img);
+            const img = imgUrl
+                ? `<img src="${this._escape(imgUrl)}" alt="" class="w-9 h-9 object-contain object-bottom flex-shrink-0" loading="lazy">`
                 : `<div class="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0"><i data-lucide="user" class="w-4 h-4 text-slate-600"></i></div>`;
             const lvTxt = info.level != null
                 ? `Lv.${info.level}${Number.isFinite(info.expPct) ? ` (${info.expPct.toFixed(2)}%)` : ''}`
@@ -1052,5 +1054,15 @@ const ranks = {
 
     _escape(s) {
         return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    },
+
+    // MapleHub sometimes returns a malformed image URL where a CDN base is
+    // prepended onto an already-absolute S3 URL with no separator, e.g.
+    // "https://cdn.maplebot.iohttps://maplebot-storage.s3.../x.png".
+    // Keep only the last absolute URL so the <img> resolves correctly.
+    _fixImgUrl(url) {
+        if (!url || typeof url !== 'string') return null;
+        const m = [...url.matchAll(/https?:\/\//g)];
+        return (m.length > 1) ? url.slice(m[m.length - 1].index) : url;
     }
 };
