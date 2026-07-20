@@ -339,6 +339,7 @@ const app = {
                 });
                 if (now.getUTCDay() === 4 || (lastLogin.getUTCDay() !== 4 && now.getUTCDay() < lastLogin.getUTCDay())) {
                     c.progress.weekly = [];
+                    c.progress.charDone = false;
                     c.progress.boss = (c.progress.boss || []).filter(bid => {
                         const mb = this.data.masterBosses.find(b => b.id === bid);
                         return mb && mb.type === 'MONTHLY';
@@ -346,6 +347,7 @@ const app = {
                 }
                 if (now.getUTCDate() === 1) {
                     c.progress.boss = [];
+                    c.progress.charMonthlyDone = false;
                 }
             });
             this.saveData();
@@ -713,11 +715,14 @@ const app = {
             const dmSorted = [...dB.sort((a, b) => b.effectiveMeso - a.effectiveMeso), ...mB.sort((a, b) => b.effectiveMeso - a.effectiveMeso)];
             const allB = [...wkSorted, ...dmSorted];
             const countAll = (p.boss || []).filter(id => allB.some(b => b.id === id)).length;
+            const isWeeklyDone = !!p.charDone;
+            const isMonthlyDone = !!p.charMonthlyDone;
+            const allDone = (wkSorted.length + mB.length > 0) && (!wkSorted.length || isWeeklyDone) && (!mB.length || isMonthlyDone);
 
             return `
-            <div class="bg-${sCol}-950/40 border ${themeClass} rounded-lg overflow-hidden shadow-sm flex transition-all relative w-full max-w-[32rem]">
+            <div class="bg-${sCol}-950/40 border ${allDone ? 'border-emerald-500/70 ring-1 ring-emerald-500/30' : themeClass} rounded-lg overflow-hidden shadow-sm flex transition-all relative w-full max-w-[32rem]">
                 <!-- Left: Slim portrait job image (clickable → opens editor) -->
-                <div onclick="app.openCharModal('${char.id}')" class="w-28 bg-gradient-to-b from-${sCol}-950/80 to-slate-950 border-r border-slate-800 flex-shrink-0 relative overflow-hidden cursor-pointer group hover:brightness-110 transition" title="Edit ${char.name}">
+                <div onclick="app.openCharModal('${char.id}')" class="w-28 bg-gradient-to-b from-${sCol}-950/80 to-slate-950 border-r border-slate-800 flex-shrink-0 relative overflow-hidden cursor-pointer group hover:brightness-110 transition ${allDone ? 'grayscale opacity-70' : ''}" title="Edit ${char.name}">
                     ${char.classImage ? `<img src="${char.classImage}" style="${this.getCharImgStyle(char)}">` : `<div class="w-full h-full flex items-center justify-center text-slate-700"><i data-lucide="user" class="w-8 h-8 opacity-40"></i></div>`}
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none"></div>
                     <span class="absolute top-1 left-1 px-1 py-0.5 rounded text-[9px] font-bold border ${char.role === 'MAIN' ? 'border-yellow-500/50 text-yellow-300 bg-yellow-950/80' : (char.role === 'SUB' ? 'border-cyan-500/50 text-cyan-300 bg-cyan-950/80' : 'border-slate-600 text-slate-400 bg-slate-900/90')} backdrop-blur-sm">${char.role}</span>
@@ -755,15 +760,45 @@ const app = {
                     <!-- Boss checklist (min height ≈ 4 boss rows total: Monthly + 3 Weekly, or 4 Weekly) -->
                     <div class="flex-1 p-1.5 bg-slate-950/20 space-y-1 min-h-[13.75rem]">
                         ${mB.length ? `
-                        <div class="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-1 items-center">
-                            <div class="flex items-center justify-center" title="Monthly"><i data-lucide="moon" class="w-3.5 h-3.5 text-yellow-400"></i></div>
-                            <div class="grid grid-flow-col auto-cols-[3rem] gap-1 overflow-x-auto">${mB.sort((a, b) => b.effectiveMeso - a.effectiveMeso).map(b => this.getBossBtnHTML(char.id, b, (p.boss || []).includes(b.id), b.pSize)).join('')}</div>
+                        <div>
+                            <div class="flex items-center gap-1.5 mb-0.5">
+                                <span class="text-[9px] font-black uppercase tracking-widest text-yellow-400 leading-none">Monthly</span>
+                                <button onclick="app.toggleCharDone('${char.id}','monthly')" title="${isMonthlyDone ? '月ボスの消し込みを解除' : 'このキャラの月ボスを消し込む'}"
+                                    class="flex items-center gap-0.5 px-1.5 py-0.5 rounded font-extrabold text-[9px] leading-none transition-all border ${isMonthlyDone ? 'bg-yellow-500 border-yellow-300 text-slate-950' : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-yellow-700/50 hover:border-yellow-500 hover:text-yellow-200'}">
+                                    <i data-lucide="${isMonthlyDone ? 'check-circle-2' : 'circle'}" class="w-2.5 h-2.5"></i><span>COMPLETE</span>
+                                </button>
+                            </div>
+                            <div class="relative">
+                                <div class="grid grid-flow-col auto-cols-[3rem] gap-1 overflow-x-auto justify-start">${mB.sort((a, b) => b.effectiveMeso - a.effectiveMeso).map(b => this.getBossBtnHTML(char.id, b, (p.boss || []).includes(b.id), b.pSize)).join('')}</div>
+                                ${isMonthlyDone ? `
+                                <div onclick="app.toggleCharDone('${char.id}','monthly')" title="クリックで消し込みを解除" class="absolute inset-0 z-10 rounded bg-slate-950/75 backdrop-blur-[1px] flex items-center justify-center cursor-pointer hover:bg-slate-950/60 transition-colors">
+                                    <div class="flex items-center gap-1.5 border-2 border-yellow-400/90 text-yellow-300 rounded-lg px-3 py-0.5 -rotate-3 bg-slate-950/70 shadow-lg shadow-yellow-950/60">
+                                        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                                        <span class="text-xs font-black tracking-[0.2em]">COMPLETE</span>
+                                    </div>
+                                </div>` : ''}
+                            </div>
                         </div>` : ''}
                         ${wkSorted.length ? `
-                        <div class="grid grid-cols-[1.25rem_repeat(7,minmax(0,3rem))] gap-1 items-start">
-                            <div class="flex items-start justify-center pt-1" title="Weekly"><i data-lucide="skull" class="w-3.5 h-3.5 text-purple-400"></i></div>
-                            <div class="col-span-7 grid grid-cols-[repeat(7,minmax(0,3rem))] gap-1">
-                                ${wkSorted.map(b => this.getBossBtnHTML(char.id, b, (p.boss || []).includes(b.id), b.pSize)).join('')}
+                        <div>
+                            <div class="flex items-center gap-1.5 mb-0.5">
+                                <span class="text-[9px] font-black uppercase tracking-widest text-purple-400 leading-none">Weekly</span>
+                                <button onclick="app.toggleCharDone('${char.id}','weekly')" title="${isWeeklyDone ? '週ボスの消し込みを解除' : 'このキャラの週ボスを消し込む'}"
+                                    class="flex items-center gap-0.5 px-1.5 py-0.5 rounded font-extrabold text-[9px] leading-none transition-all border ${isWeeklyDone ? 'bg-purple-600 border-purple-400 text-white' : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-purple-700/50 hover:border-purple-500 hover:text-purple-200'}">
+                                    <i data-lucide="${isWeeklyDone ? 'check-circle-2' : 'circle'}" class="w-2.5 h-2.5"></i><span>COMPLETE</span>
+                                </button>
+                            </div>
+                            <div class="relative">
+                                <div class="grid grid-cols-[repeat(7,minmax(0,3rem))] gap-1">
+                                    ${wkSorted.map(b => this.getBossBtnHTML(char.id, b, (p.boss || []).includes(b.id), b.pSize)).join('')}
+                                </div>
+                                ${isWeeklyDone ? `
+                                <div onclick="app.toggleCharDone('${char.id}','weekly')" title="クリックで消し込みを解除" class="absolute inset-0 z-10 rounded bg-slate-950/75 backdrop-blur-[1px] flex items-center justify-center cursor-pointer hover:bg-slate-950/60 transition-colors">
+                                    <div class="flex items-center gap-2 border-2 border-purple-400/90 text-purple-300 rounded-lg px-4 py-1 -rotate-3 bg-slate-950/70 shadow-lg shadow-purple-950/60">
+                                        <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+                                        <span class="text-base font-black tracking-[0.25em]">COMPLETE</span>
+                                    </div>
+                                </div>` : ''}
                             </div>
                         </div>` : ''}
                         ${!mB.length && !wkSorted.length ? this.getEmptyPlaceholderHTML("No Bosses Configured", "") : ''}
@@ -778,6 +813,13 @@ const app = {
         if (!c.progress) c.progress = { daily: [], weekly: [], boss: [] };
         if (!Array.isArray(c.progress[type])) c.progress[type] = [];
         if (c.progress[type].includes(tid)) c.progress[type] = c.progress[type].filter(id => id !== tid); else c.progress[type].push(tid);
+        this.saveData(); this.renderDashboard();
+    },
+    toggleCharDone(cid, scope = 'weekly') {
+        const c = this.data.characters.find(x => x.id === cid); if (!c) return;
+        if (!c.progress) c.progress = { daily: [], weekly: [], boss: [] };
+        const key = scope === 'monthly' ? 'charMonthlyDone' : 'charDone';
+        c.progress[key] = !c.progress[key];
         this.saveData(); this.renderDashboard();
     },
 
