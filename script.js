@@ -722,7 +722,7 @@ const app = {
             return `
             <div class="bg-${sCol}-950/40 border ${allDone ? 'border-emerald-500/70 ring-1 ring-emerald-500/30' : themeClass} rounded-lg overflow-hidden shadow-sm flex transition-all relative w-full max-w-[32rem]">
                 <!-- Left: Slim portrait job image (clickable → opens editor) -->
-                <div onclick="app.openCharModal('${char.id}')" class="w-28 bg-gradient-to-b from-${sCol}-950/80 to-slate-950 border-r border-slate-800 flex-shrink-0 relative overflow-hidden cursor-pointer group hover:brightness-110 transition ${allDone ? 'grayscale opacity-70' : ''}" title="Edit ${char.name}">
+                <div onclick="app.openCharModal('${char.id}')" class="w-28 bg-gradient-to-b from-${sCol}-950/80 to-slate-950 border-r border-slate-800 flex-shrink-0 relative overflow-hidden cursor-pointer group hover:brightness-110 transition" title="Edit ${char.name}">
                     ${char.classImage ? `<img src="${char.classImage}" style="${this.getCharImgStyle(char)}">` : `<div class="w-full h-full flex items-center justify-center text-slate-700"><i data-lucide="user" class="w-8 h-8 opacity-40"></i></div>`}
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none"></div>
                     <span class="absolute top-1 left-1 px-1 py-0.5 rounded text-[9px] font-bold border ${char.role === 'MAIN' ? 'border-yellow-500/50 text-yellow-300 bg-yellow-950/80' : (char.role === 'SUB' ? 'border-cyan-500/50 text-cyan-300 bg-cyan-950/80' : 'border-slate-600 text-slate-400 bg-slate-900/90')} backdrop-blur-sm">${char.role}</span>
