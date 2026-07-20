@@ -75,6 +75,7 @@ const CLASS_DATA = {
         { id: "moxuan", name: "Mo Xuan", path: "assets/JIANGHU_MoXuan/CharacterIcon.png" }
     ],
     "SHINE": [
+        { id: "erellight", name: "Erel Light", path: "assets/SHINE_ErelLight/CharacterIcon.png" },
         { id: "sia", name: "Sia Astelle", path: "assets/SHINE_SiaAstelle/CharacterIcon.png" }
     ]
 };
