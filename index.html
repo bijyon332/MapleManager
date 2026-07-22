@@ -113,6 +113,21 @@
                     <i data-lucide="settings-2" class="w-3.5 h-3.5"></i>System
                 </button>
             </nav>
+            <!-- Boss Scheduler sub navigation (shown only for the scheduler app) -->
+            <nav id="scheduler-nav" class="hidden items-center gap-0.5 mr-4 flex-shrink-0">
+                <button onclick="app.schedulerTab('schedule')" id="snav-schedule"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all nav-active flex items-center gap-1.5">
+                    <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>Dashboard
+                </button>
+                <button onclick="app.schedulerTab('roster')" id="snav-roster"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all nav-inactive flex items-center gap-1.5">
+                    <i data-lucide="users" class="w-3.5 h-3.5"></i>Players
+                </button>
+                <button onclick="app.schedulerTab('calendar')" id="snav-calendar"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all nav-inactive flex items-center gap-1.5">
+                    <i data-lucide="calendar-days" class="w-3.5 h-3.5"></i>Calendar
+                </button>
+            </nav>
             <!-- Dashboard Stats -->
             <div id="dashboard-stats-container"
                 class="flex items-center gap-4 flex-1 justify-end min-w-0 overflow-hidden"></div>

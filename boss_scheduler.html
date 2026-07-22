@@ -25,26 +25,14 @@
 
 <body class="h-screen flex flex-col font-sans text-sm bg-slate-950 overflow-hidden">
 
-    <!-- Top bar (tabs) -->
-    <header class="h-11 bg-slate-900 border-b border-slate-800 flex items-center px-4 shrink-0 z-10 gap-3">
-        <div class="flex items-center gap-2">
-            <i data-lucide="swords" class="w-4 h-4 text-indigo-400"></i>
-            <span class="title-font text-xs font-bold text-slate-100">BOSS SCHEDULER</span>
-        </div>
-
-        <nav class="flex items-center gap-0.5 ml-3">
-            <button id="tab-schedule" data-tab="schedule"
-                class="tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all tab-active flex items-center gap-1.5">
-                <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>Dashboard
-            </button>
-            <button id="tab-calendar" data-tab="calendar"
-                class="tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all tab-inactive flex items-center gap-1.5">
-                <i data-lucide="calendar-days" class="w-3.5 h-3.5"></i>Calendar
-            </button>
-            <button id="tab-roster" data-tab="roster"
-                class="tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all tab-inactive flex items-center gap-1.5">
-                <i data-lucide="users" class="w-3.5 h-3.5"></i>Players
-            </button>
+    <!-- Tab buttons live in the host app's top bar (see index.html #scheduler-nav).
+         They are kept here (hidden) so the existing tab wiring keeps working and
+         the host can drive them by clicking. -->
+    <header class="hidden">
+        <nav>
+            <button id="tab-schedule" data-tab="schedule" class="tab-btn tab-active">Dashboard</button>
+            <button id="tab-roster" data-tab="roster" class="tab-btn tab-inactive">Players</button>
+            <button id="tab-calendar" data-tab="calendar" class="tab-btn tab-inactive">Calendar</button>
         </nav>
     </header>
 
