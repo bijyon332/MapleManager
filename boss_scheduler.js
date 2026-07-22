@@ -340,12 +340,26 @@
     function renderFilterBar() {
         const f = state.ui.filters;
 
-        const bossSel = $("#filter-boss"); bossSel.innerHTML = '<option value="">All</option>';
-        (window.BOSS_DATA || []).forEach((b) => {
-            const o = document.createElement("option"); o.value = b.id; o.textContent = b.name;
-            if (f.boss === b.id) o.selected = true;
-            bossSel.appendChild(o);
-        });
+        // Boss filter: clickable chips (toggle like the player list) instead of a select.
+        const bossList = $("#boss-filter-list");
+        if (bossList) {
+            bossList.innerHTML = "";
+            (window.BOSS_DATA || []).forEach((b) => {
+                const chip = document.createElement("button");
+                chip.className = "boss-filter-chip" + (f.boss === b.id ? " active" : "");
+                chip.dataset.bossId = b.id;
+                chip.style.setProperty("--boss-color", b.color || "#6366f1");
+                chip.innerHTML = `${bossIconHtml(b, "sm")}<span>${esc(b.name)}</span>`;
+                chip.addEventListener("click", () => {
+                    // Toggle: clicking the active boss clears the filter.
+                    state.ui.filters.boss = (state.ui.filters.boss === b.id) ? "" : b.id;
+                    saveState();
+                    renderFilterBar();
+                    renderDashboard();
+                });
+                bossList.appendChild(chip);
+            });
+        }
 
         const teamSel = $("#filter-team"); teamSel.innerHTML = '<option value="">All</option>';
         const teamNames = new Set();
@@ -1543,8 +1557,7 @@
             });
         });
 
-        // Filters
-        $("#filter-boss").addEventListener("change",   (e) => { state.ui.filters.boss   = e.target.value; saveState(); renderDashboard(); });
+        // Filters (Boss is a clickable chip list, wired in renderFilterBar)
         $("#filter-team").addEventListener("change",   (e) => { state.ui.filters.team   = e.target.value; saveState(); renderDashboard(); });
         $("#filter-server").addEventListener("change", (e) => { state.ui.filters.server = e.target.value; saveState(); renderDashboard(); });
         $("#filter-clear").addEventListener("click",   () => {
