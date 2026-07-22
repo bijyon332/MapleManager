@@ -1028,6 +1028,9 @@
         const root = $("#boss-edit-pool");
         if (!root) return;
         const search = ($("#boss-edit-pool-search").value || "").trim().toLowerCase();
+        // Preserve scroll position: replacing innerHTML resets scrollTop to 0,
+        // which otherwise jerks the list to the top whenever a group is toggled.
+        const prevScroll = root.scrollTop;
         root.innerHTML = "";
 
         // Characters currently assigned to any party of THIS boss
@@ -1097,6 +1100,8 @@
         if (root.children.length === 0) {
             root.innerHTML = '<div class="empty-state" style="padding:0.75rem;">該当キャラなし</div>';
         }
+        // Restore scroll so toggling a group doesn't jump the list to the top.
+        root.scrollTop = prevScroll;
         if (window.lucide) window.lucide.createIcons();
     }
 
