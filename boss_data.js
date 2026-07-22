@@ -5,23 +5,27 @@
 // ---- Bosses (表示順 = リスト順) ----------------------------
 // image: MapleHub CDN slug (https://cdn.maplehub.app/bosses/{slug}.webp).
 //        画像読み込み失敗時は icon(lucide) + color にフォールバック。
+// color: カードの背景ティント / 上部アクセント / アイコンに使うテーマカラー。
+// 隣り合うボスを見分けやすいよう、色相が重複しないように割り当てている。
 const BOSS_DATA = [
+    { id: "black_mage", name: "暗黒の魔法使い",    difficulties: ["HARD", "EXTREME"],
+      maxMembers: 6, color: "#4f46e5", icon: "moon",         image: "black-mage" },
     { id: "ex_sw",     name: "EXスウ",             difficulties: ["EXTREME"],
       maxMembers: 2, color: "#ef4444", icon: "skull",        image: "lotus" /* スウ = Lotus (週ボスタスクと同じスラグ) */ },
     { id: "seren",     name: "セレン",             difficulties: ["HARD", "EXTREME"],
-      maxMembers: 6, color: "#f97316", icon: "sun",          image: "chosen-seren" },
+      maxMembers: 6, color: "#10b981", icon: "sun",          image: "chosen-seren" },
     { id: "kalos",     name: "カロス",             difficulties: ["EASY", "NORMAL", "CHAOS", "EXTREME"],
-      maxMembers: 6, color: "#06b6d4", icon: "snowflake",    image: "kalos-the-guardian" },
+      maxMembers: 6, color: "#f97316", icon: "snowflake",    image: "kalos-the-guardian" },
     { id: "kaling",    name: "カリーン",           difficulties: ["EASY", "NORMAL", "HARD", "EXTREME"],
-      maxMembers: 6, color: "#ec4899", icon: "flame",        image: "kaling" },
+      maxMembers: 6, color: "#f43f5e", icon: "flame",        image: "kaling" },
     { id: "first_adv", name: "最初の対敵者",       difficulties: ["EASY", "NORMAL", "HARD", "EXTREME"],
       maxMembers: 3, color: "#a78bfa", icon: "shield-alert", image: "the-first-adversary" },
     { id: "malefic",   name: "マレフィックスター", difficulties: ["NORMAL", "HARD"],
-      maxMembers: 3, color: "#8b5cf6", icon: "star",         image: "malefic-star" },
+      maxMembers: 3, color: "#eab308", icon: "star",         image: "malefic-star" },
     { id: "limbo",     name: "リンボ",             difficulties: ["NORMAL", "HARD"],
-      maxMembers: 3, color: "#22d3ee", icon: "infinity",     image: "limbo" },
+      maxMembers: 3, color: "#c026d3", icon: "infinity",     image: "limbo" },
     { id: "baldrix",   name: "バルドリクス",       difficulties: ["NORMAL", "HARD"],
-      maxMembers: 3, color: "#f59e0b", icon: "sword",        image: "baldrix" }
+      maxMembers: 3, color: "#38bdf8", icon: "sword",        image: "baldrix" }
 ];
 
 // MapleHub CDN base URL
