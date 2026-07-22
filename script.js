@@ -376,6 +376,9 @@ const app = {
         const headerNav = document.querySelector('header nav');
         const dashStats = document.getElementById('dashboard-stats-container');
         const clockEl = document.querySelector('header > div:last-child');
+        // Scheduler sub-nav lives in the top bar; hidden unless that app is active.
+        const schedNav = document.getElementById('scheduler-nav');
+        if (schedNav) { schedNav.classList.add('hidden'); schedNav.classList.remove('flex'); }
 
         if (appName === 'planner') {
             if (headerNav) headerNav.style.display = '';
@@ -431,6 +434,7 @@ const app = {
             if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = 'none';
             if (clockEl) clockEl.classList.add('ml-auto');
             document.getElementById('view-scheduler').classList.remove('hidden-page');
+            if (schedNav) { schedNav.classList.remove('hidden'); schedNav.classList.add('flex'); }
             const frame = document.getElementById('scheduler-frame');
             if (frame && !frame.getAttribute('src')) frame.setAttribute('src', 'boss_scheduler.html');
         } else if (appName === 'liberation') {
@@ -446,6 +450,24 @@ const app = {
                 this.liberationInitialized = true;
             }
         }
+    },
+
+    // Drives the Boss Scheduler's tabs from the top bar. The scheduler runs in
+    // an iframe and keeps its own tab buttons (hidden), so we click those and
+    // mirror the active state onto the header buttons.
+    schedulerTab(tab) {
+        const frame = document.getElementById('scheduler-frame');
+        const doc = frame && frame.contentDocument;
+        if (doc) {
+            const btn = doc.getElementById(`tab-${tab}`);
+            if (btn) btn.click();
+        }
+        ['schedule', 'roster', 'calendar'].forEach(t => {
+            const b = document.getElementById(`snav-${t}`);
+            if (!b) return;
+            b.classList.toggle('nav-active', t === tab);
+            b.classList.toggle('nav-inactive', t !== tab);
+        });
     },
 
     switchLiberationTab(tab) {
