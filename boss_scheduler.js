@@ -1105,6 +1105,51 @@
     // during dragover, but we need it for highlighting drop zones).
     let dndState = null;  // { charId, fromPartyId | null }
 
+    // ---- Auto-scroll during drag ----------------------------------------
+    // Native HTML5 drag doesn't scroll containers, so the character pool /
+    // parties list can't be reached past the fold while dragging. This
+    // scrolls the relevant containers when the cursor nears their edges.
+    const autoScroll = { active: false, x: 0, y: 0, raf: 0 };
+
+    function autoScrollContainers() {
+        // Innermost first: cursor over the pool scrolls the pool, not the
+        // whole modal body (which wraps both columns).
+        return [
+            document.getElementById("boss-edit-pool"),                 // character pool
+            document.querySelector("#boss-edit-modal .modal-body")     // parties column
+        ].filter(Boolean);
+    }
+    function autoScrollTick() {
+        if (!autoScroll.active) return;
+        const EDGE = 56, STEP = 16;
+        const { x, y } = autoScroll;
+        for (const el of autoScrollContainers()) {
+            if (el.scrollHeight <= el.clientHeight) continue;
+            const r = el.getBoundingClientRect();
+            if (x < r.left || x > r.right || y < r.top || y > r.bottom) continue;
+            if (y - r.top < EDGE)         el.scrollTop -= STEP;
+            else if (r.bottom - y < EDGE) el.scrollTop += STEP;
+            break; // only the innermost container under the cursor
+        }
+        autoScroll.raf = requestAnimationFrame(autoScrollTick);
+    }
+    function startAutoScroll() {
+        if (autoScroll.active) return;
+        autoScroll.active = true;
+        autoScroll.raf = requestAnimationFrame(autoScrollTick);
+    }
+    function stopAutoScroll() {
+        autoScroll.active = false;
+        if (autoScroll.raf) cancelAnimationFrame(autoScroll.raf);
+        autoScroll.raf = 0;
+    }
+    // Track cursor position throughout the drag (dragover fires on the document).
+    document.addEventListener("dragover", (e) => {
+        if (!autoScroll.active) return;
+        autoScroll.x = e.clientX;
+        autoScroll.y = e.clientY;
+    });
+
     function attachDragSource(el, charId, fromPartyId) {
         el.addEventListener("dragstart", (e) => {
             dndState = { charId, fromPartyId: fromPartyId || null };
@@ -1115,11 +1160,13 @@
             el.classList.add("dragging");
             // Highlight valid drop targets
             highlightDropTargets();
+            startAutoScroll();
         });
         el.addEventListener("dragend", () => {
             dndState = null;
             el.classList.remove("dragging");
             clearDropHighlights();
+            stopAutoScroll();
         });
     }
 
