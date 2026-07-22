@@ -58,7 +58,7 @@
         characters: [],       // { id, playerId, name, jobId, cp, hexa, server, level, bossOptOut: [bossId,...] }
         bossEntries: [],      // { id, bossId, parties:[{id,name,difficulty,recurrence,memberIds[]}] }
         ui: {
-            filters: { boss: "", team: "", player: "", server: "" },
+            filters: { boss: [], team: "", player: "", server: "" },  // boss: 複数選択
             calendarMode: "week",
             monthOffset: 0,
             weekOffset: 0     // for calendar week navigation (0=current Thursday-week)
@@ -76,8 +76,12 @@
         if (!state.players)    state.players = [];
         if (!state.characters) state.characters = [];
         if (!state.bossEntries) state.bossEntries = [];
-        if (!state.ui) state.ui = { filters: { boss: "", team: "", player: "", server: "" }, calendarMode: "week", monthOffset: 0, weekOffset: 0 };
-        if (!state.ui.filters) state.ui.filters = { boss: "", team: "", player: "", server: "" };
+        if (!state.ui) state.ui = { filters: { boss: [], team: "", player: "", server: "" }, calendarMode: "week", monthOffset: 0, weekOffset: 0 };
+        if (!state.ui.filters) state.ui.filters = { boss: [], team: "", player: "", server: "" };
+        // The boss filter is multi-select; migrate the legacy single-string value.
+        if (!Array.isArray(state.ui.filters.boss)) {
+            state.ui.filters.boss = state.ui.filters.boss ? [state.ui.filters.boss] : [];
+        }
         if (!state.ui.calendarMode) state.ui.calendarMode = "week";
         if (state.ui.monthOffset == null) state.ui.monthOffset = 0;
         if (state.ui.weekOffset == null) state.ui.weekOffset = 0;
@@ -346,13 +350,16 @@
             bossList.innerHTML = "";
             (window.BOSS_DATA || []).forEach((b) => {
                 const chip = document.createElement("button");
-                chip.className = "boss-filter-chip" + (f.boss === b.id ? " active" : "");
+                chip.className = "boss-filter-chip" + (f.boss.includes(b.id) ? " active" : "");
                 chip.dataset.bossId = b.id;
                 chip.style.setProperty("--boss-color", b.color || "#6366f1");
                 chip.innerHTML = `${bossIconHtml(b, "sm")}<span>${esc(b.name)}</span>`;
                 chip.addEventListener("click", () => {
-                    // Toggle: clicking the active boss clears the filter.
-                    state.ui.filters.boss = (state.ui.filters.boss === b.id) ? "" : b.id;
+                    // Multi-select: toggle this boss in/out of the selection.
+                    const sel = state.ui.filters.boss;
+                    const i = sel.indexOf(b.id);
+                    if (i >= 0) sel.splice(i, 1);
+                    else sel.push(b.id);
                     saveState();
                     renderFilterBar();
                     renderDashboard();
@@ -430,7 +437,7 @@
         const f = state.ui.filters;
         // Always show all 9 bosses on dashboard (synthesize virtual entries for empties)
         const filtered = bossEntriesForDashboard().filter((be) => {
-            if (f.boss && be.bossId !== f.boss) return false;
+            if (f.boss.length && !f.boss.includes(be.bossId)) return false;
             // For non-empty bosses, apply team/player/server filter
             if (f.team || f.player || f.server) {
                 if (be.parties.length === 0) return false; // virtual entries excluded when filtering
@@ -1561,7 +1568,7 @@
         $("#filter-team").addEventListener("change",   (e) => { state.ui.filters.team   = e.target.value; saveState(); renderDashboard(); });
         $("#filter-server").addEventListener("change", (e) => { state.ui.filters.server = e.target.value; saveState(); renderDashboard(); });
         $("#filter-clear").addEventListener("click",   () => {
-            state.ui.filters = { boss: "", team: "", player: "", server: "" };
+            state.ui.filters = { boss: [], team: "", player: "", server: "" };
             saveState(); render();
         });
 

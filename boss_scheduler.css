@@ -173,13 +173,14 @@ input[type="datetime-local"], input[type="time"] { color-scheme: dark; }
 }
 
 /* === Boss card === */
+/* Faint tint + top accent in the boss's theme colour so cards are easy to tell apart */
 .boss-card {
-    background: #0f172a;
-    border: 1px solid #1e293b;
+    background: color-mix(in srgb, var(--boss-color, #6366f1) 7%, #0f172a);
+    border: 1px solid color-mix(in srgb, var(--boss-color, #6366f1) 24%, #1e293b);
     border-radius: 9px;
     padding: 10px 11px;
     border-top: 3px solid var(--boss-color, #6366f1);
-    transition: border-color 0.15s;
+    transition: border-color 0.15s, background 0.15s;
 }
 .boss-card.empty { opacity: 0.5; }
 .boss-card.empty:hover { opacity: 1; }
