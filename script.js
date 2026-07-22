@@ -425,6 +425,14 @@ const app = {
                 if (typeof hexaTracker !== 'undefined') hexaTracker.init();
                 this.hexaInitialized = true;
             }
+        } else if (appName === 'scheduler') {
+            if (headerNav) headerNav.style.display = 'none';
+            if (dashStats) dashStats.style.display = 'none';
+            if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = 'none';
+            if (clockEl) clockEl.classList.add('ml-auto');
+            document.getElementById('view-scheduler').classList.remove('hidden-page');
+            const frame = document.getElementById('scheduler-frame');
+            if (frame && !frame.getAttribute('src')) frame.setAttribute('src', 'boss_scheduler.html');
         } else if (appName === 'liberation') {
             if (headerNav) headerNav.style.display = 'none';
             if (dashStats) dashStats.style.display = 'none';

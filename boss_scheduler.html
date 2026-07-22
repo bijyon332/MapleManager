@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boss Scheduler - MapleManager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { slate: { 850: '#151f32', 900: '#0f172a', 950: '#020617' } }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="boss_scheduler.css">
+    <script src="class_data.js" defer></script>
+    <script src="boss_data.js" defer></script>
+    <script src="boss_scheduler.js" defer></script>
+</head>
+
+<body class="h-screen flex flex-col font-sans text-sm bg-slate-950 overflow-hidden">
+
+    <!-- Top bar (tabs) -->
+    <header class="h-11 bg-slate-900 border-b border-slate-800 flex items-center px-4 shrink-0 z-10 gap-3">
+        <div class="flex items-center gap-2">
+            <i data-lucide="swords" class="w-4 h-4 text-indigo-400"></i>
+            <span class="title-font text-xs font-bold text-slate-100">BOSS SCHEDULER</span>
+        </div>
+
+        <nav class="flex items-center gap-0.5 ml-3">
+            <button id="tab-schedule" data-tab="schedule"
+                class="tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all tab-active flex items-center gap-1.5">
+                <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>Dashboard
+            </button>
+            <button id="tab-calendar" data-tab="calendar"
+                class="tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all tab-inactive flex items-center gap-1.5">
+                <i data-lucide="calendar-days" class="w-3.5 h-3.5"></i>Calendar
+            </button>
+            <button id="tab-roster" data-tab="roster"
+                class="tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all tab-inactive flex items-center gap-1.5">
+                <i data-lucide="users" class="w-3.5 h-3.5"></i>Players
+            </button>
+        </nav>
+    </header>
+
+    <!-- Content -->
+    <main class="flex-1 overflow-y-auto p-4">
+
+        <!-- ====== DASHBOARD TAB ====== -->
+        <section id="view-schedule">
+            <div class="filter-bar">
+                <label>Boss</label>
+                <select id="filter-boss"><option value="">All</option></select>
+                <label>Team</label>
+                <select id="filter-team"><option value="">All</option></select>
+                <label>Server</label>
+                <select id="filter-server"><option value="">All</option></select>
+                <button class="filter-clear" id="filter-clear">クリア</button>
+            </div>
+
+            <div class="dashboard-layout">
+                <aside class="dashboard-sidebar">
+                    <div class="col-header" style="margin-bottom:6px;">プレイヤー</div>
+                    <div id="player-filter-list" class="player-filter-list"></div>
+                </aside>
+                <div id="boss-list" class="boss-grid"></div>
+            </div>
+        </section>
+
+        <!-- ====== CALENDAR TAB ====== -->
+        <section id="view-calendar" class="hidden">
+            <div class="flex items-center justify-between mb-3">
+                <div class="col-header" style="margin-bottom:0;">Calendar</div>
+                <div class="flex gap-1">
+                    <button class="btn cal-mode-btn cal-mode-active" data-cal-mode="week">週</button>
+                    <button class="btn cal-mode-btn" data-cal-mode="month">月</button>
+                </div>
+            </div>
+            <div class="dashboard-layout">
+                <aside class="dashboard-sidebar">
+                    <div class="col-header" style="margin-bottom:6px;">プレイヤー</div>
+                    <div id="player-filter-list-cal" class="player-filter-list"></div>
+                </aside>
+                <div id="calendar" class="calendar"></div>
+            </div>
+        </section>
+
+        <!-- ====== ROSTER TAB ====== -->
+        <section id="view-roster" class="hidden">
+            <div class="max-w-5xl">
+                <div class="bg-slate-900 border border-slate-800 rounded-lg p-3 mb-3">
+                    <div class="col-header" style="margin-bottom:6px;">Add Player</div>
+                    <div class="flex gap-2 flex-wrap">
+                        <input type="text" id="new-player" placeholder="プレイヤー名 (例: bi)" class="flex-1" style="min-width:160px;" />
+                        <input type="text" id="new-player-discord" placeholder="Discord ID (任意)" style="width:200px;" />
+                        <button id="add-player-btn" class="btn btn-primary">
+                            <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> 追加
+                        </button>
+                    </div>
+                </div>
+                <div id="players-list" class="flex flex-col gap-2"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- =========================================================
+         MODALS
+         ========================================================= -->
+
+    <!-- Edit player modal -->
+    <div id="edit-player-modal" class="modal-bg hidden">
+        <div class="modal" style="max-width: 420px;">
+            <div class="modal-head">
+                <div class="modal-title">EDIT PLAYER</div>
+                <button class="btn btn-ghost btn-icon" data-close-player><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="modal-body flex flex-col gap-3">
+                <label class="text-xs text-slate-400">プレイヤー名
+                    <input type="text" id="edit-player-name" class="w-full mt-1" />
+                </label>
+                <label class="text-xs text-slate-400">Discord ID
+                    <input type="text" id="edit-player-discord" class="w-full mt-1" placeholder="例: bi#0001 や 12345..." />
+                </label>
+            </div>
+            <div class="modal-foot">
+                <button class="btn" data-close-player>キャンセル</button>
+                <button class="btn btn-primary" id="edit-player-save">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit character modal -->
+    <div id="edit-char-modal" class="modal-bg hidden">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-head">
+                <div class="modal-title">EDIT CHARACTER</div>
+                <button class="btn btn-ghost btn-icon" data-close-char><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="modal-body flex flex-col gap-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="text-xs text-slate-400">キャラ名
+                        <input type="text" id="edit-char-name" class="w-full mt-1" />
+                    </label>
+                    <label class="text-xs text-slate-400">職業
+                        <select id="edit-char-job" class="w-full mt-1"></select>
+                    </label>
+                    <label class="text-xs text-slate-400">戦闘力 (CP)
+                        <input type="number" id="edit-char-cp" class="w-full mt-1" min="0" />
+                    </label>
+                    <label class="text-xs text-slate-400">HEXA (換算スコア)
+                        <input type="number" id="edit-char-hexa" class="w-full mt-1" min="0" />
+                    </label>
+                    <label class="text-xs text-slate-400">サーバー
+                        <select id="edit-char-server" class="w-full mt-1"></select>
+                    </label>
+                    <label class="text-xs text-slate-400">レベル (任意)
+                        <input type="number" id="edit-char-level" class="w-full mt-1" min="0" max="300" />
+                    </label>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-400 mb-2 flex items-center justify-between">
+                        <span>ボス別 表示/非表示</span>
+                        <span class="text-[10px] text-slate-600">OFFにしたボスではアサイン候補から除外</span>
+                    </div>
+                    <div id="edit-char-optout" class="optout-grid"></div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn" data-close-char>キャンセル</button>
+                <button class="btn btn-primary" id="edit-char-save">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Boss edit modal (manages all PTs of one boss) -->
+    <div id="boss-edit-modal" class="modal-bg hidden">
+        <div class="modal modal-xl">
+            <div class="modal-head">
+                <div class="modal-title flex items-center gap-2" id="boss-edit-title">EDIT BOSS</div>
+                <button class="btn btn-ghost btn-icon" data-close-boss-edit><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="boss-edit-body">
+                    <aside class="boss-edit-pool">
+                        <div class="col-header" style="margin-bottom:6px;">キャラプール</div>
+                        <input type="text" id="boss-edit-pool-search" placeholder="検索" class="w-full mb-2 text-xs" />
+                        <p class="text-[10px] text-slate-600 leading-relaxed mb-2">
+                            <i data-lucide="grip-vertical" class="inline w-3 h-3"></i>
+                            ドラッグでPTへ追加 / PT間で移動
+                        </p>
+                        <div id="boss-edit-pool" class="pool-list"></div>
+                    </aside>
+
+                    <section class="boss-edit-right">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="col-header" style="margin-bottom:0;">Parties</div>
+                            <button class="btn btn-primary" id="boss-edit-add-party">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i> PT追加
+                            </button>
+                        </div>
+
+                        <div id="boss-edit-parties" class="flex flex-col gap-2"></div>
+                        <div id="boss-edit-empty" class="empty-state hidden">
+                            PTがありません。「PT追加」から作成してください。
+                        </div>
+                    </section>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn" data-close-boss-edit>閉じる</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

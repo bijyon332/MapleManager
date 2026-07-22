@@ -54,6 +54,11 @@
                 title="EXP Leaderboard & Progress">
                 <i data-lucide="line-chart" class="w-5 h-5"></i>
             </button>
+            <button onclick="app.switchApp('scheduler')" id="app-scheduler"
+                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
+                title="Boss Scheduler">
+                <i data-lucide="swords" class="w-5 h-5"></i>
+            </button>
 
             <!-- In-development apps -->
             <div class="w-full flex flex-col items-center gap-1.5 mt-3 pt-3 border-t border-slate-700/70">
@@ -734,6 +739,13 @@
 
                 <!-- ========== HEXA MATRIX TRACKER APP ========== -->
                 <div id="view-hexa" class="hidden-page fade-in"></div>
+
+                <!-- ========== BOSS SCHEDULER APP (isolated iframe) ========== -->
+                <div id="view-scheduler" class="hidden-page">
+                    <iframe id="scheduler-frame" title="Boss Scheduler"
+                        class="w-full rounded-lg border border-slate-800 bg-slate-950"
+                        style="height: calc(100vh - 6rem);"></iframe>
+                </div>
 
         </main>
     </div>
