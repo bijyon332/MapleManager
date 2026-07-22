@@ -433,7 +433,10 @@ input[type="datetime-local"], input[type="time"] { color-scheme: dark; }
     display: flex; flex-direction: column; gap: 3px;
     max-height: 62vh; overflow-y: auto; padding-right: 3px;
 }
-.pool-player-group { background: #0f172a; border: 1px solid #1e293b; border-radius: 6px; overflow: hidden; }
+/* flex-shrink:0 stops the scroll container from squashing groups to fit
+   its max-height (which clipped their content and broke clicking/dragging
+   when there were many players). Content overflows and scrolls instead. */
+.pool-player-group { background: #0f172a; border: 1px solid #1e293b; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
 .pool-player-group + .pool-player-group { margin-top: 3px; }
 .pool-player-group-head {
     display: flex; align-items: center; gap: 6px;
