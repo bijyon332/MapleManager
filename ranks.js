@@ -27,10 +27,14 @@ const ranks = {
     CACHE_KEY:   'gmsManager.ranks.cache',
     PREFS_KEY:   'gmsManager.ranks.prefs',
 
+    SNAPSHOT_HOUR_JST: 3, // MapleHub's daily snapshot lands around 03:00 JST
+
     initialized: false,
     roster: [],          // [{ name, region }]
     cache: {},           // { 'na:name': { labels, values, expDaily, charInfo, importedAt } }
     busy: false,
+    autoAttemptAt: 0,    // last automatic refresh attempt (epoch ms)
+    _watcher: null,
 
     // tabs & leaderboard state
     activeTab: 'board',  // 'board' | 'trend'
@@ -63,7 +67,43 @@ const ranks = {
         this.bindUI();
         this.renderRegionButtons();
         this.renderAll();
+        this.autoRefresh();     // pull a new day's snapshot if 03:00 JST has passed
+        this.startAutoWatcher();
+    },
+
+    /* ---------- auto refresh ---------- */
+
+    // MapleHub publishes the previous day's snapshot around 03:00 JST, so cache
+    // taken before the most recent 03:00 is a day behind. Returns that boundary.
+    lastSnapshotAt(now = new Date()) {
+        const JST = 9 * 3600000;
+        const j = new Date(now.getTime() + JST); // shifted, so getUTC* reads as JST
+        const ms = Date.UTC(j.getUTCFullYear(), j.getUTCMonth(), j.getUTCDate(), this.SNAPSHOT_HOUR_JST) - JST;
+        return ms > now.getTime() ? ms - 86400000 : ms; // before 03:00 → yesterday's
+    },
+
+    // One automatic refresh per 03:00 window: if fetches fail we keep the old data
+    // and wait for the next window rather than retrying on every tick.
+    async autoRefresh() {
+        if (this.busy || this.roster.length === 0) return;
+        const cutoff = this.lastSnapshotAt();
+        const stale = this.roster.some(r => {
+            const c = this.cache[this._key(r)];
+            return c && !(c.importedAt >= cutoff);
+        });
+        if (stale && !(this.autoAttemptAt >= cutoff)) {
+            this.autoAttemptAt = Date.now();
+            this.savePrefs();
+            await this.refreshAll(true);
+            return;
+        }
         this._refreshMissing(); // pull icon/withinExp for entries cached by the old version
+    },
+
+    // The tab can stay open across 03:00 JST.
+    startAutoWatcher() {
+        if (this._watcher) return;
+        this._watcher = setInterval(() => this.autoRefresh(), 5 * 60000);
     },
 
     renderAll() {
@@ -114,13 +154,15 @@ const ranks = {
             if (Array.isArray(p.selected)) this.selectedKeys = p.selected;
             if (['level', 'exp'].includes(p.detailMode)) this.detailMode = p.detailMode;
             if ([7, 14, 30, 90].includes(p.detailRange)) this.detailRange = p.detailRange;
+            if (Number.isFinite(p.autoAttemptAt)) this.autoAttemptAt = p.autoAttemptAt;
         } catch (_) { /* ignore */ }
     },
     savePrefs() {
         const p = {
             range: this.selectedRange, yMode: this.yMode, region: this.pickedRegion,
             tab: this.activeTab, sortKey: this.sortKey, sortDir: this.sortDir,
-            selected: this.selectedKeys, detailMode: this.detailMode, detailRange: this.detailRange
+            selected: this.selectedKeys, detailMode: this.detailMode, detailRange: this.detailRange,
+            autoAttemptAt: this.autoAttemptAt
         };
         localStorage.setItem(this.PREFS_KEY, JSON.stringify(p));
     },
@@ -247,9 +289,10 @@ const ranks = {
         }
     },
 
-    async refreshAll() {
+    async refreshAll(auto = false) {
         if (this.busy || this.roster.length === 0) return;
         this.setBusy(true);
+        if (auto) this.showMsg('新しい日次データを自動取得中…', 'info');
         let ok = 0, fail = 0;
         for (const r of this.roster) {
             try {
@@ -263,7 +306,7 @@ const ranks = {
         this.saveCache();
         this.renderAll();
         this.setBusy(false);
-        this.showMsg(`${ok}キャラを更新しました${fail ? `(${fail}件失敗)` : ''}。`, fail ? 'warn' : 'ok');
+        this.showMsg(`${auto ? '自動更新: ' : ''}${ok}キャラを更新しました${fail ? `(${fail}件失敗)` : ''}。`, fail ? 'warn' : 'ok');
     },
 
     // Entries cached by the old ranks.js lack charInfo.img / withinExp.

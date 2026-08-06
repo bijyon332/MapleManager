@@ -1,6 +1,6 @@
 const app = {
     data: { config: { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' }, characters: [], masterDailies: [], masterWeeklies: [], masterBosses: [], memo: "" },
-    lastLoginDate: null, editingBossId: null, currentTaskTab: 'daily', activeCharId: null, currentBossFilter: 'ALL', tempBossIds: new Set(), tempPartySizes: {},
+    lastLoginDate: null, lastCheckAt: null, editingBossId: null, currentTaskTab: 'daily', activeCharId: null, currentBossFilter: 'ALL', tempBossIds: new Set(), tempPartySizes: {},
     currentApp: 'planner', expInitialized: false, costInitialized: false, ranksInitialized: false, hexaInitialized: false,
     bcCharId: null, bcTab: 'WEEKLY', bcSelected: {}, bcParty: {}, bcDiff: {},
     DEFAULT_IMG_OFFSET_X: 50,
@@ -52,6 +52,7 @@ const app = {
             this.data.config.activeServer = 'ALL';
         }
         this.checkResets();
+        this.startResetWatcher();
         this.startClock();
         lucide.createIcons();
         this.syncConfigUI();
@@ -135,6 +136,9 @@ const app = {
                 this.data.masterDailies = [...DEFAULT_DAILIES]; this.data.masterWeeklies = [...DEFAULT_WEEKLIES]; this.data.masterBosses = [...DEFAULT_BOSSES]; this.data.config = { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' };
             }
             this.lastLoginDate = localStorage.getItem('gms_v24_date') || new Date().toISOString().split('T')[0];
+            // Migrate the old date-only marker: treat it as that day's 00:00 UTC.
+            const checked = parseInt(localStorage.getItem('gms_v24_checked'), 10);
+            this.lastCheckAt = Number.isFinite(checked) ? checked : Date.parse(this.lastLoginDate + 'T00:00:00Z');
         } catch (e) {
             this.data = { config: { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' }, characters: [], masterDailies: [...DEFAULT_DAILIES], masterWeeklies: [...DEFAULT_WEEKLIES], masterBosses: [...DEFAULT_BOSSES] };
         }
@@ -325,33 +329,72 @@ const app = {
             resetBtn();
         }
     },
+    // Reset boundaries are UTC midnight, i.e. 09:00 JST.
+    //   daily   : every day
+    //   weekly  : Thursday
+    //   monthly : the 1st
+    // Each returns the most recent boundary at or before `now`, so the check is a
+    // plain "did we cross it since the last check?" and works no matter how many
+    // days the app went unopened.
+    lastDailyReset(now) {
+        return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    },
+    lastWeeklyReset(now) {
+        const back = (now.getUTCDay() - 4 + 7) % 7; // days since the last Thursday
+        return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - back);
+    },
+    lastMonthlyReset(now) {
+        return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+    },
+
+    // Returns true if any progress was cleared, so callers can re-render.
     checkResets() {
         const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        if (this.lastLoginDate && this.lastLoginDate !== todayStr) {
-            const lastLogin = new Date(this.lastLoginDate);
-            this.data.characters.forEach(c => {
-                if (!c.progress) return;
+        const last = this.lastCheckAt;
+        if (!last) { this.markChecked(now); return false; }
+
+        const daily = last < this.lastDailyReset(now);
+        const weekly = last < this.lastWeeklyReset(now);
+        const monthly = last < this.lastMonthlyReset(now);
+        if (!daily && !weekly && !monthly) return false;
+
+        const typeOf = {};
+        this.data.masterBosses.forEach(b => { typeOf[b.id] = b.type; });
+        // Drops ids that no longer exist in masterBosses as well.
+        const keep = (ids, types) => (ids || []).filter(id => typeOf[id] && !types.includes(typeOf[id]));
+
+        this.data.characters.forEach(c => {
+            if (!c.progress) return;
+            if (daily) {
                 c.progress.daily = [];
-                c.progress.boss = (c.progress.boss || []).filter(bid => {
-                    const mb = this.data.masterBosses.find(b => b.id === bid);
-                    return mb && mb.type !== 'DAILY';
-                });
-                if (now.getUTCDay() === 4 || (lastLogin.getUTCDay() !== 4 && now.getUTCDay() < lastLogin.getUTCDay())) {
-                    c.progress.weekly = [];
-                    c.progress.charDone = false;
-                    c.progress.boss = (c.progress.boss || []).filter(bid => {
-                        const mb = this.data.masterBosses.find(b => b.id === bid);
-                        return mb && mb.type === 'MONTHLY';
-                    });
-                }
-                if (now.getUTCDate() === 1) {
-                    c.progress.boss = [];
-                    c.progress.charMonthlyDone = false;
-                }
-            });
-            this.saveData();
-        }
+                c.progress.boss = keep(c.progress.boss, ['DAILY']);
+            }
+            if (weekly) {
+                c.progress.weekly = [];
+                c.progress.charDone = false;
+                c.progress.boss = keep(c.progress.boss, ['WEEKLY']);
+            }
+            if (monthly) {
+                c.progress.charMonthlyDone = false;
+                c.progress.boss = keep(c.progress.boss, ['MONTHLY']);
+            }
+        });
+        this.markChecked(now);
+        this.saveData();
+        return true;
+    },
+    markChecked(now) {
+        this.lastCheckAt = now.getTime();
+        localStorage.setItem('gms_v24_checked', String(this.lastCheckAt));
+    },
+    // The tab can stay open across 09:00 JST, so keep checking while it runs.
+    startResetWatcher() {
+        setInterval(() => {
+            if (this.checkResets() && this.currentApp === 'planner') {
+                this.renderDashboard();
+                this.renderCharacters();
+            }
+        }, 60000);
     },
     startClock() { setInterval(() => { const n = new Date(); document.getElementById('clock-jst').innerText = n.toLocaleTimeString('ja-JP', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }); document.getElementById('clock-utc').innerText = n.toISOString().split('T')[1].split('.')[0]; }, 1000); },
     navigate(view) {
