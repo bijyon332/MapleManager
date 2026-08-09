@@ -228,12 +228,15 @@
         ['crit', 'クリダメ% 1%'], ['attPct', '攻撃力% 1%'], ['boss', 'ボスダメ% 1%'],
     ];
 
+    // The modal renders into its own host outside .gp so it can escape any
+    // ancestor stacking context, so every shared rule has to name .gp-veil too.
     const CSS = `
-.gp{--bg:#101220;--sf:#191c2e;--sf2:#20243a;--ln:#2e3450;--tx:#e9e8f2;--mu:#8990ad;
+.gp,.gp-veil{--bg:#101220;--sf:#191c2e;--sf2:#20243a;--ln:#2e3450;--tx:#e9e8f2;--mu:#8990ad;
 --gold:#f4b942;--cyan:#48d6c8;--red:#e8615f;
-color:var(--tx);padding:4px 0 40px;
+color:var(--tx);
 font-family:"Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;font-size:13px;line-height:1.6;}
-.gp *{box-sizing:border-box}
+.gp{padding:4px 0 40px}
+.gp *,.gp-veil *{box-sizing:border-box}
 .gp .wrap{max-width:1080px;margin:0 auto}
 .gp h1{font-family:"Orbitron",system-ui,sans-serif;font-size:26px;font-weight:700;
 letter-spacing:.06em;margin:0 0 4px;text-transform:uppercase}
@@ -244,17 +247,20 @@ color:var(--mu);text-transform:uppercase;margin:0 0 10px;display:flex;align-item
 .gp section{margin-bottom:30px}
 .gp .card{background:var(--sf);border:1px solid var(--ln);border-radius:10px;padding:16px}
 .gp .grid6{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
-.gp label{display:block;font-size:10.5px;letter-spacing:.1em;color:var(--mu);margin-bottom:4px;text-transform:uppercase}
-.gp input,.gp select{width:100%;background:var(--bg);color:var(--tx);border:1px solid var(--ln);
-border-radius:6px;padding:7px 8px;font-size:13px;font-variant-numeric:tabular-nums;font-family:inherit}
-.gp input:focus,.gp select:focus{outline:2px solid var(--gold);outline-offset:1px;border-color:transparent}
+.gp label,.gp-veil label{display:block;font-size:10.5px;letter-spacing:.1em;color:var(--mu);margin-bottom:4px;text-transform:uppercase}
+.gp input,.gp select,.gp-veil input,.gp-veil select{width:100%;background:var(--bg);color:var(--tx);
+border:1px solid var(--ln);border-radius:6px;padding:7px 8px;font-size:13px;
+font-variant-numeric:tabular-nums;font-family:inherit;color-scheme:dark}
+.gp select option,.gp-veil select option{background:var(--sf);color:var(--tx)}
+.gp input:focus,.gp select:focus,.gp-veil input:focus,.gp-veil select:focus{outline:2px solid var(--gold);
+outline-offset:1px;border-color:transparent}
 .gp .opts{display:flex;flex-wrap:wrap;gap:16px;align-items:end;margin-top:14px;padding-top:14px;border-top:1px dashed var(--ln)}
 .gp .chk{display:flex;align-items:center;gap:7px;color:var(--tx);font-size:12.5px;cursor:pointer;
 letter-spacing:normal;text-transform:none;margin-bottom:0}
 .gp .chk input{width:15px;height:15px;accent-color:var(--gold)}
-.gp .btn{background:transparent;color:var(--mu);border:1px solid var(--ln);border-radius:6px;
+.gp .btn,.gp-veil .btn{background:transparent;color:var(--mu);border:1px solid var(--ln);border-radius:6px;
 padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit}
-.gp .btn:hover{border-color:var(--gold);color:var(--gold)}
+.gp .btn:hover,.gp-veil .btn:hover{border-color:var(--gold);color:var(--gold)}
 .gp .step{display:grid;grid-template-columns:34px 1fr 92px 78px;gap:12px;align-items:center;
 padding:9px 12px;border-bottom:1px solid var(--ln)}
 .gp .step:last-child{border-bottom:none}
@@ -284,23 +290,22 @@ font-variant-numeric:tabular-nums;white-space:nowrap}
 .gp .chip .st i{font-style:normal;color:var(--cyan)}
 .gp .add{border-style:dashed;color:var(--mu);background:transparent}
 .gp-veil{position:fixed;inset:0;background:rgba(8,9,16,.72);display:flex;align-items:center;
-justify-content:center;padding:20px;z-index:50;
-font-family:"Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;font-size:13px;line-height:1.6}
-.gp-veil .modal{background:#191c2e;border:1px solid #2e3450;border-radius:12px;width:100%;
-max-width:420px;padding:20px;box-shadow:0 24px 60px rgba(0,0,0,.5);color:#e9e8f2}
+justify-content:center;padding:20px;z-index:50}
+.gp-veil .modal{background:var(--sf);border:1px solid var(--ln);border-radius:12px;width:100%;
+max-width:420px;padding:20px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
 .gp-veil .modal h2{font-family:"Orbitron",system-ui,sans-serif;font-size:15px;letter-spacing:.14em;
 text-transform:uppercase;margin:0 0 16px;font-weight:700}
 .gp-veil .fld{margin-bottom:12px}
 .gp-veil .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .gp-veil .foot{display:flex;gap:8px;margin-top:18px}
 .gp-veil .foot .grow{flex:1}
-.gp .primary,.gp-veil .primary{background:var(--gold,#f4b942);color:#181405;border-color:#f4b942;font-weight:700}
-.gp .primary:hover,.gp-veil .primary:hover{opacity:.88;color:#181405}
-.gp-veil .danger:hover{border-color:#e8615f;color:#e8615f}
-.gp-veil input:disabled,.gp input:disabled{opacity:.5;cursor:not-allowed}
+.gp .primary,.gp-veil .primary{background:var(--gold);color:#181405;border-color:var(--gold);font-weight:700}
+.gp .primary:hover,.gp-veil .primary:hover{opacity:.88;color:#181405;border-color:var(--gold)}
+.gp .danger:hover,.gp-veil .danger:hover{border-color:var(--red);color:var(--red)}
+.gp input:disabled,.gp select:disabled,.gp-veil input:disabled,.gp-veil select:disabled{opacity:.5;cursor:not-allowed}
 @media(prefers-reduced-motion:no-preference){.gp-veil .modal{animation:gp-pop .16s ease-out}}
 @keyframes gp-pop{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
-.gp .note{color:var(--mu);font-size:11.5px;margin-top:12px}
+.gp .note,.gp-veil .note{color:var(--mu);font-size:11.5px;margin-top:12px}
 @media(max-width:640px){.gp .step{grid-template-columns:26px 1fr;row-gap:2px}
 .gp .num,.gp .eff{text-align:left;grid-column:2}}
 `;
