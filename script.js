@@ -480,6 +480,16 @@ const app = {
             if (schedNav) { schedNav.classList.remove('hidden'); schedNav.classList.add('flex'); }
             const frame = document.getElementById('scheduler-frame');
             if (frame && !frame.getAttribute('src')) frame.setAttribute('src', 'boss_scheduler.html');
+        } else if (appName === 'gear') {
+            if (headerNav) headerNav.style.display = 'none';
+            if (dashStats) dashStats.style.display = 'none';
+            if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = 'none';
+            if (clockEl) clockEl.classList.add('ml-auto');
+            document.getElementById('view-gear-priority').classList.remove('hidden-page');
+            if (!this.gearInitialized) {
+                if (typeof gearPriority !== 'undefined') gearPriority.init('gear-priority-root');
+                this.gearInitialized = true;
+            }
         } else if (appName === 'liberation') {
             if (headerNav) headerNav.style.display = 'none';
             if (dashStats) dashStats.style.display = 'none';
