@@ -60,6 +60,11 @@
                 title="Boss Scheduler">
                 <i data-lucide="swords" class="w-5 h-5"></i>
             </button>
+            <button onclick="app.switchApp('gear')" id="app-gear"
+                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
+                title="Gear Priority">
+                <i data-lucide="list-ordered" class="w-5 h-5"></i>
+            </button>
 
             <!-- In-development apps -->
             <div class="w-full flex flex-col items-center gap-1.5 mt-3 pt-3 border-t border-slate-700/70">
@@ -81,12 +86,6 @@
                     class="dev-app relative w-10 h-10 flex items-center justify-center rounded-xl transition-all nav-inactive"
                     title="HEXA Matrix Tracker(開発中)">
                     <i data-lucide="layers" class="w-5 h-5"></i>
-                    <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                </button>
-                <button onclick="app.switchApp('gear')" id="app-gear"
-                    class="dev-app relative w-10 h-10 flex items-center justify-center rounded-xl transition-all nav-inactive"
-                    title="Gear Priority(開発中)">
-                    <i data-lucide="list-ordered" class="w-5 h-5"></i>
                     <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                 </button>
                 <button onclick="app.switchApp('liberation')" id="app-liberation"
