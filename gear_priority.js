@@ -159,7 +159,7 @@
         top: { label: '上', part: '上衣' },
         bottom: { label: '下', part: '下衣' },
         shoulder: { label: '肩', part: '肩装飾' },
-        pocket: { label: 'ポケットスロット', part: 'アクセ(指輪等)', noStar: true },
+        pocket: { label: 'ポケットスロット', part: null, noStar: true },
         cape: { label: 'マント', part: 'マント' },
         glove: { label: '手', part: '手袋' },
         shoe: { label: '足', part: '靴' },
@@ -410,6 +410,8 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
                     for (const id of Object.keys(slots)) {
                         const v = s.slots[id];
                         if (v) slots[id] = { on: !!v.on, level: Number(v.level) || 160, star: Number(v.star) || 0, stage: Number(v.stage) || 0 };
+                        // A slot can lose its tables between versions; don't leave it checked.
+                        if (!hasPot(id) && !hasStar(id)) slots[id].on = false;
                     }
                 }
                 this.state = {
