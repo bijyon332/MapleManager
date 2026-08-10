@@ -135,9 +135,54 @@
     const revealConst = (L) => (L < 30 ? 0 : L <= 70 ? .5 : L <= 120 ? 2.5 : 20);
     const cubeUnit = (cube, L) => CUBE_PRICE[cube] + revealConst(L) * L * L;
 
-    const PARTS = ['帽子', '上衣', '下衣', '一体型', '靴', 'マント', '肩装飾', 'ベルト', '手袋', 'アクセ(指輪等)', 'ハート', '武器', '補助武器', 'エンブレム'];
-    const NO_STAR = new Set(['武器', '補助武器', 'エンブレム', 'ハート']);
+    // Parts whose potential table exists but that take no star force.
+    const NO_STAR = new Set(['武器', '補助武器', 'エンブレム']);
     const FIXED_LV = { 'エンブレム': 100 };
+
+    // The equip rack, laid out the way the slots sit in the game window.
+    // `part` picks the potential/star tables; null means nothing to enhance.
+    const SLOTS = {
+        weapon: { label: '武器', part: '武器' },
+        sub: { label: '補助武器', part: '補助武器' },
+        emblem: { label: 'エンブレム', part: 'エンブレム' },
+        ring1: { label: '指輪1', part: 'アクセ(指輪等)' },
+        ring2: { label: '指輪2', part: 'アクセ(指輪等)' },
+        ring3: { label: '指輪3', part: 'アクセ(指輪等)' },
+        ring4: { label: '指輪4', part: 'アクセ(指輪等)' },
+        belt: { label: 'ベルト', part: 'ベルト' },
+        face: { label: '顔飾り', part: 'アクセ(指輪等)' },
+        eye: { label: '目飾り', part: 'アクセ(指輪等)' },
+        ear: { label: '耳', part: 'アクセ(指輪等)' },
+        pendant1: { label: 'ペンダント1', part: 'アクセ(指輪等)' },
+        pendant2: { label: 'ペンダント2', part: 'アクセ(指輪等)' },
+        hat: { label: '頭', part: '帽子' },
+        top: { label: '上', part: '上衣' },
+        bottom: { label: '下', part: '下衣' },
+        shoulder: { label: '肩', part: '肩装飾' },
+        pocket: { label: 'ポケットスロット', part: 'アクセ(指輪等)', noStar: true },
+        cape: { label: 'マント', part: 'マント' },
+        glove: { label: '手', part: '手袋' },
+        shoe: { label: '足', part: '靴' },
+        heart: { label: '心臓', part: 'ハート' },
+        badge: { label: 'バッジ', part: null, noStar: true },
+    };
+    const GRID = [
+        ['weapon', 'ring1', 'face', 'hat', 'cape'],
+        ['sub', 'ring2', 'eye', 'top', 'glove'],
+        ['emblem', 'ring3', 'ear', 'bottom', 'shoe'],
+        [null, 'ring4', 'pendant1', 'shoulder', 'heart'],
+        [null, 'belt', 'pendant2', 'pocket', 'badge'],
+    ];
+    const hasStar = (id) => !SLOTS[id].noStar && !NO_STAR.has(SLOTS[id].part);
+    const hasPot = (id) => !!SLOTS[id].part;
+
+    const LEVELS = [140, 150, 160, 200, 250];
+    // 0 stars, then every step from the first checkpoint upward.
+    const starChoices = (L) => {
+        const out = [0];
+        for (let s = CHECKPOINTS[0]; s <= maxStarOf(L); s++) out.push(s);
+        return out;
+    };
 
     function stagesFor(part) {
         const seen = new Map();
@@ -154,7 +199,7 @@
     function nextActions(item, w, o) {
         const acts = [];
         const L = FIXED_LV[item.part] || item.level;
-        if (!NO_STAR.has(item.part)) {
+        if (!item.noStar) {
             const target = nextCheckpoint(item.star, maxStarOf(L));
             if (target !== null) {
                 let sc = 0;
@@ -170,6 +215,7 @@
                 });
             }
         }
+        if (!item.part) return acts;
         const curRows = item.stage ? potRow(item.part, item.stage, L) : null;
         const curScore = curRows && curRows.length ? Math.max(...curRows.map((r) => potScore(r, w))) : 0;
         let best = null;
@@ -210,7 +256,7 @@
             if (!pick) break;
             total += pick.act.cost;
             out.push({
-                ...pick.act, eff: pick.eff, part: pick.item.part,
+                ...pick.act, eff: pick.eff, name: pick.item.name,
                 level: FIXED_LV[pick.item.part] || pick.item.level, cum: total
             });
             Object.assign(state[pick.idx], pick.act.next);
@@ -257,7 +303,10 @@ outline-offset:1px;border-color:transparent}
 .gp .opts{display:flex;flex-wrap:wrap;gap:16px;align-items:end;margin-top:14px;padding-top:14px;border-top:1px dashed var(--ln)}
 .gp .chk{display:flex;align-items:center;gap:7px;color:var(--tx);font-size:12.5px;cursor:pointer;
 letter-spacing:normal;text-transform:none;margin-bottom:0}
-.gp .chk input{width:15px;height:15px;accent-color:var(--gold)}
+.gp .chk input,.gp-veil .chk input{width:15px;height:15px;accent-color:var(--gold)}
+.gp-veil .chk{display:flex;align-items:center;gap:7px;color:var(--tx);font-size:12.5px;cursor:pointer;
+letter-spacing:normal;text-transform:none}
+.gp-veil .chk.mb{margin-bottom:14px}
 .gp .btn,.gp-veil .btn{background:transparent;color:var(--mu);border:1px solid var(--ln);border-radius:6px;
 padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit}
 .gp .btn:hover,.gp-veil .btn:hover{border-color:var(--gold);color:var(--gold)}
@@ -278,17 +327,26 @@ padding:9px 12px;border-bottom:1px solid var(--ln)}
 .gp .legend{display:flex;gap:18px;font-size:11.5px;color:var(--mu);margin-bottom:10px;flex-wrap:wrap}
 .gp .dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
 .gp .empty{color:var(--mu);padding:22px 12px;text-align:center}
-.gp .rack{display:flex;flex-wrap:wrap;gap:8px}
-.gp .chip{display:flex;align-items:center;gap:10px;background:var(--sf2);border:1px solid var(--ln);
-border-radius:8px;padding:8px 10px 8px 12px;cursor:pointer;text-align:left;font-family:inherit;color:var(--tx)}
-.gp .chip:hover{border-color:var(--gold)}
-.gp .chip:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
-.gp .chip .nm{font-size:13px}
-.gp .chip .st{font-family:ui-monospace,monospace;font-size:12px;color:var(--mu);
+.gp .rackbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
+color:var(--mu);font-size:11.5px;margin-bottom:12px}
+.gp .rackbtns{display:flex;gap:6px}
+.gp .gridwrap{overflow-x:auto}
+.gp .slots{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;min-width:660px}
+.gp .slot{position:relative}
+.gp .slot-btn{width:100%;height:100%;display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+background:var(--sf2);border:1px solid var(--ln);border-radius:8px;padding:8px 24px 8px 10px;
+cursor:pointer;text-align:left;font-family:inherit;color:var(--tx)}
+.gp .slot-btn:hover{border-color:var(--gold)}
+.gp .slot-btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.gp .slot.off .slot-btn{opacity:.38}
+.gp .slot.inert .slot-btn{opacity:.38;border-style:dashed}
+.gp .slot .nm{font-size:12.5px}
+.gp .slot .st{font-family:ui-monospace,monospace;font-size:11px;color:var(--mu);
 font-variant-numeric:tabular-nums;white-space:nowrap}
-.gp .chip .st em{font-style:normal;color:var(--gold)}
-.gp .chip .st i{font-style:normal;color:var(--cyan)}
-.gp .add{border-style:dashed;color:var(--mu);background:transparent}
+.gp .slot .st em{font-style:normal;color:var(--gold)}
+.gp .slot .st i{font-style:normal;color:var(--cyan)}
+.gp .sw{position:absolute;top:6px;right:6px;margin:0;line-height:0}
+.gp .sw input{width:14px;height:14px;accent-color:var(--gold);cursor:pointer}
 .gp-veil{position:fixed;inset:0;background:rgba(8,9,16,.72);display:flex;align-items:center;
 justify-content:center;padding:20px;z-index:50}
 .gp-veil .modal{background:var(--sf);border:1px solid var(--ln);border-radius:12px;width:100%;
@@ -311,14 +369,17 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
 `;
 
     const STORAGE_KEY = 'gms-gear-priority';
+    const defaultSlots = () => {
+        const out = {};
+        for (const id of Object.keys(SLOTS)) {
+            out[id] = { on: hasPot(id), level: 160, star: 0, stage: 0 };
+        }
+        return out;
+    };
     const DEFAULT_STATE = () => ({
         w: { main: 1, att: 4, statPct: 10, crit: 30, attPct: 44, boss: 11 },
         o: { ssf: true, safeguard: true, starCatch: true, planName: '1144' },
-        items: [
-            { part: '帽子', level: 160, star: 17, stage: 1 },
-            { part: '武器', level: 160, star: 0, stage: 1 },
-            { part: 'ハート', level: 160, star: 0, stage: 0 },
-        ],
+        slots: defaultSlots(),
         limit: 40,
     });
 
@@ -342,13 +403,35 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
                 if (!raw) return;
                 const s = JSON.parse(raw);
                 const d = DEFAULT_STATE();
+                // Slots added later, or a save from the old free-form item list,
+                // fall back to the default entry for that slot.
+                const slots = d.slots;
+                if (s.slots) {
+                    for (const id of Object.keys(slots)) {
+                        const v = s.slots[id];
+                        if (v) slots[id] = { on: !!v.on, level: Number(v.level) || 160, star: Number(v.star) || 0, stage: Number(v.stage) || 0 };
+                    }
+                }
                 this.state = {
                     w: { ...d.w, ...(s.w || {}) },
                     o: { ...d.o, ...(s.o || {}) },
-                    items: Array.isArray(s.items) ? s.items : d.items,
+                    slots,
                     limit: Number(s.limit) || d.limit,
                 };
             } catch (e) { /* keep defaults on corrupted storage */ }
+        },
+
+        // Enabled slots, shaped the way the planner wants them.
+        entries() {
+            return Object.keys(SLOTS)
+                .filter((id) => this.state.slots[id].on && (hasPot(id) || hasStar(id)))
+                .map((id) => {
+                    const v = this.state.slots[id];
+                    return {
+                        id, name: SLOTS[id].label, part: SLOTS[id].part,
+                        level: v.level, star: v.star, stage: v.stage, noStar: !hasStar(id),
+                    };
+                });
         },
         save() {
             try { localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state)); } catch (e) { /* quota */ }
@@ -397,8 +480,17 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
     </section>
 
     <section>
-        <p class="eyebrow">登録した装備</p>
-        <div class="card"><div id="gp-rack"></div></div>
+        <p class="eyebrow">装備</p>
+        <div class="card">
+            <div class="rackbar">
+                <span>クリックで詳細を入力。チェックを外した部位は計算から除外します。</span>
+                <span class="rackbtns">
+                    <button type="button" class="btn" data-gp="all-on">すべて有効</button>
+                    <button type="button" class="btn" data-gp="all-off">すべて無効</button>
+                </span>
+            </div>
+            <div class="gridwrap"><div id="gp-rack" class="slots"></div></div>
+        </div>
     </section>
 
     <section>
@@ -441,16 +533,24 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
                     this.save(); this.renderPlan();
                 } else if (kind === 'limit') {
                     t.value = this.state.limit;
+                } else if (kind === 'toggle') {
+                    this.state.slots[t.dataset.id].on = t.checked;
+                    this.save(); this.renderRack(); this.renderPlan();
                 }
             });
             root.addEventListener('click', (e) => {
                 const t = e.target.closest('[data-gp]');
                 if (!t) return;
-                if (t.dataset.gp === 'edit') {
-                    const i = Number(t.dataset.idx);
-                    this.openDraft({ i, ...this.state.items[i] });
-                } else if (t.dataset.gp === 'add') {
-                    this.openDraft({ i: null, part: '帽子', level: 160, star: 0, stage: 0 });
+                const kind = t.dataset.gp;
+                if (kind === 'edit') {
+                    const id = t.dataset.id;
+                    this.openDraft({ id, ...this.state.slots[id] });
+                } else if (kind === 'all-on' || kind === 'all-off') {
+                    const on = kind === 'all-on';
+                    for (const id of Object.keys(SLOTS)) {
+                        if (hasPot(id) || hasStar(id)) this.state.slots[id].on = on;
+                    }
+                    this.save(); this.renderRack(); this.renderPlan();
                 }
             });
             this.onKey = (e) => { if (e.key === 'Escape' && this.draft) this.closeDraft(); };
@@ -461,25 +561,32 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
 
         renderRack() {
             const el = this.root.querySelector('#gp-rack');
-            const items = this.state.items;
-            const chips = items.map((it, i) => {
-                const L = FIXED_LV[it.part] || it.level;
-                const stage = stagesFor(it.part).find((x) => x.o === it.stage);
-                const starPart = NO_STAR.has(it.part) ? '' : ` · <em>${it.star}★</em>`;
-                return `<button type="button" class="chip" data-gp="edit" data-idx="${i}">
-                    <span class="nm">${esc(it.part)}</span>
-                    <span class="st">Lv${L}${starPart} · <i>${esc(stage ? stage.t.slice(0, 2) : '潜在なし')}</i></span>
-                </button>`;
-            }).join('');
-            el.innerHTML = (items.length === 0 ? '<p class="empty">まだ何も登録されていません。</p>' : '') +
-                `<div class="rack">${chips}<button type="button" class="chip add" data-gp="add">＋ 装備を登録</button></div>`;
+            el.innerHTML = GRID.map((row) => row.map((id) => {
+                if (!id) return '<div></div>';
+                const s = SLOTS[id], v = this.state.slots[id];
+                const inert = !hasPot(id) && !hasStar(id);
+                const L = FIXED_LV[s.part] || v.level;
+                const stage = s.part ? stagesFor(s.part).find((x) => x.o === v.stage) : null;
+                const line1 = `Lv${L}` + (hasStar(id) ? ` · <em>${v.star}★</em>` : '');
+                const line2 = `<i>${esc(stage ? '潜在' + stage.t.trim().charAt(0) : '潜在なし')}</i>`;
+                return `<div class="slot ${v.on ? '' : 'off'} ${inert ? 'inert' : ''}">
+                    <button type="button" class="slot-btn" data-gp="edit" data-id="${id}">
+                        <span class="nm">${esc(s.label)}</span>
+                        ${inert ? '<span class="st">計算対象外</span>'
+                        : `<span class="st">${line1}</span><span class="st">${line2}</span>`}
+                    </button>
+                    <label class="sw" title="${esc(s.label)}を計算に含める">
+                        <input type="checkbox" data-gp="toggle" data-id="${id}" ${v.on ? 'checked' : ''} ${inert ? 'disabled' : ''}>
+                    </label>
+                </div>`;
+            }).join('')).join('');
         },
 
         renderPlan() {
             const el = this.root.querySelector('#gp-plan-list');
-            const plan = buildPlan(this.state.items, this.state.w, this.opts(), this.state.limit);
+            const plan = buildPlan(this.entries(), this.state.w, this.opts(), this.state.limit);
             if (!plan.length) {
-                el.innerHTML = '<p class="empty">伸ばせる先がありません。装備を追加するか、進捗を下げてみてください。</p>';
+                el.innerHTML = '<p class="empty">伸ばせる先がありません。装備を有効にするか、進捗を下げてみてください。</p>';
                 return;
             }
             const effs = plan.map((s) => Math.log10(s.eff));
@@ -489,7 +596,7 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
                 return `<div class="step ${s.kind}">
                     <div class="rk">${i + 1}</div>
                     <div>
-                        <div class="who">${esc(s.part)}・Lv${s.level}</div>
+                        <div class="who">${esc(s.name)}・Lv${s.level}</div>
                         <div class="what"><b>${esc(s.label)}</b> <span class="who">${esc(s.detail)}</span></div>
                         <div class="meter"><i style="width:${(8 + frac * 92).toFixed(1)}%"></i></div>
                     </div>
@@ -504,21 +611,14 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
         closeDraft() { this.draft = null; this.renderModal(); },
 
         saveDraft() {
-            const { i, ...it } = this.draft;
-            const L = FIXED_LV[it.part] || it.level;
-            it.level = L;
-            it.star = NO_STAR.has(it.part) ? 0 : Math.max(0, Math.min(maxStarOf(L), it.star || 0));
-            this.state.items = i === null
-                ? [...this.state.items, it]
-                : this.state.items.map((x, j) => (j === i ? it : x));
-            this.draft = null;
-            this.save();
-            this.renderModal();
-            this.renderRack();
-            this.renderPlan();
-        },
-        deleteDraft() {
-            this.state.items = this.state.items.filter((_, j) => j !== this.draft.i);
+            const { id, ...v } = this.draft;
+            const L = FIXED_LV[SLOTS[id].part] || v.level;
+            this.state.slots[id] = {
+                on: !!v.on,
+                level: v.level,
+                star: hasStar(id) ? Math.max(0, Math.min(maxStarOf(L), v.star || 0)) : 0,
+                stage: hasPot(id) ? v.stage : 0,
+            };
             this.draft = null;
             this.save();
             this.renderModal();
@@ -530,39 +630,41 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
             const host = this.root.querySelector('#gp-modal-host');
             const d = this.draft;
             if (!d) { host.innerHTML = ''; return; }
-            const L = FIXED_LV[d.part] || d.level;
-            const lvFixed = !!FIXED_LV[d.part];
-            const noStar = NO_STAR.has(d.part);
-            const parts = PARTS.map((p) => `<option value="${esc(p)}" ${p === d.part ? 'selected' : ''}>${esc(p)}</option>`).join('');
-            const stages = stagesFor(d.part).map((st) => `<option value="${st.o}" ${st.o === d.stage ? 'selected' : ''}>${esc(st.t)}</option>`).join('');
+            const s = SLOTS[d.id];
+            const lvFixed = !!FIXED_LV[s.part];
+            const L = FIXED_LV[s.part] || d.level;
+            const star = hasStar(d.id), pot = hasPot(d.id);
+
+            const levels = (lvFixed ? [L] : LEVELS)
+                .map((v) => `<option value="${v}" ${v === L ? 'selected' : ''}>Lv${v}</option>`).join('');
+            const stars = starChoices(L)
+                .map((v) => `<option value="${v}" ${v === d.star ? 'selected' : ''}>${v}★</option>`).join('');
+            const stages = pot ? stagesFor(s.part)
+                .map((st) => `<option value="${st.o}" ${st.o === d.stage ? 'selected' : ''}>${esc(st.t)}</option>`).join('') : '';
 
             host.innerHTML = `<div class="gp-veil" data-gp="veil">
-                <div class="modal" role="dialog" aria-modal="true" aria-label="装備の登録">
-                    <h2>${d.i === null ? '装備を登録' : '装備を編集'}</h2>
-                    <div class="fld">
-                        <label for="gp-m-part">部位</label>
-                        <select id="gp-m-part" data-gp="m-part">${parts}</select>
-                    </div>
+                <div class="modal" role="dialog" aria-modal="true" aria-label="装備の詳細">
+                    <h2>${esc(s.label)}</h2>
+                    <label class="chk mb"><input type="checkbox" data-gp="m-on" ${d.on ? 'checked' : ''} ${(star || pot) ? '' : 'disabled'}>この部位を計算に含める</label>
                     <div class="pair">
                         <div class="fld">
                             <label for="gp-m-level">装備Lv</label>
-                            <input id="gp-m-level" type="number" min="100" max="250" value="${L}" ${lvFixed ? 'disabled' : ''} data-gp="m-level">
+                            <select id="gp-m-level" ${lvFixed ? 'disabled' : ''} data-gp="m-level">${levels}</select>
                         </div>
                         <div class="fld">
                             <label for="gp-m-star">★の数</label>
-                            <input id="gp-m-star" type="number" min="0" max="${maxStarOf(L)}" value="${noStar ? 0 : d.star}" ${noStar ? 'disabled' : ''} data-gp="m-star">
+                            <select id="gp-m-star" ${star ? '' : 'disabled'} data-gp="m-star">${star ? stars : '<option>—</option>'}</select>
                         </div>
                     </div>
-                    <div class="fld">
+                    ${pot ? `<div class="fld">
                         <label for="gp-m-stage">潜在の進捗</label>
                         <select id="gp-m-stage" data-gp="m-stage">
                             <option value="0" ${!d.stage ? 'selected' : ''}>まだ何もない</option>
                             ${stages}
                         </select>
-                    </div>
-                    ${noStar ? `<p class="note" style="margin-top:0">${esc(d.part)}はスターフォースを計算対象外にしています${lvFixed ? '。Lvは100固定です' : ''}。</p>` : ''}
+                    </div>` : ''}
+                    ${this.modalNote(d.id, lvFixed, star, pot)}
                     <div class="foot">
-                        ${d.i === null ? '' : '<button type="button" class="btn danger" data-gp="m-delete">削除</button>'}
                         <span class="grow"></span>
                         <button type="button" class="btn" data-gp="m-cancel">キャンセル</button>
                         <button type="button" class="btn primary" data-gp="m-save">保存</button>
@@ -570,8 +672,16 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
                 </div>
             </div>`;
 
-            const part = host.querySelector('#gp-m-part');
-            if (part) part.focus();
+            const first = host.querySelector('#gp-m-level:not([disabled])') || host.querySelector('[data-gp="m-on"]');
+            if (first) first.focus();
+        },
+
+        modalNote(id, lvFixed, star, pot) {
+            const bits = [];
+            if (!star && pot) bits.push('この部位はスターフォースを計算対象外にしています');
+            if (!pot) bits.push('この部位は潜在もスターフォースも計算対象がありません');
+            if (lvFixed) bits.push(`Lvは${FIXED_LV[SLOTS[id].part]}固定です`);
+            return bits.length ? `<p class="note" style="margin-top:0">${esc(bits.join('。'))}。</p>` : '';
         },
 
         bindModal(host) {
@@ -580,28 +690,24 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
             });
             host.addEventListener('change', (e) => {
                 const t = e.target.closest('[data-gp]');
-                if (!t || t.dataset.gp !== 'm-part') return;
-                const p = t.value;
-                const nl = FIXED_LV[p] || this.draft.level;
-                this.draft = {
-                    ...this.draft, part: p, level: nl,
-                    star: NO_STAR.has(p) ? 0 : Math.min(this.draft.star, maxStarOf(nl)), stage: 0,
-                };
+                if (!t || t.dataset.gp !== 'm-level') return;
+                // A lower level can cap the star ceiling, so redraw the star list.
+                this.draft.level = Number(t.value) || 160;
+                this.draft.star = Math.min(this.draft.star, maxStarOf(this.draft.level));
                 this.renderModal();
             });
             host.addEventListener('input', (e) => {
                 const t = e.target.closest('[data-gp]');
                 if (!t) return;
-                if (t.dataset.gp === 'm-level') this.draft.level = Number(t.value) || 0;
-                else if (t.dataset.gp === 'm-star') this.draft.star = Number(t.value) || 0;
+                if (t.dataset.gp === 'm-star') this.draft.star = Number(t.value) || 0;
                 else if (t.dataset.gp === 'm-stage') this.draft.stage = Number(t.value) || 0;
+                else if (t.dataset.gp === 'm-on') this.draft.on = t.checked;
             });
             host.addEventListener('click', (e) => {
                 const t = e.target.closest('[data-gp]');
                 if (!t) return;
                 if (t.dataset.gp === 'm-save') this.saveDraft();
                 else if (t.dataset.gp === 'm-cancel') this.closeDraft();
-                else if (t.dataset.gp === 'm-delete') this.deleteDraft();
             });
         },
     };
