@@ -101,15 +101,18 @@
         return { cost: solve(A, rc)[cur], booms: solve(A2, rb)[cur] };
     }
 
-    // The same (cur, target, level) run is asked for repeatedly while the planner
-    // walks the queue, so cache it and drop the cache when the options change.
-    let runCache = new Map(), runCacheKey = '';
+    // The same run is asked for repeatedly while the planner walks the queue.
+    // Slots can each pin their own 18*+ mode, so the mode is part of the key
+    // rather than something that invalidates the whole cache.
+    let runCache = new Map();
     function starRunCached(cur, target, L, o) {
-        const key = `${o.ssf}|${o.safeguard}|${o.starCatch}|${o.planName}`;
-        if (key !== runCacheKey) { runCache = new Map(); runCacheKey = key; }
-        const k = `${cur}|${target}|${L}`;
+        const k = `${o.ssf}|${o.safeguard}|${o.starCatch}|${o.planName}|${cur}|${target}|${L}`;
         let v = runCache.get(k);
-        if (!v) { v = starRun(cur, target, L, o); runCache.set(k, v); }
+        if (!v) {
+            if (runCache.size > 4000) runCache.clear();
+            v = starRun(cur, target, L, o);
+            runCache.set(k, v);
+        }
         return v;
     }
 
@@ -176,6 +179,14 @@
     const hasStar = (id) => !SLOTS[id].noStar && !NO_STAR.has(SLOTS[id].part);
     const hasPot = (id) => !!SLOTS[id].part;
 
+    // 18*+ mode: which MODE row each star uses. 1144 runs 18/19 cheap and
+    // safeguards 20/21; 4444 safeguards all four.
+    const PLANS = {
+        '1144': { 18: 1, 19: 1, 20: 4, 21: 4 },
+        '4444': { 18: 4, 19: 4, 20: 4, 21: 4 },
+    };
+    const PLAN_LABEL = { '1144': '1144（推奨）', '4444': '4444（全て破壊防止）' };
+
     const LEVELS = [140, 150, 160, 200, 250];
     // 0 stars, then every step from the first checkpoint upward.
     const starChoices = (L) => {
@@ -200,6 +211,9 @@
         const acts = [];
         const L = FIXED_LV[item.part] || item.level;
         if (!item.noStar) {
+            // A slot may pin its own 18*+ mode; otherwise it follows the default.
+            const planName = PLANS[item.mode] ? item.mode : o.planName;
+            const so = { ...o, planName, plan: PLANS[planName] };
             const target = nextCheckpoint(item.star, maxStarOf(L));
             if (target !== null) {
                 let sc = 0;
@@ -207,7 +221,7 @@
                     const g = starGain(k, L, item.part);
                     if (g) sc += g[0] * w.main + g[1] * w.att;
                 }
-                const { cost, booms } = starRunCached(item.star, target, L, o);
+                const { cost, booms } = starRunCached(item.star, target, L, so);
                 if (sc > 0) acts.push({
                     kind: 'star', label: `${item.star}★ → ${target}★`,
                     detail: booms >= 0.01 ? `期待破壊 ${booms.toFixed(2)}回` : '破壊なし',
@@ -345,6 +359,7 @@ cursor:pointer;text-align:left;font-family:inherit;color:var(--tx)}
 font-variant-numeric:tabular-nums;white-space:nowrap}
 .gp .slot .st em{font-style:normal;color:var(--gold)}
 .gp .slot .st i{font-style:normal;color:var(--cyan)}
+.gp .slot .pin{font-weight:400;color:var(--bg);background:var(--mu);border-radius:3px;padding:0 3px;margin-left:2px}
 .gp .sw{position:absolute;top:6px;right:6px;margin:0;line-height:0}
 .gp .sw input{width:14px;height:14px;accent-color:var(--gold);cursor:pointer}
 .gp-veil{position:fixed;inset:0;background:rgba(8,9,16,.72);display:flex;align-items:center;
@@ -372,7 +387,7 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
     const defaultSlots = () => {
         const out = {};
         for (const id of Object.keys(SLOTS)) {
-            out[id] = { on: hasPot(id), level: 160, star: 0, stage: 0 };
+            out[id] = { on: hasPot(id), level: 160, star: 0, stage: 0, mode: '' };
         }
         return out;
     };
@@ -409,7 +424,10 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
                 if (s.slots) {
                     for (const id of Object.keys(slots)) {
                         const v = s.slots[id];
-                        if (v) slots[id] = { on: !!v.on, level: Number(v.level) || 160, star: Number(v.star) || 0, stage: Number(v.stage) || 0 };
+                        if (v) slots[id] = {
+                            on: !!v.on, level: Number(v.level) || 160, star: Number(v.star) || 0,
+                            stage: Number(v.stage) || 0, mode: PLANS[v.mode] ? v.mode : '',
+                        };
                         // A slot can lose its tables between versions; don't leave it checked.
                         if (!hasPot(id) && !hasStar(id)) slots[id].on = false;
                     }
@@ -431,7 +449,8 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
                     const v = this.state.slots[id];
                     return {
                         id, name: SLOTS[id].label, part: SLOTS[id].part,
-                        level: v.level, star: v.star, stage: v.stage, noStar: !hasStar(id),
+                        level: v.level, star: v.star, stage: v.stage, mode: v.mode,
+                        noStar: !hasStar(id),
                     };
                 });
         },
@@ -439,11 +458,8 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
             try { localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state)); } catch (e) { /* quota */ }
         },
 
-        // The 18★+ mode plan: 1144 keeps 18/19 on the cheap mode, 4444 safeguards all.
-        opts() {
-            const o = this.state.o;
-            return { ...o, plan: o.planName === '1144' ? { 18: 1, 19: 1, 20: 4, 21: 4 } : { 18: 4, 19: 4, 20: 4, 21: 4 } };
-        },
+        // The 18★+ mode here is only the default; each slot may pin its own.
+        opts() { return { ...this.state.o }; },
 
         buildHTML() {
             const { w, o, limit } = this.state;
@@ -466,11 +482,10 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
                 <label class="chk"><input type="checkbox" data-gp="opt" data-key="ssf" ${o.ssf ? 'checked' : ''}>シャイニングスターフォース</label>
                 <label class="chk"><input type="checkbox" data-gp="opt" data-key="safeguard" ${o.safeguard ? 'checked' : ''}>15-17★で破壊防止</label>
                 <label class="chk"><input type="checkbox" data-gp="opt" data-key="starCatch" ${o.starCatch ? 'checked' : ''}>スターキャッチ</label>
-                <div style="width:150px">
-                    <label for="gp-plan">18★以降のモード</label>
+                <div style="width:180px">
+                    <label for="gp-plan">18★以降のモード（既定）</label>
                     <select id="gp-plan" data-gp="planName">
-                        <option value="1144" ${o.planName === '1144' ? 'selected' : ''}>1144（推奨）</option>
-                        <option value="4444" ${o.planName === '4444' ? 'selected' : ''}>4444（全て破壊防止）</option>
+                        ${Object.keys(PLANS).map((k) => `<option value="${k}" ${o.planName === k ? 'selected' : ''}>${esc(PLAN_LABEL[k])}</option>`).join('')}
                     </select>
                 </div>
                 <div style="width:110px">
@@ -570,7 +585,8 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
                 const L = FIXED_LV[s.part] || v.level;
                 const stage = s.part ? stagesFor(s.part).find((x) => x.o === v.stage) : null;
                 const line1 = `Lv${L}` + (hasStar(id) ? ` · <em>${v.star}★</em>` : '');
-                const line2 = `<i>${esc(stage ? '潜在' + stage.t.trim().charAt(0) : '潜在なし')}</i>`;
+                const line2 = `<i>${esc(stage ? '潜在' + stage.t.trim().charAt(0) : '潜在なし')}</i>`
+                    + (hasStar(id) && v.mode ? ` <b class="pin">${esc(v.mode)}</b>` : '');
                 return `<div class="slot ${v.on ? '' : 'off'} ${inert ? 'inert' : ''}">
                     <button type="button" class="slot-btn" data-gp="edit" data-id="${id}">
                         <span class="nm">${esc(s.label)}</span>
@@ -620,6 +636,7 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
                 level: v.level,
                 star: hasStar(id) ? Math.max(0, Math.min(maxStarOf(L), v.star || 0)) : 0,
                 stage: hasPot(id) ? v.stage : 0,
+                mode: hasStar(id) && PLANS[v.mode] ? v.mode : '',
             };
             this.draft = null;
             this.save();
@@ -665,6 +682,13 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
                             ${stages}
                         </select>
                     </div>` : ''}
+                    ${star ? `<div class="fld">
+                        <label for="gp-m-mode">18★以降のモード</label>
+                        <select id="gp-m-mode" data-gp="m-mode">
+                            <option value="" ${d.mode ? '' : 'selected'}>既定に従う（${esc(PLAN_LABEL[this.state.o.planName])}）</option>
+                            ${Object.keys(PLANS).map((k) => `<option value="${k}" ${d.mode === k ? 'selected' : ''}>${esc(PLAN_LABEL[k])}</option>`).join('')}
+                        </select>
+                    </div>` : ''}
                     ${this.modalNote(d.id, lvFixed, star, pot)}
                     <div class="foot">
                         <span class="grow"></span>
@@ -703,6 +727,7 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
                 if (!t) return;
                 if (t.dataset.gp === 'm-star') this.draft.star = Number(t.value) || 0;
                 else if (t.dataset.gp === 'm-stage') this.draft.stage = Number(t.value) || 0;
+                else if (t.dataset.gp === 'm-mode') this.draft.mode = t.value;
                 else if (t.dataset.gp === 'm-on') this.draft.on = t.checked;
             });
             host.addEventListener('click', (e) => {
