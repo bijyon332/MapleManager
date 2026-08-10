@@ -327,6 +327,15 @@ padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit}
 .gp .step{display:grid;grid-template-columns:34px 1fr 92px 78px;gap:12px;align-items:center;
 padding:9px 12px;border-bottom:1px solid var(--ln)}
 .gp .step:last-child{border-bottom:none}
+.gp .fold{background:transparent;color:var(--mu);border:1px solid var(--ln);border-radius:5px;
+padding:1px 6px;margin-left:6px;font-size:11px;font-family:ui-monospace,monospace;cursor:pointer;
+vertical-align:1px;white-space:nowrap}
+.gp .fold:hover{border-color:var(--gold);color:var(--gold)}
+.gp .step.grp .rk{font-size:12.5px}
+.gp .step.child{background:rgba(0,0,0,.18);border-bottom-style:dashed;padding-left:26px}
+.gp .step.child .rk,.gp .step.child .who,.gp .step.child .what{font-size:11.5px}
+.gp .step.child .num,.gp .step.child .eff{font-size:12px;color:var(--mu)}
+.gp .step.child .meter{display:none}
 .gp .rk{font-family:"Orbitron",monospace;font-size:15px;color:var(--mu);text-align:right}
 .gp .who{font-size:12px;color:var(--mu)}
 .gp .what{font-size:13.5px}
@@ -401,6 +410,7 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
     const gearPriority = {
         state: DEFAULT_STATE(),
         draft: null,
+        expanded: new Set(),
 
         init(rootId) {
             this.root = document.getElementById(rootId || 'gear-priority-root');
@@ -562,6 +572,16 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
                 if (kind === 'edit') {
                     const id = t.dataset.id;
                     this.openDraft({ id, ...this.state.slots[id] });
+                } else if (kind === 'fold') {
+                    const sig = t.dataset.sig;
+                    if (this.expanded.has(sig)) this.expanded.delete(sig);
+                    else this.expanded.add(sig);
+                    this.renderPlan();
+                    // The row is rebuilt, so put the caret back on the same toggle.
+                    // Match on the dataset rather than a selector -- the signature
+                    // carries quotes and brackets that would need escaping.
+                    const again = [...root.querySelectorAll('[data-gp="fold"]')].find((b) => b.dataset.sig === sig);
+                    if (again) again.focus();
                 } else if (kind === 'all-on' || kind === 'all-off') {
                     const on = kind === 'all-on';
                     for (const id of Object.keys(SLOTS)) {
@@ -609,18 +629,46 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
             }
             const effs = plan.map((s) => Math.log10(s.eff));
             const lo = Math.min(...effs, 0), hi = Math.max(...effs, 1);
-            el.innerHTML = plan.map((s, i) => {
-                const frac = hi > lo ? (Math.log10(s.eff) - lo) / (hi - lo) : .5;
-                return `<div class="step ${s.kind}">
-                    <div class="rk">${i + 1}</div>
-                    <div>
-                        <div class="who">${esc(s.name)}・Lv${s.level}</div>
-                        <div class="what"><b>${esc(s.label)}</b> <span class="who">${esc(s.detail)}</span></div>
-                        <div class="meter"><i style="width:${(8 + frac * 92).toFixed(1)}%"></i></div>
-                    </div>
-                    <div class="num">${fmtB(s.cost)}<div class="who sm">累計 ${fmtB(s.cum)}</div></div>
-                    <div class="eff">${fmtM(s.eff)}<div class="who sm">/スコア</div></div>
-                </div>`;
+            const frac = (s) => (hi > lo ? (Math.log10(s.eff) - lo) / (hi - lo) : .5);
+
+            // Identical slots produce an identical action at an identical price,
+            // so the greedy pass emits them back to back. Fold each run into one
+            // row and keep the individual steps behind a toggle.
+            const groups = [];
+            plan.forEach((s, i) => {
+                // Same cost is not enough: two parts can price alike but score
+                // differently, and the folded row shows only one efficiency.
+                const sig = `${s.kind}|${s.label}|${s.detail}|${s.level}|${Math.round(s.cost)}|${Math.round(s.eff)}`;
+                const last = groups[groups.length - 1];
+                if (last && last.sig === sig) last.steps.push({ ...s, rank: i + 1 });
+                else groups.push({ sig, steps: [{ ...s, rank: i + 1 }] });
+            });
+
+            const row = (s, cls, rank, cost, cum, extra) => `<div class="step ${s.kind} ${cls}">
+                <div class="rk">${rank}</div>
+                <div>
+                    <div class="who">${esc(s.name)}・Lv${s.level}</div>
+                    <div class="what"><b>${esc(s.label)}</b> <span class="who">${esc(s.detail)}</span>${extra || ''}</div>
+                    <div class="meter"><i style="width:${(8 + frac(s) * 92).toFixed(1)}%"></i></div>
+                </div>
+                <div class="num">${cost}<div class="who sm">累計 ${cum}</div></div>
+                <div class="eff">${fmtM(s.eff)}<div class="who sm">/スコア</div></div>
+            </div>`;
+
+            el.innerHTML = groups.map((g) => {
+                const n = g.steps.length, head = g.steps[0], tail = g.steps[n - 1];
+                if (n === 1) return row(head, '', head.rank, fmtB(head.cost), fmtB(head.cum));
+
+                const open = this.expanded.has(g.sig);
+                const names = g.steps.map((s) => s.name);
+                const who = n <= 3 ? names.join('・') : `${names[0]} ほか${n - 1}件`;
+                const total = g.steps.reduce((a, s) => a + s.cost, 0);
+                const fold = `<button type="button" class="fold" data-gp="fold" data-sig="${esc(g.sig)}"
+                    aria-expanded="${open}">×${n} ${open ? '▴' : '▾'}</button>`;
+                const summary = row({ ...head, name: who }, 'grp', `${head.rank}-${tail.rank}`,
+                    fmtB(total), fmtB(tail.cum), fold);
+                if (!open) return summary;
+                return summary + g.steps.map((s) => row(s, 'child', s.rank, fmtB(s.cost), fmtB(s.cum))).join('');
             }).join('');
         },
 
