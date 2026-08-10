@@ -140,6 +140,9 @@
 
     // Parts whose potential table exists but that take no star force.
     const NO_STAR = new Set(['武器', '補助武器', 'エンブレム']);
+    // Cheap per point of score, but each step runs into the tens of billions,
+    // so the plan flags them in their own colour rather than burying them.
+    const BIG_TICKET = new Set(['武器', '補助武器', 'エンブレム']);
     const FIXED_LV = { 'エンブレム': 100 };
 
     // The equip rack, laid out the way the slots sit in the game window.
@@ -271,6 +274,7 @@
             total += pick.act.cost;
             out.push({
                 ...pick.act, eff: pick.eff, name: pick.item.name,
+                big: BIG_TICKET.has(pick.item.part),
                 level: FIXED_LV[pick.item.part] || pick.item.level, cum: total
             });
             Object.assign(state[pick.idx], pick.act.next);
@@ -292,7 +296,7 @@
     // ancestor stacking context, so every shared rule has to name .gp-veil too.
     const CSS = `
 .gp,.gp-veil{--bg:#101220;--sf:#191c2e;--sf2:#20243a;--ln:#2e3450;--tx:#e9e8f2;--mu:#8990ad;
---gold:#f4b942;--cyan:#48d6c8;--red:#e8615f;
+--gold:#f4b942;--cyan:#48d6c8;--red:#e8615f;--violet:#b18cf7;
 color:var(--tx);
 font-family:"Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;font-size:13px;line-height:1.6;}
 .gp{padding:4px 0 40px}
@@ -341,12 +345,14 @@ vertical-align:1px;white-space:nowrap}
 .gp .what{font-size:13.5px}
 .gp .what b{font-weight:500}
 .gp .star b{color:var(--gold)} .gp .pot b{color:var(--cyan)}
+.gp .step.big b{color:var(--violet)}
 .gp .num{font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums;text-align:right;font-size:13px}
 .gp .eff{font-family:ui-monospace,monospace;text-align:right;font-size:13px}
 .gp .sm{font-size:10.5px}
 .gp .meter{height:3px;border-radius:2px;margin-top:5px;background:var(--ln);overflow:hidden}
 .gp .meter i{display:block;height:100%}
 .gp .star .meter i{background:var(--gold)} .gp .pot .meter i{background:var(--cyan)}
+.gp .step.big .meter i{background:var(--violet)}
 .gp .legend{display:flex;gap:18px;font-size:11.5px;color:var(--mu);margin-bottom:10px;flex-wrap:wrap}
 .gp .dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
 .gp .empty{color:var(--mu);padding:22px 12px;text-align:center}
@@ -525,6 +531,7 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
         <div class="legend">
             <span><i class="dot" style="background:#f4b942"></i>スターフォース</span>
             <span><i class="dot" style="background:#48d6c8"></i>潜在</span>
+            <span><i class="dot" style="background:#b18cf7"></i>武器・補助武器・エンブレムの潜在</span>
             <span>バーは1スコアあたりの単価（対数）。長いほど割高。</span>
         </div>
         <div class="card" style="padding:6px 4px"><div id="gp-plan-list"></div></div>
@@ -638,13 +645,13 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
             plan.forEach((s, i) => {
                 // Same cost is not enough: two parts can price alike but score
                 // differently, and the folded row shows only one efficiency.
-                const sig = `${s.kind}|${s.label}|${s.detail}|${s.level}|${Math.round(s.cost)}|${Math.round(s.eff)}`;
+                const sig = `${s.kind}|${s.big}|${s.label}|${s.detail}|${s.level}|${Math.round(s.cost)}|${Math.round(s.eff)}`;
                 const last = groups[groups.length - 1];
                 if (last && last.sig === sig) last.steps.push({ ...s, rank: i + 1 });
                 else groups.push({ sig, steps: [{ ...s, rank: i + 1 }] });
             });
 
-            const row = (s, cls, rank, cost, cum, extra) => `<div class="step ${s.kind} ${cls}">
+            const row = (s, cls, rank, cost, cum, extra) => `<div class="step ${s.kind} ${s.big ? 'big' : ''} ${cls}">
                 <div class="rk">${rank}</div>
                 <div>
                     <div class="who">${esc(s.name)}・Lv${s.level}</div>
