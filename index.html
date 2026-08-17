@@ -110,8 +110,9 @@
                     class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all nav-inactive flex items-center gap-1.5">
                     <i data-lucide="users" class="w-3.5 h-3.5"></i>Characters
                 </button>
-                <button onclick="app.navigate('tasks')" id="nav-tasks"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all nav-inactive flex items-center gap-1.5">
+                <!-- タスク機能は一旦停止中 (script.js の TASKS_ENABLED) -->
+                <button type="button" id="nav-tasks" disabled title="タスク機能は現在停止中です"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all nav-inactive feature-disabled flex items-center gap-1.5">
                     <i data-lucide="list-checks" class="w-3.5 h-3.5"></i>Tasks
                 </button>
                 <button onclick="app.navigate('system')" id="nav-system"
@@ -904,10 +905,11 @@
                         <div class="flex border-b border-slate-800 bg-slate-900/60 flex-shrink-0">
                             <button type="button" onclick="app.switchCharTab('boss')" id="char-tab-btn-boss"
                                 class="flex-1 py-3 text-xs font-bold transition-colors tab-active flex items-center justify-center gap-1.5"><i data-lucide="skull" class="w-3.5 h-3.5"></i>Bosses</button>
-                            <button type="button" onclick="app.switchCharTab('daily')" id="char-tab-btn-daily"
-                                class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive flex items-center justify-center gap-1.5"><i data-lucide="sun" class="w-3.5 h-3.5"></i>Daily Tasks</button>
-                            <button type="button" onclick="app.switchCharTab('weekly')" id="char-tab-btn-weekly"
-                                class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive flex items-center justify-center gap-1.5"><i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i>Weekly Tasks</button>
+                            <!-- タスク機能は一旦停止中 (script.js の TASKS_ENABLED) -->
+                            <button type="button" id="char-tab-btn-daily" disabled title="タスク機能は現在停止中です"
+                                class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive feature-disabled flex items-center justify-center gap-1.5"><i data-lucide="sun" class="w-3.5 h-3.5"></i>Daily Tasks</button>
+                            <button type="button" id="char-tab-btn-weekly" disabled title="タスク機能は現在停止中です"
+                                class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive feature-disabled flex items-center justify-center gap-1.5"><i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i>Weekly Tasks</button>
                         </div>
                         <!-- Boss sub-toolbar (only visible on Bosses tab) -->
                         <div id="cm-boss-toolbar" class="hidden border-b border-slate-800 bg-slate-900/30 px-4 py-2.5 flex flex-wrap items-center gap-2 flex-shrink-0">

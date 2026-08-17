@@ -7,6 +7,10 @@ const app = {
     DEFAULT_IMG_OFFSET_Y: 50,
     DEFAULT_IMG_SCALE: 100,
 
+    // Daily/Weekly タスク機能は一旦停止中。復活させるときは true に戻し、
+    // index.html 側の disabled / feature-disabled も外す。
+    TASKS_ENABLED: false,
+
     getCharImgStyle(char) {
         // Slider value: 0 = image at left, 100 = image at right (intuitive).
         // CSS object-position is inverted, so we flip when applying.
@@ -398,6 +402,7 @@ const app = {
     },
     startClock() { setInterval(() => { const n = new Date(); document.getElementById('clock-jst').innerText = n.toLocaleTimeString('ja-JP', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }); document.getElementById('clock-utc').innerText = n.toISOString().split('T')[1].split('.')[0]; }, 1000); },
     navigate(view) {
+        if (view === 'tasks' && !this.TASKS_ENABLED) return;
         ['dashboard', 'characters', 'tasks', 'system'].forEach(v => {
             const el = document.getElementById(`view-${v}`);
             if (el) el.classList.add('hidden-page');
@@ -1226,6 +1231,7 @@ const app = {
     },
     filterCharBosses(filter) { this.currentBossFilter = filter; this.renderBossListFiltered(); },
     switchCharTab(t) {
+        if (!this.TASKS_ENABLED && t !== 'boss') t = 'boss';
         ['daily', 'weekly', 'boss'].forEach(x => {
             const b = document.getElementById(`char-tab-btn-${x}`), c = document.getElementById(`char-content-${x}`);
             if (b && c) {
@@ -1347,6 +1353,7 @@ const app = {
         'Kalos the Guardian': 'kalos-the-guardian',
         'Chosen Seren': 'chosen-seren',
         'Baldrix': 'baldrix',
+        'Jupiter': 'jupiter',
         'Malefic Star': 'malefic-star',
         'Limbo': 'limbo',
         'Lotus': 'lotus',

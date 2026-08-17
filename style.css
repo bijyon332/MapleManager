@@ -88,6 +88,17 @@ body {
     color: #cbd5e1;
 }
 
+/* 一時停止中の機能。ボタン自体は disabled なので押せないが、存在は残して
+   「今は使えない」と分かる見た目にする。hover の色替えも殺す。 */
+.feature-disabled,
+.feature-disabled:hover {
+    opacity: 0.35;
+    filter: grayscale(1);
+    cursor: not-allowed;
+    background-color: transparent;
+    color: #64748b;
+}
+
 .badge-easy {
     background-color: #374151;
     color: #9ca3af;
