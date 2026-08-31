@@ -1,34 +1,92 @@
 /* =========================================================
- *  Boss Scheduler v2
- *  - Per-player accordion pool
- *  - Click-to-assign modal (no DnD)
- *  - Per-boss max members + same-player ban + opt-out
- *  - Templates / Calendar / Filters / Datetime
- *  - HEXA score / Servers / Discord ID / MapleRanks link
+ *  Boss Scheduler v4 — 週ボスPT編成（シーズン制）
+ *
+ *  画面は3つ:
+ *    ① メンバーと希望  … メンバー一覧を入口に、キャラ登録と参加希望を編集
+ *    ② 編成編集        … ボス×難易度を選び、希望者をPT枠へ配置
+ *    ③ ダッシュボード  … 公開された編成の周知（自分のPT / 全体 / 空き / テキスト）
+ *
+ *  希望は Boss × 難易度 の粒度。優先度は持たず、難易度の高さで代替する。
+ *  難易度の高さはボス内の相対順位（BOSS_DATA.difficulties の並び）で決まる。
+ *
+ *  配置ルール:
+ *    R1 同一PT内に同じメンバーのキャラを2体以上入れない
+ *    R2 同一キャラは同じボスの複数PTに入れない（難易度が違っても不可）
+ *    R3 PT人数の上限はボスの maxMembers（下限は設けない）
  * ========================================================= */
 
 (function () {
     "use strict";
 
-    const STORAGE_KEY = "boss-scheduler-v2";
-    const VERSION = 2;
+    const STORAGE_KEY = "boss-scheduler-v4";
+    const VERSION = 4;
 
-    const PLAYER_COLORS = [
+    const MEMBER_COLORS = [
         "#a5b4fc", "#67e8f9", "#fda4af", "#fcd34d", "#86efac",
         "#c4b5fd", "#f9a8d4", "#5eead4", "#fdba74", "#93c5fd"
     ];
 
-    // ---- helpers --------------------------------------------------------
+    // 難易度アクセント（PTカード・所属PTカードの左端）
+    const DIFF_COLOR = {
+        EASY: "#6b7280", NORMAL: "#22d3ee", HARD: "#f87171",
+        CHAOS: "#facc15", EXTREME: "#ef4444"
+    };
+
+    // ---- tiny helpers ---------------------------------------------------
     const $  = (sel, root = document) => root.querySelector(sel);
     const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-    const uid = () => Math.random().toString(36).slice(2, 10);
-    const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
-        (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
-    const fmtCP = (n) => {
-        if (!n) return "0";
-        if (n >= 10000) return (n / 10000).toFixed(n >= 100000 ? 0 : 1).replace(/\.0$/, "") + "万";
+    const uid = (p) => p + "_" + Math.random().toString(36).slice(2, 9);
+    const now = () => new Date().toISOString();
+
+    function el(tag, attrs, ...children) {
+        const n = document.createElement(tag);
+        if (attrs) for (const [k, v] of Object.entries(attrs)) {
+            if (v === null || v === undefined || v === false) continue;
+            if (k === "class") n.className = v;
+            else if (k === "text") n.textContent = v;
+            else if (k === "style") n.setAttribute("style", v);
+            else if (k.startsWith("on")) n.addEventListener(k.slice(2).toLowerCase(), v);
+            else if (v === true) n.setAttribute(k, "");
+            else n.setAttribute(k, v);
+        }
+        for (const c of children.flat()) {
+            if (c === null || c === undefined || c === false || c === "") continue;
+            n.appendChild(typeof c === "object" ? c : document.createTextNode(String(c)));
+        }
+        return n;
+    }
+    const icon = (name, cls) => el("i", { "data-lucide": name, class: cls || "w-3.5 h-3.5" });
+
+    let toastTimer = 0;
+    function toast(msg, kind) {
+        $$(".toast").forEach((t) => t.remove());
+        const t = el("div", { class: "toast" + (kind ? " " + kind : ""), role: "status", text: msg });
+        document.body.appendChild(t);
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => t.remove(), 2600);
+    }
+
+    // 戦闘力の整形と解釈（「1.2億」「9800万」「120000000」を受け付ける）
+    function formatCp(n) {
+        if (n == null || isNaN(n) || n <= 0) return "—";
+        if (n >= 100000000) {
+            const oku = n / 100000000;
+            return (oku >= 10 ? oku.toFixed(1) : oku.toFixed(2)).replace(/\.?0+$/, "") + "億";
+        }
+        if (n >= 10000) return Math.round(n / 10000).toLocaleString() + "万";
         return Math.round(n).toLocaleString();
-    };
+    }
+    function parseCp(str) {
+        if (str == null) return 0;
+        const s = String(str).trim().replace(/[,\s]/g, "");
+        if (!s) return 0;
+        let m = s.match(/^([\d.]+)億(?:([\d.]+)万)?$/);
+        if (m) return Math.round(parseFloat(m[1]) * 1e8 + (m[2] ? parseFloat(m[2]) * 1e4 : 0));
+        m = s.match(/^([\d.]+)万$/);
+        if (m) return Math.round(parseFloat(m[1]) * 1e4);
+        const n = parseFloat(s);
+        return isNaN(n) ? 0 : Math.round(n);
+    }
 
     // ---- class lookup ---------------------------------------------------
     function allClasses() {
@@ -42,1605 +100,1496 @@
         if (!id) return null;
         return allClasses().find((c) => c.id === id) || null;
     }
-    function classIconPath(id) {
-        const c = classById(id);
-        return c ? c.path : null;
+
+    // ============================================================
+    //  STATE
+    // ============================================================
+    let state = null;
+    let drag = null;   // { charId, fromPartyId }
+
+    function emptyState() {
+        return {
+            version: VERSION,
+            seasons: [{ id: uid("s"), name: "シーズン1", isCurrent: true, note: "", createdAt: now() }],
+            members: [],   // { id, discordName, displayName, isActive, note, colorIdx, characters: [...] }
+            wishes: [],    // { characterId, bossId, difficulty, note, updatedBy, updatedAt }
+            parties: [],   // { id, seasonId, bossId, difficulty, label, slots:[charId], status, memo, createdAt }
+            ui: {
+                screen: "members",
+                editorMemberId: null,
+                editorCharId: null,
+                viewerMemberId: null,
+                bossId: (window.BOSS_DATA || [{}])[0].id,
+                difficulty: null,
+                selectedCharId: null,
+                sortKey: "combatPower",
+                candSearch: "",
+                dashBossIds: [],
+                includeCp: true,
+                includeDraft: false,
+                outBossId: ""
+            }
+        };
     }
 
-    // ---- state ----------------------------------------------------------
-    // v3.1 schema:
-    //   bossEntries: フラット配列 (週で区切らない)
-    //   各PTが recurrence: { dayOfWeek: 0-6, hour, minute } を持つ
-    //   bossId は1つにつき最大1エントリ (PT配列が0になったら削除)
-    let state = {
-        version: 3,
-        players: [],          // { id, name, colorIdx, discordId }
-        characters: [],       // { id, playerId, name, jobId, cp, hexa, server, level, bossOptOut: [bossId,...] }
-        bossEntries: [],      // { id, bossId, parties:[{id,name,difficulty,recurrence,memberIds[]}] }
-        ui: {
-            filters: { boss: [], team: "", player: "", server: "" },  // boss: 複数選択
-            calendarMode: "week",
-            monthOffset: 0,
-            weekOffset: 0     // for calendar week navigation (0=current Thursday-week)
-        }
-    };
-
     function loadState() {
+        state = emptyState();
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
             if (raw) {
                 const parsed = JSON.parse(raw);
-                state = Object.assign(state, parsed);
-            }
-        } catch (e) { /* ignore */ }
-        if (!state.players)    state.players = [];
-        if (!state.characters) state.characters = [];
-        if (!state.bossEntries) state.bossEntries = [];
-        if (!state.ui) state.ui = { filters: { boss: [], team: "", player: "", server: "" }, calendarMode: "week", monthOffset: 0, weekOffset: 0 };
-        if (!state.ui.filters) state.ui.filters = { boss: [], team: "", player: "", server: "" };
-        // The boss filter is multi-select; migrate the legacy single-string value.
-        if (!Array.isArray(state.ui.filters.boss)) {
-            state.ui.filters.boss = state.ui.filters.boss ? [state.ui.filters.boss] : [];
-        }
-        if (!state.ui.calendarMode) state.ui.calendarMode = "week";
-        if (state.ui.monthOffset == null) state.ui.monthOffset = 0;
-        if (state.ui.weekOffset == null) state.ui.weekOffset = 0;
-
-        // ---- Migration: v2 (weeks-based) -> v3 (flat) ----
-        if (state.weeks) {
-            // Pick the most recent week's bossEntries as the new flat list
-            const keys = Object.keys(state.weeks).sort();
-            if (keys.length > 0 && state.bossEntries.length === 0) {
-                const last = state.weeks[keys[keys.length - 1]];
-                if (last && Array.isArray(last.bossEntries)) {
-                    state.bossEntries = last.bossEntries.map((be) => {
-                        let recurrence = null;
-                        if (be.startAt) {
-                            const d = new Date(be.startAt);
-                            if (!isNaN(d.getTime())) {
-                                recurrence = { dayOfWeek: d.getDay(), hour: d.getHours(), minute: d.getMinutes() };
-                            }
-                        }
-                        return {
-                            id: be.id || uid(),
-                            bossId: be.bossId,
-                            parties: (be.parties || []).map((pt) => ({
-                                id: pt.id || uid(),
-                                name: pt.name || "",
-                                difficulty: pt.difficulty,
-                                recurrence: recurrence ? { ...recurrence } : null,
-                                memberIds: pt.memberIds || []
-                            }))
-                        };
-                    });
+                if (parsed && Array.isArray(parsed.members)) {
+                    state.seasons = Array.isArray(parsed.seasons) && parsed.seasons.length
+                        ? parsed.seasons : state.seasons;
+                    state.members = parsed.members;
+                    state.wishes  = Array.isArray(parsed.wishes) ? parsed.wishes : [];
+                    state.parties = Array.isArray(parsed.parties) ? parsed.parties : [];
+                    if (parsed.ui) state.ui = Object.assign(state.ui, parsed.ui);
                 }
             }
-            delete state.weeks;
-            // also clean obsolete fields
-            delete state.currentWeekOffset;
-            if (state.ui) delete state.ui.openPlayerIds;
-        }
+        } catch (e) { /* 壊れた保存データは無視して空で始める */ }
+        normalize();
+    }
 
-        // Migrations on characters / players
-        state.characters.forEach((c) => {
-            if (c.hexa == null) c.hexa = 0;
-            if (!c.server) c.server = "kronos";
-            if (!c.bossOptOut) c.bossOptOut = [];
-        });
-        state.players.forEach((p) => {
-            if (!p.discordId) p.discordId = "";
-        });
+    function saveState() {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+        catch (e) { /* 容量超過などは無視 */ }
+    }
 
-        // Remove bossEntries with invalid bossId
-        const validBoss = new Set((window.BOSS_DATA || []).map((b) => b.id));
-        state.bossEntries = state.bossEntries.filter((be) => validBoss.has(be.bossId));
-        // Drop entries with 0 parties (orphan housekeeping)
-        // Actually keep them; the dashboard renders all 9 bosses always (synthesizing empties)
-        // But we won't keep stored entries with 0 parties — they'll be re-created on demand
-        state.bossEntries = state.bossEntries.filter((be) => (be.parties || []).length > 0);
+    // 参照切れ・欠損フィールドの掃除。読み込み直後と JSON 取り込み後に通す。
+    function normalize() {
+        const bosses = window.BOSS_DATA || [];
+        const bossIds = new Set(bosses.map((b) => b.id));
+        const season = currentSeason();
 
-        // Migration: if a bossEntry has recurrence (v3.0), move it to each party (v3.1)
-        state.bossEntries.forEach((be) => {
-            if (be.recurrence) {
-                be.parties.forEach((pt) => {
-                    if (!pt.recurrence) pt.recurrence = { ...be.recurrence };
-                });
-                delete be.recurrence;
-            }
-            // ensure each party has recurrence field (default null)
-            be.parties.forEach((pt) => {
-                if (pt.recurrence === undefined) pt.recurrence = null;
+        state.members.forEach((m, i) => {
+            if (!m.id) m.id = uid("m");
+            if (m.isActive == null) m.isActive = true;
+            if (m.colorIdx == null) m.colorIdx = i % MEMBER_COLORS.length;
+            if (!Array.isArray(m.characters)) m.characters = [];
+            m.characters.forEach((c) => {
+                if (!c.id) c.id = uid("c");
+                if (c.combatPower == null) c.combatPower = 0;
+                if (c.hexa == null) c.hexa = 0;
+                if (!c.server) c.server = ((window.SERVERS || [{}])[0] || {}).id || "kronos";
+                if (c.isActive == null) c.isActive = true;
+                if (!c.updatedAt) c.updatedAt = now();
             });
         });
 
-        // Drop legacy templates field if present
-        delete state.templates;
+        const charIds = new Set(allChars().map((c) => c.id));
+        state.wishes = state.wishes.filter((w) =>
+            charIds.has(w.characterId) && bossIds.has(w.bossId) &&
+            (bossById(w.bossId).difficulties || []).includes(w.difficulty));
 
-        if (state.players.length === 0 && state.characters.length === 0) seed();
-    }
-    function saveState() {
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-        catch (e) { console.warn("保存に失敗:", e); }
-    }
-
-    function seed() {
-        const p1 = { id: uid(), name: "bi",   colorIdx: 0, discordId: "" };
-        const p2 = { id: uid(), name: "taro", colorIdx: 1, discordId: "" };
-        const p3 = { id: uid(), name: "hana", colorIdx: 2, discordId: "" };
-        state.players = [p1, p2, p3];
-        state.characters = [
-            { id: uid(), playerId: p1.id, name: "biMain",   jobId: "pathfinder",  cp: 82000, hexa: 21000, server: "kronos",      level: 285, bossOptOut: [] },
-            { id: uid(), playerId: p1.id, name: "biSub",    jobId: "cadena",      cp: 41000, hexa:  9500, server: "kronos",      level: 270, bossOptOut: [] },
-            { id: uid(), playerId: p2.id, name: "taroMain", jobId: "marksman",    cp: 75000, hexa: 18000, server: "kronos",      level: 282, bossOptOut: [] },
-            { id: uid(), playerId: p2.id, name: "taroSub",  jobId: "shade",       cp: 30000, hexa:  6000, server: "challengers", level: 265, bossOptOut: [] },
-            { id: uid(), playerId: p3.id, name: "hanaMain", jobId: "nightwalker", cp: 91000, hexa: 25000, server: "kronos",      level: 287, bossOptOut: [] }
-        ];
-    }
-
-    // ---- boss entry helpers ---------------------------------------------
-    // Find existing entry by bossId (or null)
-    function findBossEntry(bossId) {
-        return state.bossEntries.find((be) => be.bossId === bossId) || null;
-    }
-
-    // Get or create a bossEntry by bossId.
-    // Returns the entry. Does NOT save to state automatically — caller saves.
-    function ensureBossEntry(bossId) {
-        let be = findBossEntry(bossId);
-        if (!be) {
-            be = { id: uid(), bossId, parties: [] };
-            state.bossEntries.push(be);
-        }
-        return be;
-    }
-
-    // Remove the entry if it has zero parties (housekeeping after deletes)
-    function pruneEmptyBossEntry(bossId) {
-        const be = findBossEntry(bossId);
-        if (be && be.parties.length === 0) {
-            state.bossEntries = state.bossEntries.filter((x) => x.id !== be.id);
-        }
-    }
-
-    // For dashboard rendering: synthesize a "virtual entry" for bosses with no real entry
-    // so the dashboard can always show 9 cards.
-    function bossEntriesForDashboard() {
-        const order = (window.BOSS_DATA || []).map((b) => b.id);
-        return order.map((bossId) => {
-            return findBossEntry(bossId) ||
-                { id: "virtual-" + bossId, bossId, parties: [], _virtual: true };
+        state.parties = state.parties.filter((p) => bossIds.has(p.bossId));
+        state.parties.forEach((p) => {
+            if (!p.id) p.id = uid("p");
+            if (!p.seasonId) p.seasonId = season.id;
+            if (!p.status) p.status = "draft";
+            if (!Array.isArray(p.slots)) p.slots = [];
+            const b = bossById(p.bossId);
+            if (!b.difficulties.includes(p.difficulty)) p.difficulty = b.difficulties[b.difficulties.length - 1];
+            p.slots = p.slots.filter((id) => charIds.has(id)).slice(0, b.maxMembers);
         });
+
+        // UI 参照の整合
+        const ui = state.ui;
+        if (!bossIds.has(ui.bossId)) ui.bossId = bosses.length ? bosses[0].id : null;
+        const cur = bossById(ui.bossId);
+        if (cur && !cur.difficulties.includes(ui.difficulty)) {
+            ui.difficulty = cur.difficulties[cur.difficulties.length - 1];
+        }
+        if (ui.editorMemberId && !memberById(ui.editorMemberId)) ui.editorMemberId = null;
+        if (ui.viewerMemberId && !memberById(ui.viewerMemberId)) ui.viewerMemberId = null;
+        if (!ui.viewerMemberId && state.members.length) ui.viewerMemberId = state.members[0].id;
+        ui.dashBossIds = (ui.dashBossIds || []).filter((id) => bossIds.has(id));
+        if (ui.outBossId && !bossIds.has(ui.outBossId)) ui.outBossId = "";
     }
 
-    // ---- date/time helpers ----------------------------------------------
-    const DOW_JP = ["日","月","火","水","木","金","土"];
-
-    // Compute the next occurrence (as Date) of a recurrence from `from` (default now).
-    // Returns Date or null.
-    function nextOccurrence(recurrence, from) {
-        if (!recurrence) return null;
-        const base = new Date(from || Date.now());
-        base.setSeconds(0, 0);
-        const today = new Date(base); today.setHours(0,0,0,0);
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(today); d.setDate(today.getDate() + i);
-            if (d.getDay() !== recurrence.dayOfWeek) continue;
-            d.setHours(recurrence.hour, recurrence.minute, 0, 0);
-            if (d.getTime() >= base.getTime()) return d;
+    // ---- 参照ヘルパ ------------------------------------------------------
+    const bossList = () => window.BOSS_DATA || [];
+    const bossById = (id) => bossList().find((b) => b.id === id) || bossList()[0];
+    const memberById = (id) => state.members.find((m) => m.id === id) || null;
+    const allChars = () => state.members.flatMap((m) => m.characters.map((c) => ({ ...c, memberId: m.id })));
+    function charById(id) {
+        for (const m of state.members) {
+            const c = m.characters.find((x) => x.id === id);
+            if (c) return { ...c, memberId: m.id };
         }
         return null;
     }
+    const currentSeason = () => state.seasons.find((s) => s.isCurrent) || state.seasons[0];
+    const seasonParties = () => state.parties.filter((p) => p.seasonId === currentSeason().id);
+    const partiesOf = (bossId, difficulty) => seasonParties().filter((p) =>
+        p.bossId === bossId && (difficulty == null || p.difficulty === difficulty));
+    const wishOf = (characterId, bossId, difficulty) => state.wishes.find((w) =>
+        w.characterId === characterId && w.bossId === bossId && w.difficulty === difficulty);
+    const displayName = (m) => (m ? (m.displayName || m.discordName) : "?");
+    const memberColor = (m) => (m ? MEMBER_COLORS[(m.colorIdx || 0) % MEMBER_COLORS.length] : "#475569");
+    const serverById = (id) => (window.SERVERS || []).find((s) => s.id === id) || null;
 
-    // Generate all occurrences of a recurrence within [fromDate, toDate)
-    function occurrencesInRange(recurrence, fromDate, toDate) {
-        if (!recurrence) return [];
-        const out = [];
-        const cursor = new Date(fromDate); cursor.setHours(0,0,0,0);
-        while (cursor < toDate) {
-            if (cursor.getDay() === recurrence.dayOfWeek) {
-                const evt = new Date(cursor);
-                evt.setHours(recurrence.hour, recurrence.minute, 0, 0);
-                if (evt >= fromDate && evt < toDate) out.push(evt);
-            }
-            cursor.setDate(cursor.getDate() + 1);
+    const diffLabel   = (d) => (window.DIFFICULTY_LABEL || {})[d] || d || "";
+    const diffLabelJa = (d) => (window.DIFFICULTY_LABEL_JA || {})[d] || d || "";
+    const diffClass   = (d) => (window.DIFFICULTY_BADGE_CLASS || {})[d] || "badge-easy";
+    const diffColor   = (d) => DIFF_COLOR[d] || "#334155";
+
+    // 難易度の高さはボス内の相対順位。ボスをまたいだ比較はしない。
+    const diffRank = (bossId, d) => (bossById(bossId).difficulties || []).indexOf(d);
+    function hardestWish(characterId, bossId) {
+        const ds = (bossById(bossId).difficulties || []).filter((d) => wishOf(characterId, bossId, d));
+        return ds.length ? ds[ds.length - 1] : null;
+    }
+
+    // ============================================================
+    //  配置ルール（R1〜R3）
+    // ============================================================
+    function canPlace(charId, party) {
+        const ch = charById(charId);
+        if (!ch) return { ok: false, reason: "キャラが見つかりません" };
+        if (party.slots.includes(charId)) return { ok: false, reason: "すでにこのPTにいます" };
+
+        const b = bossById(party.bossId);
+        // R3: 定員
+        if (party.slots.length >= b.maxMembers) {
+            return { ok: false, reason: "定員に達しています（最大" + b.maxMembers + "人）" };
         }
-        return out;
+        // R1: 同一PT内に同じメンバーのキャラを2体以上入れない
+        for (const sid of party.slots) {
+            const other = charById(sid);
+            if (other && other.memberId === ch.memberId) {
+                return { ok: false, reason: displayName(memberById(ch.memberId)) + " は既にこのPTにいます（" + other.name + "）" };
+            }
+        }
+        // R2: 同一キャラは同じボスの複数PTに入れない（難易度が違っても不可）
+        const conflict = seasonParties().find((p) =>
+            p.id !== party.id && p.bossId === party.bossId && p.slots.includes(charId));
+        if (conflict) {
+            return { ok: false, reason: bossById(conflict.bossId).name + " " + diffLabelJa(conflict.difficulty) + " に配置済みです" };
+        }
+        // R4: サーバーが違うキャラは同じPTに入れない（ゲーム側で組めないため）
+        for (const sid of party.slots) {
+            const other = charById(sid);
+            if (other && other.server && ch.server && other.server !== ch.server) {
+                const a = serverById(ch.server), z = serverById(other.server);
+                return { ok: false, reason: "サーバーが違います（" + (a ? a.name : ch.server) + " / " + (z ? z.name : other.server) + "）" };
+            }
+        }
+        return { ok: true };
     }
 
-    // Format a recurrence as "毎週(月) 21:00"
-    function formatRecurrence(recurrence) {
-        if (!recurrence) return "";
-        const pad = (n) => String(n).padStart(2, "0");
-        return `毎週(${DOW_JP[recurrence.dayOfWeek]}) ${pad(recurrence.hour)}:${pad(recurrence.minute)}`;
+    function placeChar(charId, partyId, fromPartyId) {
+        const party = state.parties.find((p) => p.id === partyId);
+        if (!party) return;
+        const from = fromPartyId && fromPartyId !== partyId
+            ? state.parties.find((p) => p.id === fromPartyId) : null;
+        const fromIndex = from ? from.slots.indexOf(charId) : -1;
+        if (from && fromIndex >= 0) from.slots.splice(fromIndex, 1);
+
+        const v = canPlace(charId, party);
+        if (!v.ok) {
+            if (from && fromIndex >= 0) from.slots.splice(fromIndex, 0, charId);   // 移動が通らなければ元の位置に戻す
+            toast(v.reason, "warn");
+            render();
+            return;
+        }
+        party.slots.push(charId);
+        state.ui.selectedCharId = null;
+        saveState();
+        render();
     }
 
-    // Format a Date for calendar display
-    function formatDateShort(d) {
-        if (!d) return "";
-        const pad = (n) => String(n).padStart(2, "0");
-        return `${d.getMonth() + 1}/${d.getDate()}(${DOW_JP[d.getDay()]}) ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    function removeFromParty(charId, partyId) {
+        const p = state.parties.find((x) => x.id === partyId);
+        if (p) p.slots = p.slots.filter((id) => id !== charId);
+        saveState();
+        render();
     }
 
-    // Start of current Thursday-week (for calendar week view)
-    function startOfThursdayWeek(date) {
-        const d = new Date(date); d.setHours(0, 0, 0, 0);
-        const day = d.getDay();
-        const diff = (day - 4 + 7) % 7;
-        d.setDate(d.getDate() - diff);
-        return d;
-    }
-    function calendarWeekStart() {
-        const base = startOfThursdayWeek(new Date());
-        base.setDate(base.getDate() + state.ui.weekOffset * 7);
-        return base;
-    }
-
-    // ---- lookups --------------------------------------------------------
-    function getPlayer(id) { return state.players.find((p) => p.id === id); }
-    function getChar(id)   { return state.characters.find((c) => c.id === id); }
-    function getBoss(id)   { return (window.BOSS_DATA || []).find((b) => b.id === id); }
-    function getServer(id) { return (window.SERVERS || []).find((s) => s.id === id); }
-    function playerColor(p) { return p ? PLAYER_COLORS[p.colorIdx % PLAYER_COLORS.length] : "#475569"; }
-
-    function difficultyLabel(d) { return (window.DIFFICULTY_LABEL || {})[d] || d || ""; }
-    function difficultyClass(d) { return (window.DIFFICULTY_BADGE_CLASS || {})[d] || "badge-easy"; }
-    function difficultyOrderIndex(d) {
-        const list = window.DIFFICULTY_ORDER || ["EASY","NORMAL","HARD","CHAOS","EXTREME"];
-        const i = list.indexOf(d);
-        return i < 0 ? 99 : i;
-    }
-
-    // Boss icon HTML: img (MapleHub CDN) with lucide fallback on error.
-    // size: "lg" (32px) | "sm" (24px)
-    function bossIconHtml(boss, size) {
-        const sz = size === "sm" ? "sm" : "lg";
-        const lucideSize = sz === "sm" ? "w-3.5 h-3.5" : "w-4 h-4";
-        const url = boss ? (window.bossImageUrl ? window.bossImageUrl(boss) : "") : "";
-        const fallback = `<i data-lucide="${esc(boss && boss.icon || "flame")}" class="${lucideSize}"></i>`;
+    // ============================================================
+    //  共通パーツ
+    // ============================================================
+    function bossIconNode(b, size) {
+        const wrap = el("div", { class: "boss-icon" + (size === "sm" ? " sm" : "") });
+        if (b) wrap.style.setProperty("--boss-color", b.color || "#6366f1");
+        const url = b && window.bossImageUrl ? window.bossImageUrl(b) : "";
+        const fallback = () => icon((b && b.icon) || "flame", size === "sm" ? "w-3 h-3" : "w-4 h-4");
         if (url) {
-            // The img attempts to load; on error we swap to lucide fallback by removing the img
-            return `<div class="boss-icon ${sz}" data-fallback='${esc(fallback)}'>` +
-                   `<img src="${esc(url)}" alt="${esc(boss.name)}" ` +
-                   `onerror="this.parentNode.innerHTML = this.parentNode.dataset.fallback; if(window.lucide) window.lucide.createIcons();" />` +
-                   `</div>`;
-        }
-        return `<div class="boss-icon ${sz}">${fallback}</div>`;
-    }
-
-    function bossEntriesSorted() {
-        const order = (window.BOSS_DATA || []).map((b) => b.id);
-        return [...state.bossEntries].sort((a, b) => order.indexOf(a.bossId) - order.indexOf(b.bossId));
-    }
-
-    function assignedIdsForBoss(bossEntry) {
-        const s = new Set();
-        bossEntry.parties.forEach((pt) => pt.memberIds.forEach((id) => s.add(id)));
-        return s;
-    }
-
-    function playerIdsInParty(pt) {
-        const s = new Set();
-        pt.memberIds.forEach((id) => {
-            const c = getChar(id);
-            if (c) s.add(c.playerId);
-        });
-        return s;
-    }
-
-    // ============================================================
-    //  RENDER (master)
-    // ============================================================
-    function render() {
-        renderFilterBar();
-        renderDashboard();
-        renderCalendar();
-        renderPlayers();
-        if (window.lucide) window.lucide.createIcons();
-    }
-
-    // ============================================================
-    //  FILTER BAR
-    // ============================================================
-    function renderFilterBar() {
-        const f = state.ui.filters;
-
-        // Boss filter: clickable chips (toggle like the player list) instead of a select.
-        const bossList = $("#boss-filter-list");
-        if (bossList) {
-            bossList.innerHTML = "";
-            (window.BOSS_DATA || []).forEach((b) => {
-                const chip = document.createElement("button");
-                chip.className = "boss-filter-chip" + (f.boss.includes(b.id) ? " active" : "");
-                chip.dataset.bossId = b.id;
-                chip.style.setProperty("--boss-color", b.color || "#6366f1");
-                chip.innerHTML = `${bossIconHtml(b, "sm")}<span>${esc(b.name)}</span>`;
-                chip.addEventListener("click", () => {
-                    // Multi-select: toggle this boss in/out of the selection.
-                    const sel = state.ui.filters.boss;
-                    const i = sel.indexOf(b.id);
-                    if (i >= 0) sel.splice(i, 1);
-                    else sel.push(b.id);
-                    saveState();
-                    renderFilterBar();
-                    renderDashboard();
-                });
-                bossList.appendChild(chip);
+            const img = el("img", { src: url, alt: b.name });
+            img.addEventListener("error", () => {
+                wrap.textContent = "";
+                wrap.appendChild(fallback());
+                if (window.lucide) window.lucide.createIcons();
             });
-        }
-
-        const teamSel = $("#filter-team"); teamSel.innerHTML = '<option value="">All</option>';
-        const teamNames = new Set();
-        state.bossEntries.forEach((be) => be.parties.forEach((pt) => {
-            if (pt.name) teamNames.add(pt.name);
-        }));
-        [...teamNames].sort().forEach((n) => {
-            const o = document.createElement("option"); o.value = n; o.textContent = n;
-            if (f.team === n) o.selected = true;
-            teamSel.appendChild(o);
-        });
-
-        const serverSel = $("#filter-server"); serverSel.innerHTML = '<option value="">All</option>';
-        (window.SERVERS || []).forEach((s) => {
-            const o = document.createElement("option"); o.value = s.id; o.textContent = s.name;
-            if (f.server === s.id) o.selected = true;
-            serverSel.appendChild(o);
-        });
-
-        renderPlayerFilterList();
-    }
-
-    function renderPlayerFilterList() {
-        const roots = [$("#player-filter-list"), $("#player-filter-list-cal")].filter(Boolean);
-        if (roots.length === 0) return;
-        const f = state.ui.filters;
-
-        roots.forEach((root) => {
-            root.innerHTML = "";
-
-            // "All" option
-            const allItem = document.createElement("div");
-            allItem.className = "player-filter-item" + (!f.player ? " active" : "");
-            allItem.innerHTML = `
-                <span class="pf-dot" style="background:#475569;"></span>
-                <span class="pf-name">全員</span>
-                <span class="pf-count">${state.players.length}</span>
-            `;
-            allItem.addEventListener("click", () => {
-                state.ui.filters.player = "";
-                saveState();
-                renderDashboard(); renderCalendar(); renderPlayerFilterList();
-            });
-            root.appendChild(allItem);
-
-            state.players.forEach((p) => {
-                const color = playerColor(p);
-                const charCount = state.characters.filter((c) => c.playerId === p.id).length;
-                const item = document.createElement("div");
-                item.className = "player-filter-item" + (f.player === p.id ? " active" : "");
-                item.innerHTML = `
-                    <span class="pf-dot" style="background:${color};"></span>
-                    <span class="pf-name">${esc(p.name)}</span>
-                    <span class="pf-count">${charCount}</span>
-                `;
-                item.addEventListener("click", () => {
-                    // Toggle: clicking active player clears
-                    state.ui.filters.player = (f.player === p.id) ? "" : p.id;
-                    saveState();
-                    renderDashboard(); renderCalendar(); renderPlayerFilterList();
-                });
-                root.appendChild(item);
-            });
-        });
-    }
-
-    function filteredBossEntries() {
-        const f = state.ui.filters;
-        // Always show all 9 bosses on dashboard (synthesize virtual entries for empties)
-        const filtered = bossEntriesForDashboard().filter((be) => {
-            if (f.boss.length && !f.boss.includes(be.bossId)) return false;
-            // For non-empty bosses, apply team/player/server filter
-            if (f.team || f.player || f.server) {
-                if (be.parties.length === 0) return false; // virtual entries excluded when filtering
-                const ok = be.parties.some((pt) => {
-                    if (f.team && pt.name !== f.team) return false;
-                    if (f.player && !pt.memberIds.some((id) => (getChar(id) || {}).playerId === f.player)) return false;
-                    if (f.server && !pt.memberIds.some((id) => (getChar(id) || {}).server === f.server)) return false;
-                    return true;
-                });
-                if (!ok) return false;
-            }
-            return true;
-        });
-
-        // Sort: bosses with parties first, then by boss definition order
-        const order = (window.BOSS_DATA || []).map((b) => b.id);
-        return filtered.sort((a, b) => {
-            const aHas = a.parties.length > 0 ? 0 : 1;
-            const bHas = b.parties.length > 0 ? 0 : 1;
-            if (aHas !== bHas) return aHas - bHas;
-            return order.indexOf(a.bossId) - order.indexOf(b.bossId);
-        });
-    }
-
-    // ============================================================
-    //  DASHBOARD (read-only view of all bosses)
-    // ============================================================
-    function renderDashboard() {
-        const root = $("#boss-list");
-        root.innerHTML = "";
-        const list = filteredBossEntries();
-        list.forEach((be) => root.appendChild(buildBossCard(be)));
-    }
-
-    function buildBossCard(be) {
-        const boss = getBoss(be.bossId);
-        const card = document.createElement("div");
-        card.className = "boss-card fade-in";
-        if (be.parties.length === 0) card.classList.add("empty");
-        if (boss) card.style.setProperty("--boss-color", boss.color || "#6366f1");
-
-        const noteTag = boss && boss.note
-            ? `<span class="badge badge-soft">${esc(boss.note)}</span>` : "";
-
-        // ----- header -----
-        const head = document.createElement("div");
-        head.className = "boss-head";
-        head.innerHTML = `
-            ${bossIconHtml(boss, "lg")}
-            <div class="boss-head-info">
-                <div class="boss-title">
-                    <span class="boss-title-name">${esc(boss ? boss.name : "?")}</span>
-                    ${noteTag}
-                </div>
-                <div class="boss-subtitle">
-                    <span>${be.parties.length} PT · 上限 ${boss ? boss.maxMembers : "?"}人</span>
-                </div>
-            </div>
-            <button class="btn btn-primary" data-act="edit">
-                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> 編集
-            </button>
-        `;
-        head.querySelector('[data-act="edit"]').addEventListener("click", () => {
-            const real = ensureBossEntry(be.bossId);
-            openBossEditModal(real);
-        });
-        card.appendChild(head);
-
-        // ----- parties strip (horizontal, members stacked vertically inside each) -----
-        // If a player filter is active, only show PTs that contain a char of that player
-        const f = state.ui.filters;
-        const visibleParties = f.player
-            ? be.parties.filter((pt) =>
-                pt.memberIds.some((id) => (getChar(id) || {}).playerId === f.player))
-            : be.parties;
-        if (visibleParties.length === 0) {
-            const empty = document.createElement("div");
-            empty.className = "boss-empty-hint";
-            empty.textContent = be.parties.length === 0
-                ? "PT未設定 — 編集ボタンから追加してください"
-                : "このプレイヤーが入っているPTはありません";
-            card.appendChild(empty);
+            wrap.appendChild(img);
         } else {
-            const strip = document.createElement("div");
-            strip.className = "parties-strip";
-            // Sort parties by difficulty index
-            const diffList = boss ? boss.difficulties : [];
-            const sortedParties = [...visibleParties].sort((a, b) => {
-                const ai = diffList.indexOf(a.difficulty);
-                const bi = diffList.indexOf(b.difficulty);
-                return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
-            });
-            sortedParties.forEach((pt, idx) => strip.appendChild(buildPartyMini(be, pt, idx)));
-            card.appendChild(strip);
+            wrap.appendChild(fallback());
         }
-
-        return card;
-    }
-
-    // Compact PT view (used on dashboard)
-    function buildPartyMini(be, pt, idx) {
-        const boss = getBoss(be.bossId);
-        const members = pt.memberIds
-            .map((id) => getChar(id))
-            .filter(Boolean)
-            .sort((a, b) => (b.cp || 0) - (a.cp || 0));
-        const total = members.reduce((s, c) => s + (c.cp || 0), 0);
-
-        const wrap = document.createElement("div");
-        wrap.className = "party-mini";
-
-        const badgeCls = difficultyClass(pt.difficulty);
-        const badgeLbl = difficultyLabel(pt.difficulty);
-
-        const head = document.createElement("div");
-        head.className = "party-mini-head";
-        const recText = pt.recurrence ? formatRecurrence(pt.recurrence) : "日時未設定";
-        const recCls = pt.recurrence ? "party-mini-rec" : "party-mini-rec unset";
-        head.innerHTML = `
-            <span class="party-mini-letter">${String.fromCharCode(65 + idx)}</span>
-            <span class="badge ${badgeCls}" style="font-size:9px; padding:1px 5px;">${esc(badgeLbl)}</span>
-            <span class="${recCls}" title="毎週の実施日時">
-                <i data-lucide="calendar-clock" class="w-3 h-3"></i> ${esc(recText)}
-            </span>
-            <span class="party-mini-name">${esc(pt.name || "")}</span>
-        `;
-        wrap.appendChild(head);
-
-        const body = document.createElement("div");
-        body.className = "party-mini-members";
-        if (members.length === 0) {
-            body.innerHTML = `<div class="party-mini-empty">メンバーなし</div>`;
-        } else {
-            members.forEach((c) => {
-                const p = getPlayer(c.playerId);
-                const color = playerColor(p);
-                const job = classById(c.jobId);
-                const row = document.createElement("div");
-                row.className = "party-mini-member";
-                row.innerHTML = `
-                    <span class="player-dot" style="background:${color}; color:${color};"></span>
-                    <span class="mini-icon">${job ? `<img src="${esc(job.path)}" alt="" onerror="this.style.display='none'" />` : ""}</span>
-                    <span class="pmm-name" title="${esc(c.name)} (${p ? esc(p.name) : ""})">${esc(c.name)}</span>
-                    <span class="pmm-cp">${fmtCP(c.cp)}</span>
-                `;
-                body.appendChild(row);
-            });
-        }
-        wrap.appendChild(body);
-
-        const foot = document.createElement("div");
-        foot.className = "party-mini-total";
-        foot.innerHTML = `${members.length}/${boss ? boss.maxMembers : 6}人 · 合計 <strong>${fmtCP(total)}</strong>`;
-        wrap.appendChild(foot);
-
         return wrap;
     }
 
+    function charIconNode(c, cls) {
+        const job = classById(c && c.jobId);
+        const wrap = el("div", { class: cls || "icon" });
+        if (job) {
+            const img = el("img", { src: job.path, alt: "" });
+            img.addEventListener("error", () => { img.style.display = "none"; });
+            wrap.appendChild(img);
+        } else {
+            wrap.appendChild(icon("user", "w-3 h-3 text-slate-600"));
+        }
+        return wrap;
+    }
+
+    const diffBadge = (d) => el("span", { class: "badge " + diffClass(d), text: diffLabel(d) });
+
+    function cpBlock(c, cls) {
+        return el("div", { class: cls || "cand-cp" },
+            el("div", { class: "cp", text: formatCp(c && c.combatPower) }),
+            el("div", { class: "hx", text: "H " + formatCp(c && c.hexa) }));
+    }
+
+    function jobSelect(value, onChange) {
+        const sel = el("select", { onchange: onChange });
+        sel.appendChild(el("option", { value: "", text: "職業なし" }));
+        Object.entries(window.CLASS_DATA || {}).forEach(([group, list]) => {
+            const grp = el("optgroup", { label: group });
+            list.forEach((c) => grp.appendChild(el("option", { value: c.id, selected: c.id === value, text: c.name })));
+            sel.appendChild(grp);
+        });
+        sel.value = value || "";
+        return sel;
+    }
+
+    function serverSelect(value, onChange) {
+        const sel = el("select", { onchange: onChange });
+        (window.SERVERS || []).forEach((s) =>
+            sel.appendChild(el("option", { value: s.id, selected: s.id === value, text: s.name })));
+        return sel;
+    }
+
     // ============================================================
-    //  CALENDAR
+    //  ① メンバーと希望
     // ============================================================
-    // Collect all scheduled events (recurrence per party) within a [from, to) range.
-    // Honors the global player filter (state.ui.filters.player).
-    function collectEventsInRange(fromDate, toDate) {
-        const events = [];
-        const playerFilter = state.ui.filters.player;
-        state.bossEntries.forEach((be) => {
-            const boss = getBoss(be.bossId);
-            (be.parties || []).forEach((pt) => {
-                if (!pt.recurrence) return;
-                // Player filter: only include PT if it contains a char belonging to that player
-                if (playerFilter) {
-                    const hit = pt.memberIds.some((id) => (getChar(id) || {}).playerId === playerFilter);
-                    if (!hit) return;
+    function renderMembers() {
+        const root = $("#members-root");
+        root.textContent = "";
+        root.appendChild(state.ui.editorMemberId ? memberDetail() : memberListView());
+    }
+
+    function memberListView() {
+        const wrap = el("div", { class: "fade-in" });
+        const panel = el("section", { class: "panel" });
+        panel.appendChild(el("div", { class: "panel-head" },
+            el("h2", { text: "メンバー" }),
+            el("span", { class: "sub", text: "名前を押すと、そのメンバーのキャラクターと参加希望を編集できます" }),
+            el("span", { class: "spacer" }),
+            el("button", { class: "btn btn-primary", onclick: addMember }, icon("user-plus"), "メンバーを追加")
+        ));
+
+        const body = el("div", { class: "panel-body" });
+        if (!state.members.length) {
+            body.appendChild(el("div", { class: "empty-state", text: "メンバーがいません。「メンバーを追加」から始めてください。" }));
+        } else {
+            const grid = el("div", { class: "member-grid" });
+            state.members.forEach((m) => {
+                const ids = m.characters.map((c) => c.id);
+                const wishCount = state.wishes.filter((w) => ids.includes(w.characterId)).length;
+                const placed = seasonParties().filter((p) => p.slots.some((id) => ids.includes(id))).length;
+                const top = m.characters.reduce((mx, c) => Math.max(mx, c.combatPower || 0), 0);
+
+                const card = el("button", {
+                    class: "member-card" + (m.isActive ? "" : " inactive"),
+                    onclick: () => { state.ui.editorMemberId = m.id; state.ui.editorCharId = null; saveState(); render(); }
+                },
+                    el("div", { class: "mc-name" },
+                        el("span", { class: "player-dot", style: "background:" + memberColor(m) + ";color:" + memberColor(m) }),
+                        displayName(m),
+                        !m.isActive && el("span", { class: "badge badge-soft", text: "休止中" })),
+                    el("div", { class: "mc-stats" },
+                        el("span", { text: "キャラ " + m.characters.length }),
+                        el("span", { class: wishCount ? "" : "warn", text: "希望 " + wishCount }),
+                        el("span", { text: "配置 " + placed + "PT" })),
+                    el("div", { class: "mc-cp", text: m.characters.length ? "最高 " + formatCp(top) : "キャラが未登録です" })
+                );
+                card.style.setProperty("--member-color", memberColor(m));
+                grid.appendChild(card);
+            });
+            body.appendChild(grid);
+        }
+        panel.appendChild(body);
+        wrap.appendChild(panel);
+        return wrap;
+    }
+
+    function addMember() {
+        const name = prompt("Discord名を入力してください");
+        if (!name) return;
+        const v = name.trim();
+        if (!v) return;
+        if (state.members.some((m) => m.discordName === v)) { toast("同じDiscord名が既にあります", "warn"); return; }
+        const m = {
+            id: uid("m"), discordName: v, displayName: "", isActive: true, note: "",
+            colorIdx: state.members.length % MEMBER_COLORS.length, characters: []
+        };
+        state.members.push(m);
+        state.ui.editorMemberId = m.id;
+        state.ui.editorCharId = null;
+        if (!state.ui.viewerMemberId) state.ui.viewerMemberId = m.id;
+        saveState();
+        render();
+    }
+
+    function memberDetail() {
+        const me = memberById(state.ui.editorMemberId);
+        if (!me) { state.ui.editorMemberId = null; return memberListView(); }
+        const wrap = el("div", { class: "fade-in" });
+
+        wrap.appendChild(el("div", { class: "crumb" },
+            el("button", {
+                class: "btn", onclick: () => { state.ui.editorMemberId = null; saveState(); render(); }
+            }, icon("arrow-left"), "メンバー一覧"),
+            el("span", { class: "player-dot", style: "background:" + memberColor(me) + ";color:" + memberColor(me) }),
+            el("span", { class: "who", text: displayName(me) })
+        ));
+
+        // ---- キャラクター ----
+        const panel = el("section", { class: "panel" });
+        panel.appendChild(el("div", { class: "panel-head" },
+            el("h2", { text: "キャラクター" }),
+            el("span", { class: "sub", text: "戦闘力とHEXAは「1.2億」「9800万」のような入力を受け付けます" }),
+            el("span", { class: "spacer" }),
+            el("button", {
+                class: "btn btn-primary", onclick: () => {
+                    const c = {
+                        id: uid("c"), name: "新しいキャラ", jobId: "",
+                        server: ((window.SERVERS || [{}])[0] || {}).id || "kronos",
+                        combatPower: 0, hexa: 0, note: "", isActive: true, updatedAt: now()
+                    };
+                    me.characters.push(c);
+                    state.ui.editorCharId = c.id;
+                    saveState(); render();
                 }
-                const occurrences = occurrencesInRange(pt.recurrence, fromDate, toDate);
-                occurrences.forEach((occDate) => {
-                    events.push({
-                        date: occDate,
-                        startAt: occDate.toISOString(),
-                        bossName: boss ? boss.name : "?",
-                        bossColor: boss ? boss.color : "#6366f1",
-                        teamName: pt.name || (pt.difficulty ? difficultyLabel(pt.difficulty) + " PT" : "PT"),
-                        difficulty: pt.difficulty,
-                        memberCount: pt.memberIds.length
-                    });
-                });
-            });
-        });
-        return events;
-    }
+            }, icon("plus"), "キャラを追加")
+        ));
 
-    function renderCalendar() {
-        if (state.ui.calendarMode === "month") {
-            renderCalendarMonth();
+        const body = el("div", { class: "panel-body" });
+        body.appendChild(el("div", { class: "row", style: "margin-bottom:10px" },
+            el("label", { class: "field" }, "Discord名",
+                el("input", {
+                    type: "text", value: me.discordName, style: "width:170px",
+                    onchange: (e) => {
+                        const v = e.target.value.trim();
+                        if (!v) { toast("Discord名は必須です", "warn"); render(); return; }
+                        if (state.members.some((x) => x.id !== me.id && x.discordName === v)) {
+                            toast("同じDiscord名が既にあります", "warn"); render(); return;
+                        }
+                        me.discordName = v; saveState(); render();
+                    }
+                })),
+            el("label", { class: "field" }, "表示名（任意）",
+                el("input", {
+                    type: "text", value: me.displayName || "", placeholder: "未設定ならDiscord名", style: "width:150px",
+                    onchange: (e) => { me.displayName = e.target.value.trim(); saveState(); render(); }
+                })),
+            el("label", { class: "check", style: "align-self:flex-end;padding-bottom:6px" },
+                el("input", {
+                    type: "checkbox", checked: me.isActive,
+                    onchange: (e) => { me.isActive = e.target.checked; saveState(); render(); }
+                }), "活動中"),
+            el("span", { class: "spacer" }),
+            el("button", {
+                class: "btn btn-ghost btn-danger", onclick: () => {
+                    if (!confirm(displayName(me) + " と、そのキャラ・希望・PT配置をすべて削除します。よろしいですか？")) return;
+                    const ids = me.characters.map((c) => c.id);
+                    state.wishes = state.wishes.filter((w) => !ids.includes(w.characterId));
+                    state.parties.forEach((p) => { p.slots = p.slots.filter((id) => !ids.includes(id)); });
+                    state.members = state.members.filter((x) => x.id !== me.id);
+                    state.ui.editorMemberId = null;
+                    normalize(); saveState(); render();
+                }
+            }, icon("trash-2"), "このメンバーを削除")
+        ));
+
+        if (!me.characters.length) {
+            body.appendChild(el("div", { class: "empty-state", text: "キャラがまだありません。「キャラを追加」すると、下に参加希望の入力欄が出ます。" }));
         } else {
-            renderCalendarWeek();
+            const grid = el("div", { class: "char-grid" });
+            me.characters.forEach((c) => grid.appendChild(charCard(me, c)));
+            body.appendChild(grid);
         }
-        // Sync mode toggle button visuals
-        $$(".cal-mode-btn").forEach((b) => {
-            b.classList.toggle("cal-mode-active", b.dataset.calMode === state.ui.calendarMode);
-        });
-    }
+        panel.appendChild(body);
+        wrap.appendChild(panel);
 
-    // ---- Week view (per-day timeline) ----
-    function renderCalendarWeek() {
-        const root = $("#calendar");
-        if (!root) return;
-        root.innerHTML = "";
-
-        // Header with prev/next week buttons
-        const head = document.createElement("div");
-        head.className = "cal-week-head";
-        const weekStart = calendarWeekStart();
-        const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
-        const fmt = (x) => `${x.getMonth() + 1}/${x.getDate()}`;
-        head.innerHTML = `
-            <button class="btn btn-ghost btn-icon" data-week-act="prev" aria-label="前週">
-                <i data-lucide="chevron-left" class="w-4 h-4"></i>
-            </button>
-            <span class="cal-week-title">${weekStart.getFullYear()} ${fmt(weekStart)} 〜 ${fmt(weekEnd)}</span>
-            <div class="flex gap-1">
-                <button class="btn btn-xs" data-week-act="today">今週</button>
-                <button class="btn btn-ghost btn-icon" data-week-act="next" aria-label="翌週">
-                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
-                </button>
-            </div>
-        `;
-        head.querySelector('[data-week-act="prev"]').addEventListener("click", () => {
-            state.ui.weekOffset--; saveState(); renderCalendar();
-            if (window.lucide) window.lucide.createIcons();
-        });
-        head.querySelector('[data-week-act="next"]').addEventListener("click", () => {
-            state.ui.weekOffset++; saveState(); renderCalendar();
-            if (window.lucide) window.lucide.createIcons();
-        });
-        head.querySelector('[data-week-act="today"]').addEventListener("click", () => {
-            state.ui.weekOffset = 0; saveState(); renderCalendar();
-            if (window.lucide) window.lucide.createIcons();
-        });
-        root.appendChild(head);
-
-        // Days
-        const weekEndExclusive = new Date(weekStart); weekEndExclusive.setDate(weekStart.getDate() + 7);
-        const today = new Date(); today.setHours(0,0,0,0);
-        const events = collectEventsInRange(weekStart, weekEndExclusive);
-
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(weekStart);
-            d.setDate(weekStart.getDate() + i);
-            const dow = DOW_JP[d.getDay()];
-            const isToday = d.getTime() === today.getTime();
-
-            const dayEl = document.createElement("div");
-            dayEl.className = "calendar-day" + (isToday ? " today" : "");
-            dayEl.innerHTML = `
-                <div class="calendar-day-head">
-                    <span class="calendar-day-label">${d.getMonth() + 1}/${d.getDate()}</span>
-                    <span class="calendar-day-dow">${dow}</span>
-                </div>
-            `;
-            const dayEvents = events.filter((e) => {
-                const ed = new Date(e.date); ed.setHours(0,0,0,0);
-                return ed.getTime() === d.getTime();
-            }).sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
-
-            if (dayEvents.length === 0) {
-                dayEl.innerHTML += '<div class="calendar-no-event">予定なし</div>';
-            } else {
-                dayEvents.forEach((e) => {
-                    const time = new Date(e.startAt);
-                    const pad = (n) => String(n).padStart(2, "0");
-                    const div = document.createElement("div");
-                    div.className = "calendar-event";
-                    div.style.setProperty("--boss-color", e.bossColor);
-                    div.innerHTML = `
-                        <span class="calendar-event-time">${pad(time.getHours())}:${pad(time.getMinutes())}</span>
-                        <span class="calendar-event-title">${esc(e.bossName)}</span>
-                        <span class="calendar-event-team">${esc(e.teamName)}</span>
-                    `;
-                    dayEl.appendChild(div);
-                });
+        // ---- 参加希望 ----
+        if (me.characters.length) {
+            if (!me.characters.some((c) => c.id === state.ui.editorCharId)) {
+                state.ui.editorCharId = me.characters[0].id;
             }
-            root.appendChild(dayEl);
-        }
-    }
+            const target = me.characters.find((c) => c.id === state.ui.editorCharId);
 
-    // ---- Month view (calendar grid) ----
-    function renderCalendarMonth() {
-        const root = $("#calendar");
-        root.innerHTML = "";
+            const wp = el("section", { class: "panel" });
+            wp.appendChild(el("div", { class: "panel-head" },
+                el("h2", { text: "参加希望" }),
+                el("span", { class: "sub", text: "ボスごとに行きたい難易度を選びます。押すたびに入／切が変わり、複数選べます" })
+            ));
+            const wb = el("div", { class: "panel-body" });
 
-        const base = new Date();
-        base.setDate(1);
-        base.setMonth(base.getMonth() + state.ui.monthOffset);
-        base.setHours(0,0,0,0);
-        const year = base.getFullYear();
-        const month = base.getMonth(); // 0-indexed
-
-        const firstOfMonth = new Date(year, month, 1);
-        const nextMonth = new Date(year, month + 1, 1);
-        // Grid starts at Sunday on or before firstOfMonth
-        const gridStart = new Date(firstOfMonth);
-        gridStart.setDate(1 - firstOfMonth.getDay());
-        // Grid ends at the Saturday on or after the last of month -> 42 cells (6 weeks)
-        const gridEnd = new Date(gridStart);
-        gridEnd.setDate(gridStart.getDate() + 42);
-
-        const events = collectEventsInRange(gridStart, gridEnd);
-
-        const today = new Date(); today.setHours(0,0,0,0);
-
-        // ----- header (month label + prev/next) -----
-        const head = document.createElement("div");
-        head.className = "cal-month-head";
-        head.innerHTML = `
-            <button class="btn btn-ghost btn-icon" data-month-act="prev" aria-label="前月">
-                <i data-lucide="chevron-left" class="w-4 h-4"></i>
-            </button>
-            <span class="cal-month-title">${year}年 ${month + 1}月</span>
-            <div class="flex gap-1">
-                <button class="btn btn-xs" data-month-act="today">今月</button>
-                <button class="btn btn-ghost btn-icon" data-month-act="next" aria-label="翌月">
-                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
-                </button>
-            </div>
-        `;
-        head.querySelector('[data-month-act="prev"]').addEventListener("click", () => {
-            state.ui.monthOffset--; saveState(); renderCalendar();
-            if (window.lucide) window.lucide.createIcons();
-        });
-        head.querySelector('[data-month-act="next"]').addEventListener("click", () => {
-            state.ui.monthOffset++; saveState(); renderCalendar();
-            if (window.lucide) window.lucide.createIcons();
-        });
-        head.querySelector('[data-month-act="today"]').addEventListener("click", () => {
-            state.ui.monthOffset = 0; saveState(); renderCalendar();
-            if (window.lucide) window.lucide.createIcons();
-        });
-        root.appendChild(head);
-
-        // ----- grid -----
-        const grid = document.createElement("div");
-        grid.className = "cal-month-grid";
-        const dowLabels = ["日","月","火","水","木","金","土"];
-        dowLabels.forEach((lbl, idx) => {
-            const h = document.createElement("div");
-            h.className = "cal-dow-head" + (idx === 0 ? " sun" : idx === 6 ? " sat" : "");
-            h.textContent = lbl;
-            grid.appendChild(h);
-        });
-        for (let i = 0; i < 42; i++) {
-            const d = new Date(gridStart);
-            d.setDate(gridStart.getDate() + i);
-            const inMonth = d.getMonth() === month;
-            const isToday = d.getTime() === today.getTime();
-            const dayEvents = events.filter((e) => {
-                const ed = new Date(e.date); ed.setHours(0,0,0,0);
-                return ed.getTime() === d.getTime();
-            }).sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
-
-            const cell = document.createElement("div");
-            cell.className = "cal-month-cell" + (inMonth ? "" : " other-month") + (isToday ? " today" : "");
-            const dowCls = d.getDay() === 0 ? "sun" : d.getDay() === 6 ? "sat" : "";
-            const headRow = document.createElement("div");
-            headRow.className = "cal-month-date " + dowCls;
-            headRow.textContent = d.getDate();
-            cell.appendChild(headRow);
-
-            const maxShow = 3;
-            dayEvents.slice(0, maxShow).forEach((e) => {
-                const time = new Date(e.startAt);
-                const pad = (n) => String(n).padStart(2, "0");
-                const ev = document.createElement("div");
-                ev.className = "cal-month-event";
-                ev.style.setProperty("--boss-color", e.bossColor);
-                ev.title = `${pad(time.getHours())}:${pad(time.getMinutes())} ${e.bossName} / ${e.teamName}`;
-                ev.textContent = `${pad(time.getHours())}:${pad(time.getMinutes())} ${e.bossName}`;
-                cell.appendChild(ev);
+            const tabs = el("div", { class: "char-tabs" });
+            me.characters.forEach((c) => {
+                const n = state.wishes.filter((w) => w.characterId === c.id).length;
+                tabs.appendChild(el("button", {
+                    class: "char-tab", "aria-pressed": String(c.id === state.ui.editorCharId),
+                    onclick: () => { state.ui.editorCharId = c.id; saveState(); render(); }
+                },
+                    charIconNode(c, "icon"),
+                    c.name,
+                    el("span", { class: "ct-sub", text: n ? "希望 " + n : "希望なし" })));
             });
-            if (dayEvents.length > maxShow) {
-                const more = document.createElement("div");
-                more.className = "cal-month-event-more";
-                more.textContent = `+${dayEvents.length - maxShow}件`;
-                cell.appendChild(more);
-            }
-            grid.appendChild(cell);
+            wb.appendChild(tabs);
+            wb.appendChild(wishRows(me, target));
+            wp.appendChild(wb);
+            wrap.appendChild(wp);
         }
-        root.appendChild(grid);
+        return wrap;
     }
 
-    // ============================================================
-    //  BOSS EDIT MODAL (manages all PTs of one boss in one place)
-    // ============================================================
-    let editingBossEntry = null; // current be being edited
+    function charCard(member, c) {
+        const card = el("div", { class: "char-card" + (c.isActive ? "" : " inactive") });
+        const touch = () => { c.updatedAt = now(); };
 
-    function openBossEditModal(be) {
-        editingBossEntry = be;
-        const boss = getBoss(be.bossId);
-        // Title
-        $("#boss-edit-title").innerHTML = `
-            ${bossIconHtml(boss, "sm")}
-            <span>${esc(boss ? boss.name : "?")}</span>
-        `;
-        // Clear pool search and render
-        const ps = $("#boss-edit-pool-search");
-        if (ps) ps.value = "";
-        // Initialize open player groups (all open by default)
-        if (!be._openPlayerIds) be._openPlayerIds = state.players.map((p) => p.id);
-        renderBossEditPool();
-        renderBossEditParties();
-        $("#boss-edit-modal").classList.remove("hidden");
-        if (window.lucide) window.lucide.createIcons();
-    }
-    function closeBossEditModal() {
-        if (editingBossEntry) delete editingBossEntry._openPlayerIds;
-        editingBossEntry = null;
-        $("#boss-edit-modal").classList.add("hidden");
-    }
+        card.appendChild(el("div", { class: "cc-top" },
+            charIconNode(c, "char-icon"),
+            el("input", {
+                class: "cc-name", type: "text", value: c.name, "aria-label": "キャラ名",
+                onchange: (e) => { c.name = e.target.value.trim() || c.name; touch(); saveState(); render(); }
+            }),
+            el("label", { class: "check" },
+                el("input", {
+                    type: "checkbox", checked: c.isActive,
+                    onchange: (e) => { c.isActive = e.target.checked; saveState(); render(); }
+                }), "使用中"),
+            el("button", {
+                class: "btn btn-ghost btn-danger btn-icon", title: "このキャラを削除",
+                onclick: () => {
+                    if (!confirm(c.name + " を削除します。希望とPT配置も消えます。")) return;
+                    state.wishes = state.wishes.filter((w) => w.characterId !== c.id);
+                    state.parties.forEach((p) => { p.slots = p.slots.filter((id) => id !== c.id); });
+                    member.characters = member.characters.filter((x) => x.id !== c.id);
+                    saveState(); render();
+                }
+            }, icon("x", "w-3.5 h-3.5"))
+        ));
 
-    function renderBossEditParties() {
-        if (!editingBossEntry) return;
-        const be = editingBossEntry;
-        const boss = getBoss(be.bossId);
-        const root = $("#boss-edit-parties");
-        const empty = $("#boss-edit-empty");
+        card.appendChild(el("div", { class: "cc-fields" },
+            el("label", { class: "field" }, "職業",
+                jobSelect(c.jobId, (e) => { c.jobId = e.target.value; touch(); saveState(); render(); })),
+            el("label", { class: "field" }, "サーバー",
+                serverSelect(c.server, (e) => { c.server = e.target.value; saveState(); render(); })),
+            el("label", { class: "field" }, "戦闘力",
+                el("input", {
+                    type: "text", value: c.combatPower ? formatCp(c.combatPower) : "", placeholder: "例: 1.2億",
+                    onchange: (e) => { c.combatPower = parseCp(e.target.value); touch(); saveState(); render(); }
+                })),
+            el("label", { class: "field" }, "HEXA",
+                el("input", {
+                    type: "text", value: c.hexa ? formatCp(c.hexa) : "", placeholder: "例: 4200万",
+                    onchange: (e) => { c.hexa = parseCp(e.target.value); touch(); saveState(); render(); }
+                })),
+            el("label", { class: "field wide" }, "備考",
+                el("input", {
+                    type: "text", value: c.note || "", placeholder: "例: 火力枠 / 練習中",
+                    onchange: (e) => { c.note = e.target.value; saveState(); render(); }
+                }))
+        ));
 
-        root.innerHTML = "";
-        if (be.parties.length === 0) {
-            empty.classList.remove("hidden");
-            return;
-        }
-        empty.classList.add("hidden");
-
-        // Sort by difficulty
-        const diffList = boss ? boss.difficulties : [];
-        const sorted = [...be.parties].sort((a, b) => {
-            const ai = diffList.indexOf(a.difficulty);
-            const bi = diffList.indexOf(b.difficulty);
-            return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
-        });
-        sorted.forEach((pt, idx) => root.appendChild(buildPartyEditRow(be, pt, idx)));
-        if (window.lucide) window.lucide.createIcons();
-    }
-
-    function buildPartyEditRow(be, pt, idx) {
-        const boss = getBoss(be.bossId);
-        const maxMembers = boss ? boss.maxMembers : 6;
-        const members = pt.memberIds
-            .map((id) => getChar(id))
-            .filter(Boolean)
-            .sort((a, b) => (b.cp || 0) - (a.cp || 0));
-        const total = members.reduce((s, c) => s + (c.cp || 0), 0);
-
-        const row = document.createElement("div");
-        row.className = "party-edit-row";
-        row.dataset.partyId = pt.id;
-
-        const badgeCls = difficultyClass(pt.difficulty);
-        const badgeLbl = difficultyLabel(pt.difficulty);
-
-        const pad2 = (n) => String(n).padStart(2, "0");
-        const curDow = pt.recurrence ? String(pt.recurrence.dayOfWeek) : "";
-        const curTime = pt.recurrence ? `${pad2(pt.recurrence.hour)}:${pad2(pt.recurrence.minute)}` : "21:00";
-
-        const head = document.createElement("div");
-        head.className = "party-edit-head";
-        head.innerHTML = `
-            <span class="party-label">${String.fromCharCode(65 + idx)}班</span>
-            <input type="text" class="party-name-input" placeholder="チーム名 (例: 月曜PT)" value="${esc(pt.name || "")}" />
-            <select data-role="difficulty" class="text-xs"></select>
-            <span class="party-rec-inline" title="毎週の実施日時">
-                <i data-lucide="calendar-clock" class="w-3 h-3 text-slate-500"></i>
-                <select data-role="rec-dow" class="text-xs">
-                    <option value="">--</option>
-                    <option value="0">日</option>
-                    <option value="1">月</option>
-                    <option value="2">火</option>
-                    <option value="3">水</option>
-                    <option value="4">木</option>
-                    <option value="5">金</option>
-                    <option value="6">土</option>
-                </select>
-                <input type="time" data-role="rec-time" class="text-xs" value="${curTime}" />
-                <button class="btn btn-ghost btn-danger btn-icon btn-xs" data-role="rec-clear" title="日時クリア" aria-label="日時クリア">
-                    <i data-lucide="x" class="w-3 h-3"></i>
-                </button>
-            </span>
-            <span class="party-total">
-                ${members.length}/${maxMembers}人 · 合計 <strong>${fmtCP(total)}</strong>
-            </span>
-            <button class="btn btn-ghost btn-danger btn-icon" data-role="del" aria-label="PT削除">
-                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-            </button>
-        `;
-        head.querySelector(".party-name-input").addEventListener("change", (e) => {
-            pt.name = e.target.value.trim();
-            saveState(); renderFilterBar();
-        });
-        const sel = head.querySelector('[data-role="difficulty"]');
-        (boss ? boss.difficulties : []).forEach((d) => {
-            const o = document.createElement("option");
-            o.value = d; o.textContent = difficultyLabel(d);
-            if (d === pt.difficulty) o.selected = true;
-            sel.appendChild(o);
-        });
-        sel.addEventListener("change", () => {
-            pt.difficulty = sel.value;
-            saveState(); renderBossEditParties(); renderDashboard(); renderCalendar();
-        });
-
-        // Recurrence editor (inline next to difficulty)
-        const dowSel = head.querySelector('[data-role="rec-dow"]');
-        dowSel.value = curDow;
-        const timeInp = head.querySelector('[data-role="rec-time"]');
-        const onRecChange = () => {
-            const dow = dowSel.value;
-            const t = timeInp.value;
-            if (!dow || !t) {
-                pt.recurrence = null;
-            } else {
-                const [h, m] = t.split(":").map((x) => parseInt(x, 10));
-                pt.recurrence = {
-                    dayOfWeek: parseInt(dow, 10),
-                    hour: isNaN(h) ? 0 : h,
-                    minute: isNaN(m) ? 0 : m
-                };
-            }
-            saveState(); renderDashboard(); renderCalendar();
-        };
-        dowSel.addEventListener("change", onRecChange);
-        timeInp.addEventListener("change", onRecChange);
-        head.querySelector('[data-role="rec-clear"]').addEventListener("click", () => {
-            pt.recurrence = null;
-            dowSel.value = "";
-            timeInp.value = "21:00";
-            saveState(); renderDashboard(); renderCalendar();
-        });
-
-        head.querySelector('[data-role="del"]').addEventListener("click", () => {
-            if (members.length > 0 && !confirm("メンバーが入っているPTを削除しますか？")) return;
-            be.parties = be.parties.filter((x) => x.id !== pt.id);
-            saveState(); renderBossEditParties(); renderBossEditPool(); renderDashboard(); renderCalendar(); renderFilterBar();
-        });
-
-        row.appendChild(head);
-
-        // Members area (vertical, drop zone)
-        const body = document.createElement("div");
-        body.className = "party-members drop-zone";
-        body.dataset.partyId = pt.id;
-
-        if (members.length === 0) {
-            body.innerHTML = '<span class="party-empty-hint">プールからキャラをドラッグして追加</span>';
-        } else {
-            members.forEach((c) => {
-                const p = getPlayer(c.playerId);
-                const color = playerColor(p);
-                const job = classById(c.jobId);
-                const chip = document.createElement("div");
-                chip.className = "party-member dnd-source";
-                chip.draggable = true;
-                chip.dataset.charId = c.id;
-                chip.dataset.fromPartyId = pt.id;
-                chip.innerHTML = `
-                    <span class="player-dot" style="background:${color}; color:${color};"></span>
-                    <span class="mini-icon">
-                        ${job ? `<img src="${esc(job.path)}" alt="" onerror="this.style.display='none'" />` : ""}
-                    </span>
-                    <div class="mem-info">
-                        <div class="mem-name">
-                            <a href="https://mapleranks.com/u/${encodeURIComponent(c.name)}" target="_blank" rel="noopener noreferrer">${esc(c.name)}</a>
-                        </div>
-                        <div class="text-slate-600 text-[10px]">${p ? esc(p.name) : ""} · ${job ? esc(job.name) : ""}</div>
-                    </div>
-                    <div class="text-right">
-                        <div class="mem-cp">${fmtCP(c.cp)}</div>
-                        ${c.hexa ? `<div class="text-[9px] text-slate-600 font-mono">H ${fmtCP(c.hexa)}</div>` : ""}
-                    </div>
-                    <button aria-label="外す"><i data-lucide="x" class="w-3 h-3"></i></button>
-                `;
-                chip.querySelector("button").addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    pt.memberIds = pt.memberIds.filter((x) => x !== c.id);
-                    saveState(); renderBossEditParties(); renderBossEditPool(); renderDashboard(); renderCalendar();
-                });
-                attachDragSource(chip, c.id, pt.id);
-                body.appendChild(chip);
-            });
-        }
-
-        // Drop zone listeners
-        attachDropZone(body, be, pt);
-
-        row.appendChild(body);
-
-        return row;
-    }
-
-    // ============================================================
-    //  POOL (left column of boss-edit modal) + DnD
-    // ============================================================
-
-    // Render the character pool inside the boss-edit modal.
-    // Each player's chars are grouped; "in-use" chars (already in this boss) are dimmed.
-    function renderBossEditPool() {
-        if (!editingBossEntry) return;
-        const be = editingBossEntry;
-        const root = $("#boss-edit-pool");
-        if (!root) return;
-        const search = ($("#boss-edit-pool-search").value || "").trim().toLowerCase();
-        // Preserve scroll position: replacing innerHTML resets scrollTop to 0,
-        // which otherwise jerks the list to the top whenever a group is toggled.
-        const prevScroll = root.scrollTop;
-        root.innerHTML = "";
-
-        // Characters currently assigned to any party of THIS boss
-        const usedInBoss = new Set();
-        be.parties.forEach((pt) => pt.memberIds.forEach((id) => usedInBoss.add(id)));
-
-        // Open state cache (per modal session)
-        if (!be._openPlayerIds) be._openPlayerIds = state.players.map((p) => p.id);
-
-        state.players.forEach((p) => {
-            const chars = state.characters
-                .filter((c) => c.playerId === p.id)
-                .filter((c) => !search ||
-                    c.name.toLowerCase().includes(search) ||
-                    p.name.toLowerCase().includes(search))
-                .sort((a, b) => (b.cp || 0) - (a.cp || 0));
-            if (chars.length === 0) return;
-
-            const open = be._openPlayerIds.includes(p.id);
-            const group = document.createElement("div");
-            group.className = "pool-player-group" + (open ? " open" : "");
-            const color = playerColor(p);
-
-            const ghead = document.createElement("div");
-            ghead.className = "pool-player-group-head";
-            ghead.innerHTML = `
-                <i data-lucide="chevron-right" class="chev w-3 h-3"></i>
-                <span class="player-dot" style="background:${color}; color:${color};"></span>
-                <span style="flex:1;">${esc(p.name)}</span>
-                <span class="text-[10px] text-slate-600">${chars.length}</span>
-            `;
-            ghead.addEventListener("click", () => {
-                const i = be._openPlayerIds.indexOf(p.id);
-                if (i >= 0) be._openPlayerIds.splice(i, 1);
-                else be._openPlayerIds.push(p.id);
-                renderBossEditPool();
-            });
-            group.appendChild(ghead);
-
-            const gbody = document.createElement("div");
-            gbody.className = "pool-player-group-body";
-            chars.forEach((c) => {
-                const optedOut = (c.bossOptOut || []).includes(be.bossId);
-                const inUse = usedInBoss.has(c.id);
-                // skip opted-out chars entirely (they're explicitly hidden for this boss)
-                if (optedOut) return;
-                const job = classById(c.jobId);
-                const card = document.createElement("div");
-                card.className = "dnd-char" + (inUse ? " in-use" : "");
-                card.draggable = !inUse;     // only pool->PT moves; in-use chars cannot leave PT via pool
-                card.dataset.charId = c.id;
-                card.dataset.fromPartyId = "";  // empty = from pool
-                card.innerHTML = `
-                    <span class="player-dot" style="background:${color}; color:${color};"></span>
-                    <span class="icon">${job ? `<img src="${esc(job.path)}" alt="" onerror="this.style.display='none'"/>` : ""}</span>
-                    <span class="name">${esc(c.name)}</span>
-                    ${inUse ? '<span class="badge-mini">使用中</span>' : ""}
-                    <span class="cp">${fmtCP(c.cp)}</span>
-                `;
-                if (!inUse) attachDragSource(card, c.id, null);
-                gbody.appendChild(card);
-            });
-            group.appendChild(gbody);
-            root.appendChild(group);
-        });
-
-        if (root.children.length === 0) {
-            root.innerHTML = '<div class="empty-state" style="padding:0.75rem;">該当キャラなし</div>';
-        }
-        // Restore scroll so toggling a group doesn't jump the list to the top.
-        root.scrollTop = prevScroll;
-        if (window.lucide) window.lucide.createIcons();
-    }
-
-    // ---- DnD helpers ----
-    // Currently-dragged element memory (since dataTransfer.getData isn't readable
-    // during dragover, but we need it for highlighting drop zones).
-    let dndState = null;  // { charId, fromPartyId | null }
-
-    // ---- Auto-scroll during drag ----------------------------------------
-    // Native HTML5 drag doesn't scroll containers, so the character pool /
-    // parties list can't be reached past the fold while dragging. This
-    // scrolls the relevant containers when the cursor nears their edges.
-    const autoScroll = { active: false, x: 0, y: 0, raf: 0 };
-
-    function autoScrollContainers() {
-        // Innermost first: cursor over the pool scrolls the pool, not the
-        // whole modal body (which wraps both columns).
-        return [
-            document.getElementById("boss-edit-pool"),                 // character pool
-            document.querySelector("#boss-edit-modal .modal-body")     // parties column
-        ].filter(Boolean);
-    }
-    function autoScrollTick() {
-        if (!autoScroll.active) return;
-        const EDGE = 56, STEP = 16;
-        const { x, y } = autoScroll;
-        for (const el of autoScrollContainers()) {
-            if (el.scrollHeight <= el.clientHeight) continue;
-            const r = el.getBoundingClientRect();
-            if (x < r.left || x > r.right || y < r.top || y > r.bottom) continue;
-            if (y - r.top < EDGE)         el.scrollTop -= STEP;
-            else if (r.bottom - y < EDGE) el.scrollTop += STEP;
-            break; // only the innermost container under the cursor
-        }
-        autoScroll.raf = requestAnimationFrame(autoScrollTick);
-    }
-    function startAutoScroll() {
-        if (autoScroll.active) return;
-        autoScroll.active = true;
-        autoScroll.raf = requestAnimationFrame(autoScrollTick);
-    }
-    function stopAutoScroll() {
-        autoScroll.active = false;
-        if (autoScroll.raf) cancelAnimationFrame(autoScroll.raf);
-        autoScroll.raf = 0;
-    }
-    // Track cursor position throughout the drag (dragover fires on the document).
-    document.addEventListener("dragover", (e) => {
-        if (!autoScroll.active) return;
-        autoScroll.x = e.clientX;
-        autoScroll.y = e.clientY;
-    });
-
-    function attachDragSource(el, charId, fromPartyId) {
-        el.addEventListener("dragstart", (e) => {
-            dndState = { charId, fromPartyId: fromPartyId || null };
-            try {
-                e.dataTransfer.setData("text/plain", charId);
-                e.dataTransfer.effectAllowed = "move";
-            } catch (_) {}
-            el.classList.add("dragging");
-            // Highlight valid drop targets
-            highlightDropTargets();
-            startAutoScroll();
-        });
-        el.addEventListener("dragend", () => {
-            dndState = null;
-            el.classList.remove("dragging");
-            clearDropHighlights();
-            stopAutoScroll();
-        });
-    }
-
-    function highlightDropTargets() {
-        if (!editingBossEntry || !dndState) return;
-        const be = editingBossEntry;
-        const c = getChar(dndState.charId); if (!c) return;
-        const boss = getBoss(be.bossId);
-        const maxMembers = boss ? boss.maxMembers : 6;
-
-        // For each existing PT body in the modal, decide if dropping here is OK
-        $$(".party-members.drop-zone").forEach((zone) => {
-            const partyId = zone.dataset.partyId;
-            const pt = be.parties.find((p) => p.id === partyId);
-            if (!pt) return;
-            const reason = dropRejectReason(c, pt, be, maxMembers);
-            zone.classList.remove("drag-over-ok", "drag-over-bad");
-            if (reason) zone.dataset.dropReason = reason;
-            else delete zone.dataset.dropReason;
-        });
-    }
-
-    function clearDropHighlights() {
-        $$(".party-members.drop-zone").forEach((zone) => {
-            zone.classList.remove("drag-over-ok", "drag-over-bad");
-            delete zone.dataset.dropReason;
-        });
-    }
-
-    // Returns rejection reason string (or null if drop is OK).
-    // Source party is dndState.fromPartyId; dropping into pt of be.
-    function dropRejectReason(c, pt, be, maxMembers) {
-        const fromPartyId = dndState && dndState.fromPartyId;
-        // Same PT → no-op (treat as reject so it doesn't visually look like a real drop)
-        if (fromPartyId === pt.id) return "同じPT";
-        // Already in same boss (different PT) and we're not the source PT
-        const otherPtUses = be.parties.some((p) => p.id !== fromPartyId && p.id !== pt.id && p.memberIds.includes(c.id));
-        if (otherPtUses) return "他PTで使用中";
-        // Same player in this PT (excluding the char itself if it's source)
-        const sameInPt = pt.memberIds.some((id) => {
-            if (id === c.id) return false;
-            const other = getChar(id);
-            return other && other.playerId === c.playerId;
-        });
-        if (sameInPt) return "同プレイヤー";
-        // Opt-out
-        if ((c.bossOptOut || []).includes(be.bossId)) return "非表示設定";
-        // Capacity (only when adding NEW to PT)
-        if (fromPartyId !== pt.id && !pt.memberIds.includes(c.id) && pt.memberIds.length >= maxMembers) {
-            return "定員超過";
-        }
-        return null;
-    }
-
-    function attachDropZone(el, be, pt) {
-        el.addEventListener("dragover", (e) => {
-            if (!dndState) return;
-            const c = getChar(dndState.charId); if (!c) return;
-            const boss = getBoss(be.bossId);
-            const maxMembers = boss ? boss.maxMembers : 6;
-            const reason = dropRejectReason(c, pt, be, maxMembers);
-            if (reason) {
-                el.classList.add("drag-over-bad");
-                el.classList.remove("drag-over-ok");
-                try { e.dataTransfer.dropEffect = "none"; } catch(_){}
-            } else {
-                el.classList.add("drag-over-ok");
-                el.classList.remove("drag-over-bad");
-                e.preventDefault();
-                try { e.dataTransfer.dropEffect = "move"; } catch(_){}
-            }
-        });
-        el.addEventListener("dragleave", () => {
-            el.classList.remove("drag-over-ok", "drag-over-bad");
-        });
-        el.addEventListener("drop", (e) => {
-            e.preventDefault();
-            el.classList.remove("drag-over-ok", "drag-over-bad");
-            if (!dndState) return;
-            const c = getChar(dndState.charId); if (!c) return;
-            const boss = getBoss(be.bossId);
-            const maxMembers = boss ? boss.maxMembers : 6;
-            const reason = dropRejectReason(c, pt, be, maxMembers);
-            if (reason) {
-                el.classList.add("invalid-flash");
-                setTimeout(() => el.classList.remove("invalid-flash"), 350);
-                return;
-            }
-            // Apply move
-            if (dndState.fromPartyId) {
-                // Remove from source PT
-                const src = be.parties.find((x) => x.id === dndState.fromPartyId);
-                if (src) src.memberIds = src.memberIds.filter((id) => id !== c.id);
-            }
-            // Add to target PT (if not already)
-            if (!pt.memberIds.includes(c.id)) pt.memberIds.push(c.id);
-            saveState();
-            renderBossEditParties();
-            renderBossEditPool();
-            renderDashboard();
-            renderCalendar();
-        });
-    }
-
-    // ============================================================
-    //  Players (roster) tab
-    // ============================================================
-    function renderPlayers() {
-        const root = $("#players-list");
-        root.innerHTML = "";
-        if (state.players.length === 0) {
-            root.innerHTML = '<div class="empty-state">プレイヤーを追加してください</div>';
-            return;
-        }
-        state.players.forEach((p) => root.appendChild(buildPlayerCard(p)));
-    }
-
-    function buildPlayerCard(p) {
-        const color = playerColor(p);
-        const chars = state.characters
-            .filter((c) => c.playerId === p.id)
-            .sort((a, b) => (b.cp || 0) - (a.cp || 0));
-
-        const card = document.createElement("div");
-        card.className = "player-card";
-
-        card.innerHTML = `
-            <div class="player-head">
-                <span class="player-dot" style="background:${color}; color:${color}; width:14px; height:14px;"></span>
-                <span class="player-name">${esc(p.name)}</span>
-                ${p.discordId ? `<span class="badge badge-soft"><i data-lucide="message-circle" class="w-3 h-3 mr-1"></i>${esc(p.discordId)}</span>` : ""}
-                <span class="player-meta">${chars.length} キャラ</span>
-                <button class="btn btn-ghost btn-icon ml-auto" data-act="edit-player" aria-label="プレイヤー編集">
-                    <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
-                </button>
-                <button class="btn btn-ghost btn-danger btn-icon" data-act="del-player" aria-label="プレイヤー削除">
-                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                </button>
-            </div>
-            <div data-role="chars" class="flex flex-col"></div>
-            <div class="add-char-form" data-role="add-form">
-                <div class="char-icon" data-role="preview" style="width:34px; height:34px;">
-                    <i data-lucide="user" class="w-4 h-4 text-slate-600"></i>
-                </div>
-                <input type="text" data-role="name" placeholder="キャラ名" />
-                <select data-role="job"></select>
-                <select data-role="server"></select>
-                <input type="number" data-role="cp" placeholder="戦闘力" min="0" />
-                <input type="number" data-role="hexa" placeholder="HEXA" min="0" />
-                <button class="btn btn-primary" data-role="add"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
-            </div>
-        `;
-
-        card.querySelector('[data-act="edit-player"]').addEventListener("click", () => openEditPlayerModal(p));
-        card.querySelector('[data-act="del-player"]').addEventListener("click", () => {
-            if (!confirm(`${p.name} を削除しますか？(紐づくキャラも全て削除されます)`)) return;
-            state.players = state.players.filter((x) => x.id !== p.id);
-            state.characters = state.characters.filter((c) => c.playerId !== p.id);
-            cleanupOrphans();
-            saveState(); render();
-        });
-
-        const list = card.querySelector('[data-role="chars"]');
-        chars.forEach((c) => list.appendChild(buildCharRow(c)));
-
-        const form = card.querySelector('[data-role="add-form"]');
-        const jobSel = form.querySelector('[data-role="job"]');
-        populateJobSelect(jobSel);
-        const serverSel = form.querySelector('[data-role="server"]');
-        populateServerSelect(serverSel);
-        const preview = form.querySelector('[data-role="preview"]');
-        const updatePreview = () => {
-            const path = classIconPath(jobSel.value);
-            preview.innerHTML = path
-                ? `<img src="${esc(path)}" alt="" />`
-                : `<i data-lucide="user" class="w-4 h-4 text-slate-600"></i>`;
-            if (window.lucide) window.lucide.createIcons();
-        };
-        jobSel.addEventListener("change", updatePreview);
-        updatePreview();
-
-        form.querySelector('[data-role="add"]').addEventListener("click", () => {
-            const name = form.querySelector('[data-role="name"]').value.trim();
-            const jobId = jobSel.value;
-            const server = serverSel.value;
-            const cp = parseInt(form.querySelector('[data-role="cp"]').value, 10) || 0;
-            const hexa = parseInt(form.querySelector('[data-role="hexa"]').value, 10) || 0;
-            if (!name) { alert("キャラ名を入力してください"); return; }
-            state.characters.push({ id: uid(), playerId: p.id, name, jobId, cp, hexa, server, level: 0, bossOptOut: [] });
-            saveState(); render();
-        });
-
+        const wishCount = state.wishes.filter((w) => w.characterId === c.id).length;
+        card.appendChild(el("div", { class: "cc-foot" },
+            el("span", { class: "badge badge-soft", text: "希望 " + wishCount }),
+            el("span", { class: "cc-ranks" },
+                el("a", { href: "https://mapleranks.com/u/" + encodeURIComponent(c.name), target: "_blank", rel: "noopener noreferrer", text: "MapleRanks" })),
+            el("span", { class: "spacer" }),
+            el("span", { class: "cc-ranks", text: "更新 " + (c.updatedAt || "").slice(0, 10) })
+        ));
         return card;
     }
 
-    function buildCharRow(c) {
-        const job = classById(c.jobId);
-        const srv = getServer(c.server);
-        const row = document.createElement("div");
-        row.className = "char-row";
-        row.innerHTML = `
-            <div class="char-icon" style="width:30px; height:30px;">
-                ${job ? `<img src="${esc(job.path)}" alt="" onerror="this.style.display='none'" />`
-                      : `<i data-lucide="user" class="w-4 h-4 text-slate-600"></i>`}
-            </div>
-            <div>
-                <div class="text-sm font-semibold text-slate-100">
-                    <a href="https://mapleranks.com/u/${encodeURIComponent(c.name)}" target="_blank" rel="noopener noreferrer">${esc(c.name)}</a>
-                </div>
-                <div class="text-[11px] text-slate-500">${job ? esc(job.name) : "未設定"}</div>
-            </div>
-            <span class="badge badge-server">${esc(srv ? srv.name : "?")}</span>
-            <div class="text-xs text-slate-400 font-mono">CP <span class="text-indigo-300 font-bold">${fmtCP(c.cp)}</span></div>
-            <div class="text-xs text-slate-400 font-mono">H <span class="text-purple-300 font-bold">${fmtCP(c.hexa)}</span></div>
-            <div class="text-[10px] text-slate-600 font-mono">${c.level ? `Lv${c.level}` : ""}</div>
-            <button class="btn btn-ghost btn-icon" data-act="edit" aria-label="編集">
-                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
-            </button>
-            <button class="btn btn-ghost btn-danger btn-icon" data-act="del" aria-label="削除">
-                <i data-lucide="x" class="w-3.5 h-3.5"></i>
-            </button>
-        `;
-        row.querySelector('[data-act="edit"]').addEventListener("click", () => openEditCharModal(c));
-        row.querySelector('[data-act="del"]').addEventListener("click", () => {
-            if (!confirm(`${c.name} を削除しますか？`)) return;
-            state.characters = state.characters.filter((x) => x.id !== c.id);
-            cleanupOrphans();
-            saveState(); render();
-        });
-        return row;
-    }
+    function wishRows(member, c) {
+        const wrap = el("div");
+        const mine = state.wishes.filter((w) => w.characterId === c.id);
+        const bossCount = bossList().filter((b) => b.difficulties.some((d) => wishOf(c.id, b.id, d))).length;
 
-    function cleanupOrphans() {
-        state.bossEntries.forEach((be) => be.parties.forEach((pt) => {
-            pt.memberIds = pt.memberIds.filter((id) => getChar(id));
-        }));
-        // Drop bossEntries with all-empty parties
-        state.bossEntries = state.bossEntries.filter((be) => be.parties.length > 0);
-    }
+        wrap.appendChild(el("div", { class: "wish-summary" },
+            el("span", { text: c.name + " の希望： " + bossCount + "ボス / " + mine.length + "件" }),
+            el("span", { class: "spacer" }),
+            mine.length > 0 && el("button", {
+                class: "btn btn-ghost btn-xs", onclick: () => {
+                    state.wishes = state.wishes.filter((w) => w.characterId !== c.id);
+                    toast(c.name + " の希望をすべて消しました");
+                    saveState(); render();
+                }
+            }, "すべて解除")
+        ));
 
-    function populateJobSelect(sel) {
-        sel.innerHTML = "";
-        Object.entries(window.CLASS_DATA || {}).forEach(([group, list]) => {
-            const grp = document.createElement("optgroup");
-            grp.label = group;
-            list.forEach((c) => {
-                const o = document.createElement("option");
-                o.value = c.id; o.textContent = c.name;
-                grp.appendChild(o);
+        const rows = el("div", { class: "wish-rows" });
+        bossList().forEach((b) => {
+            const row = el("div", { class: "wish-row" });
+            row.appendChild(el("div", { class: "wr-boss" },
+                bossIconNode(b, "sm"),
+                el("div", {},
+                    el("div", { class: "wr-boss-name", text: b.name }),
+                    el("span", { class: "wr-cap", text: "最大 " + b.maxMembers + "人" }))
+            ));
+
+            const chips = el("div", { class: "wr-chips" });
+            b.difficulties.forEach((d) => {
+                const on = !!wishOf(c.id, b.id, d);
+                chips.appendChild(el("button", {
+                    class: "chip" + (on ? " on" : ""), "data-d": d,
+                    title: b.name + " " + diffLabelJa(d) + (on ? "：行きたい" : "：希望なし"),
+                    onclick: () => { toggleWish(member, c.id, b.id, d); saveState(); render(); }
+                }, diffLabelJa(d), on && el("span", { class: "mark", text: "✓" })));
             });
-            sel.appendChild(grp);
+            row.appendChild(chips);
+
+            // この難易度のPTに既に入っているかを右端に出す（希望と配置のずれが見える）
+            const placed = seasonParties().find((p) => p.bossId === b.id && p.slots.includes(c.id));
+            const picked = b.difficulties.some((d) => wishOf(c.id, b.id, d));
+            row.appendChild(el("div", {
+                class: "wr-state" + (placed ? " placed" : (picked ? " on" : "")),
+                text: placed ? diffLabelJa(placed.difficulty) + "に配置" : (picked ? "希望あり" : "—")
+            }));
+            rows.appendChild(row);
         });
+        wrap.appendChild(rows);
+        return wrap;
     }
 
-    function populateServerSelect(sel) {
-        sel.innerHTML = "";
-        (window.SERVERS || []).forEach((s) => {
-            const o = document.createElement("option");
-            o.value = s.id; o.textContent = s.name;
-            sel.appendChild(o);
+    function toggleWish(member, characterId, bossId, difficulty) {
+        const ex = wishOf(characterId, bossId, difficulty);
+        if (ex) { state.wishes = state.wishes.filter((w) => w !== ex); return; }
+        state.wishes.push({
+            characterId, bossId, difficulty, note: "",
+            updatedBy: member ? member.id : null, updatedAt: now()
         });
     }
-
-    // ---- Edit player modal ----
-    let editingPlayerId = null;
-    function openEditPlayerModal(p) {
-        editingPlayerId = p.id;
-        $("#edit-player-name").value = p.name;
-        $("#edit-player-discord").value = p.discordId || "";
-        $("#edit-player-modal").classList.remove("hidden");
-        if (window.lucide) window.lucide.createIcons();
-    }
-    function closeEditPlayerModal() {
-        editingPlayerId = null;
-        $("#edit-player-modal").classList.add("hidden");
-    }
-    function saveEditPlayerModal() {
-        if (!editingPlayerId) return;
-        const p = getPlayer(editingPlayerId);
-        if (!p) return closeEditPlayerModal();
-        const name = $("#edit-player-name").value.trim();
-        if (!name) { alert("プレイヤー名を入力してください"); return; }
-        p.name = name;
-        p.discordId = $("#edit-player-discord").value.trim();
-        saveState(); closeEditPlayerModal(); render();
-    }
-
-    // ---- Edit character modal ----
-    let editingCharId = null;
-    function openEditCharModal(c) {
-        editingCharId = c.id;
-        $("#edit-char-name").value = c.name;
-        $("#edit-char-cp").value = c.cp || 0;
-        $("#edit-char-hexa").value = c.hexa || 0;
-        $("#edit-char-level").value = c.level || "";
-        populateJobSelect($("#edit-char-job"));
-        $("#edit-char-job").value = c.jobId || "";
-        populateServerSelect($("#edit-char-server"));
-        $("#edit-char-server").value = c.server || "kronos";
-        renderOptOutGrid(c);
-        $("#edit-char-modal").classList.remove("hidden");
-        if (window.lucide) window.lucide.createIcons();
-    }
-    function closeEditCharModal() {
-        editingCharId = null;
-        $("#edit-char-modal").classList.add("hidden");
-    }
-    function renderOptOutGrid(c) {
-        const root = $("#edit-char-optout");
-        root.innerHTML = "";
-        (window.BOSS_DATA || []).forEach((b) => {
-            const optedOut = (c.bossOptOut || []).includes(b.id);
-            const lbl = document.createElement("label");
-            lbl.className = "optout-toggle" + (optedOut ? " off" : "");
-            lbl.innerHTML = `
-                <input type="checkbox" data-bid="${esc(b.id)}" ${optedOut ? "" : "checked"} />
-                <span>${esc(b.name)}</span>
-            `;
-            lbl.querySelector("input").addEventListener("change", (e) => {
-                lbl.classList.toggle("off", !e.target.checked);
-            });
-            root.appendChild(lbl);
-        });
-    }
-    function saveEditCharModal() {
-        if (!editingCharId) return;
-        const c = getChar(editingCharId);
-        if (!c) return closeEditCharModal();
-        c.name  = $("#edit-char-name").value.trim() || c.name;
-        c.jobId = $("#edit-char-job").value;
-        c.cp    = parseInt($("#edit-char-cp").value, 10) || 0;
-        c.hexa  = parseInt($("#edit-char-hexa").value, 10) || 0;
-        c.level = parseInt($("#edit-char-level").value, 10) || 0;
-        c.server = $("#edit-char-server").value;
-        // Opt-out collection
-        const optOut = [];
-        $$('#edit-char-optout input[type="checkbox"]').forEach((cb) => {
-            if (!cb.checked) optOut.push(cb.dataset.bid);
-        });
-        c.bossOptOut = optOut;
-        // Remove from any current assignment where opted out
-        state.bossEntries.forEach((be) => {
-            if (optOut.includes(be.bossId)) {
-                be.parties.forEach((pt) => {
-                    pt.memberIds = pt.memberIds.filter((id) => id !== c.id);
-                });
-            }
-        });
-        saveState(); closeEditCharModal(); render();
-    }
-
 
     // ============================================================
-    //  WIRING
+    //  ② 編成編集
+    // ============================================================
+    function renderBuilder() {
+        renderBuilderBar();
+        renderCandidatePane();
+        renderPartyPane();
+    }
+
+    function renderBuilderBar() {
+        const bar = $("#builder-bar");
+        bar.textContent = "";
+        const b = bossById(state.ui.bossId);
+
+        bar.appendChild(el("span", { class: "bar-label", text: "Boss" }));
+        const chips = el("div", { class: "boss-chip-list" });
+        bossList().forEach((x) => {
+            const n = partiesOf(x.id, null).length;
+            const chip = el("button", {
+                class: "boss-chip" + (x.id === state.ui.bossId ? " active" : ""),
+                onclick: () => {
+                    state.ui.bossId = x.id;
+                    // 難しい方から組めるよう、初期選択は最も難しい難易度にする
+                    state.ui.difficulty = x.difficulties[x.difficulties.length - 1];
+                    state.ui.selectedCharId = null;
+                    saveState(); render();
+                }
+            }, bossIconNode(x, "sm"), x.name, n ? el("span", { class: "chip-count", text: String(n) }) : null);
+            chip.style.setProperty("--boss-color", x.color || "#6366f1");
+            chips.appendChild(chip);
+        });
+        bar.appendChild(chips);
+
+        bar.appendChild(el("span", { class: "builder-sep" }));
+        bar.appendChild(el("span", { class: "bar-label", text: "難易度" }));
+        const diffs = el("div", { class: "diff-select" });
+        b.difficulties.forEach((d) => {
+            const cands = candidateRows(b.id, d).length;
+            diffs.appendChild(el("button", {
+                class: "diff-btn" + (d === state.ui.difficulty ? " active" : ""),
+                title: "希望者 " + cands + "人 / PT " + partiesOf(b.id, d).length,
+                onclick: () => { state.ui.difficulty = d; state.ui.selectedCharId = null; saveState(); render(); }
+            }, diffLabelJa(d), el("span", { class: "dcount", text: partiesOf(b.id, d).length + "PT・希望" + cands })));
+        });
+        bar.appendChild(diffs);
+
+        bar.appendChild(el("span", { class: "spacer" }));
+        bar.appendChild(el("span", { class: "bar-label", text: "最大 " + b.maxMembers + "人" }));
+        bar.appendChild(el("button", {
+            class: "btn btn-primary", onclick: () => {
+                const list = partiesOf(state.ui.bossId, state.ui.difficulty);
+                state.parties.push({
+                    id: uid("p"), seasonId: currentSeason().id,
+                    bossId: state.ui.bossId, difficulty: state.ui.difficulty,
+                    label: "PT" + (list.length + 1), slots: [], status: "draft", memo: "", createdAt: now()
+                });
+                saveState(); render();
+            }
+        }, icon("plus"), "PT枠を追加"));
+    }
+
+    // 候補（選択中の Boss × 難易度 に希望を出しているキャラ）
+    function candidateRows(bossId, difficulty) {
+        const here = partiesOf(bossId, difficulty);
+        const placedHere = new Set(here.flatMap((p) => p.slots));
+        const q = (state.ui.candSearch || "").trim().toLowerCase();
+        const rows = [];
+        allChars().forEach((c) => {
+            if (!c.isActive) return;
+            const m = memberById(c.memberId);
+            if (!m || !m.isActive) return;
+            if (!wishOf(c.id, bossId, difficulty)) return;
+            if (placedHere.has(c.id)) return;              // R6: この難易度のPTに入れたら候補から消す
+            if (q && !(c.name.toLowerCase().includes(q) || displayName(m).toLowerCase().includes(q))) return;
+            // R2: 同じボスの別難易度に配置済みなら、掴めない形で残す（理由が見える）
+            const elsewhere = seasonParties().find((p) => p.bossId === bossId && p.slots.includes(c.id));
+            const top = hardestWish(c.id, bossId);
+            const upper = (!elsewhere && top && diffRank(bossId, top) > diffRank(bossId, difficulty)) ? top : null;
+            rows.push({ c, m, elsewhere, upper });
+        });
+        // 上位難易度にも希望を出している人を先に。難しい方から埋めるための並び。
+        rows.sort((a, b) =>
+            (b.upper ? 1 : 0) - (a.upper ? 1 : 0) ||
+            ((b.c[state.ui.sortKey] || 0) - (a.c[state.ui.sortKey] || 0)));
+        return rows;
+    }
+
+    function renderCandidatePane() {
+        const pane = $("#cand-pane");
+        pane.textContent = "";
+        const b = bossById(state.ui.bossId);
+        const d = state.ui.difficulty;
+
+        pane.appendChild(el("div", { class: "col-header", text: "希望を出している人" }));
+        pane.appendChild(el("p", { class: "hint" },
+            "カードを押して選び、PTの「ここに追加」で配置します。ドラッグでも動かせます。難しい難易度から先に組むと取りこぼしが減ります。"));
+
+        // 検索欄はここで作り直されるため、入力中だったらフォーカスとカーソル位置を戻す
+        const searchWasFocused = document.activeElement && document.activeElement.id === "cand-search";
+        pane.appendChild(el("div", { class: "row", style: "margin-bottom:7px" },
+            el("input", {
+                type: "text", id: "cand-search", value: state.ui.candSearch || "",
+                placeholder: "キャラ名・メンバー名で検索",
+                style: "flex:1;min-width:110px",
+                oninput: (e) => { state.ui.candSearch = e.target.value; renderCandidatePane(); if (window.lucide) window.lucide.createIcons(); }
+            }),
+            el("select", {
+                title: "並べ替え",
+                onchange: (e) => { state.ui.sortKey = e.target.value; saveState(); render(); }
+            },
+                el("option", { value: "combatPower", selected: state.ui.sortKey === "combatPower", text: "戦闘力順" }),
+                el("option", { value: "hexa", selected: state.ui.sortKey === "hexa", text: "HEXA順" }))
+        ));
+
+        const rows = candidateRows(b.id, d);
+        const list = el("div", { class: "cand-list" });
+        if (!rows.length) {
+            list.appendChild(el("div", { class: "empty-state", text: b.name + " " + diffLabelJa(d) + " に希望を出している人がいません。" }));
+        }
+        rows.forEach(({ c, m, elsewhere, upper }) => {
+            const card = el("div", {
+                class: "cand" + (state.ui.selectedCharId === c.id ? " selected" : "") + (elsewhere ? " placed-elsewhere" : ""),
+                draggable: elsewhere ? null : "true",
+                title: [(classById(c.jobId) || {}).name, c.note].filter(Boolean).join(" / ") || c.name
+            });
+            card.style.borderLeftColor = memberColor(m);
+            if (!elsewhere) {
+                card.addEventListener("click", () => {
+                    state.ui.selectedCharId = state.ui.selectedCharId === c.id ? null : c.id;
+                    render();
+                });
+                card.addEventListener("dragstart", (e) => {
+                    drag = { charId: c.id, fromPartyId: null };
+                    try { e.dataTransfer.setData("text/plain", c.id); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
+                    card.classList.add("dragging");
+                    renderPartyPane();
+                });
+                card.addEventListener("dragend", () => { drag = null; card.classList.remove("dragging"); render(); });
+            }
+            card.appendChild(charIconNode(c, "icon"));
+            card.appendChild(el("div", { class: "cand-main" },
+                el("div", { class: "cand-name", text: c.name }),
+                el("div", { class: "cand-meta", text: displayName(m) + (classById(c.jobId) ? " / " + classById(c.jobId).name : "") }),
+                upper && el("div", {}, el("span", { class: "upper-badge", text: diffLabelJa(upper) + " にも希望" })),
+                elsewhere && el("div", { class: "cand-meta warn", text: diffLabelJa(elsewhere.difficulty) + " の " + (elsewhere.label || "PT") + " に配置済み" })
+            ));
+            card.appendChild(cpBlock(c));
+            list.appendChild(card);
+        });
+        pane.appendChild(list);
+
+        const back = el("div", { class: "drop-back", text: "PTから外すにはここへドラッグ" });
+        back.addEventListener("dragover", (e) => {
+            if (drag && drag.fromPartyId) { e.preventDefault(); back.classList.add("hot"); }
+        });
+        back.addEventListener("dragleave", () => back.classList.remove("hot"));
+        back.addEventListener("drop", (e) => {
+            e.preventDefault(); back.classList.remove("hot");
+            if (drag && drag.fromPartyId) removeFromParty(drag.charId, drag.fromPartyId);
+            drag = null;
+        });
+        pane.appendChild(back);
+
+        if (searchWasFocused) {
+            const input = $("#cand-search");
+            if (input) {
+                input.focus();
+                const n = input.value.length;
+                try { input.setSelectionRange(n, n); } catch (_) { /* 型によっては未対応 */ }
+            }
+        }
+    }
+
+    function renderPartyPane() {
+        const pane = $("#party-pane");
+        pane.textContent = "";
+        const list = partiesOf(state.ui.bossId, state.ui.difficulty);
+        if (!list.length) {
+            pane.appendChild(el("div", { class: "empty-state", text: "PT枠がありません。右上の「PT枠を追加」から作ります。" }));
+            return;
+        }
+        const grid = el("div", { class: "party-grid" });
+        list.forEach((p) => grid.appendChild(partyCard(p)));
+        pane.appendChild(grid);
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    function partyCard(p) {
+        const b = bossById(p.bossId);
+        const active = state.ui.selectedCharId || (drag && drag.charId);
+        const check = active ? canPlace(active, p) : null;
+        const blocked = check && !check.ok && !(drag && drag.fromPartyId === p.id);
+
+        const card = el("div", { class: "party-card" + (blocked ? " blocked" : "") });
+        card.style.setProperty("--diff-color", diffColor(p.difficulty));
+
+        const total = p.slots.reduce((s, id) => s + ((charById(id) || {}).combatPower || 0), 0);
+
+        card.appendChild(el("div", { class: "party-head" },
+            el("input", {
+                class: "party-name-input", type: "text", value: p.label || "", "aria-label": "PT名",
+                onchange: (e) => { p.label = e.target.value; saveState(); render(); }
+            }),
+            diffBadge(p.difficulty),
+            el("span", {
+                class: "party-count" + (p.slots.length >= b.maxMembers ? " full" : ""),
+                text: p.slots.length + " / " + b.maxMembers
+            }),
+            el("span", { class: "spacer" }),
+            el("button", {
+                class: "pill" + (p.status === "published" ? " published" : ""),
+                title: "押すと公開／下書きが切り替わります",
+                onclick: () => {
+                    p.status = p.status === "published" ? "draft" : "published";
+                    toast(p.status === "published" ? "公開しました。ダッシュボードに出ます" : "下書きに戻しました",
+                        p.status === "published" ? "ok" : null);
+                    saveState(); render();
+                }
+            }, p.status === "published" ? "公開中" : "下書き")
+        ));
+
+        const ul = el("ul", { class: "slots" });
+        for (let i = 0; i < b.maxMembers; i++) {
+            const id = p.slots[i];
+            if (id) {
+                const c = charById(id);
+                const m = c ? memberById(c.memberId) : null;
+                const li = el("li", { class: "slot filled", draggable: "true" });
+                li.addEventListener("dragstart", (e) => {
+                    drag = { charId: id, fromPartyId: p.id };
+                    try { e.dataTransfer.setData("text/plain", id); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
+                    li.classList.add("dragging");
+                });
+                li.addEventListener("dragend", () => { drag = null; li.classList.remove("dragging"); render(); });
+                li.appendChild(el("span", { class: "slot-no", text: String(i + 1) }));
+                li.appendChild(charIconNode(c, "icon"));
+                li.appendChild(el("div", { class: "slot-body" },
+                    el("div", { class: "slot-name" },
+                        el("a", {
+                            href: "https://mapleranks.com/u/" + encodeURIComponent(c ? c.name : ""),
+                            target: "_blank", rel: "noopener noreferrer", text: c ? c.name : "(不明)"
+                        })),
+                    el("div", { class: "slot-owner", text: displayName(m) })));
+                li.appendChild(cpBlock(c, "slot-cp"));
+                li.appendChild(el("button", {
+                    class: "slot-x", title: "PTから外す", onclick: () => removeFromParty(id, p.id)
+                }, icon("x", "w-3 h-3")));
+                ul.appendChild(li);
+            } else {
+                const li = el("li", { class: "slot empty" },
+                    el("span", { class: "slot-no", text: String(i + 1) }),
+                    el("span", { class: "slot-body", text: "空き" }));
+                if (state.ui.selectedCharId && check && check.ok) {
+                    li.appendChild(el("button", {
+                        class: "add-here",
+                        onclick: () => placeChar(state.ui.selectedCharId, p.id, null)
+                    }, "ここに追加"));
+                }
+                ul.appendChild(li);
+            }
+        }
+        card.appendChild(ul);
+
+        if (blocked) card.appendChild(el("div", { class: "block-reason", text: check.reason }));
+
+        card.appendChild(el("div", { class: "party-foot" },
+            el("span", {}, "合計 ", el("strong", { text: formatCp(total) }),
+                p.slots.length ? " / 平均 " + formatCp(Math.round(total / p.slots.length)) : ""),
+            el("input", {
+                class: "party-memo", type: "text", value: p.memo || "", placeholder: "周知メモ（集合場所・時間など）",
+                onchange: (e) => { p.memo = e.target.value; saveState(); render(); }
+            }),
+            el("button", {
+                class: "btn btn-ghost btn-danger btn-icon", title: "このPTを削除",
+                onclick: () => {
+                    if (p.slots.length && !confirm((p.label || "このPT") + " を削除します。よろしいですか？")) return;
+                    state.parties = state.parties.filter((x) => x.id !== p.id);
+                    saveState(); render();
+                }
+            }, icon("trash-2", "w-3 h-3"))
+        ));
+
+        // ---- drop target ----
+        card.addEventListener("dragover", (e) => {
+            if (!drag) return;
+            if (drag.fromPartyId !== p.id) {
+                const v = canPlace(drag.charId, p);
+                if (!v.ok) return;
+            }
+            e.preventDefault();
+            card.classList.add("hot");
+        });
+        card.addEventListener("dragleave", () => card.classList.remove("hot"));
+        card.addEventListener("drop", (e) => {
+            e.preventDefault(); card.classList.remove("hot");
+            if (!drag) return;
+            const d = drag; drag = null;
+            if (d.fromPartyId === p.id) { render(); return; }
+            placeChar(d.charId, p.id, d.fromPartyId);
+        });
+        return card;
+    }
+
+    // ============================================================
+    //  ③ ダッシュボード
+    // ============================================================
+    function renderDashboard() {
+        const root = $("#dash-root");
+        root.textContent = "";
+        const ui = state.ui;
+        const viewer = memberById(ui.viewerMemberId) || state.members[0] || null;
+        ui.viewerMemberId = viewer ? viewer.id : null;
+
+        const shown = seasonParties().filter((p) => ui.includeDraft || p.status === "published");
+
+        // ---- A. 自分の所属PT ----
+        const hero = el("section", { class: "dash-hero" });
+        const head = el("div", { class: "dash-hero-head" },
+            icon("user-check", "w-4 h-4 text-indigo-300"),
+            el("h2", { text: "自分の所属PT" }),
+            el("span", { class: "spacer" }));
+        if (state.members.length) {
+            head.appendChild(el("select", {
+                onchange: (e) => { ui.viewerMemberId = e.target.value; saveState(); render(); }
+            }, state.members.map((m) => el("option", { value: m.id, selected: viewer && m.id === viewer.id, text: displayName(m) }))));
+        }
+        hero.appendChild(head);
+
+        if (!viewer) {
+            hero.appendChild(el("div", { class: "hero-empty", text: "メンバーがまだ登録されていません。" }));
+        } else {
+            const myIds = viewer.characters.map((c) => c.id);
+            const mine = shown.filter((p) => p.slots.some((id) => myIds.includes(id)))
+                .sort((a, b) => bossList().findIndex((x) => x.id === a.bossId) - bossList().findIndex((x) => x.id === b.bossId));
+            if (!mine.length) {
+                hero.appendChild(el("div", { class: "hero-empty", text: "公開されている編成に、あなたのキャラはまだ入っていません。希望を出しておくと、空きが出たときに声がかかります。" }));
+            } else {
+                const g = el("div", { class: "mine-grid" });
+                mine.forEach((p) => {
+                    const b = bossById(p.bossId);
+                    const myChar = charById(p.slots.find((id) => myIds.includes(id)));
+                    const mates = p.slots.filter((id) => id !== myChar.id).map((id) => {
+                        const c = charById(id);
+                        return c ? c.name + "（" + displayName(memberById(c.memberId)) + "）" : "?";
+                    });
+                    const box = el("div", { class: "mine" },
+                        el("div", { class: "mine-boss" }, bossIconNode(b, "sm"), b.name, diffBadge(p.difficulty),
+                            p.status === "draft" ? el("span", { class: "badge badge-soft", text: "下書き" }) : null),
+                        el("div", { class: "mine-who", text: (p.label || "PT") + " / " + myChar.name + " で参加" }),
+                        el("div", { class: "mine-mates", text: mates.length ? "一緒に行く人: " + mates.join("、") : "他のメンバーは未定" }),
+                        p.memo && el("div", { class: "mine-memo", text: "メモ: " + p.memo }));
+                    box.style.setProperty("--diff-color", diffColor(p.difficulty));
+                    g.appendChild(box);
+                });
+                hero.appendChild(g);
+            }
+        }
+        root.appendChild(hero);
+
+        // ---- B. 編成全体 ----
+        const all = el("section", { class: "panel" });
+        const allHead = el("div", { class: "panel-head" },
+            el("h2", { text: "編成全体" }),
+            el("span", { class: "sub", text: ui.includeDraft ? "下書きも表示しています" : "公開されているPTのみ表示しています" }),
+            el("span", { class: "spacer" }),
+            el("label", { class: "check" },
+                el("input", {
+                    type: "checkbox", checked: ui.includeDraft,
+                    onchange: (e) => { ui.includeDraft = e.target.checked; saveState(); render(); }
+                }), "下書きも表示"));
+        all.appendChild(allHead);
+
+        const allBody = el("div", { class: "panel-body" });
+        // ボス絞り込みチップ（既存ダッシュボードのフィルタを踏襲）
+        const filter = el("div", { class: "boss-chip-list", style: "margin-bottom:10px" });
+        const allChip = el("button", {
+            class: "boss-chip" + (ui.dashBossIds.length ? "" : " active"),
+            onclick: () => { ui.dashBossIds = []; saveState(); render(); }
+        }, "すべて");
+        filter.appendChild(allChip);
+        bossList().forEach((b) => {
+            const n = shown.filter((p) => p.bossId === b.id).length;
+            const chip = el("button", {
+                class: "boss-chip" + (ui.dashBossIds.includes(b.id) ? " active" : ""),
+                onclick: () => {
+                    ui.dashBossIds = ui.dashBossIds.includes(b.id)
+                        ? ui.dashBossIds.filter((x) => x !== b.id)
+                        : ui.dashBossIds.concat(b.id);
+                    saveState(); render();
+                }
+            }, bossIconNode(b, "sm"), b.name, n ? el("span", { class: "chip-count", text: String(n) }) : null);
+            chip.style.setProperty("--boss-color", b.color || "#6366f1");
+            filter.appendChild(chip);
+        });
+        allBody.appendChild(filter);
+
+        const visibleBosses = bossList().filter((b) => !ui.dashBossIds.length || ui.dashBossIds.includes(b.id));
+        if (!shown.length) {
+            allBody.appendChild(el("div", { class: "empty-state", text: "表示できる編成がありません。編成編集でPTを組み、「下書き」を押して公開してください。" }));
+        } else {
+            const grid = el("div", { class: "boss-grid" });
+            visibleBosses.forEach((b) => {
+                const ps = shown.filter((p) => p.bossId === b.id)
+                    .sort((x, y) => b.difficulties.indexOf(y.difficulty) - b.difficulties.indexOf(x.difficulty));
+                grid.appendChild(dashBossCard(b, ps, viewer));
+            });
+            allBody.appendChild(grid);
+        }
+        all.appendChild(allBody);
+        root.appendChild(all);
+
+        // ---- C. 空き枠と未配置の希望者 ----
+        root.appendChild(gapPanel(shown));
+
+        // ---- D. テキスト出力 ----
+        root.appendChild(textPanel());
+    }
+
+    function dashBossCard(b, parties, viewer) {
+        const card = el("div", { class: "boss-card" + (parties.length ? "" : " empty") });
+        card.style.setProperty("--boss-color", b.color || "#6366f1");
+
+        const filled = parties.reduce((s, p) => s + p.slots.length, 0);
+        const cap = parties.length * b.maxMembers;
+        card.appendChild(el("div", { class: "boss-head" },
+            bossIconNode(b, "lg"),
+            el("div", { class: "boss-head-info" },
+                el("div", { class: "boss-title" }, el("span", { class: "boss-title-name", text: b.name })),
+                el("div", { class: "boss-subtitle" },
+                    el("span", { text: parties.length + " PT · " + filled + "/" + cap + "人 · 上限 " + b.maxMembers + "人" }))),
+            el("button", {
+                class: "btn btn-xs", title: "このボスの編成を開く",
+                onclick: () => {
+                    state.ui.bossId = b.id;
+                    state.ui.difficulty = parties.length ? parties[0].difficulty : b.difficulties[b.difficulties.length - 1];
+                    switchScreen("builder");
+                }
+            }, icon("edit-3", "w-3 h-3"), "編成")
+        ));
+
+        if (!parties.length) {
+            card.appendChild(el("div", { class: "boss-empty-hint", text: "PT未設定" }));
+            return card;
+        }
+
+        const myIds = viewer ? viewer.characters.map((c) => c.id) : [];
+        const strip = el("div", { class: "parties-strip" });
+        parties.forEach((p, idx) => {
+            const wrap = el("div", { class: "party-mini" });
+            const total = p.slots.reduce((s, id) => s + ((charById(id) || {}).combatPower || 0), 0);
+            wrap.appendChild(el("div", { class: "party-mini-head" },
+                el("span", { class: "party-mini-letter", text: String.fromCharCode(65 + idx) }),
+                diffBadge(p.difficulty),
+                el("span", { class: "party-mini-name", text: p.label || "PT" }),
+                p.status === "draft" ? el("span", { class: "badge badge-soft", text: "下書き" }) : null
+            ));
+
+            const body = el("div", { class: "party-mini-members" });
+            for (let i = 0; i < b.maxMembers; i++) {
+                const id = p.slots[i];
+                if (id) {
+                    const c = charById(id);
+                    const m = c ? memberById(c.memberId) : null;
+                    const row = el("div", { class: "party-mini-member" + (myIds.includes(id) ? " me" : "") },
+                        charIconNode(c, "mini-icon"),
+                        el("span", { class: "pmm-name", text: c ? c.name : "(不明)" }),
+                        el("span", { class: "pmm-owner", text: displayName(m) }),
+                        state.ui.includeCp && el("span", { class: "pmm-cp", text: formatCp(c && c.combatPower) }));
+                    body.appendChild(row);
+                } else {
+                    body.appendChild(el("div", { class: "party-mini-member vacant" },
+                        el("span", { class: "mini-icon" }, icon("user-plus", "w-3 h-3")),
+                        el("span", { class: "pmm-vacant", text: "空き" })));
+                }
+            }
+            wrap.appendChild(body);
+            if (p.memo) wrap.appendChild(el("div", { class: "party-mini-memo", text: p.memo }));
+            wrap.appendChild(el("div", { class: "party-mini-total" },
+                p.slots.length + "/" + b.maxMembers + "人 · 合計 ", el("strong", { text: formatCp(total) })));
+            strip.appendChild(wrap);
+        });
+        card.appendChild(strip);
+        return card;
+    }
+
+    function gapPanel(shown) {
+        const panel = el("section", { class: "panel" });
+        panel.appendChild(el("div", { class: "panel-head" },
+            el("h2", { text: "空き枠と、まだ入れていない人" }),
+            el("span", { class: "sub", text: "表示している難易度は、その人が希望した中で最も難しいものです" })
+        ));
+        const body = el("div", { class: "panel-body" });
+        const grid = el("div", { class: "gap-grid" });
+
+        // --- 空きのあるPT ---
+        const left = el("div");
+        const vac = shown.filter((p) => p.slots.length < bossById(p.bossId).maxMembers);
+        left.appendChild(el("div", { class: "col-header", text: "空きのあるPT（" + vac.length + "）" }));
+        if (!vac.length) {
+            left.appendChild(el("div", { class: "empty-state", text: "空き枠はありません。" }));
+        } else {
+            const list = el("div", { class: "gap-list" });
+            vac.forEach((p) => {
+                const b = bossById(p.bossId);
+                list.appendChild(el("div", { class: "gap-row" },
+                    bossIconNode(b, "sm"),
+                    el("span", { class: "gr-name", text: b.name }),
+                    diffBadge(p.difficulty),
+                    el("span", { class: "gr-sub", text: (p.label || "PT") + " / あと " + (b.maxMembers - p.slots.length) + "人" }),
+                    el("span", { class: "spacer" }),
+                    el("button", {
+                        class: "btn btn-xs", onclick: () => {
+                            state.ui.bossId = p.bossId; state.ui.difficulty = p.difficulty;
+                            switchScreen("builder");
+                        }
+                    }, "開く")));
+            });
+            left.appendChild(list);
+        }
+        grid.appendChild(left);
+
+        // --- 未配置の希望者（キャラ×ボス単位、難易度は希望の最上位） ---
+        const right = el("div");
+        const placedKeys = new Set(seasonParties().flatMap((p) => p.slots.map((id) => id + "|" + p.bossId)));
+        const seen = new Set();
+        const unplaced = [];
+        state.wishes.forEach((w) => {
+            const key = w.characterId + "|" + w.bossId;
+            if (seen.has(key)) return;
+            seen.add(key);
+            if (placedKeys.has(key)) return;
+            const c = charById(w.characterId);
+            if (!c || !c.isActive) return;
+            const m = memberById(c.memberId);
+            if (!m || !m.isActive) return;
+            const top = hardestWish(c.id, w.bossId);
+            if (!top) return;
+            unplaced.push({ c, m, bossId: w.bossId, difficulty: top });
+        });
+        unplaced.sort((a, b) =>
+            bossList().findIndex((x) => x.id === a.bossId) - bossList().findIndex((x) => x.id === b.bossId) ||
+            diffRank(b.bossId, b.difficulty) - diffRank(a.bossId, a.difficulty) ||
+            (b.c.combatPower || 0) - (a.c.combatPower || 0));
+
+        right.appendChild(el("div", { class: "col-header", text: "希望を出しているのに、どのPTにも入っていない人（" + unplaced.length + "）" }));
+        if (!unplaced.length) {
+            right.appendChild(el("div", { class: "empty-state", text: "取りこぼしはありません。" }));
+        } else {
+            const list = el("div", { class: "gap-list" });
+            unplaced.forEach(({ c, m, bossId, difficulty }) => {
+                const b = bossById(bossId);
+                list.appendChild(el("div", { class: "gap-row" },
+                    bossIconNode(b, "sm"),
+                    el("span", { class: "gr-sub", style: "flex:0 0 auto", text: b.name }),
+                    diffBadge(difficulty),
+                    el("span", { class: "gr-name", style: "flex:1;min-width:0", text: c.name }),
+                    el("span", { class: "gr-sub", text: displayName(m) }),
+                    el("span", { class: "gr-cp", text: formatCp(c.combatPower) }),
+                    el("button", {
+                        class: "btn btn-xs", onclick: () => {
+                            state.ui.bossId = bossId; state.ui.difficulty = difficulty;
+                            state.ui.selectedCharId = c.id;
+                            switchScreen("builder");
+                        }
+                    }, "編成へ")));
+            });
+            right.appendChild(list);
+        }
+        grid.appendChild(right);
+
+        body.appendChild(grid);
+        panel.appendChild(body);
+        return panel;
+    }
+
+    function textPanel() {
+        const ui = state.ui;
+        const panel = el("section", { class: "panel" });
+        panel.appendChild(el("div", { class: "panel-head" },
+            el("h2", { text: "Discord用のテキスト" }),
+            el("span", { class: "spacer" }),
+            el("select", {
+                title: "出力するボス",
+                onchange: (e) => { ui.outBossId = e.target.value; saveState(); render(); }
+            },
+                el("option", { value: "", selected: !ui.outBossId, text: "すべてのボス" }),
+                bossList().map((b) => el("option", { value: b.id, selected: ui.outBossId === b.id, text: b.name }))),
+            el("label", { class: "check" },
+                el("input", {
+                    type: "checkbox", checked: ui.includeCp,
+                    onchange: (e) => { ui.includeCp = e.target.checked; saveState(); render(); }
+                }), "戦闘力・HEXAを含める"),
+            el("label", { class: "check" },
+                el("input", {
+                    type: "checkbox", checked: ui.includeDraft,
+                    onchange: (e) => { ui.includeDraft = e.target.checked; saveState(); render(); }
+                }), "下書きも含める"),
+            el("button", { class: "btn btn-primary", onclick: () => copyText(buildText()) }, icon("copy"), "コピー")
+        ));
+        panel.appendChild(el("div", { class: "panel-body" },
+            el("textarea", { class: "out-text", readonly: true }, buildText())));
+        return panel;
+    }
+
+    function buildText() {
+        const ui = state.ui;
+        const ps = seasonParties().filter((p) =>
+            (ui.includeDraft || p.status === "published") && (!ui.outBossId || p.bossId === ui.outBossId));
+        const lines = ["■ 週ボスPT編成" + (currentSeason().name ? "（" + currentSeason().name + "）" : "")];
+        bossList().forEach((b) => {
+            b.difficulties.forEach((d) => {
+                const list = ps.filter((p) => p.bossId === b.id && p.difficulty === d);
+                if (!list.length) return;
+                lines.push("");
+                lines.push("【" + b.name + " " + diffLabelJa(d) + "】");
+                list.forEach((p) => {
+                    lines.push((p.label || "PT") + (p.status === "draft" ? "（下書き）" : ""));
+                    for (let i = 0; i < b.maxMembers; i++) {
+                        const id = p.slots[i];
+                        if (!id) { lines.push(" " + (i + 1) + ". 空き"); continue; }
+                        const c = charById(id);
+                        const m = c ? memberById(c.memberId) : null;
+                        let line = " " + (i + 1) + ". " + (c ? c.name : "(不明)") + " (" + displayName(m) + ")";
+                        if (ui.includeCp && c && c.combatPower) {
+                            line += " " + formatCp(c.combatPower) + (c.hexa ? " / H" + formatCp(c.hexa) : "");
+                        }
+                        lines.push(line);
+                    }
+                    if (p.memo) lines.push(" ※ " + p.memo);
+                });
+            });
+        });
+        if (lines.length === 1) lines.push("", "（表示できる編成がありません）");
+        return lines.join("\n");
+    }
+
+    function copyText(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(
+                () => toast("コピーしました", "ok"),
+                () => toast("コピーできませんでした。テキストを選んでコピーしてください", "warn"));
+        } else {
+            toast("コピーできませんでした。テキストを選んでコピーしてください", "warn");
+        }
+    }
+
+    // ============================================================
+    //  データ入出力
+    // ============================================================
+    function serialize() {
+        return {
+            version: VERSION,
+            exportedAt: now(),
+            seasons: state.seasons,
+            members: state.members,
+            wishes: state.wishes,
+            parties: state.parties
+        };
+    }
+    const exportJson = () => JSON.stringify(serialize(), null, 2);
+
+    function loadJson(text) {
+        let obj;
+        try { obj = JSON.parse(text); }
+        catch (e) { toast("JSONとして読めませんでした", "warn"); return; }
+        if (!obj || !Array.isArray(obj.members)) {
+            toast("形式が違います。members が必要です", "warn"); return;
+        }
+        state.seasons = Array.isArray(obj.seasons) && obj.seasons.length
+            ? obj.seasons
+            : [{ id: uid("s"), name: "シーズン1", isCurrent: true, note: "", createdAt: now() }];
+        state.members = obj.members;
+        state.wishes  = Array.isArray(obj.wishes) ? obj.wishes : [];
+        state.parties = Array.isArray(obj.parties) ? obj.parties : [];
+        state.ui.editorMemberId = null;
+        state.ui.editorCharId = null;
+        state.ui.selectedCharId = null;
+        normalize(); saveState(); render();
+        toast("読み込みました", "ok");
+    }
+
+    // 動作を確かめるためのサンプル。ルールを守った形で数人だけ配置しておく。
+    function sampleData() {
+        let seed = 20260831;
+        const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+        const pick = (a) => a[Math.floor(rnd() * a.length)];
+
+        const jobIds = allClasses().map((c) => c.id);
+        const names = ["ゆき", "そら", "かえで", "はると", "みお", "りく", "なぎ", "ひなた", "つむぎ", "こはる"];
+        const servers = (window.SERVERS || [{ id: "kronos" }]).map((s) => s.id);
+
+        const members = names.map((n, i) => {
+            const count = i < 4 ? 3 : (i < 7 ? 2 : 1);
+            const chars = [];
+            for (let k = 0; k < count; k++) {
+                const cp = Math.round(3000 + rnd() * 27000) * 10000;
+                chars.push({
+                    id: "c_" + i + "_" + k,
+                    name: n + ["A", "B", "C"][k],
+                    jobId: jobIds.length ? pick(jobIds) : "",
+                    server: pick(servers),
+                    combatPower: cp,
+                    hexa: Math.round(cp * (0.22 + rnd() * 0.3)),
+                    note: "", isActive: true, updatedAt: now()
+                });
+            }
+            return {
+                id: "m_" + i, discordName: n, displayName: "", isActive: true, note: "",
+                colorIdx: i % MEMBER_COLORS.length, characters: chars
+            };
+        });
+
+        const wishes = [];
+        members.forEach((m) => m.characters.forEach((c) => {
+            bossList().forEach((b) => {
+                b.difficulties.forEach((d) => {
+                    const strong = c.combatPower > 150000000;
+                    const hardish = (d === "EXTREME" || d === "HARD" || d === "CHAOS");
+                    const chance = hardish ? (strong ? 0.5 : 0.18) : 0.42;
+                    if (rnd() > chance) return;
+                    wishes.push({ characterId: c.id, bossId: b.id, difficulty: d, note: "", updatedBy: m.id, updatedAt: now() });
+                });
+            });
+        }));
+
+        const season = { id: "s_1", name: "2026年 夏シーズン", isCurrent: true, note: "", createdAt: now() };
+        const parties = [
+            { id: "p_1", seasonId: season.id, bossId: "kaling", difficulty: "HARD", label: "PT1", slots: [], status: "published", memo: "連絡は週ボスチャンネルで", createdAt: now() },
+            { id: "p_2", seasonId: season.id, bossId: "limbo", difficulty: "HARD", label: "PT1", slots: [], status: "published", memo: "", createdAt: now() }
+        ];
+        parties.forEach((party) => {
+            const b = bossById(party.bossId);
+            const cands = members.flatMap((m) => m.characters.map((c) => ({ c, m })))
+                .filter(({ c }) => wishes.some((w) => w.characterId === c.id && w.bossId === party.bossId && w.difficulty === party.difficulty))
+                .sort((a, z) => z.c.combatPower - a.c.combatPower);
+            const used = new Set();
+            for (const { c, m } of cands) {
+                if (party.slots.length >= b.maxMembers - 1) break;
+                if (used.has(m.id)) continue;
+                used.add(m.id);
+                party.slots.push(c.id);
+            }
+        });
+
+        return { seasons: [season], members, wishes, parties };
+    }
+
+    // ============================================================
+    //  画面切り替え / レンダリング
+    // ============================================================
+    const SCREENS = ["members", "builder", "dashboard"];
+
+    // ホスト（index.html）のトップバーのタブ表示を合わせる
+    function syncHostTab(name) {
+        try {
+            const host = window.parent;
+            if (host && host !== window && host.app && host.app.schedulerTabState) {
+                host.app.schedulerTabState(name);
+            }
+        } catch (_) { /* 単体で開いた場合・cross-origin は無視 */ }
+    }
+
+    function switchScreen(name) {
+        if (!SCREENS.includes(name)) name = "members";
+        state.ui.screen = name;
+        state.ui.selectedCharId = null;
+        saveState();
+        syncHostTab(name);
+        render();
+    }
+
+    function render() {
+        const ui = state.ui;
+        SCREENS.forEach((s) => {
+            const sec = $("#view-" + s);
+            if (sec) sec.classList.toggle("hidden", s !== ui.screen);
+            const btn = $("#tab-" + s);
+            if (btn) {
+                btn.classList.toggle("tab-active", s === ui.screen);
+                btn.classList.toggle("tab-inactive", s !== ui.screen);
+            }
+        });
+
+        if (ui.screen === "members") renderMembers();
+        else if (ui.screen === "builder") renderBuilder();
+        else renderDashboard();
+
+        renderAppBar();
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    function renderAppBar() {
+        const season = currentSeason();
+        const input = $("#season-name");
+        if (input && document.activeElement !== input) input.value = season.name || "";
+        const chars = allChars().length;
+        const published = seasonParties().filter((p) => p.status === "published").length;
+        const drafts = seasonParties().length - published;
+        $("#app-stats").textContent =
+            "メンバー " + state.members.length + " / キャラ " + chars +
+            " / 希望 " + state.wishes.length +
+            " / 公開PT " + published + (drafts ? "（下書き " + drafts + "）" : "");
+    }
+
+    // ============================================================
+    //  WIRE
     // ============================================================
     function wire() {
-        // Tabs
-        $$(".tab-btn").forEach((btn) => {
-            btn.addEventListener("click", () => {
-                const tab = btn.dataset.tab;
-                $$(".tab-btn").forEach((b) => {
-                    const active = b.dataset.tab === tab;
-                    b.classList.toggle("tab-active",   active);
-                    b.classList.toggle("tab-inactive", !active);
-                });
-                ["schedule","calendar","roster"].forEach((t) => {
-                    $("#view-" + t).classList.toggle("hidden", tab !== t);
-                });
-            });
+        // ホストのトップバーから叩かれる隠しタブ
+        SCREENS.forEach((s) => {
+            const btn = $("#tab-" + s);
+            if (btn) btn.addEventListener("click", () => switchScreen(s));
         });
 
-        // Filters (Boss is a clickable chip list, wired in renderFilterBar)
-        $("#filter-team").addEventListener("change",   (e) => { state.ui.filters.team   = e.target.value; saveState(); renderDashboard(); });
-        $("#filter-server").addEventListener("change", (e) => { state.ui.filters.server = e.target.value; saveState(); renderDashboard(); });
-        $("#filter-clear").addEventListener("click",   () => {
-            state.ui.filters = { boss: [], team: "", player: "", server: "" };
+        $("#season-name").addEventListener("change", (e) => {
+            const s = currentSeason();
+            s.name = e.target.value.trim() || "シーズン1";
             saveState(); render();
         });
 
-        // Add player
-        $("#add-player-btn").addEventListener("click", () => {
-            const inp = $("#new-player");
-            const inpD = $("#new-player-discord");
-            const name = inp.value.trim();
-            if (!name) return;
-            const usedColors = new Set(state.players.map((p) => p.colorIdx));
-            let colorIdx = state.players.length % PLAYER_COLORS.length;
-            for (let i = 0; i < PLAYER_COLORS.length; i++) {
-                if (!usedColors.has(i)) { colorIdx = i; break; }
-            }
-            state.players.push({ id: uid(), name, colorIdx, discordId: inpD.value.trim() });
-            inp.value = ""; inpD.value = "";
-            saveState(); render();
-        });
-        $("#new-player").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#add-player-btn").click(); });
+        // ---- データモーダル ----
+        const modal = $("#data-modal");
+        const openData = () => {
+            $("#json-out").value = exportJson();
+            modal.classList.remove("hidden");
+            if (window.lucide) window.lucide.createIcons();
+        };
+        const closeData = () => modal.classList.add("hidden");
+        $("#btn-data").addEventListener("click", openData);
+        $$("[data-close-data]").forEach((b) => b.addEventListener("click", closeData));
+        modal.addEventListener("click", (e) => { if (e.target === modal) closeData(); });
 
-        // Boss edit modal: recurrence change handler
-        $$("[data-close-boss-edit]").forEach((el) => el.addEventListener("click", closeBossEditModal));
-        $("#boss-edit-add-party").addEventListener("click", () => {
-            if (!editingBossEntry) return;
-            const boss = getBoss(editingBossEntry.bossId);
-            editingBossEntry.parties.push({
-                id: uid(), name: "",
-                difficulty: boss ? boss.difficulties[0] : "",
-                recurrence: null,
-                memberIds: []
+        $("#btn-download").addEventListener("click", () => {
+            const blob = new Blob([exportJson()], { type: "application/json" });
+            const a = el("a", {
+                href: URL.createObjectURL(blob),
+                download: "boss-party-" + new Date().toISOString().slice(0, 10) + ".json"
             });
-            saveState(); renderBossEditParties(); renderBossEditPool(); renderDashboard(); renderCalendar(); renderFilterBar();
+            document.body.appendChild(a); a.click(); a.remove();
+            toast("ダウンロードしました", "ok");
+        });
+        $("#btn-copy-json").addEventListener("click", () => copyText(exportJson()));
+        $("#btn-load-text").addEventListener("click", () => {
+            const t = $("#json-in").value.trim();
+            if (!t) { toast("JSONを貼り付けてください", "warn"); return; }
+            loadJson(t); $("#json-out").value = exportJson();
+        });
+        $("#file-in").addEventListener("change", (e) => {
+            const f = e.target.files && e.target.files[0];
+            if (!f) return;
+            const r = new FileReader();
+            r.onload = () => { loadJson(String(r.result)); $("#json-out").value = exportJson(); };
+            r.readAsText(f);
+        });
+        $("#btn-sample").addEventListener("click", () => {
+            if (!confirm("今の内容を捨てて、サンプルデータを入れます。よろしいですか？")) return;
+            const s = sampleData();
+            state.seasons = s.seasons; state.members = s.members;
+            state.wishes = s.wishes; state.parties = s.parties;
+            state.ui.editorMemberId = null; state.ui.viewerMemberId = s.members[0].id;
+            normalize(); saveState(); render();
+            $("#json-out").value = exportJson();
+            toast("サンプルデータを入れました", "ok");
+        });
+        $("#btn-wipe").addEventListener("click", () => {
+            if (!confirm("メンバー・希望・編成をすべて削除します。元に戻せません。よろしいですか？")) return;
+            const keep = state.ui;
+            state = emptyState();
+            state.ui = Object.assign(state.ui, { screen: keep.screen });
+            normalize(); saveState(); render();
+            $("#json-out").value = exportJson();
+            toast("すべて削除しました");
         });
 
-        // Pool search inside boss-edit modal
-        const poolSearch = $("#boss-edit-pool-search");
-        if (poolSearch) poolSearch.addEventListener("input", renderBossEditPool);
+        // ドラッグ中にiframe外へ抜けた場合の後始末
+        document.addEventListener("dragend", () => { if (drag) { drag = null; render(); } });
 
-        // Player modal
-        $$("[data-close-player]").forEach((el) => el.addEventListener("click", closeEditPlayerModal));
-        $("#edit-player-save").addEventListener("click", saveEditPlayerModal);
-
-        // Char modal
-        $$("[data-close-char]").forEach((el) => el.addEventListener("click", closeEditCharModal));
-        $("#edit-char-save").addEventListener("click", saveEditCharModal);
-
-        // Close modals on backdrop click
-        $$(".modal-bg").forEach((bg) => {
-            bg.addEventListener("click", (e) => {
-                if (e.target === bg) bg.classList.add("hidden");
-            });
-        });
-
-        // Calendar mode toggle
-        $$(".cal-mode-btn").forEach((btn) => {
-            btn.addEventListener("click", () => {
-                state.ui.calendarMode = btn.dataset.calMode;
-                state.ui.monthOffset = 0;
-                saveState();
-                renderCalendar();
-                if (window.lucide) window.lucide.createIcons();
-            });
+        // ドラッグ中の自動スクロール。候補リストが縦に長いと、掴んだまま
+        // PT枠まで運べないため、カーソル位置に応じて内側の器から順に送る。
+        // （preventDefault はしない = ドロップ可否の判定は各ドロップ先に任せる）
+        document.addEventListener("dragover", (e) => {
+            if (!drag) return;
+            autoScroll.x = e.clientX; autoScroll.y = e.clientY;
+            if (!autoScroll.raf) autoScroll.raf = requestAnimationFrame(autoScrollTick);
         });
     }
 
+    const autoScroll = { x: 0, y: 0, raf: 0 };
+    function autoScrollTick() {
+        autoScroll.raf = 0;
+        if (!drag) return;
+        const EDGE = 56, STEP = 16;
+        const { x, y } = autoScroll;
+        const targets = [$(".cand-list"), $("main")].filter(Boolean);
+        for (const box of targets) {
+            if (box.scrollHeight <= box.clientHeight) continue;
+            const r = box.getBoundingClientRect();
+            if (x < r.left || x > r.right || y < r.top || y > r.bottom) continue;
+            if (y - r.top < EDGE) box.scrollTop -= STEP;
+            else if (r.bottom - y < EDGE) box.scrollTop += STEP;
+            break;   // カーソル直下の最も内側の器だけ動かす
+        }
+        autoScroll.raf = requestAnimationFrame(autoScrollTick);
+    }
+
     // ============================================================
-    //  BOOT
+    //  INIT
     // ============================================================
-    document.addEventListener("DOMContentLoaded", () => {
+    function init() {
         loadState();
         wire();
         render();
+        syncHostTab(state.ui.screen);   // 前回開いていた画面をホストのタブにも反映
         if (window.lucide) window.lucide.createIcons();
-    });
+    }
+
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+    else init();
 })();

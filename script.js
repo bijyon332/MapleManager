@@ -520,7 +520,13 @@ const app = {
             const btn = doc.getElementById(`tab-${tab}`);
             if (btn) btn.click();
         }
-        ['schedule', 'roster', 'calendar'].forEach(t => {
+        this.schedulerTabState(tab);
+    },
+
+    // The scheduler can also switch screens on its own (e.g. "この編成を開く" on
+    // the dashboard). It calls back here so the top-bar buttons stay in sync.
+    schedulerTabState(tab) {
+        ['members', 'builder', 'dashboard'].forEach(t => {
             const b = document.getElementById(`snav-${t}`);
             if (!b) return;
             b.classList.toggle('nav-active', t === tab);

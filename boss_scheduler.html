@@ -30,70 +30,43 @@
          the host can drive them by clicking. -->
     <header class="hidden">
         <nav>
-            <button id="tab-schedule" data-tab="schedule" class="tab-btn tab-active">Dashboard</button>
-            <button id="tab-roster" data-tab="roster" class="tab-btn tab-inactive">Players</button>
-            <button id="tab-calendar" data-tab="calendar" class="tab-btn tab-inactive">Calendar</button>
+            <button id="tab-members" data-tab="members" class="tab-btn tab-active">Members</button>
+            <button id="tab-builder" data-tab="builder" class="tab-btn tab-inactive">Builder</button>
+            <button id="tab-dashboard" data-tab="dashboard" class="tab-btn tab-inactive">Dashboard</button>
         </nav>
     </header>
+
+    <!-- Season / data bar -->
+    <div class="app-bar">
+        <span class="season-label">Season</span>
+        <input type="text" id="season-name" class="season-name" placeholder="シーズン名" />
+        <span id="app-stats" class="stat"></span>
+        <span class="spacer"></span>
+        <button class="btn btn-ghost btn-xs" id="btn-data">
+            <i data-lucide="database" class="w-3.5 h-3.5"></i> データ
+        </button>
+    </div>
 
     <!-- Content -->
     <main class="flex-1 overflow-y-auto p-4">
 
-        <!-- ====== DASHBOARD TAB ====== -->
-        <section id="view-schedule">
-            <div class="filter-bar">
-                <label>Boss</label>
-                <div id="boss-filter-list" class="boss-filter-list"></div>
-                <span class="filter-sep"></span>
-                <label>Team</label>
-                <select id="filter-team"><option value="">All</option></select>
-                <label>Server</label>
-                <select id="filter-server"><option value="">All</option></select>
-                <button class="filter-clear" id="filter-clear">クリア</button>
-            </div>
+        <!-- ====== ① メンバーと希望 ====== -->
+        <section id="view-members">
+            <div id="members-root"></div>
+        </section>
 
-            <div class="dashboard-layout">
-                <aside class="dashboard-sidebar">
-                    <div class="col-header" style="margin-bottom:6px;">プレイヤー</div>
-                    <div id="player-filter-list" class="player-filter-list"></div>
-                </aside>
-                <div id="boss-list" class="boss-grid"></div>
+        <!-- ====== ② 編成編集 ====== -->
+        <section id="view-builder" class="hidden">
+            <div id="builder-bar" class="builder-bar"></div>
+            <div class="builder">
+                <aside id="cand-pane" class="cand-pane"></aside>
+                <div id="party-pane"></div>
             </div>
         </section>
 
-        <!-- ====== CALENDAR TAB ====== -->
-        <section id="view-calendar" class="hidden">
-            <div class="flex items-center justify-between mb-3">
-                <div class="col-header" style="margin-bottom:0;">Calendar</div>
-                <div class="flex gap-1">
-                    <button class="btn cal-mode-btn cal-mode-active" data-cal-mode="week">週</button>
-                    <button class="btn cal-mode-btn" data-cal-mode="month">月</button>
-                </div>
-            </div>
-            <div class="dashboard-layout">
-                <aside class="dashboard-sidebar">
-                    <div class="col-header" style="margin-bottom:6px;">プレイヤー</div>
-                    <div id="player-filter-list-cal" class="player-filter-list"></div>
-                </aside>
-                <div id="calendar" class="calendar"></div>
-            </div>
-        </section>
-
-        <!-- ====== ROSTER TAB ====== -->
-        <section id="view-roster" class="hidden">
-            <div class="max-w-5xl">
-                <div class="bg-slate-900 border border-slate-800 rounded-lg p-3 mb-3">
-                    <div class="col-header" style="margin-bottom:6px;">Add Player</div>
-                    <div class="flex gap-2 flex-wrap">
-                        <input type="text" id="new-player" placeholder="プレイヤー名 (例: bi)" class="flex-1" style="min-width:160px;" />
-                        <input type="text" id="new-player-discord" placeholder="Discord ID (任意)" style="width:200px;" />
-                        <button id="add-player-btn" class="btn btn-primary">
-                            <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> 追加
-                        </button>
-                    </div>
-                </div>
-                <div id="players-list" class="flex flex-col gap-2"></div>
-            </div>
+        <!-- ====== ③ ダッシュボード ====== -->
+        <section id="view-dashboard" class="hidden">
+            <div id="dash-root"></div>
         </section>
 
     </main>
@@ -102,107 +75,47 @@
          MODALS
          ========================================================= -->
 
-    <!-- Edit player modal -->
-    <div id="edit-player-modal" class="modal-bg hidden">
-        <div class="modal" style="max-width: 420px;">
+    <!-- Data (JSON import / export) -->
+    <div id="data-modal" class="modal-bg hidden">
+        <div class="modal" style="max-width: 980px;">
             <div class="modal-head">
-                <div class="modal-title">EDIT PLAYER</div>
-                <button class="btn btn-ghost btn-icon" data-close-player><i data-lucide="x" class="w-4 h-4"></i></button>
-            </div>
-            <div class="modal-body flex flex-col gap-3">
-                <label class="text-xs text-slate-400">プレイヤー名
-                    <input type="text" id="edit-player-name" class="w-full mt-1" />
-                </label>
-                <label class="text-xs text-slate-400">Discord ID
-                    <input type="text" id="edit-player-discord" class="w-full mt-1" placeholder="例: bi#0001 や 12345..." />
-                </label>
-            </div>
-            <div class="modal-foot">
-                <button class="btn" data-close-player>キャンセル</button>
-                <button class="btn btn-primary" id="edit-player-save">保存</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit character modal -->
-    <div id="edit-char-modal" class="modal-bg hidden">
-        <div class="modal" style="max-width: 600px;">
-            <div class="modal-head">
-                <div class="modal-title">EDIT CHARACTER</div>
-                <button class="btn btn-ghost btn-icon" data-close-char><i data-lucide="x" class="w-4 h-4"></i></button>
-            </div>
-            <div class="modal-body flex flex-col gap-3">
-                <div class="grid grid-cols-2 gap-3">
-                    <label class="text-xs text-slate-400">キャラ名
-                        <input type="text" id="edit-char-name" class="w-full mt-1" />
-                    </label>
-                    <label class="text-xs text-slate-400">職業
-                        <select id="edit-char-job" class="w-full mt-1"></select>
-                    </label>
-                    <label class="text-xs text-slate-400">戦闘力 (CP)
-                        <input type="number" id="edit-char-cp" class="w-full mt-1" min="0" />
-                    </label>
-                    <label class="text-xs text-slate-400">HEXA (換算スコア)
-                        <input type="number" id="edit-char-hexa" class="w-full mt-1" min="0" />
-                    </label>
-                    <label class="text-xs text-slate-400">サーバー
-                        <select id="edit-char-server" class="w-full mt-1"></select>
-                    </label>
-                    <label class="text-xs text-slate-400">レベル (任意)
-                        <input type="number" id="edit-char-level" class="w-full mt-1" min="0" max="300" />
-                    </label>
-                </div>
-                <div>
-                    <div class="text-xs text-slate-400 mb-2 flex items-center justify-between">
-                        <span>ボス別 表示/非表示</span>
-                        <span class="text-[10px] text-slate-600">OFFにしたボスではアサイン候補から除外</span>
-                    </div>
-                    <div id="edit-char-optout" class="optout-grid"></div>
-                </div>
-            </div>
-            <div class="modal-foot">
-                <button class="btn" data-close-char>キャンセル</button>
-                <button class="btn btn-primary" id="edit-char-save">保存</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Boss edit modal (manages all PTs of one boss) -->
-    <div id="boss-edit-modal" class="modal-bg hidden">
-        <div class="modal modal-xl">
-            <div class="modal-head">
-                <div class="modal-title flex items-center gap-2" id="boss-edit-title">EDIT BOSS</div>
-                <button class="btn btn-ghost btn-icon" data-close-boss-edit><i data-lucide="x" class="w-4 h-4"></i></button>
+                <div class="modal-title">DATA</div>
+                <button class="btn btn-ghost btn-icon" data-close-data><i data-lucide="x" class="w-4 h-4"></i></button>
             </div>
             <div class="modal-body">
-                <div class="boss-edit-body">
-                    <aside class="boss-edit-pool">
-                        <div class="col-header" style="margin-bottom:6px;">キャラプール</div>
-                        <input type="text" id="boss-edit-pool-search" placeholder="検索" class="w-full mb-2 text-xs" />
-                        <p class="text-[10px] text-slate-600 leading-relaxed mb-2">
-                            <i data-lucide="grip-vertical" class="inline w-3 h-3"></i>
-                            ドラッグでPTへ追加 / PT間で移動
-                        </p>
-                        <div id="boss-edit-pool" class="pool-list"></div>
-                    </aside>
-
-                    <section class="boss-edit-right">
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="col-header" style="margin-bottom:0;">Parties</div>
-                            <button class="btn btn-primary" id="boss-edit-add-party">
-                                <i data-lucide="plus" class="w-3.5 h-3.5"></i> PT追加
+                <p class="hint">
+                    編成データはこのブラウザに自動保存されます。別の端末へ渡す場合や、バックアップにはJSONを使ってください。
+                </p>
+                <div class="io-grid">
+                    <div>
+                        <div class="col-header">書き出し</div>
+                        <div class="row" style="margin-bottom:6px;">
+                            <button class="btn btn-primary" id="btn-download">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i> JSONをダウンロード
+                            </button>
+                            <button class="btn" id="btn-copy-json">
+                                <i data-lucide="copy" class="w-3.5 h-3.5"></i> コピー
                             </button>
                         </div>
-
-                        <div id="boss-edit-parties" class="flex flex-col gap-2"></div>
-                        <div id="boss-edit-empty" class="empty-state hidden">
-                            PTがありません。「PT追加」から作成してください。
+                        <textarea id="json-out" readonly></textarea>
+                    </div>
+                    <div>
+                        <div class="col-header">読み込み</div>
+                        <div class="row" style="margin-bottom:6px;">
+                            <input type="file" id="file-in" accept="application/json" />
+                            <button class="btn" id="btn-load-text">
+                                <i data-lucide="upload" class="w-3.5 h-3.5"></i> 貼り付けたJSONを読み込む
+                            </button>
                         </div>
-                    </section>
+                        <textarea id="json-in" placeholder="ここにJSONを貼り付けて「貼り付けたJSONを読み込む」"></textarea>
+                    </div>
                 </div>
             </div>
             <div class="modal-foot">
-                <button class="btn" data-close-boss-edit>閉じる</button>
+                <button class="btn btn-ghost btn-danger" id="btn-sample">サンプルデータを入れる</button>
+                <button class="btn btn-ghost btn-danger" id="btn-wipe">すべて消す</button>
+                <span class="spacer"></span>
+                <button class="btn" data-close-data>閉じる</button>
             </div>
         </div>
     </div>
