@@ -1397,34 +1397,50 @@
         toast("読み込みました", "ok");
     }
 
-    // 動作を確かめるためのサンプル。ルールを守った形で数人だけ配置しておく。
+    // 動作を確かめるためのサンプル（20人規模）。
+    // 乱数は固定シードなので、何度入れ直しても同じ顔ぶれになる。
+    // 初期PTは R1（PT内のメンバー重複）/ R2（同一ボスの重複）/ R4（サーバー混在）を
+    // 守った形で埋め、補充の練習ができるよう一部に空きと下書きを残している。
     function sampleData() {
         let seed = 20260831;
         const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
         const pick = (a) => a[Math.floor(rnd() * a.length)];
 
         const jobIds = allClasses().map((c) => c.id);
-        const names = ["ゆき", "そら", "かえで", "はると", "みお", "りく", "なぎ", "ひなた", "つむぎ", "こはる"];
-        const servers = (window.SERVERS || [{ id: "kronos" }]).map((s) => s.id);
+        const names = [
+            "ゆき", "そら", "かえで", "はると", "みお", "りく", "なぎ", "ひなた", "つむぎ", "こはる",
+            "あおい", "れん", "いつき", "ののか", "たくみ", "さくら", "ゆうと", "みなも", "けい", "ましろ"
+        ];
+        const serverIds = (window.SERVERS || [{ id: "kronos" }]).map((s) => s.id);
+        const NOTES = ["", "", "", "火力枠", "サポート可", "初回なので教えてほしい", "遅れる日あり"];
 
         const members = names.map((n, i) => {
-            const count = i < 4 ? 3 : (i < 7 ? 2 : 1);
+            // 3キャラ持ちが6人、2キャラが8人、1キャラが6人。実際の分布に近づけている。
+            const count = i < 6 ? 3 : (i < 14 ? 2 : 1);
+            // サーバーはメンバー単位で決める。1人が両サーバーに跨ることは稀なため。
+            const home = i % 4 === 3 ? serverIds[serverIds.length - 1] : serverIds[0];
             const chars = [];
             for (let k = 0; k < count; k++) {
-                const cp = Math.round(3000 + rnd() * 27000) * 10000;
+                // 本命ほど強い。2番目以降は本命の6〜9割程度。
+                const base = Math.round(4000 + rnd() * 26000) * 10000;
+                const cp = k === 0 ? base : Math.round(base * (0.6 + rnd() * 0.3));
                 chars.push({
                     id: "c_" + i + "_" + k,
                     name: n + ["A", "B", "C"][k],
                     jobId: jobIds.length ? pick(jobIds) : "",
-                    server: pick(servers),
+                    server: home,
                     combatPower: cp,
                     hexa: Math.round(cp * (0.22 + rnd() * 0.3)),
-                    note: "", isActive: true, updatedAt: now()
+                    note: pick(NOTES),
+                    isActive: true,
+                    updatedAt: now()
                 });
             }
             return {
-                id: "m_" + i, discordName: n, displayName: "", isActive: true, note: "",
-                colorIdx: i % MEMBER_COLORS.length, characters: chars
+                id: "m_" + i, discordName: n, displayName: "",
+                // 20人のうち2人は休止中。候補から外れることを確かめられる。
+                isActive: !(i === 12 || i === 18),
+                note: "", colorIdx: i % MEMBER_COLORS.length, characters: chars
             };
         });
 
@@ -1442,20 +1458,43 @@
         }));
 
         const season = { id: "s_1", name: "2026年 夏シーズン", isCurrent: true, note: "", createdAt: now() };
-        const parties = [
-            { id: "p_1", seasonId: season.id, bossId: "kaling", difficulty: "HARD", label: "PT1", slots: [], status: "published", memo: "連絡は週ボスチャンネルで", createdAt: now() },
-            { id: "p_2", seasonId: season.id, bossId: "limbo", difficulty: "HARD", label: "PT1", slots: [], status: "published", memo: "", createdAt: now() }
+        const plan = [
+            { bossId: "kaling",    difficulty: "HARD",    label: "PT1", status: "published", memo: "連絡は週ボスチャンネルで", vacancy: 0 },
+            { bossId: "kaling",    difficulty: "HARD",    label: "PT2", status: "published", memo: "", vacancy: 1 },
+            { bossId: "kaling",    difficulty: "NORMAL",  label: "PT1", status: "published", memo: "初参加の人はこちら", vacancy: 1 },
+            { bossId: "kalos",     difficulty: "CHAOS",   label: "PT1", status: "published", memo: "", vacancy: 0 },
+            { bossId: "seren",     difficulty: "EXTREME", label: "PT1", status: "published", memo: "", vacancy: 2 },
+            { bossId: "limbo",     difficulty: "HARD",    label: "PT1", status: "published", memo: "", vacancy: 0 },
+            { bossId: "limbo",     difficulty: "NORMAL",  label: "PT1", status: "published", memo: "", vacancy: 1 },
+            { bossId: "adversary", difficulty: "HARD",    label: "PT1", status: "published", memo: "", vacancy: 0 },
+            { bossId: "baldrix",   difficulty: "NORMAL",  label: "PT1", status: "published", memo: "", vacancy: 1 },
+            { bossId: "kyousei",   difficulty: "NORMAL",  label: "PT1", status: "draft",     memo: "人が集まったら公開する", vacancy: 1 },
+            { bossId: "jupiter",   difficulty: "HARD",    label: "PT1", status: "draft",     memo: "", vacancy: 2 }
         ];
-        parties.forEach((party) => {
+
+        const parties = plan.map((p, i) => ({
+            id: "p_" + (i + 1), seasonId: season.id, bossId: p.bossId, difficulty: p.difficulty,
+            label: p.label, slots: [], status: p.status, memo: p.memo, createdAt: now()
+        }));
+
+        const pool = members.filter((m) => m.isActive).flatMap((m) => m.characters.map((c) => ({ c, m })));
+        parties.forEach((party, i) => {
             const b = bossById(party.bossId);
-            const cands = members.flatMap((m) => m.characters.map((c) => ({ c, m })))
-                .filter(({ c }) => wishes.some((w) => w.characterId === c.id && w.bossId === party.bossId && w.difficulty === party.difficulty))
+            const room = Math.max(1, b.maxMembers - (plan[i].vacancy || 0));
+            const cands = pool
+                .filter(({ c }) => wishes.some((w) =>
+                    w.characterId === c.id && w.bossId === party.bossId && w.difficulty === party.difficulty))
                 .sort((a, z) => z.c.combatPower - a.c.combatPower);
-            const used = new Set();
+
+            const usedMembers = new Set();
+            let server = null;
             for (const { c, m } of cands) {
-                if (party.slots.length >= b.maxMembers - 1) break;
-                if (used.has(m.id)) continue;
-                used.add(m.id);
+                if (party.slots.length >= room) break;
+                if (usedMembers.has(m.id)) continue;                       // R1
+                if (parties.some((p) => p !== party && p.bossId === party.bossId && p.slots.includes(c.id))) continue;  // R2
+                if (server && c.server !== server) continue;               // R4
+                server = server || c.server;
+                usedMembers.add(m.id);
                 party.slots.push(c.id);
             }
         });
