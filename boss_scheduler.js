@@ -108,7 +108,9 @@
             const oku = n / 100000000;
             return (oku >= 10 ? oku.toFixed(1) : oku.toFixed(2)).replace(/\.?0+$/, "") + "億";
         }
-        if (n >= 10000) return Math.round(n / 10000).toLocaleString() + "万";
+        // 万に丸めるのは100万以上だけ。HEXAは10万前後の値なので、
+        // 1万単位に丸めると 102,773 と 98,861 がどちらも「10万」になってしまう。
+        if (n >= 1000000) return Math.round(n / 10000).toLocaleString() + "万";
         return Math.round(n).toLocaleString();
     }
     function parseCp(str) {
@@ -1378,59 +1380,106 @@
         toast("読み込みました", "ok");
     }
 
-    // 動作を確かめるためのサンプル（20人規模・全ボスに3〜5PT）。
-    // 乱数は固定シードなので、何度入れ直しても同じ顔ぶれになる。
-    // 初期PTは R1（PT内のメンバー重複）/ R2（同一ボスの重複）を守った形で埋め、
-    // 補充の練習ができるよう一部に空きと下書きを残している。
+    // テストデータ: コミュニティのスプレッドシート（メイン表＋2キャラ目の表）の転記。
+    //   cp   … シートの「CP(ファミ有)」。m（百万）単位で書く
+    //   hexa … シートの「HEXA」の数値そのまま
+    //   w    … 参加希望。"bossId:難易度" を空白区切り（難易度は E/N/H/C/X）
+    // シートで「ソロ」と書かれていたボスは希望に入れず、備考に残している。
+    // PTはシートに無いため、この希望からルールを守って自動で組む。
+    const ROSTER = [
+        { n: "ogatas", c: [
+            { job: "CBM", id: "", cp: 350, hexa: 82659, w: "kalos:C kaling:N seren:X adversary:N adversary:H kyousei:N limbo:N" },
+            { job: "BaM / BM", id: "", cp: 140, hexa: 56974, note: "シートのCP表記は 150m?/140m", w: "kalos:N kaling:E adversary:N" }
+        ] },
+        { n: "なるちゃ",   c: [{ job: "カーリー", id: "khali", w: "" }] },
+        { n: "鳳凰",       c: [{ job: "シア", id: "sia", w: "" }] },
+        { n: "ちゃちゃまる", c: [{ job: "シャドー", id: "shadower", w: "" }] },
+        { n: "いんきゃ",   c: [
+            { job: "DK", id: "darkknight", note: "N凶星はソロ", w: "kalos:C kaling:N seren:X darknight:X adversary:H limbo:H baldrix:N" }
+        ] },
+        { n: "lalahsun",   c: [
+            { job: "ララ", id: "lara", cp: 424, hexa: 93468, note: "N凶星はソロ", w: "kalos:C kaling:N seren:X darknight:X adversary:H limbo:N" }
+        ] },
+        { n: "もげぇ",     c: [
+            { job: "レン", id: "ren", cp: 487, hexa: 102773, note: "N凶星はソロ", w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N baldrix:N baldrix:H" },
+            { job: "エヴァン", id: "evan", w: "seren:X darknight:X limbo:N" }
+        ] },
+        { n: "ぐるこ",     c: [
+            { job: "レン", id: "ren", w: "kalos:C kalos:X kaling:N seren:X darknight:X adversary:H limbo:N" }
+        ] },
+        { n: "サザメ",     c: [
+            { job: "リン", id: "lynn", cp: 510, hexa: 102369, note: "N凶星はソロ", w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N baldrix:N baldrix:H" }
+        ] },
+        { n: "えりあす",   c: [
+            { job: "レン/エリル", id: "ren", cp: 330, hexa: 87222, w: "kalos:C kaling:N seren:X darknight:X adversary:H kyousei:N limbo:N" }
+        ] },
+        { n: "せれん",     c: [
+            { job: "エリル", id: "erellight", note: "CPはリープ後記載", w: "kalos:C kaling:N seren:X darknight:X adversary:H kyousei:N limbo:N baldrix:N" },
+            { job: "イリウム", id: "illium", cp: 190, w: "" }
+        ] },
+        { n: "ぜろく",     c: [
+            { job: "カイザー", id: "kaiser", cp: 480, hexa: 102843, w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N baldrix:N baldrix:H" },
+            { job: "リン", id: "lynn", cp: 234, w: "kalos:C seren:X adversary:N" }
+        ] },
+        { n: "ぎすば",     c: [{ job: "リン", id: "lynn", w: "" }] },
+        { n: "れもん",     c: [{ job: "ソルマス", id: "dawnwarrior", w: "" }] },
+        { n: "やみ",       c: [{ job: "レン", id: "ren", w: "" }] },
+        { n: "るー",       c: [
+            { job: "カンナ", id: "kanna", cp: 570, w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N baldrix:N baldrix:H" },
+            { job: "ミハエル", id: "mihile", cp: 309, w: "kalos:C adversary:H limbo:N" }
+        ] },
+        { n: "key",        c: [
+            { job: "聖魔(カンナ)", id: "kanna", w: "kalos:C kalos:X kaling:N seren:X darknight:X adversary:H limbo:N" },
+            { job: "カンナ", id: "kanna", cp: 284, w: "kalos:C adversary:H" }
+        ] },
+        { n: "ビジョン",   c: [
+            { job: "レン", id: "ren", cp: 467, hexa: 103873, note: "N凶星はソロ", w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N limbo:H baldrix:N baldrix:H jupiter:N" },
+            { job: "ハヤト", id: "hayato", cp: 190, w: "kalos:N kalos:C kaling:E kaling:N seren:X" }
+        ] },
+        { n: "いれあ",     c: [
+            { job: "シア", id: "sia", cp: 457, hexa: 98861, note: "N凶星はソロ", w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N limbo:H baldrix:N" }
+        ] },
+        { n: "るい",       c: [
+            { job: "レン", id: "ren", cp: 330, hexa: 86670, note: "N対敵者はソロ", w: "kalos:C kalos:X kaling:N kaling:H seren:X adversary:H kyousei:N limbo:N limbo:H" },
+            { job: "カンナ", id: "kanna", cp: 105, w: "adversary:N" }
+        ] },
+        { n: "めるぐあむ", c: [{ job: "ゼノン", id: "xenon", w: "" }] },
+        { n: "butterfly",  c: [{ job: "バトルメイジ", id: "battlemage", w: "" }] },
+        { n: "MELZZ",      c: [{ job: "ゼロ", id: "zero", w: "kalos:C kaling:N seren:X adversary:H kyousei:N limbo:N" }] },
+        { n: "ゆぴお",     c: [{ job: "リン", id: "lynn", w: "kalos:C kaling:N seren:X" }] },
+        { n: "ぱると",     c: [{ job: "AB", id: "angelicbuster", w: "adversary:N" }] }
+    ];
+
     function sampleData() {
         let seed = 20260831;
         const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
         const pick = (a) => a[Math.floor(rnd() * a.length)];
 
-        const jobIds = allClasses().map((c) => c.id);
-        const names = [
-            "ゆき", "そら", "かえで", "はると", "みお", "りく", "なぎ", "ひなた", "つむぎ", "こはる",
-            "あおい", "れん", "いつき", "ののか", "たくみ", "さくら", "ゆうと", "みなも", "けい", "ましろ"
-        ];
-        const NOTES = ["", "", "", "火力枠", "サポート可", "初回なので教えてほしい", "遅れる日あり"];
+        const DIFF_CODE = { E: "EASY", N: "NORMAL", H: "HARD", C: "CHAOS", X: "EXTREME" };
 
-        const members = names.map((n, i) => {
-            // 3キャラ持ちが8人、2キャラが9人、1キャラが3人。実際の分布に近づけている。
-            const count = i < 8 ? 3 : (i < 17 ? 2 : 1);
-            const chars = [];
-            for (let k = 0; k < count; k++) {
-                // 本命ほど強い。2番目以降は本命の6〜9割程度。
-                const base = Math.round(4000 + rnd() * 26000) * 10000;
-                const cp = k === 0 ? base : Math.round(base * (0.6 + rnd() * 0.3));
-                chars.push({
-                    id: "c_" + i + "_" + k,
-                    name: n + ["A", "B", "C"][k],
-                    jobId: jobIds.length ? pick(jobIds) : "",
-                    combatPower: cp,
-                    hexa: Math.round(cp * (0.22 + rnd() * 0.3)),
-                    note: pick(NOTES),
-                    isActive: true,
-                    updatedAt: now()
-                });
-            }
-            return {
-                id: "m_" + i, discordName: n, displayName: "",
-                // 20人のうち2人は休止中。候補から外れることを確かめられる。
-                isActive: !(i === 12 || i === 18),
-                note: "", colorIdx: i % MEMBER_COLORS.length, characters: chars
-            };
-        });
+        const members = ROSTER.map((r, i) => ({
+            id: "m_" + i, discordName: r.n, displayName: "", isActive: true, note: "",
+            colorIdx: i % MEMBER_COLORS.length,
+            characters: r.c.map((c, k) => ({
+                id: "c_" + i + "_" + k,
+                name: c.job,
+                jobId: c.id || "",
+                combatPower: Math.round((c.cp || 0) * 1e6),
+                hexa: c.hexa || 0,
+                note: c.note || "",
+                isActive: true,
+                updatedAt: now()
+            }))
+        }));
 
         const wishes = [];
-        members.forEach((m) => m.characters.forEach((c) => {
-            bossList().forEach((b) => {
-                b.difficulties.forEach((d) => {
-                    const strong = c.combatPower > 150000000;
-                    const hardish = (d === "EXTREME" || d === "HARD" || d === "CHAOS");
-                    const chance = hardish ? (strong ? 0.62 : 0.34) : 0.55;
-                    if (rnd() > chance) return;
-                    wishes.push({ characterId: c.id, bossId: b.id, difficulty: d, note: "", updatedBy: m.id, updatedAt: now() });
-                });
+        members.forEach((m, i) => m.characters.forEach((c, k) => {
+            (ROSTER[i].c[k].w || "").split(/\s+/).filter(Boolean).forEach((code) => {
+                const [bossId, short] = code.split(":");
+                const difficulty = DIFF_CODE[short];
+                const b = bossList().find((x) => x.id === bossId);
+                if (!b || !b.difficulties.includes(difficulty)) return;   // マスタに無い組み合わせは捨てる
+                wishes.push({ characterId: c.id, bossId, difficulty, note: "", updatedBy: m.id, updatedAt: now() });
             });
         }));
 
@@ -1610,14 +1659,14 @@
             r.readAsText(f);
         });
         $("#btn-sample").addEventListener("click", async () => {
-            if (!await confirmDialog("今の内容を捨てて、サンプルデータを入れます。よろしいですか？", "入れる")) return;
+            if (!await confirmDialog("今の内容を捨てて、テストデータを入れます。よろしいですか？", "入れる")) return;
             const s = sampleData();
             state.seasons = s.seasons; state.members = s.members;
             state.wishes = s.wishes; state.parties = s.parties;
             state.ui.editorMemberId = null; state.ui.viewerMemberId = s.members[0].id;
             normalize(); saveState(); render();
             $("#json-out").value = exportJson();
-            toast("サンプルデータを入れました", "ok");
+            toast("テストデータを入れました", "ok");
         });
         $("#btn-wipe").addEventListener("click", async () => {
             if (!await confirmDialog("メンバー・希望・編成をすべて削除します。元に戻せません。よろしいですか？")) return;
