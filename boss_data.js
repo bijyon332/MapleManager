@@ -1,5 +1,5 @@
 /* =========================================================
- *  Boss & Server definitions
+ *  Boss definitions
  *  週ボスPT編成ツールのマスタ。コード内に散らさず、ここだけを
  *  差し替えればボス追加・難易度追加に対応できるようにしている。
  * ========================================================= */
@@ -71,19 +71,12 @@ const DIFFICULTY_BADGE_CLASS = {
 // 表示上の一般的な並び（ボス内の相対順位は BOSS_DATA.difficulties が優先）
 const DIFFICULTY_ORDER = ["EASY", "NORMAL", "HARD", "CHAOS", "EXTREME"];
 
-// ---- Servers (GMS Heroic worlds) ---------------------------
-const SERVERS = [
-    { id: "kronos",      name: "Kronos" },
-    { id: "challengers", name: "Challengers" }
-];
-
 if (typeof window !== "undefined") {
     window.BOSS_DATA = BOSS_DATA;
     window.DIFFICULTY_LABEL = DIFFICULTY_LABEL;
     window.DIFFICULTY_LABEL_JA = DIFFICULTY_LABEL_JA;
     window.DIFFICULTY_BADGE_CLASS = DIFFICULTY_BADGE_CLASS;
     window.DIFFICULTY_ORDER = DIFFICULTY_ORDER;
-    window.SERVERS = SERVERS;
     window.BOSS_IMAGE_BASE = BOSS_IMAGE_BASE;
     window.bossImageUrl = bossImageUrl;
 }

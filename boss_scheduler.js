@@ -206,7 +206,6 @@
                 if (!c.id) c.id = uid("c");
                 if (c.combatPower == null) c.combatPower = 0;
                 if (c.hexa == null) c.hexa = 0;
-                if (!c.server) c.server = ((window.SERVERS || [{}])[0] || {}).id || "kronos";
                 if (c.isActive == null) c.isActive = true;
                 if (!c.updatedAt) c.updatedAt = now();
             });
@@ -262,7 +261,6 @@
         w.characterId === characterId && w.bossId === bossId && w.difficulty === difficulty);
     const displayName = (m) => (m ? (m.displayName || m.discordName) : "?");
     const memberColor = (m) => (m ? MEMBER_COLORS[(m.colorIdx || 0) % MEMBER_COLORS.length] : "#475569");
-    const serverById = (id) => (window.SERVERS || []).find((s) => s.id === id) || null;
 
     const diffLabel   = (d) => (window.DIFFICULTY_LABEL || {})[d] || d || "";
     const diffLabelJa = (d) => (window.DIFFICULTY_LABEL_JA || {})[d] || d || "";
@@ -301,14 +299,6 @@
             p.id !== party.id && p.bossId === party.bossId && p.slots.includes(charId));
         if (conflict) {
             return { ok: false, reason: bossById(conflict.bossId).name + " " + diffLabelJa(conflict.difficulty) + " に配置済みです" };
-        }
-        // R4: サーバーが違うキャラは同じPTに入れない（ゲーム側で組めないため）
-        for (const sid of party.slots) {
-            const other = charById(sid);
-            if (other && other.server && ch.server && other.server !== ch.server) {
-                const a = serverById(ch.server), z = serverById(other.server);
-                return { ok: false, reason: "サーバーが違います（" + (a ? a.name : ch.server) + " / " + (z ? z.name : other.server) + "）" };
-            }
         }
         return { ok: true };
     }
@@ -393,13 +383,6 @@
             sel.appendChild(grp);
         });
         sel.value = value || "";
-        return sel;
-    }
-
-    function serverSelect(value, onChange) {
-        const sel = el("select", { onchange: onChange });
-        (window.SERVERS || []).forEach((s) =>
-            sel.appendChild(el("option", { value: s.id, selected: s.id === value, text: s.name })));
         return sel;
     }
 
@@ -505,7 +488,6 @@
                 class: "btn btn-primary", onclick: () => {
                     const c = {
                         id: uid("c"), name: "新しいキャラ", jobId: "",
-                        server: ((window.SERVERS || [{}])[0] || {}).id || "kronos",
                         combatPower: 0, hexa: 0, note: "", isActive: true, updatedAt: now()
                     };
                     me.characters.push(c);
@@ -624,10 +606,8 @@
         ));
 
         card.appendChild(el("div", { class: "cc-fields" },
-            el("label", { class: "field" }, "職業",
+            el("label", { class: "field wide" }, "職業",
                 jobSelect(c.jobId, (e) => { c.jobId = e.target.value; touch(); saveState(); render(); })),
-            el("label", { class: "field" }, "サーバー",
-                serverSelect(c.server, (e) => { c.server = e.target.value; saveState(); render(); })),
             el("label", { class: "field" }, "戦闘力",
                 el("input", {
                     type: "text", value: c.combatPower ? formatCp(c.combatPower) : "", placeholder: "例: 1.2億",
@@ -1397,10 +1377,10 @@
         toast("読み込みました", "ok");
     }
 
-    // 動作を確かめるためのサンプル（20人規模）。
+    // 動作を確かめるためのサンプル（20人規模・全ボスに3〜5PT）。
     // 乱数は固定シードなので、何度入れ直しても同じ顔ぶれになる。
-    // 初期PTは R1（PT内のメンバー重複）/ R2（同一ボスの重複）/ R4（サーバー混在）を
-    // 守った形で埋め、補充の練習ができるよう一部に空きと下書きを残している。
+    // 初期PTは R1（PT内のメンバー重複）/ R2（同一ボスの重複）を守った形で埋め、
+    // 補充の練習ができるよう一部に空きと下書きを残している。
     function sampleData() {
         let seed = 20260831;
         const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
@@ -1411,14 +1391,11 @@
             "ゆき", "そら", "かえで", "はると", "みお", "りく", "なぎ", "ひなた", "つむぎ", "こはる",
             "あおい", "れん", "いつき", "ののか", "たくみ", "さくら", "ゆうと", "みなも", "けい", "ましろ"
         ];
-        const serverIds = (window.SERVERS || [{ id: "kronos" }]).map((s) => s.id);
         const NOTES = ["", "", "", "火力枠", "サポート可", "初回なので教えてほしい", "遅れる日あり"];
 
         const members = names.map((n, i) => {
-            // 3キャラ持ちが6人、2キャラが8人、1キャラが6人。実際の分布に近づけている。
-            const count = i < 6 ? 3 : (i < 14 ? 2 : 1);
-            // サーバーはメンバー単位で決める。1人が両サーバーに跨ることは稀なため。
-            const home = i % 4 === 3 ? serverIds[serverIds.length - 1] : serverIds[0];
+            // 3キャラ持ちが8人、2キャラが9人、1キャラが3人。実際の分布に近づけている。
+            const count = i < 8 ? 3 : (i < 17 ? 2 : 1);
             const chars = [];
             for (let k = 0; k < count; k++) {
                 // 本命ほど強い。2番目以降は本命の6〜9割程度。
@@ -1428,7 +1405,6 @@
                     id: "c_" + i + "_" + k,
                     name: n + ["A", "B", "C"][k],
                     jobId: jobIds.length ? pick(jobIds) : "",
-                    server: home,
                     combatPower: cp,
                     hexa: Math.round(cp * (0.22 + rnd() * 0.3)),
                     note: pick(NOTES),
@@ -1450,7 +1426,7 @@
                 b.difficulties.forEach((d) => {
                     const strong = c.combatPower > 150000000;
                     const hardish = (d === "EXTREME" || d === "HARD" || d === "CHAOS");
-                    const chance = hardish ? (strong ? 0.5 : 0.18) : 0.42;
+                    const chance = hardish ? (strong ? 0.62 : 0.34) : 0.55;
                     if (rnd() > chance) return;
                     wishes.push({ characterId: c.id, bossId: b.id, difficulty: d, note: "", updatedBy: m.id, updatedAt: now() });
                 });
@@ -1458,44 +1434,67 @@
         }));
 
         const season = { id: "s_1", name: "2026年 夏シーズン", isCurrent: true, note: "", createdAt: now() };
-        const plan = [
-            { bossId: "kaling",    difficulty: "HARD",    label: "PT1", status: "published", memo: "連絡は週ボスチャンネルで", vacancy: 0 },
-            { bossId: "kaling",    difficulty: "HARD",    label: "PT2", status: "published", memo: "", vacancy: 1 },
-            { bossId: "kaling",    difficulty: "NORMAL",  label: "PT1", status: "published", memo: "初参加の人はこちら", vacancy: 1 },
-            { bossId: "kalos",     difficulty: "CHAOS",   label: "PT1", status: "published", memo: "", vacancy: 0 },
-            { bossId: "seren",     difficulty: "EXTREME", label: "PT1", status: "published", memo: "", vacancy: 2 },
-            { bossId: "limbo",     difficulty: "HARD",    label: "PT1", status: "published", memo: "", vacancy: 0 },
-            { bossId: "limbo",     difficulty: "NORMAL",  label: "PT1", status: "published", memo: "", vacancy: 1 },
-            { bossId: "adversary", difficulty: "HARD",    label: "PT1", status: "published", memo: "", vacancy: 0 },
-            { bossId: "baldrix",   difficulty: "NORMAL",  label: "PT1", status: "published", memo: "", vacancy: 1 },
-            { bossId: "kyousei",   difficulty: "NORMAL",  label: "PT1", status: "draft",     memo: "人が集まったら公開する", vacancy: 1 },
-            { bossId: "jupiter",   difficulty: "HARD",    label: "PT1", status: "draft",     memo: "", vacancy: 2 }
-        ];
-
-        const parties = plan.map((p, i) => ({
-            id: "p_" + (i + 1), seasonId: season.id, bossId: p.bossId, difficulty: p.difficulty,
-            label: p.label, slots: [], status: p.status, memo: p.memo, createdAt: now()
-        }));
-
+        const MEMOS = ["", "", "", "連絡は週ボスチャンネルで", "初参加の人はこちら", "開始5分前に集合", "人が集まったら公開する"];
         const pool = members.filter((m) => m.isActive).flatMap((m) => m.characters.map((c) => ({ c, m })));
-        parties.forEach((party, i) => {
-            const b = bossById(party.bossId);
-            const room = Math.max(1, b.maxMembers - (plan[i].vacancy || 0));
-            const cands = pool
-                .filter(({ c }) => wishes.some((w) =>
-                    w.characterId === c.id && w.bossId === party.bossId && w.difficulty === party.difficulty))
-                .sort((a, z) => z.c.combatPower - a.c.combatPower);
+        const parties = [];
+        let pid = 0;
 
-            const usedMembers = new Set();
-            let server = null;
-            for (const { c, m } of cands) {
-                if (party.slots.length >= room) break;
-                if (usedMembers.has(m.id)) continue;                       // R1
-                if (parties.some((p) => p !== party && p.bossId === party.bossId && p.slots.includes(c.id))) continue;  // R2
-                if (server && c.server !== server) continue;               // R4
-                server = server || c.server;
-                usedMembers.add(m.id);
-                party.slots.push(c.id);
+        bossList().forEach((b) => {
+            const ptCount = 3 + Math.floor(rnd() * 3);      // ボスごとに3〜5PT
+            const taken = new Set();                        // R2: このボスで配置済みのキャラ
+            const labelNo = {};                             // 難易度ごとの連番
+
+            // 希望している人が多い難易度から順にPTを立てる。
+            // 難しい方から組む運用に合わせ、同数なら難しい方を先に取る。
+            const available = (d) => pool.filter(({ c }) =>
+                !taken.has(c.id) &&
+                wishes.some((w) => w.characterId === c.id && w.bossId === b.id && w.difficulty === d));
+
+            // 難しい方から1PTずつ立て、残りは希望者が多い難易度に足していく。
+            // 「難しい難易度から先に組む」運用をデータ側でも再現している。
+            const order = b.difficulties.slice().reverse();
+            for (let k = 0; k < ptCount; k++) {
+                let best = null, bestN = -1;
+                if (k < order.length) {
+                    best = order[k];
+                    bestN = available(best).length;
+                } else {
+                    b.difficulties.forEach((d, di) => {
+                        const n = available(d).length;
+                        if (n > bestN || (n === bestN && di > b.difficulties.indexOf(best))) { best = d; bestN = n; }
+                    });
+                }
+                // 1〜2人しか入らないPTは作らない。空きだらけのPTが並ぶと状況が読めなくなる。
+                if (!best || bestN < Math.ceil(b.maxMembers / 2)) {
+                    if (k < order.length) continue;         // その難易度は飛ばして次へ
+                    break;
+                }
+
+                labelNo[best] = (labelNo[best] || 0) + 1;
+                // 3PTに1つは空きを残す。空き枠と未配置の突き合わせを試せるように。
+                const vacancy = k % 3 === 2 ? (b.maxMembers > 3 ? 1 + Math.floor(rnd() * 2) : 1) : 0;
+                const room = Math.max(1, b.maxMembers - vacancy);
+
+                const party = {
+                    id: "p_" + (++pid), seasonId: season.id, bossId: b.id, difficulty: best,
+                    label: "PT" + labelNo[best], slots: [],
+                    // 各ボスの1つ目は必ず公開。全部下書きだとダッシュボードから消えてしまう。
+                    status: k > 0 && rnd() < 0.25 ? "draft" : "published",
+                    memo: pick(MEMOS), createdAt: now()
+                };
+
+                const usedMembers = new Set();              // R1: PT内は1メンバー1キャラ
+                available(best)
+                    .sort((a, z) => z.c.combatPower - a.c.combatPower)
+                    .forEach(({ c, m }) => {
+                        if (party.slots.length >= room) return;
+                        if (usedMembers.has(m.id)) return;
+                        usedMembers.add(m.id);
+                        taken.add(c.id);
+                        party.slots.push(c.id);
+                    });
+
+                parties.push(party);
             }
         });
 

@@ -34,7 +34,6 @@ body {
 .badge-hard    { background-color: #991b1b; color: #fecaca; border: 1px solid #f87171; }
 .badge-chaos   { background-color: #282206; color: #facc15; border: 1px solid #ca8a04; }
 .badge-extreme { background-color: #450a0a; color: #f87171; border: 1px solid #ef4444; }
-.badge-server  { background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; text-transform: none; }
 .badge-soft    { background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; text-transform: none; }
 .badge-warn    { background-color: #3b0d22; color: #fda4af; border: 1px solid #9f1239; text-transform: none; }
 .badge-ok      { background-color: #052e1b; color: #6ee7b7; border: 1px solid #047857; text-transform: none; }
@@ -232,7 +231,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0; overflow: hidden;
 }
-.char-icon img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.char-icon img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
 
 /* --- キャラ切り替えタブ --- */
 .char-tabs { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
