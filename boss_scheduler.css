@@ -440,7 +440,8 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .hero-empty { font-size: 11.5px; color: #64748b; }
 
 /* Boss card (編成全体) */
-.boss-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; align-items: start; }
+/* ボスカードは縦に積む。1ボス=1行なので、PT枠を横に広く使える。 */
+.boss-grid { display: flex; flex-direction: column; gap: 10px; }
 .boss-card {
     background: color-mix(in srgb, var(--boss-color, #6366f1) 7%, #0f172a);
     border: 1px solid color-mix(in srgb, var(--boss-color, #6366f1) 24%, #1e293b);
@@ -461,7 +462,10 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
     text-align: center; font-size: 11px; color: #475569; font-style: italic;
     padding: 8px; border: 1px dashed #1e293b; border-radius: 6px;
 }
+/* PTカードは横並び。列数は定員で決める:
+   6人PTは1行に1つ（メンバー6行ぶんの高さを取るため）、3人PTは1行に2つ。 */
 .parties-strip { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; align-items: start; }
+.parties-strip.cols-1 { grid-template-columns: minmax(0, 1fr); }
 @media (max-width: 560px) { .parties-strip { grid-template-columns: 1fr; } }
 .party-mini {
     min-width: 0; background: #020617; border: 1px solid #1e293b;
