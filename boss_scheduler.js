@@ -1142,8 +1142,8 @@
         }
 
         const myIds = viewer ? viewer.characters.map((c) => c.id) : [];
-        // 6人ボスは1行に1PT、3人ボスは1行に2PT
-        const strip = el("div", { class: "parties-strip" + (b.maxMembers > 3 ? " cols-1" : "") });
+        // 6人ボスはPTを1段、3人ボスは2段に並べる
+        const strip = el("div", { class: "parties-strip" + (b.maxMembers <= 3 ? " rows-2" : "") });
         parties.forEach((p, idx) => {
             const wrap = el("div", { class: "party-mini" });
             const total = p.slots.reduce((s, id) => s + ((charById(id) || {}).combatPower || 0), 0);
