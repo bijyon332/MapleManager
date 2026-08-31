@@ -75,6 +75,24 @@
          MODALS
          ========================================================= -->
 
+    <!-- Confirm dialog.
+         window.confirm() is suppressed when the app runs inside the host's
+         iframe, so destructive actions ask here instead. -->
+    <div id="confirm-modal" class="modal-bg hidden">
+        <div class="modal" style="max-width: 380px;">
+            <div class="modal-head">
+                <div class="modal-title" id="confirm-title">確認</div>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-text" style="font-size:12.5px; line-height:1.7; margin:0;"></p>
+            </div>
+            <div class="modal-foot">
+                <button class="btn" id="confirm-cancel">キャンセル</button>
+                <button class="btn btn-primary" id="confirm-ok">OK</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Data (JSON import / export) -->
     <div id="data-modal" class="modal-bg hidden">
         <div class="modal" style="max-width: 980px;">

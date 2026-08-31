@@ -57,6 +57,41 @@
     }
     const icon = (name, cls) => el("i", { "data-lucide": name, class: cls || "w-3.5 h-3.5" });
 
+    // ホストのiframe内では window.confirm が抑止されて常に false を返すため、
+    // 取り返しのつかない操作は自前のモーダルで確認する。
+    function confirmDialog(message, okLabel) {
+        return new Promise((resolve) => {
+            const bg = $("#confirm-modal");
+            const ok = $("#confirm-ok");
+            const cancel = $("#confirm-cancel");
+            $("#confirm-text").textContent = message;
+            ok.textContent = okLabel || "削除する";
+
+            const close = (v) => {
+                bg.classList.add("hidden");
+                ok.removeEventListener("click", onOk);
+                cancel.removeEventListener("click", onCancel);
+                bg.removeEventListener("click", onBackdrop);
+                document.removeEventListener("keydown", onKey);
+                resolve(v);
+            };
+            const onOk = () => close(true);
+            const onCancel = () => close(false);
+            const onBackdrop = (e) => { if (e.target === bg) close(false); };
+            const onKey = (e) => {
+                if (e.key === "Escape") close(false);
+                else if (e.key === "Enter") close(true);
+            };
+
+            ok.addEventListener("click", onOk);
+            cancel.addEventListener("click", onCancel);
+            bg.addEventListener("click", onBackdrop);
+            document.addEventListener("keydown", onKey);
+            bg.classList.remove("hidden");
+            ok.focus();
+        });
+    }
+
     let toastTimer = 0;
     function toast(msg, kind) {
         $$(".toast").forEach((t) => t.remove());
@@ -380,11 +415,20 @@
     function memberListView() {
         const wrap = el("div", { class: "fade-in" });
         const panel = el("section", { class: "panel" });
+
+        // 追加はインライン入力。ダイアログはiframe内で出せないため使わない。
+        const nameInput = el("input", {
+            type: "text", id: "new-member", placeholder: "Discord名", style: "width:160px",
+            onkeydown: (e) => { if (e.key === "Enter") addMember(e.target.value); }
+        });
         panel.appendChild(el("div", { class: "panel-head" },
             el("h2", { text: "メンバー" }),
             el("span", { class: "sub", text: "名前を押すと、そのメンバーのキャラクターと参加希望を編集できます" }),
             el("span", { class: "spacer" }),
-            el("button", { class: "btn btn-primary", onclick: addMember }, icon("user-plus"), "メンバーを追加")
+            nameInput,
+            el("button", {
+                class: "btn btn-primary", onclick: () => addMember(nameInput.value)
+            }, icon("user-plus"), "メンバーを追加")
         ));
 
         const body = el("div", { class: "panel-body" });
@@ -422,11 +466,9 @@
         return wrap;
     }
 
-    function addMember() {
-        const name = prompt("Discord名を入力してください");
-        if (!name) return;
-        const v = name.trim();
-        if (!v) return;
+    function addMember(name) {
+        const v = (name || "").trim();
+        if (!v) { toast("Discord名を入力してください", "warn"); return; }
         if (state.members.some((m) => m.discordName === v)) { toast("同じDiscord名が既にあります", "warn"); return; }
         const m = {
             id: uid("m"), discordName: v, displayName: "", isActive: true, note: "",
@@ -499,8 +541,8 @@
                 }), "活動中"),
             el("span", { class: "spacer" }),
             el("button", {
-                class: "btn btn-ghost btn-danger", onclick: () => {
-                    if (!confirm(displayName(me) + " と、そのキャラ・希望・PT配置をすべて削除します。よろしいですか？")) return;
+                class: "btn btn-ghost btn-danger", onclick: async () => {
+                    if (!await confirmDialog(displayName(me) + " と、そのキャラ・希望・PT配置をすべて削除します。よろしいですか？")) return;
                     const ids = me.characters.map((c) => c.id);
                     state.wishes = state.wishes.filter((w) => !ids.includes(w.characterId));
                     state.parties.forEach((p) => { p.slots = p.slots.filter((id) => !ids.includes(id)); });
@@ -571,8 +613,8 @@
                 }), "使用中"),
             el("button", {
                 class: "btn btn-ghost btn-danger btn-icon", title: "このキャラを削除",
-                onclick: () => {
-                    if (!confirm(c.name + " を削除します。希望とPT配置も消えます。")) return;
+                onclick: async () => {
+                    if (!await confirmDialog(c.name + " を削除します。希望とPT配置も消えます。")) return;
                     state.wishes = state.wishes.filter((w) => w.characterId !== c.id);
                     state.parties.forEach((p) => { p.slots = p.slots.filter((id) => id !== c.id); });
                     member.characters = member.characters.filter((x) => x.id !== c.id);
@@ -948,8 +990,8 @@
             }),
             el("button", {
                 class: "btn btn-ghost btn-danger btn-icon", title: "このPTを削除",
-                onclick: () => {
-                    if (p.slots.length && !confirm((p.label || "このPT") + " を削除します。よろしいですか？")) return;
+                onclick: async () => {
+                    if (p.slots.length && !await confirmDialog((p.label || "このPT") + " を削除します。よろしいですか？")) return;
                     state.parties = state.parties.filter((x) => x.id !== p.id);
                     saveState(); render();
                 }
@@ -1528,8 +1570,8 @@
             r.onload = () => { loadJson(String(r.result)); $("#json-out").value = exportJson(); };
             r.readAsText(f);
         });
-        $("#btn-sample").addEventListener("click", () => {
-            if (!confirm("今の内容を捨てて、サンプルデータを入れます。よろしいですか？")) return;
+        $("#btn-sample").addEventListener("click", async () => {
+            if (!await confirmDialog("今の内容を捨てて、サンプルデータを入れます。よろしいですか？", "入れる")) return;
             const s = sampleData();
             state.seasons = s.seasons; state.members = s.members;
             state.wishes = s.wishes; state.parties = s.parties;
@@ -1538,8 +1580,8 @@
             $("#json-out").value = exportJson();
             toast("サンプルデータを入れました", "ok");
         });
-        $("#btn-wipe").addEventListener("click", () => {
-            if (!confirm("メンバー・希望・編成をすべて削除します。元に戻せません。よろしいですか？")) return;
+        $("#btn-wipe").addEventListener("click", async () => {
+            if (!await confirmDialog("メンバー・希望・編成をすべて削除します。元に戻せません。よろしいですか？")) return;
             const keep = state.ui;
             state = emptyState();
             state.ui = Object.assign(state.ui, { screen: keep.screen });
