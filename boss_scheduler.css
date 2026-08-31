@@ -373,8 +373,10 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .pill:hover { border-color: #475569; color: #e2e8f0; }
 .pill.published { background: #052e1b; border-color: #047857; color: #6ee7b7; }
 
-.slots { list-style: none; margin: 0; padding: 5px 6px; display: flex; flex-direction: column; gap: 2px; }
-.slot { display: flex; align-items: center; gap: 6px; padding: 4px 5px; border-radius: 5px; min-height: 32px; }
+/* --slot-h: 空きスロットを埋まっているスロット（アイコン＋キャラ名＋メンバー名の
+   2行ぶん）と同じ高さに揃える。PTごとに枠の位置がずれると人数が読み取りにくい。 */
+.slots { list-style: none; margin: 0; padding: 5px 6px; display: flex; flex-direction: column; gap: 2px; --slot-h: 50px; }
+.slot { display: flex; align-items: center; gap: 6px; padding: 4px 5px; border-radius: 5px; min-height: var(--slot-h); }
 .slot.filled { background: #020617; border: 1px solid #1e293b; cursor: grab; }
 .slot.filled:active { cursor: grabbing; }
 .slot.filled.dragging { opacity: 0.4; }
