@@ -1387,7 +1387,7 @@
     //   hexa … シートの「HEXA」の数値そのまま
     //   w    … 参加希望。"bossId:難易度" を空白区切り（難易度は E/N/H/C/X）
     // シートで PT のセルだけを希望として取り込み、「ソロ」と空欄は取り込まない。
-    // PTの編成はシートに無いため、この希望からルールを守って自動で組む。
+    // PTの編成はシートに含まれないため、この転記には入れていない。
     const ROSTER = [
         { n: "ogatas", c: [
             { job: "CBM", id: "", cp: 350, hexa: 82659,
@@ -1506,10 +1506,6 @@
     ];
 
     function sampleData() {
-        let seed = 20260831;
-        const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
-        const pick = (a) => a[Math.floor(rnd() * a.length)];
-
         const DIFF_CODE = { E: "EASY", N: "NORMAL", H: "HARD", C: "CHAOS", X: "EXTREME" };
 
         const members = ROSTER.map((r, i) => ({
@@ -1539,71 +1535,9 @@
         }));
 
         const season = { id: "s_1", name: "2026年 夏シーズン", isCurrent: true, note: "", createdAt: now() };
-        const MEMOS = ["", "", "", "連絡は週ボスチャンネルで", "初参加の人はこちら", "開始5分前に集合", "人が集まったら公開する"];
-        const pool = members.filter((m) => m.isActive).flatMap((m) => m.characters.map((c) => ({ c, m })));
-        const parties = [];
-        let pid = 0;
 
-        bossList().forEach((b) => {
-            const ptCount = 3 + Math.floor(rnd() * 3);      // ボスごとに3〜5PT
-            const taken = new Set();                        // R2: このボスで配置済みのキャラ
-            const labelNo = {};                             // 難易度ごとの連番
-
-            // 希望している人が多い難易度から順にPTを立てる。
-            // 難しい方から組む運用に合わせ、同数なら難しい方を先に取る。
-            const available = (d) => pool.filter(({ c }) =>
-                !taken.has(c.id) &&
-                wishes.some((w) => w.characterId === c.id && w.bossId === b.id && w.difficulty === d));
-
-            // 難しい方から1PTずつ立て、残りは希望者が多い難易度に足していく。
-            // 「難しい難易度から先に組む」運用をデータ側でも再現している。
-            const order = b.difficulties.slice().reverse();
-            for (let k = 0; k < ptCount; k++) {
-                let best = null, bestN = -1;
-                if (k < order.length) {
-                    best = order[k];
-                    bestN = available(best).length;
-                } else {
-                    b.difficulties.forEach((d, di) => {
-                        const n = available(d).length;
-                        if (n > bestN || (n === bestN && di > b.difficulties.indexOf(best))) { best = d; bestN = n; }
-                    });
-                }
-                // 1〜2人しか入らないPTは作らない。空きだらけのPTが並ぶと状況が読めなくなる。
-                if (!best || bestN < Math.ceil(b.maxMembers / 2)) {
-                    if (k < order.length) continue;         // その難易度は飛ばして次へ
-                    break;
-                }
-
-                labelNo[best] = (labelNo[best] || 0) + 1;
-                // 3PTに1つは空きを残す。空き枠と未配置の突き合わせを試せるように。
-                const vacancy = k % 3 === 2 ? (b.maxMembers > 3 ? 1 + Math.floor(rnd() * 2) : 1) : 0;
-                const room = Math.max(1, b.maxMembers - vacancy);
-
-                const party = {
-                    id: "p_" + (++pid), seasonId: season.id, bossId: b.id, difficulty: best,
-                    label: "PT" + labelNo[best], slots: [],
-                    // 各ボスの1つ目は必ず公開。全部下書きだとダッシュボードから消えてしまう。
-                    status: k > 0 && rnd() < 0.25 ? "draft" : "published",
-                    memo: pick(MEMOS), createdAt: now()
-                };
-
-                const usedMembers = new Set();              // R1: PT内は1メンバー1キャラ
-                available(best)
-                    .sort((a, z) => z.c.combatPower - a.c.combatPower)
-                    .forEach(({ c, m }) => {
-                        if (party.slots.length >= room) return;
-                        if (usedMembers.has(m.id)) return;
-                        usedMembers.add(m.id);
-                        taken.add(c.id);
-                        party.slots.push(c.id);
-                    });
-
-                parties.push(party);
-            }
-        });
-
-        return { seasons: [season], members, wishes, parties };
+        // 編成（PT）はシートに無いので作らない。空の状態から編成編集で組み始める。
+        return { seasons: [season], members, wishes, parties: [] };
     }
 
     // ============================================================
