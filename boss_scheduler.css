@@ -44,6 +44,32 @@ body {
     box-shadow: 0 0 6px currentColor;
 }
 
+/* === メイン / サブ === */
+:root {
+    --role-main: #6366f1;
+    --role-sub: #f59e0b;
+    --role-sub-text: #fcd34d;
+}
+/* 一覧に混ざるサブを見分けるための小さな札。色だけに頼らないための併記。 */
+.role-tag {
+    display: inline-block; margin-left: 5px; padding: 0 4px;
+    font-size: 9px; font-weight: 700; line-height: 1.5;
+    color: #0b1220; background: var(--role-sub); border-radius: 3px;
+    vertical-align: middle;
+}
+/* キャラカードのメイン／サブ切り替え */
+.role-pill {
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;
+    padding: 2px 8px; border-radius: 10px; cursor: pointer; flex-shrink: 0;
+    background: #150f04; border: 1px solid var(--role-sub); color: var(--role-sub-text);
+}
+.role-pill:hover { background: #1d1406; }
+.role-pill.main {
+    background: #1e1b4b; border-color: var(--role-main); color: #c7d2fe; cursor: default;
+}
+.char-card.main { border-left: 3px solid var(--role-main); }
+.char-card.sub  { border-left: 3px solid var(--role-sub); }
+
 /* === Form controls === */
 input, select, textarea {
     background: #020617;
@@ -317,7 +343,13 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 }
 .cand:hover { background: #131c2e; border-color: #475569; }
 .cand:active { cursor: grabbing; }
+/* メイン=藍 / サブ=琥珀 */
+.cand.main { border-left-color: var(--role-main); }
+.cand.sub  { border-left-color: var(--role-sub); background: #150f04; }
+.cand.sub .cand-name { color: var(--role-sub-text); }
+.cand.sub:hover { background: #1d1406; }
 .cand.selected { background: #1e1b4b; border-color: #6366f1; border-left-color: #6366f1; }
+.cand.sub.selected { background: #2a1d05; border-color: var(--role-sub); border-left-color: var(--role-sub); }
 .cand.dragging { opacity: 0.4; }
 .cand.placed-elsewhere { opacity: 0.45; cursor: default; }
 .cand .icon {
@@ -380,6 +412,10 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .slot.filled { background: #020617; border: 1px solid #1e293b; cursor: grab; }
 .slot.filled:active { cursor: grabbing; }
 .slot.filled.dragging { opacity: 0.4; }
+/* メイン=藍 / サブ=琥珀。左端の線と名前の色で見分ける（バッジは色に頼らない保険）*/
+.slot.filled.main { border-left: 3px solid var(--role-main); }
+.slot.filled.sub  { border-left: 3px solid var(--role-sub); background: #150f04; }
+.slot.filled.sub .slot-name { color: var(--role-sub-text); }
 .slot.empty { border: 1px dashed #1e293b; color: #475569; font-size: 11px; }
 .slot-no { font-size: 9.5px; color: #475569; font-family: monospace; width: 12px; text-align: right; flex-shrink: 0; }
 .slot .icon {
@@ -506,6 +542,8 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
     display: flex; align-items: center; gap: 6px;
     padding: 3px 5px; background: #0f172a; border: 1px solid #1e293b; border-radius: 4px;
 }
+.party-mini-member.sub { border-left: 3px solid var(--role-sub); }
+.party-mini-member.sub .pmm-name { color: var(--role-sub-text); }
 .party-mini-member.vacant { border-style: dashed; border-color: #3b0d22; background: #0b1220; }
 .party-mini-member .mini-icon {
     width: 20px; height: 20px; border-radius: 3px; background: #020617;

@@ -209,8 +209,13 @@
                 if (c.combatPower == null) c.combatPower = 0;
                 if (c.hexa == null) c.hexa = 0;
                 if (c.isActive == null) c.isActive = true;
+                if (c.isMain == null) c.isMain = false;
                 if (!c.updatedAt) c.updatedAt = now();
             });
+            // メインは1人1体。複数立っていたら先頭だけ残し、1体も無ければ先頭をメインにする。
+            const mains = m.characters.filter((c) => c.isMain);
+            if (mains.length > 1) mains.slice(1).forEach((c) => { c.isMain = false; });
+            if (!mains.length && m.characters.length) m.characters[0].isMain = true;
         });
 
         const charIds = new Set(allChars().map((c) => c.id));
@@ -581,7 +586,7 @@
     }
 
     function charCard(member, c) {
-        const card = el("div", { class: "char-card" + (c.isActive ? "" : " inactive") });
+        const card = el("div", { class: "char-card" + (c.isActive ? "" : " inactive") + (c.isMain ? " main" : " sub") });
         const touch = () => { c.updatedAt = now(); };
 
         card.appendChild(el("div", { class: "cc-top" },
@@ -590,6 +595,17 @@
                 class: "cc-name", type: "text", value: c.name, "aria-label": "キャラ名",
                 onchange: (e) => { c.name = e.target.value.trim() || c.name; touch(); saveState(); render(); }
             }),
+            // メインは1人1体。押すとこのキャラがメインになり、他はサブへ落ちる。
+            el("button", {
+                class: "role-pill" + (c.isMain ? " main" : ""),
+                title: c.isMain ? "このメンバーのメインキャラです" : "押すとメインキャラにします",
+                onclick: () => {
+                    if (c.isMain) return;
+                    member.characters.forEach((x) => { x.isMain = false; });
+                    c.isMain = true;
+                    touch(); saveState(); render();
+                }
+            }, c.isMain ? "メイン" : "サブ"),
             el("label", { class: "check" },
                 el("input", {
                     type: "checkbox", checked: c.isActive,
@@ -819,11 +835,12 @@
         }
         rows.forEach(({ c, m, elsewhere, upper }) => {
             const card = el("div", {
-                class: "cand" + (state.ui.selectedCharId === c.id ? " selected" : "") + (elsewhere ? " placed-elsewhere" : ""),
+                class: "cand " + (c.isMain ? "main" : "sub")
+                    + (state.ui.selectedCharId === c.id ? " selected" : "") + (elsewhere ? " placed-elsewhere" : ""),
                 draggable: elsewhere ? null : "true",
-                title: [(classById(c.jobId) || {}).name, c.note].filter(Boolean).join(" / ") || c.name
+                title: (c.isMain ? "メイン" : "サブ") + "："
+                    + ([(classById(c.jobId) || {}).name, c.note].filter(Boolean).join(" / ") || c.name)
             });
-            card.style.borderLeftColor = memberColor(m);
             if (!elsewhere) {
                 card.addEventListener("click", () => {
                     state.ui.selectedCharId = state.ui.selectedCharId === c.id ? null : c.id;
@@ -839,7 +856,9 @@
             }
             card.appendChild(charIconNode(c, "icon"));
             card.appendChild(el("div", { class: "cand-main" },
-                el("div", { class: "cand-name", text: c.name }),
+                el("div", { class: "cand-name" },
+                    c.name,
+                    !c.isMain && el("span", { class: "role-tag", text: "サブ" })),
                 el("div", { class: "cand-meta", text: displayName(m) + (classById(c.jobId) ? " / " + classById(c.jobId).name : "") }),
                 upper && el("div", {}, el("span", { class: "upper-badge", text: diffLabelJa(upper) + " にも希望" })),
                 elsewhere && el("div", { class: "cand-meta warn", text: diffLabelJa(elsewhere.difficulty) + " の " + (elsewhere.label || "PT") + " に配置済み" })
@@ -925,7 +944,10 @@
             if (id) {
                 const c = charById(id);
                 const m = c ? memberById(c.memberId) : null;
-                const li = el("li", { class: "slot filled", draggable: "true" });
+                const li = el("li", {
+                    class: "slot filled " + (c && c.isMain ? "main" : "sub"), draggable: "true",
+                    title: c ? (c.isMain ? "メイン" : "サブ") + "：" + c.name : ""
+                });
                 li.addEventListener("dragstart", (e) => {
                     drag = { charId: id, fromPartyId: p.id };
                     try { e.dataTransfer.setData("text/plain", id); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
@@ -939,7 +961,8 @@
                         el("a", {
                             href: "https://mapleranks.com/u/" + encodeURIComponent(c ? c.name : ""),
                             target: "_blank", rel: "noopener noreferrer", text: c ? c.name : "(不明)"
-                        })),
+                        }),
+                        c && !c.isMain && el("span", { class: "role-tag", text: "サブ" })),
                     el("div", { class: "slot-owner", text: displayName(m) })));
                 li.appendChild(cpBlock(c, "slot-cp"));
                 li.appendChild(el("button", {
@@ -1162,9 +1185,12 @@
                 if (id) {
                     const c = charById(id);
                     const m = c ? memberById(c.memberId) : null;
-                    const row = el("div", { class: "party-mini-member" + (myIds.includes(id) ? " me" : "") },
+                    const row = el("div", {
+                        class: "party-mini-member " + (c && c.isMain ? "main" : "sub") + (myIds.includes(id) ? " me" : ""),
+                        title: c ? (c.isMain ? "メイン" : "サブ") + "：" + c.name : ""
+                    },
                         charIconNode(c, "mini-icon"),
-                        el("span", { class: "pmm-name", text: c ? c.name : "(不明)" }),
+                        el("span", { class: "pmm-name" }, c ? c.name : "(不明)", c && !c.isMain && el("span", { class: "role-tag", text: "サブ" })),
                         el("span", { class: "pmm-owner", text: displayName(m) }),
                         state.ui.includeCp && el("span", { class: "pmm-cp", text: formatCp(c && c.combatPower) }));
                     body.appendChild(row);
@@ -1521,6 +1547,7 @@
                 hexa: c.hexa || 0,
                 note: c.note || "",
                 isActive: true,
+                isMain: k === 0,          // シートの1キャラ目をメインとして扱う
                 updatedAt: now()
             }))
         }));
