@@ -95,6 +95,33 @@
         </div>
     </div>
 
+    <!-- ダッシュボードの画像出力プレビュー -->
+    <div id="image-modal" class="modal-bg hidden">
+        <div class="modal" style="max-width: 1200px;">
+            <div class="modal-head">
+                <div class="modal-title">編成の画像</div>
+                <button class="btn btn-ghost btn-icon" data-close-image><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="hint">
+                    ダッシュボードの絞り込み（ボス・下書き・戦闘力の表示）がそのまま反映されます。
+                </p>
+                <div class="image-preview-box"><img id="image-preview" alt="編成の画像" /></div>
+            </div>
+            <div class="modal-foot">
+                <span id="image-size" class="hint" style="margin:0; align-self:center;"></span>
+                <span class="spacer"></span>
+                <button class="btn" id="btn-image-copy">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> 画像をコピー
+                </button>
+                <button class="btn btn-primary" id="btn-image-save">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i> 画像を保存
+                </button>
+                <button class="btn" data-close-image>閉じる</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Data (JSON import / export) -->
     <div id="data-modal" class="modal-bg hidden">
         <div class="modal" style="max-width: 980px;">

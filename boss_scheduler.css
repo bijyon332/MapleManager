@@ -650,3 +650,10 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
     to   { opacity: 1; transform: translateY(0); }
 }
 .hidden { display: none !important; }
+
+/* === 画像出力プレビュー === */
+.image-preview-box {
+    background: #020617; border: 1px solid #1e293b; border-radius: 8px;
+    padding: 8px; max-height: 66vh; overflow: auto;
+}
+.image-preview-box img { display: block; width: 100%; height: auto; }

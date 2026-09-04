@@ -1276,7 +1276,9 @@
                 el("input", {
                     type: "checkbox", checked: ui.includeDraft,
                     onchange: (e) => { ui.includeDraft = e.target.checked; saveState(); render(); }
-                }), "下書きも表示"));
+                }), "下書きも表示"),
+            el("button", { class: "btn btn-xs", onclick: openImageModal },
+                icon("image", "w-3 h-3"), "画像で出力"));
         all.appendChild(allHead);
 
         const allBody = el("div", { class: "panel-body" });
@@ -1323,6 +1325,294 @@
 
         // ---- D. テキスト出力 ----
         root.appendChild(textPanel());
+    }
+
+    // ============================================================
+    //  ダッシュボードの画像出力
+    //
+    //  DOMをそのまま画像化せず、canvasに描き直している。ボス画像が別ドメイン
+    //  （MapleHub CDN）にあるため、DOMごと変換するとcanvasが汚染されて
+    //  PNGとして取り出せなくなる。職業アイコンは同一オリジンなので描ける。
+    //  表示対象はダッシュボードの絞り込み（ボス・下書き・戦闘力）に従う。
+    // ============================================================
+    const IMG = {
+        scale: 2,              // 端末に依らず等倍2倍で描き、Discordでも粗くならないように
+        pad: 22,
+        cardW: 262,
+        cardGap: 12,
+        cols: 4,
+        rowH: 27,
+        cardHead: 30,
+        cardFoot: 22,
+        bossHead: 40,
+        bg: "#020617",
+        panel: "#0f172a",
+        card: "#020617",
+        line: "#1e293b",
+        text: "#e2e8f0",
+        muted: "#64748b",
+        cp: "#a5b4fc",
+        vacant: "#fda4af",
+        sub: "#f59e0b",
+        subText: "#fcd34d"
+    };
+    const DIFF_FILL = { EASY: "#374151", NORMAL: "#0e7490", HARD: "#991b1b", CHAOS: "#7c5e05", EXTREME: "#7f1d1d" };
+
+    function imageFont(size, weight) {
+        return (weight || "") + " " + size + 'px "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif';
+    }
+
+    // 職業アイコンを先に読み込む。読めなかったものは描かずに飛ばす。
+    function loadJobIcons(charIds) {
+        const paths = {};
+        charIds.forEach((id) => {
+            const c = charById(id);
+            const job = c && classById(c.jobId);
+            if (job) paths[job.path] = true;
+        });
+        return Promise.all(Object.keys(paths).map((p) => new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve([p, img]);
+            img.onerror = () => resolve(null);
+            img.src = p;
+        }))).then((pairs) => {
+            const map = {};
+            pairs.forEach((pair) => { if (pair) map[pair[0]] = pair[1]; });
+            return map;
+        });
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+    }
+
+    function clipText(ctx, text, maxWidth) {
+        if (ctx.measureText(text).width <= maxWidth) return text;
+        let s = text;
+        while (s.length > 1 && ctx.measureText(s + "…").width > maxWidth) s = s.slice(0, -1);
+        return s + "…";
+    }
+
+    async function buildDashboardImage() {
+        const ui = state.ui;
+        const shown = seasonParties().filter((p) => ui.includeDraft || p.status === "published");
+        const bosses = bossList().filter((b) =>
+            (!ui.dashBossIds.length || ui.dashBossIds.includes(b.id)) && shown.some((p) => p.bossId === b.id));
+        if (!bosses.length) return null;
+
+        // ---- 先に配置を決める（高さが確定してから描く） ----
+        const cols = (() => {
+            const most = Math.max.apply(null, bosses.map((b) => shown.filter((p) => p.bossId === b.id).length));
+            return Math.min(IMG.cols, Math.max(1, most));   // PTが少ないボスばかりなら横幅も詰める
+        })();
+
+        const blocks = bosses.map((b) => {
+            const ps = shown.filter((p) => p.bossId === b.id)
+                .sort((x, y) => b.difficulties.indexOf(y.difficulty) - b.difficulties.indexOf(x.difficulty));
+            const rows = Math.ceil(ps.length / cols);
+            const cardH = IMG.cardHead + b.maxMembers * IMG.rowH + IMG.cardFoot
+                + (ps.some((p) => p.memo) ? 16 : 0);
+            return { boss: b, parties: ps, rows, cardH, h: IMG.bossHead + rows * (cardH + IMG.cardGap) };
+        });
+
+        const width = IMG.pad * 2 + cols * IMG.cardW + (cols - 1) * IMG.cardGap;
+        const headerH = 62;
+        const footerH = 26;
+        const height = headerH + blocks.reduce((s, bl) => s + bl.h, 0) + footerH + IMG.pad;
+
+        const icons = await loadJobIcons(shown.flatMap((p) => p.slots));
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width * IMG.scale;
+        canvas.height = height * IMG.scale;
+        const ctx = canvas.getContext("2d");
+        ctx.scale(IMG.scale, IMG.scale);
+        ctx.textBaseline = "middle";
+
+        ctx.fillStyle = IMG.bg;
+        ctx.fillRect(0, 0, width, height);
+
+        // ---- 見出し ----
+        const season = currentSeason();
+        ctx.fillStyle = IMG.text;
+        ctx.font = imageFont(19, "bold");
+        ctx.fillText("週ボスPT編成", IMG.pad, 28);
+        ctx.font = imageFont(12);
+        ctx.fillStyle = IMG.muted;
+        ctx.fillText(season.name || "", IMG.pad + ctx.measureText("週ボスPT編成").width + 90, 29);
+        const stamp = new Date();
+        const stampText = stamp.getFullYear() + "/" + (stamp.getMonth() + 1) + "/" + stamp.getDate() + " "
+            + String(stamp.getHours()).padStart(2, "0") + ":" + String(stamp.getMinutes()).padStart(2, "0") + " 時点";
+        ctx.textAlign = "right";
+        ctx.fillText(stampText, width - IMG.pad, 29);
+        ctx.textAlign = "left";
+        ctx.strokeStyle = IMG.line;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(IMG.pad, 46); ctx.lineTo(width - IMG.pad, 46); ctx.stroke();
+
+        // ---- ボスごと ----
+        let y = headerH;
+        blocks.forEach((bl) => {
+            const b = bl.boss;
+            const filled = bl.parties.reduce((s, p) => s + p.slots.length, 0);
+
+            ctx.fillStyle = b.color || "#6366f1";
+            roundRect(ctx, IMG.pad, y + 4, 4, 18, 2); ctx.fill();
+            ctx.fillStyle = IMG.text;
+            ctx.font = imageFont(15, "bold");
+            ctx.fillText(b.name, IMG.pad + 12, y + 13);
+            ctx.font = imageFont(11);
+            ctx.fillStyle = IMG.muted;
+            ctx.fillText(bl.parties.length + " PT ・ " + filled + "/" + bl.parties.length * b.maxMembers + "人",
+                IMG.pad + 12 + ctx.measureText(b.name).width + 40, y + 13);
+
+            let cy = y + IMG.bossHead;
+            bl.parties.forEach((p, i) => {
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+                const x = IMG.pad + col * (IMG.cardW + IMG.cardGap);
+                const top = cy + row * (bl.cardH + IMG.cardGap);
+                drawPartyCard(ctx, p, b, x, top, bl.cardH, icons);
+            });
+            y += bl.h;
+        });
+
+        // ---- 凡例 ----
+        ctx.font = imageFont(11);
+        ctx.fillStyle = IMG.muted;
+        ctx.fillText("サブキャラは", IMG.pad, height - IMG.pad - 4);
+        const legendX = IMG.pad + ctx.measureText("サブキャラは").width + 4;
+        ctx.fillStyle = IMG.sub;
+        roundRect(ctx, legendX, height - IMG.pad - 11, 22, 13, 3); ctx.fill();
+        ctx.fillStyle = "#0b1220";
+        ctx.font = imageFont(9, "bold");
+        ctx.fillText("サブ", legendX + 3, height - IMG.pad - 4);
+        ctx.font = imageFont(11);
+        ctx.fillStyle = IMG.muted;
+        ctx.fillText("で表示 / 空きは補充募集中", legendX + 28, height - IMG.pad - 4);
+
+        return canvas;
+    }
+
+    function drawPartyCard(ctx, p, b, x, y, h, icons) {
+        const w = IMG.cardW;
+        ctx.fillStyle = IMG.panel;
+        roundRect(ctx, x, y, w, h, 7); ctx.fill();
+        ctx.strokeStyle = IMG.line; ctx.lineWidth = 1;
+        roundRect(ctx, x + 0.5, y + 0.5, w - 1, h - 1, 7); ctx.stroke();
+
+        // 見出し: 難易度バッジ + PT名（+ 下書き）
+        const label = diffLabel(p.difficulty).toUpperCase();
+        ctx.font = imageFont(9, "bold");
+        const bw = ctx.measureText(label).width + 12;
+        ctx.fillStyle = DIFF_FILL[p.difficulty] || "#374151";
+        roundRect(ctx, x + 9, y + 8, bw, 15, 4); ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.fillText(label, x + 15, y + 16);
+
+        ctx.font = imageFont(12, "bold");
+        ctx.fillStyle = IMG.text;
+        ctx.fillText(p.label || "PT", x + 15 + bw, y + 16);
+        if (p.status === "draft") {
+            ctx.font = imageFont(9, "bold");
+            ctx.fillStyle = IMG.muted;
+            ctx.textAlign = "right";
+            ctx.fillText("下書き", x + w - 10, y + 16);
+            ctx.textAlign = "left";
+        }
+        ctx.strokeStyle = IMG.line;
+        ctx.beginPath(); ctx.moveTo(x + 8, y + 28.5); ctx.lineTo(x + w - 8, y + 28.5); ctx.stroke();
+
+        // メンバー行
+        for (let i = 0; i < b.maxMembers; i++) {
+            const ry = y + IMG.cardHead + i * IMG.rowH + IMG.rowH / 2;
+            const id = p.slots[i];
+            if (!id) {
+                ctx.font = imageFont(11);
+                ctx.fillStyle = IMG.vacant;
+                ctx.fillText("空き", x + 12, ry);
+                continue;
+            }
+            const c = charById(id);
+            const m = c ? memberById(c.memberId) : null;
+            const job = c && classById(c.jobId);
+            const icon = job && icons[job.path];
+            if (icon) {
+                ctx.drawImage(icon, x + 9, ry - 9, 18, 18);
+            } else {
+                ctx.fillStyle = IMG.line;
+                roundRect(ctx, x + 9, ry - 9, 18, 18, 4); ctx.fill();
+            }
+
+            const isSub = c && !c.isMain;
+            ctx.font = imageFont(12, isSub ? "bold" : "");
+            ctx.fillStyle = isSub ? IMG.subText : IMG.text;
+            const cpText = state.ui.includeCp ? formatCp(c && c.combatPower) : "";
+            ctx.font = imageFont(11, "bold");
+            const cpW = cpText ? ctx.measureText(cpText).width + 8 : 0;
+            const owner = displayName(m);
+            ctx.font = imageFont(10);
+            const ownerW = ctx.measureText(owner).width + 8;
+
+            ctx.font = imageFont(12);
+            ctx.fillStyle = isSub ? IMG.subText : IMG.text;
+            const nameMax = w - 34 - cpW - ownerW - 10 - (isSub ? 24 : 0);
+            ctx.fillText(clipText(ctx, c ? c.name : "(不明)", nameMax), x + 32, ry);
+            const nameW = ctx.measureText(clipText(ctx, c ? c.name : "(不明)", nameMax)).width;
+
+            if (isSub) {
+                ctx.fillStyle = IMG.sub;
+                roundRect(ctx, x + 36 + nameW, ry - 6, 22, 12, 3); ctx.fill();
+                ctx.fillStyle = "#0b1220";
+                ctx.font = imageFont(8, "bold");
+                ctx.fillText("サブ", x + 39 + nameW, ry);
+            }
+
+            ctx.textAlign = "right";
+            if (cpText) {
+                ctx.font = imageFont(11, "bold");
+                ctx.fillStyle = IMG.cp;
+                ctx.fillText(cpText, x + w - 10, ry);
+            }
+            ctx.font = imageFont(10);
+            ctx.fillStyle = IMG.muted;
+            ctx.fillText(owner, x + w - 10 - cpW, ry);
+            ctx.textAlign = "left";
+        }
+
+        // 合計とメモ
+        const fy = y + h - 12;
+        const total = p.slots.reduce((s, id) => s + ((charById(id) || {}).combatPower || 0), 0);
+        ctx.font = imageFont(10);
+        ctx.fillStyle = IMG.muted;
+        ctx.fillText(p.slots.length + "/" + b.maxMembers + "人"
+            + (state.ui.includeCp && total ? " ・ 合計 " + formatCp(total) : ""), x + 10, fy);
+        if (p.memo) {
+            ctx.textAlign = "right";
+            ctx.fillStyle = "#94a3b8";
+            ctx.fillText(clipText(ctx, p.memo, w - 120), x + w - 10, fy);
+            ctx.textAlign = "left";
+        }
+    }
+
+    let imageBlob = null;
+
+    async function openImageModal() {
+        const canvas = await buildDashboardImage();
+        if (!canvas) { toast("画像にできる編成がありません", "warn"); return; }
+        const bg = $("#image-modal");
+        const img = $("#image-preview");
+        img.src = canvas.toDataURL("image/png");
+        canvas.toBlob((blob) => { imageBlob = blob; }, "image/png");
+        $("#image-size").textContent = canvas.width + " × " + canvas.height + " px";
+        bg.classList.remove("hidden");
+        if (window.lucide) window.lucide.createIcons();
     }
 
     function dashBossCard(b, parties, viewer) {
@@ -1881,6 +2171,31 @@
         SCREENS.forEach((s) => {
             const btn = $("#tab-" + s);
             if (btn) btn.addEventListener("click", () => switchScreen(s));
+        });
+
+        // ---- 画像出力モーダル ----
+        const imageModal = $("#image-modal");
+        const closeImage = () => imageModal.classList.add("hidden");
+        $$("[data-close-image]").forEach((b) => b.addEventListener("click", closeImage));
+        imageModal.addEventListener("click", (e) => { if (e.target === imageModal) closeImage(); });
+        $("#btn-image-save").addEventListener("click", () => {
+            if (!imageBlob) { toast("画像を準備中です。少し待ってからもう一度押してください", "warn"); return; }
+            const a = el("a", {
+                href: URL.createObjectURL(imageBlob),
+                download: "boss-party-" + new Date().toISOString().slice(0, 10) + ".png"
+            });
+            document.body.appendChild(a); a.click(); a.remove();
+            toast("画像を保存しました", "ok");
+        });
+        $("#btn-image-copy").addEventListener("click", async () => {
+            if (!imageBlob) { toast("画像を準備中です。少し待ってからもう一度押してください", "warn"); return; }
+            try {
+                // Discordなどにそのまま貼れるよう、PNGとしてクリップボードへ置く
+                await navigator.clipboard.write([new ClipboardItem({ "image/png": imageBlob })]);
+                toast("画像をコピーしました。Discordに貼り付けられます", "ok");
+            } catch (e) {
+                toast("コピーできませんでした。「画像を保存」から書き出してください", "warn");
+            }
         });
 
         const keyInput = $("#edit-key");
