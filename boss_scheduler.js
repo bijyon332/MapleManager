@@ -276,7 +276,7 @@
         state.wishes  = Array.isArray(data.wishes) ? data.wishes : [];
         state.parties = Array.isArray(data.parties) ? data.parties : [];
         normalize();
-        sync.lastPushed = JSON.stringify(serialize());
+        sync.lastPushed = JSON.stringify(sharedPayload());
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
     }
 
@@ -284,7 +284,7 @@
     // シーズン・メンバー・希望・PTだけ。中身が変わっていなければ送らない。
     function schedulePush() {
         if (sync.mode === "local" || sync.mode === "conflict") return;
-        const snapshot = JSON.stringify(serialize());
+        const snapshot = JSON.stringify(sharedPayload());
         if (snapshot === sync.lastPushed) return;
         clearTimeout(sync.timer);
         sync.timer = setTimeout(() => { sync.timer = 0; pushRemote(); }, PUSH_DELAY);
@@ -296,7 +296,7 @@
         sync.inFlight = true;
         setSyncMode("saving");
 
-        const payload = JSON.stringify(serialize());
+        const payload = JSON.stringify(sharedPayload());
         const key = editKey();
         let res;
         try {
@@ -1553,14 +1553,29 @@
     // ============================================================
     //  データ入出力
     // ============================================================
-    function serialize() {
+    // 共有する中身そのもの。時刻のような「毎回変わる値」を入れてはいけない。
+    // 入れると「前回送った内容と同じか」の判定が常に不一致になり、
+    // 画面を切り替えただけでもDBへ書きに行ってしまう。
+    function sharedPayload() {
         return {
             version: VERSION,
-            exportedAt: now(),
             seasons: state.seasons,
             members: state.members,
             wishes: state.wishes,
             parties: state.parties
+        };
+    }
+
+    // ファイルに書き出すときだけ、いつ出したかを添える。
+    function serialize() {
+        const d = sharedPayload();
+        return {
+            version: d.version,
+            exportedAt: now(),
+            seasons: d.seasons,
+            members: d.members,
+            wishes: d.wishes,
+            parties: d.parties
         };
     }
     const exportJson = () => JSON.stringify(serialize(), null, 2);
