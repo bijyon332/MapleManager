@@ -1409,7 +1409,7 @@
         ] },
         { n: "いんきゃ", c: [
             { job: "DK", id: "darkknight", cp: 430, note: "N凶星はソロ",
-              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N baldrix:N baldrix:H" }
+              w: "kalos:C kaling:N kaling:H seren:X darknight:X adversary:H limbo:N baldrix:N baldrix:H" }
         ] },
         { n: "lalahsun", c: [
             { job: "ララ", id: "lara", cp: 424, hexa: 93468, note: "N凶星はソロ",
