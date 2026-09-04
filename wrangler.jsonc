@@ -12,12 +12,13 @@
   },
   // Boss Scheduler の共有データ置き場。
   //   npx wrangler d1 create maplemanager-scheduler
-  // で作り、出力された database_id を下に貼る。スキーマは schema.sql。
+  // で作成済み。database_id は秘密情報ではない（操作にはアカウント認証が要る）。
+  // スキーマは schema.sql。
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "maplemanager-scheduler",
-      "database_id": "PASTE_DATABASE_ID_HERE"
+      "database_id": "6b1f0281-606b-4804-8484-24fc3f292423"
     }
   ],
   "compatibility_flags": [
