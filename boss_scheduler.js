@@ -1392,8 +1392,8 @@
         { n: "ogatas", c: [
             { job: "CBM", id: "", cp: 350, hexa: 82659,
               w: "kalos:C kaling:N seren:X adversary:H kyousei:N limbo:N" },
-            { job: "BaM", id: "", cp: 150, w: "kalos:N kaling:N adversary:H" },
-            { job: "BM", id: "", cp: 140, hexa: 56974, w: "kalos:N kaling:N adversary:H" },
+            { job: "BaM", id: "", cp: 150, w: "kalos:N kalos:C kaling:N adversary:H" },
+            { job: "BM", id: "", cp: 140, hexa: 56974, w: "kalos:N kalos:C kaling:N adversary:H" },
             { job: "DB", id: "dualblade", cp: 140, w: "" }
         ] },
         { n: "なるちゃ", c: [
@@ -1401,36 +1401,36 @@
         ] },
         { n: "鳳凰", c: [
             { job: "シア", id: "sia",
-              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N baldrix:N baldrix:H" }
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" }
         ] },
         { n: "ちゃちゃまる", c: [
             { job: "シャドー", id: "shadower", cp: 500, hexa: 102987, note: "N凶星はソロ",
-              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N baldrix:N baldrix:H" }
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" }
         ] },
         { n: "いんきゃ", c: [
             { job: "DK", id: "darkknight", cp: 430, note: "N凶星はソロ",
-              w: "kalos:C kaling:N kaling:H seren:X darknight:X adversary:H limbo:N baldrix:N baldrix:H" }
+              w: "kalos:C kaling:N kaling:H seren:X adversary:H kyousei:H limbo:H baldrix:N" }
         ] },
         { n: "lalahsun", c: [
             { job: "ララ", id: "lara", cp: 424, hexa: 93468, note: "N凶星はソロ",
-              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N" }
+              w: "kalos:C kaling:N kaling:H seren:X adversary:H limbo:N limbo:H" }
         ] },
         { n: "もげぇ", c: [
             { job: "レン", id: "ren", cp: 487, hexa: 102773, note: "N凶星はソロ",
-              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N limbo:H baldrix:N baldrix:H" },
-            { job: "エヴァン", id: "evan", w: "kalos:C darknight:X adversary:N limbo:N" }
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" },
+            { job: "エヴァン", id: "evan", w: "kalos:C darknight:X adversary:N adversary:H" }
         ] },
         { n: "ぐるこ", c: [
             { job: "レン", id: "ren",
-              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N limbo:H baldrix:N baldrix:H" }
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" }
         ] },
         { n: "サザメ", c: [
             { job: "リン", id: "lynn", cp: 510, hexa: 102369, note: "N凶星はソロ",
-              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N limbo:H baldrix:N baldrix:H" }
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" }
         ] },
         { n: "えりあす", c: [
             { job: "レン/エリル", id: "", cp: 330, hexa: 87222,
-              w: "kalos:C kaling:N seren:X darknight:X adversary:H kyousei:N limbo:N" }
+              w: "kalos:C kaling:N seren:X adversary:H kyousei:N limbo:N" }
         ] },
         { n: "せれん", c: [
             { job: "エリル", id: "erellight", note: "CPはリープ後記載",
@@ -1439,12 +1439,12 @@
         ] },
         { n: "ぜろく", c: [
             { job: "カイザー", id: "kaiser", cp: 480, hexa: 104282,
-              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N baldrix:N baldrix:H" },
-            { job: "リン", id: "lynn", cp: 234, w: "darknight:X kyousei:N limbo:N" }
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" },
+            { job: "リン", id: "lynn", cp: 234, w: "kalos:C darknight:X adversary:H" }
         ] },
         { n: "ぎすば", c: [
             { job: "リン", id: "lynn", cp: 400,
-              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N baldrix:N baldrix:H" }
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" }
         ] },
         { n: "れもん", c: [
             { job: "ソルマス", id: "dawnwarrior", cp: 293, hexa: 88894, note: "N対敵者はソロ",
@@ -1452,46 +1452,46 @@
         ] },
         { n: "やみ", c: [
             { job: "レン", id: "ren", cp: 376, hexa: 90537, note: "N対敵者はソロ",
-              w: "kalos:C kaling:N seren:X limbo:N" }
+              w: "kalos:C kaling:N seren:X kyousei:N limbo:N" }
         ] },
         { n: "るー", c: [
             { job: "カンナ", id: "kanna", cp: 581, hexa: 103943,
-              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N limbo:H baldrix:N baldrix:H" },
-            { job: "ミハエル", id: "mihile", cp: 309, w: "kalos:C kyousei:N limbo:H" }
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N baldrix:H" },
+            { job: "ミハエル", id: "mihile", cp: 309, w: "kalos:C limbo:H" }
         ] },
         { n: "key", c: [
             { job: "聖魔(カンナ)", id: "kanna",
-              w: "kalos:C kaling:N seren:X darknight:X adversary:H limbo:N limbo:H" },
-            { job: "カンナ", id: "kanna", cp: 284, w: "kalos:C limbo:N" }
+              w: "kalos:C kaling:N seren:X adversary:H kyousei:H limbo:H" },
+            { job: "カンナ", id: "kanna", cp: 284, w: "kalos:C kyousei:N" }
         ] },
         { n: "ビジョン", c: [
             { job: "レン", id: "ren", cp: 467, hexa: 104604, note: "N凶星はソロ",
-              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N limbo:H baldrix:N baldrix:H jupiter:N" },
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N baldrix:H jupiter:N" },
             { job: "ハヤト", id: "hayato", cp: 200,
-              w: "kalos:N kalos:C kaling:N kaling:H darknight:X adversary:H limbo:N" }
+              w: "kalos:N kalos:C kaling:N kaling:H darknight:X adversary:H kyousei:H" }
         ] },
         { n: "いれあ", c: [
             { job: "シア", id: "sia", cp: 457, hexa: 98861, note: "N凶星はソロ",
-              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N baldrix:N" }
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" }
         ] },
         { n: "るい", c: [
             { job: "レン", id: "ren", cp: 333, hexa: 86670, note: "N対敵者はソロ",
-              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N limbo:H baldrix:N" },
-            { job: "カンナ", id: "kanna", cp: 105, w: "kyousei:N" }
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:N limbo:N limbo:H baldrix:N" },
+            { job: "カンナ", id: "kanna", cp: 105, w: "adversary:H" }
         ] },
         { n: "めるぐあむ", c: [
             { job: "ゼノン", id: "xenon", cp: 470, hexa: 95132, note: "N凶星はソロ",
-              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H limbo:N baldrix:N" }
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" }
         ] },
         { n: "butterfry", c: [
             { job: "バトルメイジ", id: "battlemage", w: "" }
         ] },
         { n: "MELZZ", c: [
-            { job: "ゼロ", id: "zero", w: "kalos:C kaling:N adversary:H limbo:N" }
+            { job: "ゼロ", id: "zero", w: "kalos:C kaling:N seren:X adversary:H kyousei:N limbo:N" }
         ] },
         { n: "ゆぴお", c: [
             { job: "リン", id: "lynn", cp: 237, hexa: 57834, note: "チャレ鯖 / N対敵者はソロ",
-              w: "kalos:C kaling:N seren:X adversary:H limbo:N" },
+              w: "kalos:C kaling:N seren:X adversary:H kyousei:N limbo:N" },
             { job: "キネシス", id: "kinesis", cp: 90, note: "チャレ鯖", w: "kalos:N kaling:N" }
         ] },
         { n: "ぱると", c: [
