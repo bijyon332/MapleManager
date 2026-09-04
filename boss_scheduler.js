@@ -191,6 +191,185 @@
     function saveState() {
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
         catch (e) { /* 容量超過などは無視 */ }
+        schedulePush();   // 共有DBが使えるときは少し遅らせてまとめて送る
+    }
+
+    // ============================================================
+    //  共有DB（Cloudflare D1）との同期
+    //
+    //  ローカル保存はそのまま残し、その上に同期を重ねている。
+    //  APIが無い環境（静的に開いた場合など）でも今までどおり動く。
+    //  競合は「読んだ version を送り、サーバ側で一致した時だけ更新」で防ぐ。
+    // ============================================================
+    const API = "/api/scheduler";
+    const EDIT_KEY_STORAGE = "boss-scheduler-edit-key";
+    const PUSH_DELAY = 1200;      // 連続操作をまとめる
+    const POLL_INTERVAL = 60000;  // 他の人の更新を拾う間隔
+
+    const sync = {
+        mode: "local",     // local | synced | saving | conflict | needkey | error
+        version: 0,
+        updatedAt: null,
+        updatedBy: null,
+        message: "",
+        timer: 0,
+        inFlight: false,
+        pending: false,
+        lastPushed: null
+    };
+
+    const editKey = () => { try { return localStorage.getItem(EDIT_KEY_STORAGE) || ""; } catch (e) { return ""; } };
+    const whoAmI = () => {
+        const m = memberById(state.ui.viewerMemberId);
+        return m ? displayName(m) : "";
+    };
+
+    function setSyncMode(mode, message) {
+        sync.mode = mode;
+        sync.message = message || "";
+        renderAppBar();
+    }
+
+    // 起動時に一度だけ。サーバに何かあればそれを正とする。
+    async function pullRemote(opts) {
+        const silent = opts && opts.silent;
+        let res;
+        try {
+            res = await fetch(API, { headers: { "Accept": "application/json" } });
+        } catch (e) {
+            setSyncMode("local", "共有DBに接続できません");
+            return false;
+        }
+        // 501=D1未バインド、404/405=そもそもAPIが無い（静的に開いた場合）。
+        // どちらも「ローカルのみ」で今までどおり動かす。
+        if (res.status === 501 || res.status === 404 || res.status === 405) {
+            setSyncMode("local", "共有DBが未設定です（この端末にのみ保存されます）");
+            return false;
+        }
+        if (!res.ok) { setSyncMode("error", "読み込みに失敗しました (" + res.status + ")"); return false; }
+
+        const body = await res.json();
+        sync.version = body.version || 0;
+        sync.updatedAt = body.updatedAt;
+        sync.updatedBy = body.updatedBy;
+
+        const remoteHasData = body.data && Array.isArray(body.data.members) && body.data.members.length;
+        const localHasData = state.members.length;
+
+        if (remoteHasData) {
+            adoptSnapshot(body.data);
+            setSyncMode("synced");
+            if (!silent) toast("共有データを読み込みました", "ok");
+            render();
+            return true;
+        }
+        // サーバが空。手元にデータがあれば、それを最初の内容として上げる。
+        setSyncMode("synced");
+        if (localHasData) pushRemote();
+        else render();
+        return true;
+    }
+
+    function adoptSnapshot(data) {
+        state.seasons = Array.isArray(data.seasons) && data.seasons.length ? data.seasons : state.seasons;
+        state.members = Array.isArray(data.members) ? data.members : [];
+        state.wishes  = Array.isArray(data.wishes) ? data.wishes : [];
+        state.parties = Array.isArray(data.parties) ? data.parties : [];
+        normalize();
+        sync.lastPushed = JSON.stringify(serialize());
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
+    }
+
+    // 画面の切り替えや候補の選択でも saveState は走るが、共有するのは
+    // シーズン・メンバー・希望・PTだけ。中身が変わっていなければ送らない。
+    function schedulePush() {
+        if (sync.mode === "local" || sync.mode === "conflict") return;
+        const snapshot = JSON.stringify(serialize());
+        if (snapshot === sync.lastPushed) return;
+        clearTimeout(sync.timer);
+        sync.timer = setTimeout(() => { sync.timer = 0; pushRemote(); }, PUSH_DELAY);
+    }
+
+    async function pushRemote() {
+        if (sync.mode === "local" || sync.mode === "conflict") return;
+        if (sync.inFlight) { sync.pending = true; return; }
+        sync.inFlight = true;
+        setSyncMode("saving");
+
+        const payload = JSON.stringify(serialize());
+        const key = editKey();
+        let res;
+        try {
+            res = await fetch(API, {
+                method: "PUT",
+                headers: Object.assign(
+                    { "Content-Type": "application/json" },
+                    key ? { "X-Edit-Key": key } : {}),
+                body: JSON.stringify({ version: sync.version, data: JSON.parse(payload), updatedBy: whoAmI() })
+            });
+        } catch (e) {
+            sync.inFlight = false;
+            setSyncMode("error", "保存できませんでした（通信エラー）");
+            return;
+        }
+
+        sync.inFlight = false;
+
+        if (res.ok) {
+            const body = await res.json();
+            sync.version = body.version;
+            sync.updatedAt = body.updatedAt;
+            sync.updatedBy = body.updatedBy;
+            sync.lastPushed = payload;
+            setSyncMode("synced");
+            if (sync.pending) { sync.pending = false; schedulePush(); }
+            return;
+        }
+        if (res.status === 401) {
+            setSyncMode("needkey", "編集キーが必要です（データ画面で設定）");
+            toast("編集キーが違います。データ画面で設定してください", "warn");
+            return;
+        }
+        if (res.status === 409) {
+            const body = await res.json().catch(() => ({}));
+            sync.version = body.version || sync.version;
+            sync.updatedBy = body.updatedBy;
+            setSyncMode("conflict", (body.updatedBy ? body.updatedBy + " が" : "他の人が") + "先に保存しています");
+            toast("他の人が先に保存しました。「共有」を押して読み直してください", "warn");
+            return;
+        }
+        setSyncMode("error", "保存に失敗しました (" + res.status + ")");
+    }
+
+    // 競合したときは、こちらの変更を捨ててサーバ側を読み直す。
+    async function resolveConflict() {
+        if (!await confirmDialog(
+            "共有データを読み直します。この端末でまだ保存できていない変更は失われます。よろしいですか？",
+            "読み直す")) return;
+        sync.mode = "synced";
+        await pullRemote();
+    }
+
+    function startPolling() {
+        setInterval(() => {
+            if (document.hidden) return;
+            if (sync.mode !== "synced") return;
+            if (sync.inFlight || sync.timer) return;
+            // 自分が編集していないときだけ、他の人の更新を拾いに行く
+            fetch(API, { headers: { "Accept": "application/json" } })
+                .then((r) => (r.ok ? r.json() : null))
+                .then((body) => {
+                    if (!body || body.version === sync.version) return;
+                    if (!body.data || !Array.isArray(body.data.members)) return;
+                    sync.version = body.version;
+                    sync.updatedAt = body.updatedAt;
+                    sync.updatedBy = body.updatedBy;
+                    adoptSnapshot(body.data);
+                    render();
+                    toast((body.updatedBy ? body.updatedBy + " の" : "") + "更新を読み込みました");
+                })
+                .catch(() => { /* 一時的な失敗は無視 */ });
+        }, POLL_INTERVAL);
     }
 
     // 参照切れ・欠損フィールドの掃除。読み込み直後と JSON 取り込み後に通す。
@@ -1624,6 +1803,38 @@
             "メンバー " + state.members.length + " / キャラ " + chars +
             " / 希望 " + state.wishes.length +
             " / 公開PT " + published + (drafts ? "（下書き " + drafts + "）" : "");
+
+        renderSyncBadge();
+    }
+
+    const SYNC_LABEL = {
+        local:    { text: "ローカルのみ", icon: "hard-drive" },
+        synced:   { text: "共有中",       icon: "cloud" },
+        saving:   { text: "保存中…",      icon: "cloud-upload" },
+        conflict: { text: "競合",         icon: "alert-triangle" },
+        needkey:  { text: "編集キー",     icon: "key" },
+        error:    { text: "同期エラー",   icon: "cloud-off" }
+    };
+
+    function renderSyncBadge() {
+        const host = $("#sync-status");
+        if (!host) return;
+        const s = SYNC_LABEL[sync.mode] || SYNC_LABEL.local;
+        host.textContent = "";
+        host.className = "sync-badge " + sync.mode;
+        host.title = sync.message ||
+            (sync.mode === "synced"
+                ? "共有DBと同期しています" + (sync.updatedBy ? "（最終更新: " + sync.updatedBy + "）" : "")
+                : "");
+        host.appendChild(icon(s.icon, "w-3 h-3"));
+        host.appendChild(document.createTextNode(
+            s.text + (sync.mode === "synced" && sync.version ? " v" + sync.version : "")));
+        host.onclick = () => {
+            if (sync.mode === "conflict") return resolveConflict();
+            if (sync.mode === "needkey") { $("#btn-data").click(); return; }
+            pullRemote();
+        };
+        if (window.lucide) window.lucide.createIcons();
     }
 
     // ============================================================
@@ -1635,6 +1846,18 @@
             const btn = $("#tab-" + s);
             if (btn) btn.addEventListener("click", () => switchScreen(s));
         });
+
+        const keyInput = $("#edit-key");
+        if (keyInput) {
+            keyInput.value = editKey();
+            keyInput.addEventListener("change", (e) => {
+                const v = e.target.value.trim();
+                try { v ? localStorage.setItem(EDIT_KEY_STORAGE, v) : localStorage.removeItem(EDIT_KEY_STORAGE); }
+                catch (err) { /* ignore */ }
+                toast(v ? "編集キーを保存しました" : "編集キーを消しました");
+                if (sync.mode === "needkey") { setSyncMode("synced"); pushRemote(); }
+            });
+        }
 
         $("#season-name").addEventListener("change", (e) => {
             const s = currentSeason();
@@ -1736,6 +1959,10 @@
         render();
         syncHostTab(state.ui.screen);   // 前回開いていた画面をホストのタブにも反映
         if (window.lucide) window.lucide.createIcons();
+
+        // ローカルの内容で一度描いてから共有DBを見に行く。
+        // APIが無ければ静かにローカルのみで動き続ける。
+        pullRemote({ silent: true }).then((ok) => { if (ok) startPolling(); });
     }
 
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

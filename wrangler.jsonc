@@ -10,6 +10,16 @@
     "directory": ".",
     "binding": "ASSETS"
   },
+  // Boss Scheduler の共有データ置き場。
+  //   npx wrangler d1 create maplemanager-scheduler
+  // で作り、出力された database_id を下に貼る。スキーマは schema.sql。
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "maplemanager-scheduler",
+      "database_id": "PASTE_DATABASE_ID_HERE"
+    }
+  ],
   "compatibility_flags": [
     "nodejs_compat"
   ]

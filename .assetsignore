@@ -1,0 +1,9 @@
+# 静的アセットとして配信・監視しないもの（Workers Static Assets の除外リスト）
+# .wrangler はローカルD1の実体が入るため、除外しないと dev が
+# 「D1に書く → アセット変化 → 再読み込み」を延々と繰り返す。
+.wrangler
+.git
+.claude
+node_modules
+schema.sql
+wrangler.jsonc

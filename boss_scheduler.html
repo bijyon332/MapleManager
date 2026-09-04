@@ -42,6 +42,8 @@
         <input type="text" id="season-name" class="season-name" placeholder="シーズン名" />
         <span id="app-stats" class="stat"></span>
         <span class="spacer"></span>
+        <!-- 共有DB(D1)との同期状態。押すと読み直し／競合の解消。 -->
+        <button type="button" id="sync-status" class="sync-badge local"></button>
         <button class="btn btn-ghost btn-xs" id="btn-data">
             <i data-lucide="database" class="w-3.5 h-3.5"></i> データ
         </button>
@@ -102,8 +104,18 @@
             </div>
             <div class="modal-body">
                 <p class="hint">
-                    編成データはこのブラウザに自動保存されます。別の端末へ渡す場合や、バックアップにはJSONを使ってください。
+                    編成データはこのブラウザに自動保存され、共有DB（Cloudflare D1）が有効な環境では
+                    保存のたびに全員ぶんが同期されます。バックアップや別環境への持ち出しにはJSONを使ってください。
                 </p>
+                <div class="row" style="margin-bottom:10px;">
+                    <label class="field" style="flex:1; min-width:220px;">編集キー（共有DBに保存する人だけ）
+                        <input type="password" id="edit-key" placeholder="未設定なら空のまま" />
+                    </label>
+                    <span class="hint" style="flex:2; min-width:200px; margin:0;">
+                        サーバー側で <code>SCHEDULER_EDIT_KEY</code> を設定している場合のみ必要です。
+                        この端末にだけ保存され、他の人には送られません。
+                    </span>
+                </div>
                 <div class="io-grid">
                     <div>
                         <div class="col-header">書き出し</div>

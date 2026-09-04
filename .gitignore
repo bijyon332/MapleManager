@@ -1,0 +1,5 @@
+# wrangler のローカル状態（ローカルD1の実体もここに入る）
+.wrangler/
+# ローカル開発用のシークレット。SCHEDULER_EDIT_KEY などを書く。コミットしない。
+.dev.vars
+node_modules/

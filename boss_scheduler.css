@@ -150,6 +150,21 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 }
 .app-bar .stat strong { color: #a5b4fc; font-weight: 700; }
 
+/* 共有DBとの同期状態 */
+.sync-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px; border-radius: 12px; cursor: pointer;
+    font-size: 10.5px; font-weight: 700; font-family: monospace;
+    background: #0f172a; border: 1px solid #1e293b; color: #64748b;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.sync-badge:hover { border-color: #475569; color: #cbd5e1; }
+.sync-badge.synced   { background: #052e1b; border-color: #047857; color: #6ee7b7; }
+.sync-badge.saving   { background: #1e1b4b; border-color: #6366f1; color: #c7d2fe; }
+.sync-badge.conflict { background: #3b0d22; border-color: #9f1239; color: #fecdd3; }
+.sync-badge.needkey  { background: #150f04; border-color: var(--role-sub); color: var(--role-sub-text); }
+.sync-badge.error    { background: #1a0d0d; border-color: #7f1d1d; color: #fca5a5; }
+
 /* === Panel === */
 .panel {
     background: #0f172a; border: 1px solid #1e293b; border-radius: 9px;
