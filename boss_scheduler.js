@@ -108,7 +108,9 @@
             const oku = n / 100000000;
             return (oku >= 10 ? oku.toFixed(1) : oku.toFixed(2)).replace(/\.?0+$/, "") + "億";
         }
-        if (n >= 10000) return Math.round(n / 10000).toLocaleString() + "万";
+        // 万に丸めるのは100万以上だけ。HEXAは10万前後の値なので、
+        // 1万単位に丸めると 102,773 と 98,861 がどちらも「10万」になってしまう。
+        if (n >= 1000000) return Math.round(n / 10000).toLocaleString() + "万";
         return Math.round(n).toLocaleString();
     }
     function parseCp(str) {
@@ -207,8 +209,13 @@
                 if (c.combatPower == null) c.combatPower = 0;
                 if (c.hexa == null) c.hexa = 0;
                 if (c.isActive == null) c.isActive = true;
+                if (c.isMain == null) c.isMain = false;
                 if (!c.updatedAt) c.updatedAt = now();
             });
+            // メインは1人1体。複数立っていたら先頭だけ残し、1体も無ければ先頭をメインにする。
+            const mains = m.characters.filter((c) => c.isMain);
+            if (mains.length > 1) mains.slice(1).forEach((c) => { c.isMain = false; });
+            if (!mains.length && m.characters.length) m.characters[0].isMain = true;
         });
 
         const charIds = new Set(allChars().map((c) => c.id));
@@ -579,7 +586,7 @@
     }
 
     function charCard(member, c) {
-        const card = el("div", { class: "char-card" + (c.isActive ? "" : " inactive") });
+        const card = el("div", { class: "char-card" + (c.isActive ? "" : " inactive") + (c.isMain ? " main" : " sub") });
         const touch = () => { c.updatedAt = now(); };
 
         card.appendChild(el("div", { class: "cc-top" },
@@ -588,6 +595,17 @@
                 class: "cc-name", type: "text", value: c.name, "aria-label": "キャラ名",
                 onchange: (e) => { c.name = e.target.value.trim() || c.name; touch(); saveState(); render(); }
             }),
+            // メインは1人1体。押すとこのキャラがメインになり、他はサブへ落ちる。
+            el("button", {
+                class: "role-pill" + (c.isMain ? " main" : ""),
+                title: c.isMain ? "このメンバーのメインキャラです" : "押すとメインキャラにします",
+                onclick: () => {
+                    if (c.isMain) return;
+                    member.characters.forEach((x) => { x.isMain = false; });
+                    c.isMain = true;
+                    touch(); saveState(); render();
+                }
+            }, c.isMain ? "メイン" : "サブ"),
             el("label", { class: "check" },
                 el("input", {
                     type: "checkbox", checked: c.isActive,
@@ -817,11 +835,12 @@
         }
         rows.forEach(({ c, m, elsewhere, upper }) => {
             const card = el("div", {
-                class: "cand" + (state.ui.selectedCharId === c.id ? " selected" : "") + (elsewhere ? " placed-elsewhere" : ""),
+                class: "cand " + (c.isMain ? "main" : "sub")
+                    + (state.ui.selectedCharId === c.id ? " selected" : "") + (elsewhere ? " placed-elsewhere" : ""),
                 draggable: elsewhere ? null : "true",
-                title: [(classById(c.jobId) || {}).name, c.note].filter(Boolean).join(" / ") || c.name
+                title: (c.isMain ? "メイン" : "サブ") + "："
+                    + ([(classById(c.jobId) || {}).name, c.note].filter(Boolean).join(" / ") || c.name)
             });
-            card.style.borderLeftColor = memberColor(m);
             if (!elsewhere) {
                 card.addEventListener("click", () => {
                     state.ui.selectedCharId = state.ui.selectedCharId === c.id ? null : c.id;
@@ -837,7 +856,9 @@
             }
             card.appendChild(charIconNode(c, "icon"));
             card.appendChild(el("div", { class: "cand-main" },
-                el("div", { class: "cand-name", text: c.name }),
+                el("div", { class: "cand-name" },
+                    c.name,
+                    !c.isMain && el("span", { class: "role-tag", text: "サブ" })),
                 el("div", { class: "cand-meta", text: displayName(m) + (classById(c.jobId) ? " / " + classById(c.jobId).name : "") }),
                 upper && el("div", {}, el("span", { class: "upper-badge", text: diffLabelJa(upper) + " にも希望" })),
                 elsewhere && el("div", { class: "cand-meta warn", text: diffLabelJa(elsewhere.difficulty) + " の " + (elsewhere.label || "PT") + " に配置済み" })
@@ -923,7 +944,10 @@
             if (id) {
                 const c = charById(id);
                 const m = c ? memberById(c.memberId) : null;
-                const li = el("li", { class: "slot filled", draggable: "true" });
+                const li = el("li", {
+                    class: "slot filled " + (c && c.isMain ? "main" : "sub"), draggable: "true",
+                    title: c ? (c.isMain ? "メイン" : "サブ") + "：" + c.name : ""
+                });
                 li.addEventListener("dragstart", (e) => {
                     drag = { charId: id, fromPartyId: p.id };
                     try { e.dataTransfer.setData("text/plain", id); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
@@ -937,7 +961,8 @@
                         el("a", {
                             href: "https://mapleranks.com/u/" + encodeURIComponent(c ? c.name : ""),
                             target: "_blank", rel: "noopener noreferrer", text: c ? c.name : "(不明)"
-                        })),
+                        }),
+                        c && !c.isMain && el("span", { class: "role-tag", text: "サブ" })),
                     el("div", { class: "slot-owner", text: displayName(m) })));
                 li.appendChild(cpBlock(c, "slot-cp"));
                 li.appendChild(el("button", {
@@ -1160,9 +1185,12 @@
                 if (id) {
                     const c = charById(id);
                     const m = c ? memberById(c.memberId) : null;
-                    const row = el("div", { class: "party-mini-member" + (myIds.includes(id) ? " me" : "") },
+                    const row = el("div", {
+                        class: "party-mini-member " + (c && c.isMain ? "main" : "sub") + (myIds.includes(id) ? " me" : ""),
+                        title: c ? (c.isMain ? "メイン" : "サブ") + "：" + c.name : ""
+                    },
                         charIconNode(c, "mini-icon"),
-                        el("span", { class: "pmm-name", text: c ? c.name : "(不明)" }),
+                        el("span", { class: "pmm-name" }, c ? c.name : "(不明)", c && !c.isMain && el("span", { class: "role-tag", text: "サブ" })),
                         el("span", { class: "pmm-owner", text: displayName(m) }),
                         state.ui.includeCp && el("span", { class: "pmm-cp", text: formatCp(c && c.combatPower) }));
                     body.appendChild(row);
@@ -1378,128 +1406,167 @@
         toast("読み込みました", "ok");
     }
 
-    // 動作を確かめるためのサンプル（20人規模・全ボスに3〜5PT）。
-    // 乱数は固定シードなので、何度入れ直しても同じ顔ぶれになる。
-    // 初期PTは R1（PT内のメンバー重複）/ R2（同一ボスの重複）を守った形で埋め、
-    // 補充の練習ができるよう一部に空きと下書きを残している。
+    // テストデータ: コミュニティのスプレッドシートの転記（39キャラ）。
+    //   job  … シートの「職」。キャラ名は「名前(職)」で組み立てる
+    //   id   … 職業アイコンのクラスID。略称から判断できないものは空
+    //   cp   … シートの「CP(ファミ有)」。m（百万）単位
+    //   hexa … シートの「HEXA」の数値そのまま
+    //   w    … 参加希望。"bossId:難易度" を空白区切り（難易度は E/N/H/C/X）
+    // シートで PT のセルだけを希望として取り込み、「ソロ」と空欄は取り込まない。
+    // PTの編成はシートに含まれないため、この転記には入れていない。
+    const ROSTER = [
+        { n: "ogatas", c: [
+            { job: "CBM", id: "", cp: 350, hexa: 82659,
+              w: "kalos:C kaling:N seren:X adversary:H kyousei:N limbo:N" },
+            { job: "BaM", id: "", cp: 150, w: "kalos:N kalos:C kaling:N adversary:H" },
+            { job: "BM", id: "", cp: 140, hexa: 56974, w: "kalos:N kalos:C kaling:N adversary:H" },
+            { job: "DB", id: "dualblade", cp: 140, w: "" }
+        ] },
+        { n: "なるちゃ", c: [
+            { job: "カーリー", id: "khali", cp: 150, w: "kalos:C kaling:N" }
+        ] },
+        { n: "鳳凰", c: [
+            { job: "シア", id: "sia",
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" }
+        ] },
+        { n: "ちゃちゃまる", c: [
+            { job: "シャドー", id: "shadower", cp: 500, hexa: 102987, note: "N凶星はソロ",
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" }
+        ] },
+        { n: "いんきゃ", c: [
+            { job: "DK", id: "darkknight", cp: 430, note: "N凶星はソロ",
+              w: "kalos:C kaling:N kaling:H seren:X adversary:H kyousei:H limbo:H baldrix:N" }
+        ] },
+        { n: "lalahsun", c: [
+            { job: "ララ", id: "lara", cp: 424, hexa: 93468, note: "N凶星はソロ",
+              w: "kalos:C kaling:N kaling:H seren:X adversary:H limbo:N limbo:H" }
+        ] },
+        { n: "もげぇ", c: [
+            { job: "レン", id: "ren", cp: 487, hexa: 102773, note: "N凶星はソロ",
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" },
+            { job: "エヴァン", id: "evan", w: "kalos:C darknight:X adversary:N adversary:H" }
+        ] },
+        { n: "ぐるこ", c: [
+            { job: "レン", id: "ren",
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" }
+        ] },
+        { n: "サザメ", c: [
+            { job: "リン", id: "lynn", cp: 510, hexa: 102369, note: "N凶星はソロ",
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" }
+        ] },
+        { n: "えりあす", c: [
+            { job: "レン/エリル", id: "", cp: 330, hexa: 87222,
+              w: "kalos:C kaling:N seren:X adversary:H kyousei:N limbo:N" }
+        ] },
+        { n: "せれん", c: [
+            { job: "エリル", id: "erellight", note: "CPはリープ後記載",
+              w: "kalos:C kaling:N seren:X adversary:H kyousei:N limbo:N" },
+            { job: "イリウム", id: "illium", cp: 190, w: "" }
+        ] },
+        { n: "ぜろく", c: [
+            { job: "カイザー", id: "kaiser", cp: 480, hexa: 104282,
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" },
+            { job: "リン", id: "lynn", cp: 234, w: "kalos:C darknight:X adversary:H" }
+        ] },
+        { n: "ぎすば", c: [
+            { job: "リン", id: "lynn", cp: 400,
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" }
+        ] },
+        { n: "れもん", c: [
+            { job: "ソルマス", id: "dawnwarrior", cp: 293, hexa: 88894, note: "N対敵者はソロ",
+              w: "kalos:C kaling:N seren:X" }
+        ] },
+        { n: "やみ", c: [
+            { job: "レン", id: "ren", cp: 376, hexa: 90537, note: "N対敵者はソロ",
+              w: "kalos:C kaling:N seren:X kyousei:N limbo:N" }
+        ] },
+        { n: "るー", c: [
+            { job: "カンナ", id: "kanna", cp: 581, hexa: 103943,
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N baldrix:H" },
+            { job: "ミハエル", id: "mihile", cp: 309, w: "kalos:C limbo:H" }
+        ] },
+        { n: "key", c: [
+            { job: "聖魔(カンナ)", id: "kanna",
+              w: "kalos:C kaling:N seren:X adversary:H kyousei:H limbo:H" },
+            { job: "カンナ", id: "kanna", cp: 284, w: "kalos:C kyousei:N" }
+        ] },
+        { n: "ビジョン", c: [
+            { job: "レン", id: "ren", cp: 467, hexa: 104604, note: "N凶星はソロ",
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N baldrix:H jupiter:N" },
+            { job: "ハヤト", id: "hayato", cp: 200,
+              w: "kalos:N kalos:C kaling:N kaling:H darknight:X adversary:H kyousei:H" }
+        ] },
+        { n: "いれあ", c: [
+            { job: "シア", id: "sia", cp: 457, hexa: 98861, note: "N凶星はソロ",
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" }
+        ] },
+        { n: "るい", c: [
+            { job: "レン", id: "ren", cp: 333, hexa: 86670, note: "N対敵者はソロ",
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:N limbo:N limbo:H baldrix:N" },
+            { job: "カンナ", id: "kanna", cp: 105, w: "adversary:H" }
+        ] },
+        { n: "めるぐあむ", c: [
+            { job: "ゼノン", id: "xenon", cp: 470, hexa: 95132, note: "N凶星はソロ",
+              w: "kalos:C kalos:X kaling:N kaling:H seren:X darknight:X adversary:H kyousei:H limbo:H baldrix:N" }
+        ] },
+        { n: "butterfry", c: [
+            { job: "バトルメイジ", id: "battlemage", w: "" }
+        ] },
+        { n: "MELZZ", c: [
+            { job: "ゼロ", id: "zero", w: "kalos:C kaling:N seren:X adversary:H kyousei:N limbo:N" }
+        ] },
+        { n: "ゆぴお", c: [
+            { job: "リン", id: "lynn", cp: 237, hexa: 57834, note: "チャレ鯖 / N対敵者はソロ",
+              w: "kalos:C kaling:N seren:X adversary:H kyousei:N limbo:N" },
+            { job: "キネシス", id: "kinesis", cp: 90, note: "チャレ鯖", w: "kalos:N kaling:N" }
+        ] },
+        { n: "ぱると", c: [
+            { job: "AB", id: "angelicbuster", cp: 100, hexa: 42352, note: "チャレ鯖", w: "adversary:N" },
+            { job: "カンナ", id: "kanna", cp: 113, hexa: 44603, note: "チャレ鯖", w: "kalos:N kaling:N" }
+        ] },
+        { n: "ぷりぷりおん", c: [
+            { job: "エリル", id: "erellight", cp: 200, hexa: 59348, note: "チャレ鯖 / N対敵者はソロ",
+              w: "kalos:C kaling:N adversary:H" }
+        ] },
+        { n: "yurulin", c: [
+            { job: "リン", id: "lynn", cp: 100, note: "チャレ鯖", w: "kalos:C kaling:N" }
+        ] }
+    ];
+
     function sampleData() {
-        let seed = 20260831;
-        const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
-        const pick = (a) => a[Math.floor(rnd() * a.length)];
+        const DIFF_CODE = { E: "EASY", N: "NORMAL", H: "HARD", C: "CHAOS", X: "EXTREME" };
 
-        const jobIds = allClasses().map((c) => c.id);
-        const names = [
-            "ゆき", "そら", "かえで", "はると", "みお", "りく", "なぎ", "ひなた", "つむぎ", "こはる",
-            "あおい", "れん", "いつき", "ののか", "たくみ", "さくら", "ゆうと", "みなも", "けい", "ましろ"
-        ];
-        const NOTES = ["", "", "", "火力枠", "サポート可", "初回なので教えてほしい", "遅れる日あり"];
-
-        const members = names.map((n, i) => {
-            // 3キャラ持ちが8人、2キャラが9人、1キャラが3人。実際の分布に近づけている。
-            const count = i < 8 ? 3 : (i < 17 ? 2 : 1);
-            const chars = [];
-            for (let k = 0; k < count; k++) {
-                // 本命ほど強い。2番目以降は本命の6〜9割程度。
-                const base = Math.round(4000 + rnd() * 26000) * 10000;
-                const cp = k === 0 ? base : Math.round(base * (0.6 + rnd() * 0.3));
-                chars.push({
-                    id: "c_" + i + "_" + k,
-                    name: n + ["A", "B", "C"][k],
-                    jobId: jobIds.length ? pick(jobIds) : "",
-                    combatPower: cp,
-                    hexa: Math.round(cp * (0.22 + rnd() * 0.3)),
-                    note: pick(NOTES),
-                    isActive: true,
-                    updatedAt: now()
-                });
-            }
-            return {
-                id: "m_" + i, discordName: n, displayName: "",
-                // 20人のうち2人は休止中。候補から外れることを確かめられる。
-                isActive: !(i === 12 || i === 18),
-                note: "", colorIdx: i % MEMBER_COLORS.length, characters: chars
-            };
-        });
+        const members = ROSTER.map((r, i) => ({
+            id: "m_" + i, discordName: r.n, displayName: "", isActive: true, note: "",
+            colorIdx: i % MEMBER_COLORS.length,
+            characters: r.c.map((c, k) => ({
+                id: "c_" + i + "_" + k,
+                name: r.n + "(" + c.job + ")",
+                jobId: c.id || "",
+                combatPower: Math.round((c.cp || 0) * 1e6),
+                hexa: c.hexa || 0,
+                note: c.note || "",
+                isActive: true,
+                isMain: k === 0,          // シートの1キャラ目をメインとして扱う
+                updatedAt: now()
+            }))
+        }));
 
         const wishes = [];
-        members.forEach((m) => m.characters.forEach((c) => {
-            bossList().forEach((b) => {
-                b.difficulties.forEach((d) => {
-                    const strong = c.combatPower > 150000000;
-                    const hardish = (d === "EXTREME" || d === "HARD" || d === "CHAOS");
-                    const chance = hardish ? (strong ? 0.62 : 0.34) : 0.55;
-                    if (rnd() > chance) return;
-                    wishes.push({ characterId: c.id, bossId: b.id, difficulty: d, note: "", updatedBy: m.id, updatedAt: now() });
-                });
+        members.forEach((m, i) => m.characters.forEach((c, k) => {
+            (ROSTER[i].c[k].w || "").split(/\s+/).filter(Boolean).forEach((code) => {
+                const [bossId, short] = code.split(":");
+                const difficulty = DIFF_CODE[short];
+                const b = bossList().find((x) => x.id === bossId);
+                if (!b || !b.difficulties.includes(difficulty)) return;   // マスタに無い組み合わせは捨てる
+                wishes.push({ characterId: c.id, bossId, difficulty, note: "", updatedBy: m.id, updatedAt: now() });
             });
         }));
 
         const season = { id: "s_1", name: "2026年 夏シーズン", isCurrent: true, note: "", createdAt: now() };
-        const MEMOS = ["", "", "", "連絡は週ボスチャンネルで", "初参加の人はこちら", "開始5分前に集合", "人が集まったら公開する"];
-        const pool = members.filter((m) => m.isActive).flatMap((m) => m.characters.map((c) => ({ c, m })));
-        const parties = [];
-        let pid = 0;
 
-        bossList().forEach((b) => {
-            const ptCount = 3 + Math.floor(rnd() * 3);      // ボスごとに3〜5PT
-            const taken = new Set();                        // R2: このボスで配置済みのキャラ
-            const labelNo = {};                             // 難易度ごとの連番
-
-            // 希望している人が多い難易度から順にPTを立てる。
-            // 難しい方から組む運用に合わせ、同数なら難しい方を先に取る。
-            const available = (d) => pool.filter(({ c }) =>
-                !taken.has(c.id) &&
-                wishes.some((w) => w.characterId === c.id && w.bossId === b.id && w.difficulty === d));
-
-            // 難しい方から1PTずつ立て、残りは希望者が多い難易度に足していく。
-            // 「難しい難易度から先に組む」運用をデータ側でも再現している。
-            const order = b.difficulties.slice().reverse();
-            for (let k = 0; k < ptCount; k++) {
-                let best = null, bestN = -1;
-                if (k < order.length) {
-                    best = order[k];
-                    bestN = available(best).length;
-                } else {
-                    b.difficulties.forEach((d, di) => {
-                        const n = available(d).length;
-                        if (n > bestN || (n === bestN && di > b.difficulties.indexOf(best))) { best = d; bestN = n; }
-                    });
-                }
-                // 1〜2人しか入らないPTは作らない。空きだらけのPTが並ぶと状況が読めなくなる。
-                if (!best || bestN < Math.ceil(b.maxMembers / 2)) {
-                    if (k < order.length) continue;         // その難易度は飛ばして次へ
-                    break;
-                }
-
-                labelNo[best] = (labelNo[best] || 0) + 1;
-                // 3PTに1つは空きを残す。空き枠と未配置の突き合わせを試せるように。
-                const vacancy = k % 3 === 2 ? (b.maxMembers > 3 ? 1 + Math.floor(rnd() * 2) : 1) : 0;
-                const room = Math.max(1, b.maxMembers - vacancy);
-
-                const party = {
-                    id: "p_" + (++pid), seasonId: season.id, bossId: b.id, difficulty: best,
-                    label: "PT" + labelNo[best], slots: [],
-                    // 各ボスの1つ目は必ず公開。全部下書きだとダッシュボードから消えてしまう。
-                    status: k > 0 && rnd() < 0.25 ? "draft" : "published",
-                    memo: pick(MEMOS), createdAt: now()
-                };
-
-                const usedMembers = new Set();              // R1: PT内は1メンバー1キャラ
-                available(best)
-                    .sort((a, z) => z.c.combatPower - a.c.combatPower)
-                    .forEach(({ c, m }) => {
-                        if (party.slots.length >= room) return;
-                        if (usedMembers.has(m.id)) return;
-                        usedMembers.add(m.id);
-                        taken.add(c.id);
-                        party.slots.push(c.id);
-                    });
-
-                parties.push(party);
-            }
-        });
-
-        return { seasons: [season], members, wishes, parties };
+        // 編成（PT）はシートに無いので作らない。空の状態から編成編集で組み始める。
+        return { seasons: [season], members, wishes, parties: [] };
     }
 
     // ============================================================
@@ -1610,14 +1677,14 @@
             r.readAsText(f);
         });
         $("#btn-sample").addEventListener("click", async () => {
-            if (!await confirmDialog("今の内容を捨てて、サンプルデータを入れます。よろしいですか？", "入れる")) return;
+            if (!await confirmDialog("今の内容を捨てて、テストデータを入れます。よろしいですか？", "入れる")) return;
             const s = sampleData();
             state.seasons = s.seasons; state.members = s.members;
             state.wishes = s.wishes; state.parties = s.parties;
             state.ui.editorMemberId = null; state.ui.viewerMemberId = s.members[0].id;
             normalize(); saveState(); render();
             $("#json-out").value = exportJson();
-            toast("サンプルデータを入れました", "ok");
+            toast("テストデータを入れました", "ok");
         });
         $("#btn-wipe").addEventListener("click", async () => {
             if (!await confirmDialog("メンバー・希望・編成をすべて削除します。元に戻せません。よろしいですか？")) return;
