@@ -973,12 +973,14 @@
             const upper = (!elsewhere && top && diffRank(bossId, top) > diffRank(bossId, difficulty)) ? top : null;
             rows.push({ c, m, elsewhere, upper });
         });
-        // 並びは3段階:
+        // 並びは4段階:
         //   1. 同じボスの別難易度に配置済みの人は最後尾へ（R2で今は入れられないため）
-        //   2. 上位難易度にも希望を出している人を先に（難しい方から埋めるため）
-        //   3. 戦闘力（またはHEXA）の降順
+        //   2. メインが先、サブは後ろ（まずメインで埋める運用に合わせる）
+        //   3. 上位難易度にも希望を出している人を先に（難しい方から埋めるため）
+        //   4. 戦闘力（またはHEXA）の降順
         rows.sort((a, b) =>
             (a.elsewhere ? 1 : 0) - (b.elsewhere ? 1 : 0) ||
+            (b.c.isMain ? 1 : 0) - (a.c.isMain ? 1 : 0) ||
             (b.upper ? 1 : 0) - (a.upper ? 1 : 0) ||
             ((b.c[state.ui.sortKey] || 0) - (a.c[state.ui.sortKey] || 0)));
         return rows;
