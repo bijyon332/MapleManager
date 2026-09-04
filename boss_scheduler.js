@@ -201,6 +201,13 @@
     //  APIが無い環境（静的に開いた場合など）でも今までどおり動く。
     //  競合は「読んだ version を送り、サーバ側で一致した時だけ更新」で防ぐ。
     // ============================================================
+    // 閲覧専用モード。?view=1 付きのURLで開くと編集の導線を一切出さず、
+    // 共有DBへの書き込みもしない。これはあくまで画面上の制限なので、
+    // 本当に書き換えられたくない場合はサーバ側で SCHEDULER_EDIT_KEY を設定する
+    // （キーが無ければ保存はサーバが401で弾く）。
+    const VIEW_ONLY = new URLSearchParams(location.search).get("view") === "1";
+    const shareUrl = () => location.origin + location.pathname + "?view=1";
+
     const API = "/api/scheduler";
     const EDIT_KEY_STORAGE = "boss-scheduler-edit-key";
     const PUSH_DELAY = 1200;      // 連続操作をまとめる
@@ -265,7 +272,7 @@
         }
         // サーバが空。手元にデータがあれば、それを最初の内容として上げる。
         setSyncMode("synced");
-        if (localHasData) pushRemote();
+        if (localHasData && !VIEW_ONLY) pushRemote();
         else render();
         return true;
     }
@@ -283,6 +290,7 @@
     // 画面の切り替えや候補の選択でも saveState は走るが、共有するのは
     // シーズン・メンバー・希望・PTだけ。中身が変わっていなければ送らない。
     function schedulePush() {
+        if (VIEW_ONLY) return;
         if (sync.mode === "local" || sync.mode === "conflict") return;
         const snapshot = JSON.stringify(sharedPayload());
         if (snapshot === sync.lastPushed) return;
@@ -291,6 +299,7 @@
     }
 
     async function pushRemote() {
+        if (VIEW_ONLY) return;
         if (sync.mode === "local" || sync.mode === "conflict") return;
         if (sync.inFlight) { sync.pending = true; return; }
         sync.inFlight = true;
@@ -1272,11 +1281,13 @@
             el("h2", { text: "編成全体" }),
             el("span", { class: "sub", text: ui.includeDraft ? "下書きも表示しています" : "公開されているPTのみ表示しています" }),
             el("span", { class: "spacer" }),
-            el("label", { class: "check" },
+            !VIEW_ONLY && el("label", { class: "check" },
                 el("input", {
                     type: "checkbox", checked: ui.includeDraft,
                     onchange: (e) => { ui.includeDraft = e.target.checked; saveState(); render(); }
                 }), "下書きも表示"),
+            !VIEW_ONLY && el("button", { class: "btn btn-xs", onclick: copyShareLink },
+                icon("link", "w-3 h-3"), "共有リンク"),
             el("button", { class: "btn btn-xs", onclick: openImageModal },
                 icon("image", "w-3 h-3"), "画像で出力"));
         all.appendChild(allHead);
@@ -1601,6 +1612,18 @@
         }
     }
 
+    function copyShareLink() {
+        const url = shareUrl();
+        const note = "編集できない閲覧用リンクをコピーしました";
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(
+                () => toast(note, "ok"),
+                () => toast(url, "warn"));
+        } else {
+            toast(url, "warn");
+        }
+    }
+
     let imageBlob = null;
 
     async function openImageModal() {
@@ -1627,7 +1650,7 @@
                 el("div", { class: "boss-title" }, el("span", { class: "boss-title-name", text: b.name })),
                 el("div", { class: "boss-subtitle" },
                     el("span", { text: parties.length + " PT · " + filled + "/" + cap + "人 · 上限 " + b.maxMembers + "人" }))),
-            el("button", {
+            !VIEW_ONLY && el("button", {
                 class: "btn btn-xs", title: "このボスの編成を開く",
                 onclick: () => {
                     state.ui.bossId = b.id;
@@ -1711,7 +1734,7 @@
                     diffBadge(p.difficulty),
                     el("span", { class: "gr-sub", text: (p.label || "PT") + " / あと " + (b.maxMembers - p.slots.length) + "人" }),
                     el("span", { class: "spacer" }),
-                    el("button", {
+                    !VIEW_ONLY && el("button", {
                         class: "btn btn-xs", onclick: () => {
                             state.ui.bossId = p.bossId; state.ui.difficulty = p.difficulty;
                             switchScreen("builder");
@@ -1759,7 +1782,7 @@
                     el("span", { class: "gr-name", style: "flex:1;min-width:0", text: c.name }),
                     el("span", { class: "gr-sub", text: displayName(m) }),
                     el("span", { class: "gr-cp", text: formatCp(c.combatPower) }),
-                    el("button", {
+                    !VIEW_ONLY && el("button", {
                         class: "btn btn-xs", onclick: () => {
                             state.ui.bossId = bossId; state.ui.difficulty = difficulty;
                             state.ui.selectedCharId = c.id;
@@ -1793,7 +1816,7 @@
                     type: "checkbox", checked: ui.includeCp,
                     onchange: (e) => { ui.includeCp = e.target.checked; saveState(); render(); }
                 }), "戦闘力・HEXAを含める"),
-            el("label", { class: "check" },
+            !VIEW_ONLY && el("label", { class: "check" },
                 el("input", {
                     type: "checkbox", checked: ui.includeDraft,
                     onchange: (e) => { ui.includeDraft = e.target.checked; saveState(); render(); }
@@ -2076,6 +2099,7 @@
     }
 
     function switchScreen(name) {
+        if (VIEW_ONLY) name = "dashboard";   // 閲覧専用は周知画面だけ
         if (!SCREENS.includes(name)) name = "members";
         state.ui.screen = name;
         state.ui.selectedCharId = null;
@@ -2154,7 +2178,8 @@
                 : "");
         host.appendChild(icon(s.icon, "w-3 h-3"));
         host.appendChild(document.createTextNode(
-            s.text + (sync.mode === "synced" && stamp ? " " + stamp : "")));
+            (VIEW_ONLY && sync.mode === "synced" ? "閲覧のみ" : s.text)
+            + (sync.mode === "synced" && stamp ? " " + stamp : "")));
         host.onclick = () => {
             if (sync.mode === "conflict") return resolveConflict();
             if (sync.mode === "needkey") { $("#btn-data").click(); return; }
@@ -2166,14 +2191,8 @@
     // ============================================================
     //  WIRE
     // ============================================================
-    function wire() {
-        // ホストのトップバーから叩かれる隠しタブ
-        SCREENS.forEach((s) => {
-            const btn = $("#tab-" + s);
-            if (btn) btn.addEventListener("click", () => switchScreen(s));
-        });
-
-        // ---- 画像出力モーダル ----
+    // 画像出力モーダルの配線。閲覧専用でも使えるようにここだけ切り出している。
+    function wireImageModal() {
         const imageModal = $("#image-modal");
         const closeImage = () => imageModal.classList.add("hidden");
         $$("[data-close-image]").forEach((b) => b.addEventListener("click", closeImage));
@@ -2197,6 +2216,19 @@
                 toast("コピーできませんでした。「画像を保存」から書き出してください", "warn");
             }
         });
+    }
+
+    function wire() {
+        // ホストのトップバーから叩かれる隠しタブ
+        SCREENS.forEach((s) => {
+            const btn = $("#tab-" + s);
+            if (btn) btn.addEventListener("click", () => switchScreen(s));
+        });
+
+        wireImageModal();
+        // 閲覧専用ではデータ入出力・編集キーの導線を持たない（要素も外している）
+        if (VIEW_ONLY) return;
+
 
         const keyInput = $("#edit-key");
         if (keyInput) {
@@ -2306,6 +2338,16 @@
     // ============================================================
     function init() {
         loadState();
+        if (VIEW_ONLY) {
+            // 周知だけの画面にする。下書きは編成中のものなので出さない。
+            state.ui.screen = "dashboard";
+            state.ui.includeDraft = false;
+            document.body.classList.add("view-only");
+            const dataBtn = $("#btn-data");
+            if (dataBtn) dataBtn.remove();
+            const season = $("#season-name");
+            if (season) { season.readOnly = true; season.tabIndex = -1; }
+        }
         wire();
         render();
         syncHostTab(state.ui.screen);   // 前回開いていた画面をホストのタブにも反映
