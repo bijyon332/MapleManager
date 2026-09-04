@@ -334,7 +334,8 @@
             const body = await res.json().catch(() => ({}));
             sync.version = body.version || sync.version;
             sync.updatedBy = body.updatedBy;
-            setSyncMode("conflict", (body.updatedBy ? body.updatedBy + " が" : "他の人が") + "先に保存しています");
+            sync.updatedAt = body.updatedAt || sync.updatedAt;
+            setSyncMode("conflict", "他の人が先に保存しています" + (sync.updatedAt ? "（" + formatStamp(sync.updatedAt, true) + "）" : ""));
             toast("他の人が先に保存しました。「共有」を押して読み直してください", "warn");
             return;
         }
@@ -366,7 +367,7 @@
                     sync.updatedBy = body.updatedBy;
                     adoptSnapshot(body.data);
                     render();
-                    toast((body.updatedBy ? body.updatedBy + " の" : "") + "更新を読み込みました");
+                    toast("更新を読み込みました" + (body.updatedAt ? "（" + formatStamp(body.updatedAt) + "）" : ""));
                 })
                 .catch(() => { /* 一時的な失敗は無視 */ });
         }, POLL_INTERVAL);
@@ -1837,19 +1838,33 @@
         error:    { text: "同期エラー",   icon: "cloud-off" }
     };
 
+    // 最終更新の時刻。今日なら時刻だけ、日をまたいでいれば月日も添える。
+    // 更新者は出さない。ダッシュボードで選んでいるメンバーがそのまま入るため、
+    // 実際に誰が保存したかを表しているとは限らない。
+    function formatStamp(iso, withDate) {
+        if (!iso) return "";
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return "";
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mm = String(d.getMinutes()).padStart(2, "0");
+        const sameDay = d.toDateString() === new Date().toDateString();
+        return (!sameDay || withDate ? (d.getMonth() + 1) + "/" + d.getDate() + " " : "") + hh + ":" + mm;
+    }
+
     function renderSyncBadge() {
         const host = $("#sync-status");
         if (!host) return;
         const s = SYNC_LABEL[sync.mode] || SYNC_LABEL.local;
+        const stamp = formatStamp(sync.updatedAt);
         host.textContent = "";
         host.className = "sync-badge " + sync.mode;
         host.title = sync.message ||
             (sync.mode === "synced"
-                ? "共有DBと同期しています" + (sync.updatedBy ? "（最終更新: " + sync.updatedBy + "）" : "")
+                ? "共有DBと同期しています" + (sync.updatedAt ? "（最終更新 " + formatStamp(sync.updatedAt, true) + "）" : "")
                 : "");
         host.appendChild(icon(s.icon, "w-3 h-3"));
         host.appendChild(document.createTextNode(
-            s.text + (sync.mode === "synced" && sync.version ? " v" + sync.version : "")));
+            s.text + (sync.mode === "synced" && stamp ? " " + stamp : "")));
         host.onclick = () => {
             if (sync.mode === "conflict") return resolveConflict();
             if (sync.mode === "needkey") { $("#btn-data").click(); return; }
