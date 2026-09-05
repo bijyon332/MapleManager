@@ -6,8 +6,11 @@
   "observability": {
     "enabled": true
   },
+  // 配信するのは public/ の中だけ。ルートを丸ごと配ると worker.js や
+  // wrangler.jsonc、.wrangler（ローカルD1の実体）まで公開され、
+  // dev では「D1に書く → アセットが変わった → 再読み込み」を延々と繰り返す。
   "assets": {
-    "directory": ".",
+    "directory": "./public",
     "binding": "ASSETS"
   },
   // Boss Scheduler の共有データ置き場。
