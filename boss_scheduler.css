@@ -657,3 +657,51 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
     padding: 8px; max-height: 66vh; overflow: auto;
 }
 .image-preview-box img { display: block; width: 100%; height: auto; }
+
+/* === ソロ消化枠（編成編集） === */
+.solo-card {
+    margin-top: 10px;
+    background: #0b1220; border: 1px dashed #334155; border-radius: 8px;
+    padding: 9px 10px;
+    transition: border-color 0.15s, opacity 0.15s;
+}
+.solo-card.hot { border-color: #22c55e; border-style: solid; background: rgba(34,197,94,0.06); }
+.solo-card.blocked { opacity: 0.45; }
+.solo-head { display: flex; align-items: center; gap: 7px; color: #94a3b8; margin-bottom: 7px; }
+.solo-title { font-size: 12px; font-weight: 700; color: #cbd5e1; }
+.solo-count { font-size: 10.5px; font-family: monospace; color: #64748b; }
+.solo-empty { font-size: 11px; color: #475569; line-height: 1.6; }
+.solo-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.solo-chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 6px; min-width: 190px;
+    background: #020617; border: 1px solid #1e293b; border-left: 3px solid var(--role-main);
+    border-radius: 5px; cursor: grab;
+}
+.solo-chip:active { cursor: grabbing; }
+.solo-chip.dragging { opacity: 0.4; }
+.solo-chip.sub { border-left-color: var(--role-sub); }
+.solo-chip.sub .solo-name { color: var(--role-sub-text); }
+.solo-chip .icon {
+    width: 22px; height: 22px; border-radius: 4px; flex-shrink: 0; overflow: hidden;
+    background: #0b1220; display: flex; align-items: center; justify-content: center;
+}
+.solo-chip .icon img { width: 100%; height: 100%; object-fit: contain; }
+.solo-body { flex: 1; min-width: 0; line-height: 1.25; }
+.solo-name { font-size: 12.5px; font-weight: 600; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.solo-owner { font-size: 10px; color: #64748b; }
+.solo-cp { font-size: 11px; font-family: monospace; font-weight: 700; color: #a5b4fc; flex-shrink: 0; }
+
+/* === ソロ消化（ダッシュボード） === */
+.solo-line {
+    display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
+    margin-top: 8px; padding-top: 8px; border-top: 1px dashed #1e293b;
+}
+.solo-line-title { font-size: 11px; font-weight: 700; color: #94a3b8; }
+.solo-line-names { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; }
+.solo-name-chip {
+    font-size: 11px; color: #cbd5e1;
+    background: #020617; border: 1px solid #1e293b; border-radius: 4px; padding: 1px 6px;
+}
+.solo-name-chip.sub { color: var(--role-sub-text); border-color: #3b2708; }
+.solo-name-chip.me { border-color: #6366f1; background: #1e1b4b; }

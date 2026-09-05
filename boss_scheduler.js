@@ -412,7 +412,7 @@
             charIds.has(w.characterId) && bossIds.has(w.bossId) &&
             (bossById(w.bossId).difficulties || []).includes(w.difficulty));
 
-        state.parties = state.parties.filter((p) => bossIds.has(p.bossId));
+        state.parties = state.parties.filter((p) => bossIds.has(p.bossId) && (!p.isSolo || p.slots.length));
         state.parties.forEach((p) => {
             if (!p.id) p.id = uid("p");
             if (!p.seasonId) p.seasonId = season.id;
@@ -451,8 +451,25 @@
     }
     const currentSeason = () => state.seasons.find((s) => s.isCurrent) || state.seasons[0];
     const seasonParties = () => state.parties.filter((p) => p.seasonId === currentSeason().id);
+    // ソロ消化の枠は Party として持つが、PTではないので数にも並びにも混ぜない。
+    // isSolo の枠は定員なし・同じメンバーの複数キャラ可（各自が単独で行くため）。
     const partiesOf = (bossId, difficulty) => seasonParties().filter((p) =>
-        p.bossId === bossId && (difficulty == null || p.difficulty === difficulty));
+        !p.isSolo && p.bossId === bossId && (difficulty == null || p.difficulty === difficulty));
+    const soloOf = (bossId, difficulty) => seasonParties().find((p) =>
+        p.isSolo && p.bossId === bossId && p.difficulty === difficulty) || null;
+
+    // ソロ枠は必要になった時点で作る（空の枠を全ボス分持たないため）
+    function ensureSolo(bossId, difficulty) {
+        let p = soloOf(bossId, difficulty);
+        if (p) return p;
+        p = {
+            id: uid("p"), seasonId: currentSeason().id, bossId, difficulty,
+            label: "ソロ消化", slots: [], status: "published", memo: "",
+            isSolo: true, createdAt: now()
+        };
+        state.parties.push(p);
+        return p;
+    }
     const wishOf = (characterId, bossId, difficulty) => state.wishes.find((w) =>
         w.characterId === characterId && w.bossId === bossId && w.difficulty === difficulty);
     const displayName = (m) => (m ? (m.displayName || m.discordName) : "?");
@@ -479,22 +496,27 @@
         if (party.slots.includes(charId)) return { ok: false, reason: "すでにこのPTにいます" };
 
         const b = bossById(party.bossId);
-        // R3: 定員
-        if (party.slots.length >= b.maxMembers) {
-            return { ok: false, reason: "定員に達しています（最大" + b.maxMembers + "人）" };
-        }
-        // R1: 同一PT内に同じメンバーのキャラを2体以上入れない
-        for (const sid of party.slots) {
-            const other = charById(sid);
-            if (other && other.memberId === ch.memberId) {
-                return { ok: false, reason: displayName(memberById(ch.memberId)) + " は既にこのPTにいます（" + other.name + "）" };
+        // ソロ枠は各自が単独で行く名簿なので、定員(R3)も同一メンバー禁止(R1)も効かない。
+        // 週間討伐制限の R2 だけは同じように効く。
+        if (!party.isSolo) {
+            // R3: 定員
+            if (party.slots.length >= b.maxMembers) {
+                return { ok: false, reason: "定員に達しています（最大" + b.maxMembers + "人）" };
+            }
+            // R1: 同一PT内に同じメンバーのキャラを2体以上入れない
+            for (const sid of party.slots) {
+                const other = charById(sid);
+                if (other && other.memberId === ch.memberId) {
+                    return { ok: false, reason: displayName(memberById(ch.memberId)) + " は既にこのPTにいます（" + other.name + "）" };
+                }
             }
         }
         // R2: 同一キャラは同じボスの複数PTに入れない（難易度が違っても不可）
         const conflict = seasonParties().find((p) =>
             p.id !== party.id && p.bossId === party.bossId && p.slots.includes(charId));
         if (conflict) {
-            return { ok: false, reason: bossById(conflict.bossId).name + " " + diffLabelJa(conflict.difficulty) + " に配置済みです" };
+            return { ok: false, reason: bossById(conflict.bossId).name + " " + diffLabelJa(conflict.difficulty)
+                + (conflict.isSolo ? " のソロ消化に入っています" : " に配置済みです") };
         }
         return { ok: true };
     }
@@ -523,6 +545,8 @@
     function removeFromParty(charId, partyId) {
         const p = state.parties.find((x) => x.id === partyId);
         if (p) p.slots = p.slots.filter((id) => id !== charId);
+        // 誰もいなくなったソロ枠は消す（空の枠を持ち歩かない）
+        if (p && p.isSolo && !p.slots.length) state.parties = state.parties.filter((x) => x !== p);
         saveState();
         render();
     }
@@ -1091,12 +1115,96 @@
         const list = partiesOf(state.ui.bossId, state.ui.difficulty);
         if (!list.length) {
             pane.appendChild(el("div", { class: "empty-state", text: "PT枠がありません。右上の「PT枠を追加」から作ります。" }));
-            return;
+        } else {
+            const grid = el("div", { class: "party-grid" });
+            list.forEach((p) => grid.appendChild(partyCard(p)));
+            pane.appendChild(grid);
         }
-        const grid = el("div", { class: "party-grid" });
-        list.forEach((p) => grid.appendChild(partyCard(p)));
-        pane.appendChild(grid);
+        pane.appendChild(soloCard());
         if (window.lucide) window.lucide.createIcons();
+    }
+
+    // PTに割り振れなかった人を置く枠。人数の上限はなく、同じメンバーの
+    // 複数キャラも入る（各自が単独で行くだけなので、PTの制約は当たらない）。
+    // ここに入れた人は「どのPTにも入っていない人」から外れ、あの一覧が
+    // 「まだ行き先が決まっていない人」だけを指すようになる。
+    function soloCard() {
+        const bossId = state.ui.bossId, difficulty = state.ui.difficulty;
+        const existing = soloOf(bossId, difficulty);
+        const slots = existing ? existing.slots : [];
+        const active = state.ui.selectedCharId || (drag && drag.charId);
+        const check = active && existing ? canPlace(active, existing) : null;
+
+        const card = el("div", { class: "solo-card" + (check && !check.ok ? " blocked" : "") });
+
+        const add = () => {
+            const id = state.ui.selectedCharId;
+            if (!id) return;
+            const solo = ensureSolo(bossId, difficulty);
+            placeChar(id, solo.id, null);
+        };
+
+        card.appendChild(el("div", { class: "solo-head" },
+            icon("user", "w-3.5 h-3.5"),
+            el("span", { class: "solo-title", text: "ソロ消化" }),
+            el("span", { class: "solo-count", text: slots.length + "人" }),
+            el("span", { class: "spacer" }),
+            state.ui.selectedCharId && el("button", { class: "add-here", onclick: add }, "ここに追加")
+        ));
+
+        if (!slots.length) {
+            card.appendChild(el("div", { class: "solo-empty", text: "PTを組まずに自分で行く人はここへ。ドラッグでも、候補を選んで「ここに追加」でも入ります。" }));
+        } else {
+            const listEl = el("div", { class: "solo-list" });
+            slots.forEach((id) => {
+                const c = charById(id);
+                const m = c ? memberById(c.memberId) : null;
+                const chip = el("div", {
+                    class: "solo-chip" + (c && !c.isMain ? " sub" : ""), draggable: "true",
+                    title: (c && !c.isMain ? "サブ：" : "") + (c ? c.name : "")
+                });
+                chip.addEventListener("dragstart", (e) => {
+                    drag = { charId: id, fromPartyId: existing.id };
+                    try { e.dataTransfer.setData("text/plain", id); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
+                    chip.classList.add("dragging");
+                });
+                chip.addEventListener("dragend", () => { drag = null; chip.classList.remove("dragging"); render(); });
+                chip.appendChild(charIconNode(c, "icon"));
+                chip.appendChild(el("div", { class: "solo-body" },
+                    el("div", { class: "solo-name" }, c ? c.name : "(不明)",
+                        c && !c.isMain && el("span", { class: "role-tag", text: "サブ" })),
+                    el("div", { class: "solo-owner", text: displayName(m) })));
+                chip.appendChild(el("span", { class: "solo-cp", text: formatCp(c && c.combatPower) }));
+                chip.appendChild(el("button", {
+                    class: "slot-x", title: "ソロ消化から外す",
+                    onclick: () => removeFromParty(id, existing.id)
+                }, icon("x", "w-3 h-3")));
+                listEl.appendChild(chip);
+            });
+            card.appendChild(listEl);
+        }
+
+        if (check && !check.ok) card.appendChild(el("div", { class: "block-reason", text: check.reason }));
+
+        // ドロップ先
+        card.addEventListener("dragover", (e) => {
+            if (!drag) return;
+            const solo = soloOf(bossId, difficulty);
+            if (solo && drag.fromPartyId === solo.id) return;
+            if (solo) { const v = canPlace(drag.charId, solo); if (!v.ok) return; }
+            e.preventDefault();
+            card.classList.add("hot");
+        });
+        card.addEventListener("dragleave", () => card.classList.remove("hot"));
+        card.addEventListener("drop", (e) => {
+            e.preventDefault(); card.classList.remove("hot");
+            if (!drag) return;
+            const d = drag; drag = null;
+            const solo = ensureSolo(bossId, difficulty);
+            if (d.fromPartyId === solo.id) { render(); return; }
+            placeChar(d.charId, solo.id, d.fromPartyId);
+        });
+        return card;
     }
 
     function partyCard(p) {
@@ -1264,8 +1372,8 @@
                     const box = el("div", { class: "mine" },
                         el("div", { class: "mine-boss" }, bossIconNode(b, "sm"), b.name, diffBadge(p.difficulty),
                             p.status === "draft" ? el("span", { class: "badge badge-soft", text: "下書き" }) : null),
-                        el("div", { class: "mine-who", text: (p.label || "PT") + " / " + myChar.name + " で参加" }),
-                        el("div", { class: "mine-mates", text: mates.length ? "一緒に行く人: " + mates.join("、") : "他のメンバーは未定" }),
+                        el("div", { class: "mine-who", text: (p.isSolo ? "ソロ消化" : (p.label || "PT")) + " / " + myChar.name + " で参加" }),
+                        el("div", { class: "mine-mates", text: p.isSolo ? "1人で消化する予定です" : (mates.length ? "一緒に行く人: " + mates.join("、") : "他のメンバーは未定") }),
                         p.memo && el("div", { class: "mine-memo", text: "メモ: " + p.memo }));
                     box.style.setProperty("--diff-color", diffColor(p.difficulty));
                     g.appendChild(box);
@@ -1301,7 +1409,7 @@
         }, "すべて");
         filter.appendChild(allChip);
         bossList().forEach((b) => {
-            const n = shown.filter((p) => p.bossId === b.id).length;
+            const n = shown.filter((p) => p.bossId === b.id && !p.isSolo).length;
             const chip = el("button", {
                 class: "boss-chip" + (ui.dashBossIds.includes(b.id) ? " active" : ""),
                 onclick: () => {
@@ -1322,9 +1430,9 @@
         } else {
             const grid = el("div", { class: "boss-grid" });
             visibleBosses.forEach((b) => {
-                const ps = shown.filter((p) => p.bossId === b.id)
+                const all = shown.filter((p) => p.bossId === b.id)
                     .sort((x, y) => b.difficulties.indexOf(y.difficulty) - b.difficulties.indexOf(x.difficulty));
-                grid.appendChild(dashBossCard(b, ps, viewer));
+                grid.appendChild(dashBossCard(b, all.filter((p) => !p.isSolo), all.filter((p) => p.isSolo), viewer));
             });
             allBody.appendChild(grid);
         }
@@ -1419,17 +1527,28 @@
 
         // ---- 先に配置を決める（高さが確定してから描く） ----
         const cols = (() => {
-            const most = Math.max.apply(null, bosses.map((b) => shown.filter((p) => p.bossId === b.id).length));
+            const most = Math.max.apply(null, bosses.map((b) => shown.filter((p) => p.bossId === b.id && !p.isSolo).length));
             return Math.min(IMG.cols, Math.max(1, most));   // PTが少ないボスばかりなら横幅も詰める
         })();
 
         const blocks = bosses.map((b) => {
-            const ps = shown.filter((p) => p.bossId === b.id)
+            const all = shown.filter((p) => p.bossId === b.id)
                 .sort((x, y) => b.difficulties.indexOf(y.difficulty) - b.difficulties.indexOf(x.difficulty));
+            const ps = all.filter((p) => !p.isSolo);
+            // ソロ消化はPT枠ではないので、ボス見出しの下に1行の名簿として書く
+            const soloLines = all.filter((p) => p.isSolo && p.slots.length).map((p) =>
+                diffLabelJa(p.difficulty) + " ソロ消化: " + p.slots.map((id) => {
+                    const c = charById(id);
+                    return (c ? c.name : "(不明)") + "（" + displayName(c && memberById(c.memberId)) + "）";
+                }).join("、"));
             const rows = Math.ceil(ps.length / cols);
             const cardH = IMG.cardHead + b.maxMembers * IMG.rowH + IMG.cardFoot
                 + (ps.some((p) => p.memo) ? 16 : 0);
-            return { boss: b, parties: ps, rows, cardH, h: IMG.bossHead + rows * (cardH + IMG.cardGap) };
+            const soloH = soloLines.length ? soloLines.length * 16 + 6 : 0;
+            return {
+                boss: b, parties: ps, soloLines, rows, cardH, soloH,
+                h: IMG.bossHead + soloH + rows * (cardH + IMG.cardGap)
+            };
         });
 
         const width = IMG.pad * 2 + cols * IMG.cardW + (cols - 1) * IMG.cardGap;
@@ -1484,6 +1603,14 @@
                 IMG.pad + 12 + ctx.measureText(b.name).width + 40, y + 13);
 
             let cy = y + IMG.bossHead;
+            if (bl.soloLines.length) {
+                ctx.font = imageFont(11);
+                bl.soloLines.forEach((line, li) => {
+                    ctx.fillStyle = IMG.subText;
+                    ctx.fillText(clipText(ctx, line, width - IMG.pad * 2), IMG.pad + 12, cy + 2 + li * 16);
+                });
+                cy += bl.soloH;
+            }
             bl.parties.forEach((p, i) => {
                 const col = i % cols;
                 const row = Math.floor(i / cols);
@@ -1638,8 +1765,8 @@
         if (window.lucide) window.lucide.createIcons();
     }
 
-    function dashBossCard(b, parties, viewer) {
-        const card = el("div", { class: "boss-card" + (parties.length ? "" : " empty") });
+    function dashBossCard(b, parties, solos, viewer) {
+        const card = el("div", { class: "boss-card" + (parties.length || solos.length ? "" : " empty") });
         card.style.setProperty("--boss-color", b.color || "#6366f1");
 
         const filled = parties.reduce((s, p) => s + p.slots.length, 0);
@@ -1649,7 +1776,8 @@
             el("div", { class: "boss-head-info" },
                 el("div", { class: "boss-title" }, el("span", { class: "boss-title-name", text: b.name })),
                 el("div", { class: "boss-subtitle" },
-                    el("span", { text: parties.length + " PT · " + filled + "/" + cap + "人 · 上限 " + b.maxMembers + "人" }))),
+                    el("span", { text: parties.length + " PT · " + filled + "/" + cap + "人 · 上限 " + b.maxMembers + "人" }),
+                    solos.length ? el("span", { text: "ソロ " + solos.reduce((s2, p) => s2 + p.slots.length, 0) + "人" }) : null)),
             !VIEW_ONLY && el("button", {
                 class: "btn btn-xs", title: "このボスの編成を開く",
                 onclick: () => {
@@ -1660,12 +1788,11 @@
             }, icon("edit-3", "w-3 h-3"), "編成")
         ));
 
-        if (!parties.length) {
+        const myIds = viewer ? viewer.characters.map((c) => c.id) : [];
+        if (!parties.length && !solos.length) {
             card.appendChild(el("div", { class: "boss-empty-hint", text: "PT未設定" }));
             return card;
         }
-
-        const myIds = viewer ? viewer.characters.map((c) => c.id) : [];
         // 6人ボスはPTを1段、3人ボスは2段に並べる
         const strip = el("div", { class: "parties-strip" + (b.maxMembers <= 3 ? " rows-2" : "") });
         parties.forEach((p, idx) => {
@@ -1705,7 +1832,25 @@
                 p.slots.length + "/" + b.maxMembers + "人 · 合計 ", el("strong", { text: formatCp(total) })));
             strip.appendChild(wrap);
         });
-        card.appendChild(strip);
+        if (parties.length) card.appendChild(strip);
+
+        // ソロ消化はPTではないので、枠ではなく1行の名簿として出す
+        solos.forEach((p) => {
+            const row = el("div", { class: "solo-line" },
+                diffBadge(p.difficulty),
+                el("span", { class: "solo-line-title", text: "ソロ消化" }));
+            const names = el("div", { class: "solo-line-names" });
+            p.slots.forEach((id) => {
+                const c = charById(id);
+                const m = c ? memberById(c.memberId) : null;
+                names.appendChild(el("span", {
+                    class: "solo-name-chip" + (c && !c.isMain ? " sub" : "") + (myIds.includes(id) ? " me" : ""),
+                    text: (c ? c.name : "(不明)") + "（" + displayName(m) + "）"
+                }));
+            });
+            row.appendChild(names);
+            card.appendChild(row);
+        });
         return card;
     }
 
@@ -1720,7 +1865,7 @@
 
         // --- 空きのあるPT ---
         const left = el("div");
-        const vac = shown.filter((p) => p.slots.length < bossById(p.bossId).maxMembers);
+        const vac = shown.filter((p) => !p.isSolo && p.slots.length < bossById(p.bossId).maxMembers);
         left.appendChild(el("div", { class: "col-header", text: "空きのあるPT（" + vac.length + "）" }));
         if (!vac.length) {
             left.appendChild(el("div", { class: "empty-state", text: "空き枠はありません。" }));
@@ -1757,6 +1902,9 @@
             if (placedKeys.has(key)) return;
             const c = charById(w.characterId);
             if (!c || !c.isActive) return;
+            // サブは出さない。ここは「行き先が決まっていないメイン」を数える場所で、
+            // 予備のキャラまで並べると取りこぼしの実数が読めなくなる。
+            if (!c.isMain) return;
             const m = memberById(c.memberId);
             if (!m || !m.isActive) return;
             const top = hardestWish(c.id, w.bossId);
@@ -1768,7 +1916,9 @@
             diffRank(b.bossId, b.difficulty) - diffRank(a.bossId, a.difficulty) ||
             (b.c.combatPower || 0) - (a.c.combatPower || 0));
 
-        right.appendChild(el("div", { class: "col-header", text: "希望を出しているのに、どのPTにも入っていない人（" + unplaced.length + "）" }));
+        right.appendChild(el("div", { class: "col-header",
+            text: "希望を出しているのに、行き先が決まっていない人（" + unplaced.length + "）" }));
+        right.appendChild(el("p", { class: "hint", text: "メインキャラのみ。ソロ消化に入れた人はここから外れます。" }));
         if (!unplaced.length) {
             right.appendChild(el("div", { class: "empty-state", text: "取りこぼしはありません。" }));
         } else {
@@ -1840,6 +1990,16 @@
                 lines.push("");
                 lines.push("【" + b.name + " " + diffLabelJa(d) + "】");
                 list.forEach((p) => {
+                    if (p.isSolo) {
+                        // ソロは人数も空きも無いので、名前を並べるだけにする
+                        const names = p.slots.map((id) => {
+                            const c = charById(id);
+                            const m = c ? memberById(c.memberId) : null;
+                            return (c ? c.name : "(不明)") + " (" + displayName(m) + ")";
+                        });
+                        if (names.length) lines.push("ソロ消化: " + names.join("、"));
+                        return;
+                    }
                     lines.push((p.label || "PT") + (p.status === "draft" ? "（下書き）" : ""));
                     for (let i = 0; i < b.maxMembers; i++) {
                         const id = p.slots[i];
