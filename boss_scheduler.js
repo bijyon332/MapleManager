@@ -417,6 +417,7 @@
             if (!p.id) p.id = uid("p");
             if (!p.seasonId) p.seasonId = season.id;
             if (!p.status) p.status = "draft";
+            if (p.isSolo) p.label = SOLO_LABEL;   // 保存済みの古いラベルも揃える
             if (!Array.isArray(p.slots)) p.slots = [];
             const b = bossById(p.bossId);
             if (!b.difficulties.includes(p.difficulty)) p.difficulty = b.difficulties[b.difficulties.length - 1];
@@ -451,7 +452,11 @@
     }
     const currentSeason = () => state.seasons.find((s) => s.isCurrent) || state.seasons[0];
     const seasonParties = () => state.parties.filter((p) => p.seasonId === currentSeason().id);
-    // ソロ消化の枠は Party として持つが、PTではないので数にも並びにも混ぜない。
+    // PTを組まずに消化する人の置き場。ソロで行く人と、サブキャラで行く人が入る。
+    const SOLO_LABEL = "ソロもしくはサブキャラ";
+    const SOLO_SHORT = "ソロ/サブ";
+
+    // この枠は Party として持つが、PTではないので数にも並びにも混ぜない。
     // isSolo の枠は定員なし・同じメンバーの複数キャラ可（各自が単独で行くため）。
     const partiesOf = (bossId, difficulty) => seasonParties().filter((p) =>
         !p.isSolo && p.bossId === bossId && (difficulty == null || p.difficulty === difficulty));
@@ -464,7 +469,7 @@
         if (p) return p;
         p = {
             id: uid("p"), seasonId: currentSeason().id, bossId, difficulty,
-            label: "ソロ消化", slots: [], status: "published", memo: "",
+            label: SOLO_LABEL, slots: [], status: "published", memo: "",
             isSolo: true, createdAt: now()
         };
         state.parties.push(p);
@@ -516,7 +521,7 @@
             p.id !== party.id && p.bossId === party.bossId && p.slots.includes(charId));
         if (conflict) {
             return { ok: false, reason: bossById(conflict.bossId).name + " " + diffLabelJa(conflict.difficulty)
-                + (conflict.isSolo ? " のソロ消化に入っています" : " に配置済みです") };
+                + (conflict.isSolo ? " の" + SOLO_LABEL + " に入っています" : " に配置済みです") };
         }
         return { ok: true };
     }
@@ -1146,14 +1151,14 @@
 
         card.appendChild(el("div", { class: "solo-head" },
             icon("user", "w-3.5 h-3.5"),
-            el("span", { class: "solo-title", text: "ソロ消化" }),
+            el("span", { class: "solo-title", text: SOLO_LABEL }),
             el("span", { class: "solo-count", text: slots.length + "人" }),
             el("span", { class: "spacer" }),
             state.ui.selectedCharId && el("button", { class: "add-here", onclick: add }, "ここに追加")
         ));
 
         if (!slots.length) {
-            card.appendChild(el("div", { class: "solo-empty", text: "PTを組まずに自分で行く人はここへ。ドラッグでも、候補を選んで「ここに追加」でも入ります。" }));
+            card.appendChild(el("div", { class: "solo-empty", text: "PTを組まずに、ソロで行く人・サブキャラで行く人はここへ。ドラッグでも、候補を選んで「ここに追加」でも入ります。" }));
         } else {
             const listEl = el("div", { class: "solo-list" });
             slots.forEach((id) => {
@@ -1176,7 +1181,7 @@
                     el("div", { class: "solo-owner", text: displayName(m) })));
                 chip.appendChild(el("span", { class: "solo-cp", text: formatCp(c && c.combatPower) }));
                 chip.appendChild(el("button", {
-                    class: "slot-x", title: "ソロ消化から外す",
+                    class: "slot-x", title: SOLO_LABEL + "から外す",
                     onclick: () => removeFromParty(id, existing.id)
                 }, icon("x", "w-3 h-3")));
                 listEl.appendChild(chip);
@@ -1372,8 +1377,8 @@
                     const box = el("div", { class: "mine" },
                         el("div", { class: "mine-boss" }, bossIconNode(b, "sm"), b.name, diffBadge(p.difficulty),
                             p.status === "draft" ? el("span", { class: "badge badge-soft", text: "下書き" }) : null),
-                        el("div", { class: "mine-who", text: (p.isSolo ? "ソロ消化" : (p.label || "PT")) + " / " + myChar.name + " で参加" }),
-                        el("div", { class: "mine-mates", text: p.isSolo ? "1人で消化する予定です" : (mates.length ? "一緒に行く人: " + mates.join("、") : "他のメンバーは未定") }),
+                        el("div", { class: "mine-who", text: (p.isSolo ? SOLO_LABEL : (p.label || "PT")) + " / " + myChar.name + " で参加" }),
+                        el("div", { class: "mine-mates", text: p.isSolo ? "PTを組まずに消化する予定です" : (mates.length ? "一緒に行く人: " + mates.join("、") : "他のメンバーは未定") }),
                         p.memo && el("div", { class: "mine-memo", text: "メモ: " + p.memo }));
                     box.style.setProperty("--diff-color", diffColor(p.difficulty));
                     g.appendChild(box);
@@ -1535,9 +1540,9 @@
             const all = shown.filter((p) => p.bossId === b.id)
                 .sort((x, y) => b.difficulties.indexOf(y.difficulty) - b.difficulties.indexOf(x.difficulty));
             const ps = all.filter((p) => !p.isSolo);
-            // ソロ消化はPT枠ではないので、ボス見出しの下に1行の名簿として書く
+            // ソロ/サブ枠はPT枠ではないので、ボス見出しの下に1行の名簿として書く
             const soloLines = all.filter((p) => p.isSolo && p.slots.length).map((p) =>
-                diffLabelJa(p.difficulty) + " ソロ消化: " + p.slots.map((id) => {
+                diffLabelJa(p.difficulty) + " " + SOLO_SHORT + ": " + p.slots.map((id) => {
                     const c = charById(id);
                     return (c ? c.name : "(不明)") + "（" + displayName(c && memberById(c.memberId)) + "）";
                 }).join("、"));
@@ -1777,7 +1782,7 @@
                 el("div", { class: "boss-title" }, el("span", { class: "boss-title-name", text: b.name })),
                 el("div", { class: "boss-subtitle" },
                     el("span", { text: parties.length + " PT · " + filled + "/" + cap + "人 · 上限 " + b.maxMembers + "人" }),
-                    solos.length ? el("span", { text: "ソロ " + solos.reduce((s2, p) => s2 + p.slots.length, 0) + "人" }) : null)),
+                    solos.length ? el("span", { text: SOLO_SHORT + " " + solos.reduce((s2, p) => s2 + p.slots.length, 0) + "人" }) : null)),
             !VIEW_ONLY && el("button", {
                 class: "btn btn-xs", title: "このボスの編成を開く",
                 onclick: () => {
@@ -1834,11 +1839,11 @@
         });
         if (parties.length) card.appendChild(strip);
 
-        // ソロ消化はPTではないので、枠ではなく1行の名簿として出す
+        // ソロ/サブ枠はPTではないので、枠ではなく1行の名簿として出す
         solos.forEach((p) => {
             const row = el("div", { class: "solo-line" },
                 diffBadge(p.difficulty),
-                el("span", { class: "solo-line-title", text: "ソロ消化" }));
+                el("span", { class: "solo-line-title", text: SOLO_LABEL }));
             const names = el("div", { class: "solo-line-names" });
             p.slots.forEach((id) => {
                 const c = charById(id);
@@ -1918,7 +1923,7 @@
 
         right.appendChild(el("div", { class: "col-header",
             text: "希望を出しているのに、行き先が決まっていない人（" + unplaced.length + "）" }));
-        right.appendChild(el("p", { class: "hint", text: "メインキャラのみ。ソロ消化に入れた人はここから外れます。" }));
+        right.appendChild(el("p", { class: "hint", text: "メインキャラのみ。" + SOLO_LABEL + " に入れた人はここから外れます。" }));
         if (!unplaced.length) {
             right.appendChild(el("div", { class: "empty-state", text: "取りこぼしはありません。" }));
         } else {
@@ -1997,7 +2002,7 @@
                             const m = c ? memberById(c.memberId) : null;
                             return (c ? c.name : "(不明)") + " (" + displayName(m) + ")";
                         });
-                        if (names.length) lines.push("ソロ消化: " + names.join("、"));
+                        if (names.length) lines.push(SOLO_LABEL + ": " + names.join("、"));
                         return;
                     }
                     lines.push((p.label || "PT") + (p.status === "draft" ? "（下書き）" : ""));
