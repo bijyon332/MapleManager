@@ -15,7 +15,7 @@ const BOSS_DATA = [
       maxMembers: 6, color: "#f97316", icon: "snowflake",    image: "kalos-the-guardian" },
     { id: "kaling",    name: "カリーン",           difficulties: ["EASY", "NORMAL", "HARD"],
       maxMembers: 6, color: "#f43f5e", icon: "flame",        image: "kaling" },
-    { id: "seren",     name: "セレン",             difficulties: ["EXTREME"],
+    { id: "seren",     name: "セレン",             difficulties: ["HARD", "EXTREME"],
       maxMembers: 6, color: "#10b981", icon: "sun",          image: "chosen-seren" },
     { id: "darknight", name: "暗黒の魔法使い",     difficulties: ["EXTREME"],
       maxMembers: 6, color: "#4f46e5", icon: "moon",         image: "black-mage" },

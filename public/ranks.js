@@ -4,7 +4,8 @@
 //     +1..+5 level ETAs, predicted order of reaching Lv.290 / Lv.295).
 //     Clicking a row expands an inline level / daily-EXP chart (7/14/30/90d).
 //   - 推移: pick characters from the roster list and overlay their curves
-//     on a single Chart.js chart (level / delta / daily EXP).
+//     on a single Chart.js chart (level / delta / cumulative EXP / daily EXP).
+//     The window is the last N days, or an explicit date range.
 //
 // Data source: MapleHub (maplehub.app) keeps ~90 days of daily snapshots for
 // every ranked character in its own backend DB. We fetch it through our own
@@ -48,7 +49,9 @@ const ranks = {
     // trend tab state
     selectedKeys: null,  // array of cache keys shown in the trend chart (null = all)
     selectedRange: 14,   // 7 | 14 | 30 | 90
-    yMode: 'absolute',   // 'absolute' | 'delta' | 'exp'
+    dateFrom: null,      // 'YYYY-MM-DD'。入っていれば selectedRange より優先する
+    dateTo: null,        // 'YYYY-MM-DD'
+    yMode: 'absolute',   // 'absolute' | 'delta' | 'expCum' | 'exp'
     pickedRegion: 'na',  // for the import form
     chart: null,
 
@@ -114,6 +117,54 @@ const ranks = {
 
     _key(r) { return `${r.region}:${r.name.toLowerCase()}`; },
 
+    /* ---------- 日付での期間指定 ---------- */
+
+    _isDate(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s); },
+    _hasDateRange() { return !!(this.dateFrom || this.dateTo); },
+
+    // MapleHubのラベルは "6/9" のように年が入っていない。系列は最大90日ぶんで
+    // 末尾が直近の日なので、末尾から遡りながら「月が大きくなったら前年」で年を補う。
+    // 返すのは labels と同じ並びの 'YYYY-MM-DD'（読めなかった要素は null）。
+    _labelDates(labels) {
+        const out = new Array(labels.length).fill(null);
+        const parse = (s) => {
+            const m = /^(\d{1,2})\s*\/\s*(\d{1,2})$/.exec(String(s || '').trim());
+            return m ? { mo: +m[1], d: +m[2] } : null;
+        };
+        let i = labels.length - 1;
+        while (i >= 0 && !parse(labels[i])) i--;
+        if (i < 0) return out;
+
+        const today = new Date();
+        const last = parse(labels[i]);
+        let year = today.getFullYear();
+        // 年をまたいだ直後は、末尾の日付が「今年」だと未来になってしまう。
+        if (new Date(year, last.mo - 1, last.d) > today) year--;
+
+        let prevMo = last.mo;
+        for (; i >= 0; i--) {
+            const p = parse(labels[i]);
+            if (!p) continue;
+            if (p.mo > prevMo) year--;   // 遡っていて月が増えた＝前の年に入った
+            prevMo = p.mo;
+            out[i] = `${year}-${String(p.mo).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`;
+        }
+        return out;
+    },
+
+    // グラフに出すラベルの添字。日付指定があればそれで絞り、無ければ末尾N日ぶん。
+    _visibleIndices(labels) {
+        if (!this._hasDateRange()) {
+            const start = Math.max(0, labels.length - this.selectedRange);
+            return labels.map((_, i) => i).filter(i => i >= start);
+        }
+        const dates = this._labelDates(labels);
+        const from = this.dateFrom, to = this.dateTo;
+        return labels
+            .map((_, i) => i)
+            .filter(i => dates[i] && (!from || dates[i] >= from) && (!to || dates[i] <= to));
+    },
+
     /* ---------- storage ---------- */
 
     loadRoster() {
@@ -146,7 +197,9 @@ const ranks = {
             if (!raw) return;
             const p = JSON.parse(raw);
             if ([7, 14, 30, 90].includes(p.range)) this.selectedRange = p.range;
-            if (['absolute', 'delta', 'exp'].includes(p.yMode)) this.yMode = p.yMode;
+            if (this._isDate(p.dateFrom)) this.dateFrom = p.dateFrom;
+            if (this._isDate(p.dateTo)) this.dateTo = p.dateTo;
+            if (['absolute', 'delta', 'expCum', 'exp'].includes(p.yMode)) this.yMode = p.yMode;
             if (['na', 'eu'].includes(p.region)) this.pickedRegion = p.region;
             if (['board', 'trend'].includes(p.tab)) this.activeTab = p.tab;
             if (typeof p.sortKey === 'string' && this.BOARD_COLUMNS.some(c => c.key === p.sortKey && c.sortable !== false)) this.sortKey = p.sortKey;
@@ -159,7 +212,8 @@ const ranks = {
     },
     savePrefs() {
         const p = {
-            range: this.selectedRange, yMode: this.yMode, region: this.pickedRegion,
+            range: this.selectedRange, dateFrom: this.dateFrom, dateTo: this.dateTo,
+            yMode: this.yMode, region: this.pickedRegion,
             tab: this.activeTab, sortKey: this.sortKey, sortDir: this.sortDir,
             selected: this.selectedKeys, detailMode: this.detailMode, detailRange: this.detailRange,
             autoAttemptAt: this.autoAttemptAt
@@ -184,10 +238,36 @@ const ranks = {
         document.querySelectorAll('.ranks-range-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.selectedRange = parseInt(btn.dataset.range, 10);
+                // プリセットを押したら日付指定は解除する（両方効いていると分かりにくい）
+                this.dateFrom = this.dateTo = null;
                 this.savePrefs();
                 this.renderRangeButtons();
                 this.renderChart();
             });
+        });
+
+        const applyDates = () => {
+            const f = document.getElementById('ranks-date-from');
+            const t = document.getElementById('ranks-date-to');
+            let from = f && f.value ? f.value : null;
+            let to = t && t.value ? t.value : null;
+            if (from && to && from > to) { const x = from; from = to; to = x; }   // 逆に入れても通す
+            this.dateFrom = from;
+            this.dateTo = to;
+            this.savePrefs();
+            this.renderRangeButtons();
+            this.renderChart();
+        };
+        ['ranks-date-from', 'ranks-date-to'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', applyDates);
+        });
+        const clearDates = document.getElementById('ranks-date-clear');
+        if (clearDates) clearDates.addEventListener('click', () => {
+            this.dateFrom = this.dateTo = null;
+            this.savePrefs();
+            this.renderRangeButtons();
+            this.renderChart();
         });
 
         document.querySelectorAll('.ranks-mode-btn').forEach(btn => {
@@ -209,6 +289,265 @@ const ranks = {
 
         const refreshBtn = document.getElementById('ranks-refresh-all');
         if (refreshBtn) refreshBtn.addEventListener('click', () => this.refreshAll());
+
+        const openPicker = document.getElementById('ranks-community-open');
+        if (openPicker) openPicker.addEventListener('click', () => this.openCommunityPicker());
+
+        this.initCommunity();
+    },
+
+    // ---- コミュニティ名簿との連携 ---------------------------------------
+    // 「名簿から追加」を押すと、まだ入っていないキャラをカードで並べたモーダルが
+    // 開く。複数選んでまとめて取り込める。名簿が無い環境では導線ごと隠し、
+    // 今までどおり手入力だけで使える。
+    initCommunity() {
+        const store = window.communityStore;
+        const row = document.getElementById('ranks-community-row');
+        if (!store || !row) return;
+        store.ready().then(() => {
+            store.onChange(() => this.renderCommunityRow());
+            this.renderCommunityRow();
+        });
+    },
+
+    _esc(v) {
+        return String(v == null ? '' : v)
+            .replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    },
+
+    // 名簿にいて、まだリーダーボードに入っていないキャラ（持ち主の情報つき）。
+    _communityCandidates() {
+        const store = window.communityStore;
+        if (!store) return [];
+        const region = this.pickedRegion;
+        const already = new Set(this.roster.map(r => this._key(r)));
+        return store.members().flatMap(m => m.characters
+            .filter(c => c.name && !already.has(`${region}:${c.name.toLowerCase()}`))
+            .map(c => ({ char: c, member: m, who: store.label(m) })));
+    },
+
+    renderCommunityRow() {
+        const store = window.communityStore;
+        const row = document.getElementById('ranks-community-row');
+        const note = document.getElementById('ranks-community-note');
+        if (!store || !row) return;
+
+        const hasRoster = store.members().some(m => m.characters.length);
+        row.classList.toggle('hidden', !hasRoster);
+        row.classList.toggle('flex', hasRoster);
+        if (!hasRoster) return;
+
+        const left = this._communityCandidates().length;
+        const btn = document.getElementById('ranks-community-open');
+        if (btn) btn.disabled = !left;
+        if (note) note.textContent = left ? `名簿に未追加のキャラが${left}体います` : '名簿のキャラはすべて追加済み';
+    },
+
+    // 名簿のキャラをカードで選ぶモーダル。
+    openCommunityPicker() {
+        const store = window.communityStore;
+        if (!store) return;
+        const cands = this._communityCandidates();
+        if (!cands.length) { this.showMsg('名簿のキャラはすべて追加済みです。', 'warn'); return; }
+
+        const esc = v => this._esc(v);
+        const picked = new Set();
+
+        const veil = document.createElement('div');
+        veil.className = 'fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm';
+        veil.innerHTML = `
+<div class="bg-slate-900 border border-slate-700 w-full max-w-5xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh]">
+    <div class="p-4 border-b border-slate-800 flex items-center gap-3 bg-slate-950">
+        <div>
+            <h3 class="text-white font-bold text-base leading-tight">名簿から追加</h3>
+            <p class="text-[11px] text-slate-500 mt-0.5">追加したいキャラを選んでください（${cands.length}体が未追加・${this.pickedRegion.toUpperCase()}）</p>
+        </div>
+        <div class="flex-1"></div>
+        <input type="search" data-x="q" placeholder="キャラ名 / 職 / メンバーで絞り込み"
+            class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-indigo-500 w-64">
+        <button type="button" data-x="close" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+    <div data-x="grid" class="flex-1 overflow-y-auto custom-scrollbar p-4 grid gap-2"
+        style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr));align-content:start"></div>
+    <div class="p-3 border-t border-slate-800 bg-slate-950 flex items-center gap-2">
+        <button type="button" data-x="all" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-2 rounded-lg text-xs font-medium">表示中をすべて選択</button>
+        <button type="button" data-x="none" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-2 rounded-lg text-xs font-medium">選択を解除</button>
+        <span data-x="status" class="text-[11px] text-slate-500 ml-1"></span>
+        <div class="flex-1"></div>
+        <button type="button" data-x="add" class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i><span data-x="add-label">追加</span>
+        </button>
+    </div>
+</div>`;
+        document.body.appendChild(veil);
+
+        const $ = k => veil.querySelector(`[data-x="${k}"]`);
+        const card = e => {
+            const c = e.char;
+            const on = picked.has(c.id);
+            const face = c.imgURL
+                ? `<img src="${esc(c.imgURL)}" alt="" loading="lazy" class="absolute inset-0 w-full h-full object-contain">`
+                : '<div class="absolute inset-0 flex items-center justify-center text-slate-700"><i data-lucide="user" class="w-6 h-6"></i></div>';
+            return `<button type="button" data-cid="${c.id}"
+    class="text-left flex gap-3 p-2.5 rounded-xl border transition-colors ${on ? 'border-indigo-500 bg-indigo-500/10' : 'border-slate-700 bg-slate-800/60 hover:border-slate-600'}">
+    <span class="relative w-16 h-16 rounded-lg bg-slate-950 border border-slate-700 overflow-hidden shrink-0">${face}</span>
+    <span class="min-w-0 flex-1">
+        <span class="block text-[13px] font-bold text-white truncate">${esc(c.name)}</span>
+        <span class="block text-[11px] text-slate-400">${c.level ? 'Lv.' + c.level : 'Lv.--'}${c.job ? ' · ' + esc(c.job) : ''}</span>
+        <span class="block text-[10px] text-slate-500 truncate mt-0.5">${esc(e.who)}</span>
+    </span>
+    <span class="shrink-0 self-start w-4 h-4 rounded border ${on ? 'bg-indigo-500 border-indigo-500' : 'border-slate-600'} flex items-center justify-center">
+        ${on ? '<i data-lucide="check" class="w-3 h-3 text-white"></i>' : ''}
+    </span>
+</button>`;
+        };
+        const visible = () => {
+            const q = ($('q').value || '').trim().toLowerCase();
+            if (!q) return cands;
+            return cands.filter(e => [e.char.name, e.char.job, e.who, e.member.discordName]
+                .some(v => String(v || '').toLowerCase().includes(q)));
+        };
+        // 表示中のキャラを持ち主ごとにまとめる。並びは名簿の順。
+        const groups = () => {
+            const map = new Map();
+            visible().forEach(e => {
+                if (!map.has(e.member.id)) map.set(e.member.id, { member: e.member, who: e.who, items: [] });
+                map.get(e.member.id).items.push(e);
+            });
+            return Array.from(map.values());
+        };
+        const memberPicked = (mid) => {
+            const items = visible().filter(e => e.member.id === mid);
+            return items.length > 0 && items.every(e => picked.has(e.char.id));
+        };
+        // 見出しは1行まるごと使う（グリッドの列をまたぐ）。
+        const header = (g) => `<div class="col-span-full flex items-center gap-2 pt-3 first:pt-0">
+    <span class="w-2 h-2 rounded-full shrink-0" style="background:${store.color(g.member)}"></span>
+    <span class="text-[12px] font-bold text-slate-200">${esc(g.who)}</span>
+    ${g.who !== g.member.discordName ? `<span class="text-[10px] text-slate-500">@${esc(g.member.discordName)}</span>` : ''}
+    <span class="text-[10px] text-slate-500 font-mono">${g.items.length}体</span>
+    <span class="flex-1 h-px bg-slate-800"></span>
+    <button type="button" data-mid="${g.member.id}"
+        class="text-[10px] font-bold text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-slate-800 transition-colors">${memberPicked(g.member.id) ? 'この人を解除' : 'この人をすべて選択'}</button>
+</div>`;
+        // 選択の切り替えで一覧を作り直すと、スクロール位置が先頭に戻ってしまう。
+        // 押したカードと下のボタンだけを塗り替える。
+        const paintCard = (btn) => {
+            const on = picked.has(btn.dataset.cid);
+            btn.className = 'text-left flex gap-3 p-2.5 rounded-xl border transition-colors '
+                + (on ? 'border-indigo-500 bg-indigo-500/10' : 'border-slate-700 bg-slate-800/60 hover:border-slate-600');
+            const box = btn.lastElementChild;
+            box.className = 'shrink-0 self-start w-4 h-4 rounded border '
+                + (on ? 'bg-indigo-500 border-indigo-500' : 'border-slate-600')
+                + ' flex items-center justify-center';
+            box.innerHTML = on ? '<i data-lucide="check" class="w-3 h-3 text-white"></i>' : '';
+            if (on && window.lucide) lucide.createIcons();
+        };
+        const paintFooter = () => {
+            $('status').textContent = picked.size ? `${picked.size}体を選択中` : '';
+            $('add').disabled = !picked.size;
+            $('add-label').textContent = picked.size ? `選択した${picked.size}体を追加` : '追加';
+        };
+        const paintHeaders = () => {
+            veil.querySelectorAll('[data-mid]').forEach(btn => {
+                btn.textContent = memberPicked(btn.dataset.mid) ? 'この人を解除' : 'この人をすべて選択';
+            });
+        };
+        const paintAll = () => {
+            veil.querySelectorAll('[data-cid]').forEach(paintCard);
+            paintHeaders();
+            paintFooter();
+        };
+        const draw = () => {
+            const gs = groups();
+            $('grid').innerHTML = gs.length
+                ? gs.map(g => header(g) + g.items.map(card).join('')).join('')
+                : '<div class="col-span-full text-center text-slate-500 text-xs py-10">条件に合うキャラがいません。</div>';
+            paintFooter();
+            if (window.lucide) lucide.createIcons();
+        };
+        draw();
+        $('q').focus();
+
+        const close = () => { document.removeEventListener('keydown', onKey); veil.remove(); };
+        const onKey = e => { if (e.key === 'Escape' && !this.busy) close(); };
+        document.addEventListener('keydown', onKey);
+
+        $('q').addEventListener('input', draw);
+        veil.addEventListener('click', async e => {
+            if (e.target === veil) { if (!this.busy) close(); return; }
+            const cardBtn = e.target.closest('[data-cid]');
+            if (cardBtn) {
+                const id = cardBtn.dataset.cid;
+                if (picked.has(id)) picked.delete(id); else picked.add(id);
+                paintCard(cardBtn);
+                paintHeaders();
+                paintFooter();
+                return;
+            }
+            const memberBtn = e.target.closest('[data-mid]');
+            if (memberBtn) {
+                const mid = memberBtn.dataset.mid;
+                const items = visible().filter(e2 => e2.member.id === mid);
+                const on = memberPicked(mid);
+                items.forEach(e2 => { if (on) picked.delete(e2.char.id); else picked.add(e2.char.id); });
+                paintAll();
+                return;
+            }
+            const b = e.target.closest('[data-x]');
+            if (!b || b.tagName === 'INPUT') return;
+            const x = b.dataset.x;
+            if (x === 'close') { if (!this.busy) close(); }
+            else if (x === 'all' || x === 'none') {
+                if (x === 'all') visible().forEach(e2 => picked.add(e2.char.id));
+                else picked.clear();
+                paintAll();
+            }
+            else if (x === 'add' && picked.size && !this.busy) {
+                b.disabled = true;
+                await this.importCharsFromCommunity(Array.from(picked), t => { $('status').textContent = t; });
+                close();
+            }
+        });
+    },
+
+    // 選んだキャラをまとめて取り込む。1体ずつMapleHubを見に行く。
+    async importCharsFromCommunity(charIds, onProgress) {
+        const store = window.communityStore;
+        if (this.busy || !store || !charIds.length) return;
+        const region = this.pickedRegion;
+        const targets = charIds.map(id => store.charById(id)).filter(Boolean);
+
+        this.setBusy(true);
+        let ok = 0;
+        const missed = [];
+        for (let i = 0; i < targets.length; i++) {
+            const { char } = targets[i];
+            const msg = `取得中 (${i + 1}/${targets.length}) ${char.name}`;
+            this.showMsg(msg, 'info');
+            if (onProgress) onProgress(msg);
+            try {
+                const parsed = await this._fetchCharacter(char.name, region);
+                if (!parsed.labels.length) { missed.push(char.name); continue; }
+                const canonicalName = (parsed.charInfo && parsed.charInfo.name) || char.name;
+                const key = `${region}:${canonicalName.toLowerCase()}`;
+                this.cache[key] = { ...parsed, importedAt: Date.now() };
+                if (!this.roster.some(r => this._key(r) === key)) this.roster.push({ name: canonicalName, region });
+                if (Array.isArray(this.selectedKeys) && !this.selectedKeys.includes(key)) this.selectedKeys.push(key);
+                ok++;
+            } catch (e) {
+                missed.push(char.name);
+            }
+        }
+        this.saveRoster();
+        this.saveCache();
+        this.savePrefs();
+        this.renderAll();
+        this.renderCommunityRow();
+        this.setBusy(false);
+        this.showMsg(
+            `${ok}体を追加しました` + (missed.length ? ` / 推移データが見つからなかったキャラ: ${missed.join(', ')}` : ''),
+            missed.length ? 'warn' : 'ok');
     },
 
     renderTabs() {
@@ -225,10 +564,32 @@ const ranks = {
     },
 
     renderRangeButtons() {
+        // 日付を入れているあいだはプリセットを効いていない見た目にする。
+        const byDate = this._hasDateRange();
         document.querySelectorAll('.ranks-range-btn').forEach(btn => {
-            const active = parseInt(btn.dataset.range, 10) === this.selectedRange;
-            btn.className = `ranks-range-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all ${active ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`;
+            const active = !byDate && parseInt(btn.dataset.range, 10) === this.selectedRange;
+            btn.className = `ranks-range-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all ${active ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}${byDate ? ' opacity-50' : ''}`;
         });
+
+        const f = document.getElementById('ranks-date-from');
+        const t = document.getElementById('ranks-date-to');
+        const clear = document.getElementById('ranks-date-clear');
+        if (!f || !t) return;
+        if (f.value !== (this.dateFrom || '')) f.value = this.dateFrom || '';
+        if (t.value !== (this.dateTo || '')) t.value = this.dateTo || '';
+
+        // 選べる範囲は、手元にあるデータの範囲に合わせる。
+        let longest = [];
+        for (const r of this.roster) {
+            const c = this.cache[this._key(r)];
+            if (c && Array.isArray(c.labels) && c.labels.length > longest.length) longest = c.labels;
+        }
+        const dates = this._labelDates(longest).filter(Boolean);
+        const min = dates[0] || '';
+        const max = dates[dates.length - 1] || '';
+        [f, t].forEach(el => { el.min = min; el.max = max; });
+        [f, t].forEach(el => el.classList.toggle('border-indigo-500', byDate));
+        if (clear) clear.style.visibility = byDate ? 'visible' : 'hidden';
     },
     renderModeButtons() {
         document.querySelectorAll('.ranks-mode-btn').forEach(btn => {
@@ -963,7 +1324,8 @@ const ranks = {
         const canvas = document.getElementById('ranks-chart');
         if (!wrap || !empty || !canvas) return;
 
-        const isExp = this.yMode === 'exp';
+        const isCum = this.yMode === 'expCum';          // 期間内の累積EXP
+        const isExp = this.yMode === 'exp' || isCum;    // Y軸がEXPかどうか
         const sel = this._selKeys();
 
         const ready = this.roster.filter(r => {
@@ -975,6 +1337,8 @@ const ranks = {
         if (ready.length === 0) {
             wrap.classList.add('hidden');
             empty.classList.remove('hidden');
+            const msg = empty.querySelector('[data-empty-msg]');
+            if (msg) msg.textContent = '左のリストからキャラクターを選択してください';
             if (this.chart) { this.chart.destroy(); this.chart = null; }
             return;
         }
@@ -988,9 +1352,18 @@ const ranks = {
             const c = this.cache[this._key(r)];
             if (c.labels.length > unionLabels.length) unionLabels = c.labels.slice();
         }
-        const N = this.selectedRange;
-        const labels = unionLabels.slice(-N);
+        const labels = this._visibleIndices(unionLabels).map(i => unionLabels[i]);
         const labelIndex = Object.fromEntries(labels.map((l, i) => [l, i]));
+
+        // 日付を絞りすぎて1日も残らないときは、空グラフではなく理由を出す。
+        if (!labels.length) {
+            wrap.classList.add('hidden');
+            empty.classList.remove('hidden');
+            const msg = empty.querySelector('[data-empty-msg]');
+            if (msg) msg.textContent = '指定した期間にデータがありません。日付を広げてください。';
+            if (this.chart) { this.chart.destroy(); this.chart = null; }
+            return;
+        }
 
         const datasets = this.roster.map((r, idx) => {
             const key = this._key(r);
@@ -1004,7 +1377,15 @@ const ranks = {
                 if (li != null) aligned[li] = src[i];
             }
             let display = aligned;
-            if (this.yMode === 'delta') {
+            if (isCum) {
+                // 期間の初日を0として足し上げる。欠測日は加算せず、線だけ繋ぐ。
+                let sum = 0, started = false;
+                display = aligned.map((v) => {
+                    if (typeof v !== 'number') return started ? sum : null;
+                    sum += v; started = true;
+                    return sum;
+                });
+            } else if (this.yMode === 'delta') {
                 const base = aligned.find(v => typeof v === 'number');
                 if (typeof base === 'number') {
                     display = aligned.map(v => typeof v === 'number' ? (v - base) : null);
@@ -1026,6 +1407,7 @@ const ranks = {
 
         const fmtExp = this._fmtExp;
         const cfg = {
+            // 複数キャラを重ねる画面なので、EXPでも棒ではなく線で出す。
             type: 'line',
             data: { labels, datasets },
             options: {
@@ -1039,6 +1421,7 @@ const ranks = {
                             label: (ctx) => {
                                 const v = ctx.parsed.y;
                                 if (v == null) return `${ctx.dataset.label}: —`;
+                                if (isCum) return `${ctx.dataset.label}: 累計 ${fmtExp(v)} EXP`;
                                 if (isExp) return `${ctx.dataset.label}: ${fmtExp(v)} EXP`;
                                 if (this.yMode === 'delta') return `${ctx.dataset.label}: +${v.toFixed(4)} lv`;
                                 const lv = Math.floor(v);
@@ -1062,7 +1445,7 @@ const ranks = {
                                 return `${lv}.${pct.padStart(2, '0')}%`;
                             }
                         },
-                        grid: this._yGrid(this.yMode !== 'exp')
+                        grid: this._yGrid(!isExp)
                     }
                 }
             }

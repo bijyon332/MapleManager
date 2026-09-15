@@ -6,10 +6,24 @@
   "observability": {
     "enabled": true
   },
+  // 配信するのは public/ の中だけ。ルートを丸ごと配ると worker.js や
+  // wrangler.jsonc、.wrangler（ローカルD1の実体）まで公開され、
+  // dev では「D1に書く → アセットが変わった → 再読み込み」を延々と繰り返す。
   "assets": {
-    "directory": ".",
+    "directory": "./public",
     "binding": "ASSETS"
   },
+  // Boss Scheduler の共有データ置き場。
+  //   npx wrangler d1 create maplemanager-scheduler
+  // で作成済み。database_id は秘密情報ではない（操作にはアカウント認証が要る）。
+  // スキーマは schema.sql。
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "maplemanager-scheduler",
+      "database_id": "6b1f0281-606b-4804-8484-24fc3f292423"
+    }
+  ],
   "compatibility_flags": [
     "nodejs_compat"
   ]

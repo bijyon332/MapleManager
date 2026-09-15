@@ -144,11 +144,30 @@
     let state = null;
     let drag = null;   // { charId, fromPartyId }
 
+    // 名簿（メンバーとキャラ）はコミュニティ名簿 community_store.js が持つ共有データで、
+    // Community / GMS Planner / EXP Leaderboard と同じものを見ている。編成側はそれを
+    // 参照するだけで、共有DBへ保存するのは シーズン / 希望 / PT編成 だけ。
+    // 名簿を読み込んでいない環境（このページを単体で開いた場合など）では
+    // 下の localMembers がその代わりになり、今までどおりここで登録できる。
+    const CS = () => window.communityStore;
+    let localMembers = [];
+
+    function attachMembers(s) {
+        Object.defineProperty(s, "members", {
+            // enumerable:false … localStorage と共有DBのスナップショットには入れない。
+            // 名簿の持ち主は名簿側なので、こちらで二重に持たない。
+            enumerable: false,
+            configurable: true,
+            get: () => (CS() ? CS().members() : localMembers),
+            set: (v) => { if (CS()) CS().replaceAll(v || []); else localMembers = v || []; }
+        });
+        return s;
+    }
+
     function emptyState() {
-        return {
+        return attachMembers({
             version: VERSION,
             seasons: [{ id: uid("s"), name: "シーズン1", isCurrent: true, note: "", createdAt: now() }],
-            members: [],   // { id, discordName, displayName, isActive, note, colorIdx, characters: [...] }
             wishes: [],    // { characterId, bossId, difficulty, note, updatedBy, updatedAt }
             parties: [],   // { id, seasonId, bossId, difficulty, label, slots:[charId], status, memo, createdAt }
             ui: {
@@ -166,7 +185,7 @@
                 includeDraft: false,
                 outBossId: ""
             }
-        };
+        });
     }
 
     function loadState() {
@@ -175,10 +194,15 @@
             const raw = localStorage.getItem(STORAGE_KEY);
             if (raw) {
                 const parsed = JSON.parse(raw);
-                if (parsed && Array.isArray(parsed.members)) {
+                if (parsed && typeof parsed === "object") {
                     state.seasons = Array.isArray(parsed.seasons) && parsed.seasons.length
                         ? parsed.seasons : state.seasons;
-                    state.members = parsed.members;
+                    // 名簿ができる前の保存データには members が入っている。
+                    // 名簿がまだ空のときだけ、キャラのidごと引き継ぐ（希望とPT編成が
+                    // そのidを指しているので、振り直すと参照が切れる）。
+                    if (Array.isArray(parsed.members) && parsed.members.length && !state.members.length) {
+                        state.members = parsed.members;
+                    }
                     state.wishes  = Array.isArray(parsed.wishes) ? parsed.wishes : [];
                     state.parties = Array.isArray(parsed.parties) ? parsed.parties : [];
                     if (parsed.ui) state.ui = Object.assign(state.ui, parsed.ui);
@@ -191,6 +215,207 @@
     function saveState() {
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
         catch (e) { /* 容量超過などは無視 */ }
+        // メンバーやキャラをこの画面から触った場合は名簿側にも保存させる。
+        // 中身が変わっていなければ名簿側も送信しないので、呼びっぱなしでよい。
+        if (CS()) CS().commit();
+        schedulePush();   // 共有DBが使えるときは少し遅らせてまとめて送る
+    }
+
+    // ============================================================
+    //  共有DB（Cloudflare D1）との同期
+    //
+    //  ローカル保存はそのまま残し、その上に同期を重ねている。
+    //  APIが無い環境（静的に開いた場合など）でも今までどおり動く。
+    //  競合は「読んだ version を送り、サーバ側で一致した時だけ更新」で防ぐ。
+    // ============================================================
+    // 閲覧専用モード。?view=1 付きのURLで開くと編集の導線を一切出さず、
+    // 共有DBへの書き込みもしない。これはあくまで画面上の制限なので、
+    // 本当に書き換えられたくない場合はサーバ側で SCHEDULER_EDIT_KEY を設定する
+    // （キーが無ければ保存はサーバが401で弾く）。
+    const VIEW_ONLY = new URLSearchParams(location.search).get("view") === "1";
+    const shareUrl = () => location.origin + location.pathname + "?view=1";
+
+    const API = "/api/scheduler";
+    const EDIT_KEY_STORAGE = "boss-scheduler-edit-key";
+    const PUSH_DELAY = 1200;      // 連続操作をまとめる
+    const POLL_INTERVAL = 60000;  // 他の人の更新を拾う間隔
+
+    const sync = {
+        mode: "local",     // local | synced | saving | conflict | needkey | error
+        version: 0,
+        updatedAt: null,
+        updatedBy: null,
+        message: "",
+        timer: 0,
+        inFlight: false,
+        pending: false,
+        lastPushed: null
+    };
+
+    const editKey = () => { try { return localStorage.getItem(EDIT_KEY_STORAGE) || ""; } catch (e) { return ""; } };
+    const whoAmI = () => {
+        const m = memberById(state.ui.viewerMemberId);
+        return m ? displayName(m) : "";
+    };
+
+    function setSyncMode(mode, message) {
+        sync.mode = mode;
+        sync.message = message || "";
+        renderAppBar();
+    }
+
+    // 起動時に一度だけ。サーバに何かあればそれを正とする。
+    async function pullRemote(opts) {
+        const silent = opts && opts.silent;
+        let res;
+        try {
+            res = await fetch(API, { headers: { "Accept": "application/json" } });
+        } catch (e) {
+            setSyncMode("local", "共有DBに接続できません");
+            return false;
+        }
+        // 501=D1未バインド、404/405=そもそもAPIが無い（静的に開いた場合）。
+        // どちらも「ローカルのみ」で今までどおり動かす。
+        if (res.status === 501 || res.status === 404 || res.status === 405) {
+            setSyncMode("local", "共有DBが未設定です（この端末にのみ保存されます）");
+            return false;
+        }
+        if (!res.ok) { setSyncMode("error", "読み込みに失敗しました (" + res.status + ")"); return false; }
+
+        const body = await res.json();
+        sync.version = body.version || 0;
+        sync.updatedAt = body.updatedAt;
+        sync.updatedBy = body.updatedBy;
+
+        // 名簿を分離したので、こちらの中身は 希望 / PT編成 / シーズン で判断する。
+        // 旧いスナップショット（members入り）も引き続き「中身あり」とみなす。
+        const d = body.data || {};
+        const len = (a) => (Array.isArray(a) ? a.length : 0);
+        const remoteHasData = !!(len(d.wishes) || len(d.parties) || len(d.members));
+        const localHasData = state.wishes.length || state.parties.length;
+
+        if (remoteHasData) {
+            adoptSnapshot(body.data);
+            setSyncMode("synced");
+            if (!silent) toast("共有データを読み込みました", "ok");
+            render();
+            return true;
+        }
+        // サーバが空。手元にデータがあれば、それを最初の内容として上げる。
+        setSyncMode("synced");
+        if (localHasData && !VIEW_ONLY) pushRemote();
+        else render();
+        return true;
+    }
+
+    function adoptSnapshot(data) {
+        state.seasons = Array.isArray(data.seasons) && data.seasons.length ? data.seasons : state.seasons;
+        // 名簿を分ける前のスナップショットには members が残っている。名簿がまだ
+        // 空のときだけ移行する（idを保つので希望とPT編成の参照は生きたまま）。
+        // 名簿に中身があるなら、そちらが正。ここで上書きしてはいけない。
+        if (Array.isArray(data.members) && data.members.length && !state.members.length) {
+            state.members = data.members;
+        }
+        state.wishes  = Array.isArray(data.wishes) ? data.wishes : [];
+        state.parties = Array.isArray(data.parties) ? data.parties : [];
+        normalize();
+        sync.lastPushed = JSON.stringify(sharedPayload());
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
+    }
+
+    // 画面の切り替えや候補の選択でも saveState は走るが、共有するのは
+    // シーズン・メンバー・希望・PTだけ。中身が変わっていなければ送らない。
+    function schedulePush() {
+        if (VIEW_ONLY) return;
+        if (sync.mode === "local" || sync.mode === "conflict") return;
+        const snapshot = JSON.stringify(sharedPayload());
+        if (snapshot === sync.lastPushed) return;
+        clearTimeout(sync.timer);
+        sync.timer = setTimeout(() => { sync.timer = 0; pushRemote(); }, PUSH_DELAY);
+    }
+
+    async function pushRemote() {
+        if (VIEW_ONLY) return;
+        if (sync.mode === "local" || sync.mode === "conflict") return;
+        if (sync.inFlight) { sync.pending = true; return; }
+        sync.inFlight = true;
+        setSyncMode("saving");
+
+        const payload = JSON.stringify(sharedPayload());
+        const key = editKey();
+        let res;
+        try {
+            res = await fetch(API, {
+                method: "PUT",
+                headers: Object.assign(
+                    { "Content-Type": "application/json" },
+                    key ? { "X-Edit-Key": key } : {}),
+                body: JSON.stringify({ version: sync.version, data: JSON.parse(payload), updatedBy: whoAmI() })
+            });
+        } catch (e) {
+            sync.inFlight = false;
+            setSyncMode("error", "保存できませんでした（通信エラー）");
+            return;
+        }
+
+        sync.inFlight = false;
+
+        if (res.ok) {
+            const body = await res.json();
+            sync.version = body.version;
+            sync.updatedAt = body.updatedAt;
+            sync.updatedBy = body.updatedBy;
+            sync.lastPushed = payload;
+            setSyncMode("synced");
+            if (sync.pending) { sync.pending = false; schedulePush(); }
+            return;
+        }
+        if (res.status === 401) {
+            setSyncMode("needkey", "編集キーが必要です（データ画面で設定）");
+            toast("編集キーが違います。データ画面で設定してください", "warn");
+            return;
+        }
+        if (res.status === 409) {
+            const body = await res.json().catch(() => ({}));
+            sync.version = body.version || sync.version;
+            sync.updatedBy = body.updatedBy;
+            sync.updatedAt = body.updatedAt || sync.updatedAt;
+            setSyncMode("conflict", "他の人が先に保存しています" + (sync.updatedAt ? "（" + formatStamp(sync.updatedAt, true) + "）" : ""));
+            toast("他の人が先に保存しました。「共有」を押して読み直してください", "warn");
+            return;
+        }
+        setSyncMode("error", "保存に失敗しました (" + res.status + ")");
+    }
+
+    // 競合したときは、こちらの変更を捨ててサーバ側を読み直す。
+    async function resolveConflict() {
+        if (!await confirmDialog(
+            "共有データを読み直します。この端末でまだ保存できていない変更は失われます。よろしいですか？",
+            "読み直す")) return;
+        sync.mode = "synced";
+        await pullRemote();
+    }
+
+    function startPolling() {
+        setInterval(() => {
+            if (document.hidden) return;
+            if (sync.mode !== "synced") return;
+            if (sync.inFlight || sync.timer) return;
+            // 自分が編集していないときだけ、他の人の更新を拾いに行く
+            fetch(API, { headers: { "Accept": "application/json" } })
+                .then((r) => (r.ok ? r.json() : null))
+                .then((body) => {
+                    if (!body || body.version === sync.version) return;
+                    if (!body.data || !Array.isArray(body.data.members)) return;
+                    sync.version = body.version;
+                    sync.updatedAt = body.updatedAt;
+                    sync.updatedBy = body.updatedBy;
+                    adoptSnapshot(body.data);
+                    render();
+                    toast("更新を読み込みました" + (body.updatedAt ? "（" + formatStamp(body.updatedAt) + "）" : ""));
+                })
+                .catch(() => { /* 一時的な失敗は無視 */ });
+        }, POLL_INTERVAL);
     }
 
     // 参照切れ・欠損フィールドの掃除。読み込み直後と JSON 取り込み後に通す。
@@ -223,11 +448,12 @@
             charIds.has(w.characterId) && bossIds.has(w.bossId) &&
             (bossById(w.bossId).difficulties || []).includes(w.difficulty));
 
-        state.parties = state.parties.filter((p) => bossIds.has(p.bossId));
+        state.parties = state.parties.filter((p) => bossIds.has(p.bossId) && (!p.isSolo || p.slots.length));
         state.parties.forEach((p) => {
             if (!p.id) p.id = uid("p");
             if (!p.seasonId) p.seasonId = season.id;
             if (!p.status) p.status = "draft";
+            if (p.isSolo) p.label = SOLO_LABEL;   // 保存済みの古いラベルも揃える
             if (!Array.isArray(p.slots)) p.slots = [];
             const b = bossById(p.bossId);
             if (!b.difficulties.includes(p.difficulty)) p.difficulty = b.difficulties[b.difficulties.length - 1];
@@ -262,8 +488,29 @@
     }
     const currentSeason = () => state.seasons.find((s) => s.isCurrent) || state.seasons[0];
     const seasonParties = () => state.parties.filter((p) => p.seasonId === currentSeason().id);
+    // PTを組まずに消化する人の置き場。ソロで行く人と、サブキャラで行く人が入る。
+    const SOLO_LABEL = "ソロもしくはサブキャラ";
+    const SOLO_SHORT = "ソロ/サブ";
+
+    // この枠は Party として持つが、PTではないので数にも並びにも混ぜない。
+    // isSolo の枠は定員なし・同じメンバーの複数キャラ可（各自が単独で行くため）。
     const partiesOf = (bossId, difficulty) => seasonParties().filter((p) =>
-        p.bossId === bossId && (difficulty == null || p.difficulty === difficulty));
+        !p.isSolo && p.bossId === bossId && (difficulty == null || p.difficulty === difficulty));
+    const soloOf = (bossId, difficulty) => seasonParties().find((p) =>
+        p.isSolo && p.bossId === bossId && p.difficulty === difficulty) || null;
+
+    // ソロ枠は必要になった時点で作る（空の枠を全ボス分持たないため）
+    function ensureSolo(bossId, difficulty) {
+        let p = soloOf(bossId, difficulty);
+        if (p) return p;
+        p = {
+            id: uid("p"), seasonId: currentSeason().id, bossId, difficulty,
+            label: SOLO_LABEL, slots: [], status: "published", memo: "",
+            isSolo: true, createdAt: now()
+        };
+        state.parties.push(p);
+        return p;
+    }
     const wishOf = (characterId, bossId, difficulty) => state.wishes.find((w) =>
         w.characterId === characterId && w.bossId === bossId && w.difficulty === difficulty);
     const displayName = (m) => (m ? (m.displayName || m.discordName) : "?");
@@ -290,22 +537,27 @@
         if (party.slots.includes(charId)) return { ok: false, reason: "すでにこのPTにいます" };
 
         const b = bossById(party.bossId);
-        // R3: 定員
-        if (party.slots.length >= b.maxMembers) {
-            return { ok: false, reason: "定員に達しています（最大" + b.maxMembers + "人）" };
-        }
-        // R1: 同一PT内に同じメンバーのキャラを2体以上入れない
-        for (const sid of party.slots) {
-            const other = charById(sid);
-            if (other && other.memberId === ch.memberId) {
-                return { ok: false, reason: displayName(memberById(ch.memberId)) + " は既にこのPTにいます（" + other.name + "）" };
+        // ソロ枠は各自が単独で行く名簿なので、定員(R3)も同一メンバー禁止(R1)も効かない。
+        // 週間討伐制限の R2 だけは同じように効く。
+        if (!party.isSolo) {
+            // R3: 定員
+            if (party.slots.length >= b.maxMembers) {
+                return { ok: false, reason: "定員に達しています（最大" + b.maxMembers + "人）" };
+            }
+            // R1: 同一PT内に同じメンバーのキャラを2体以上入れない
+            for (const sid of party.slots) {
+                const other = charById(sid);
+                if (other && other.memberId === ch.memberId) {
+                    return { ok: false, reason: displayName(memberById(ch.memberId)) + " は既にこのPTにいます（" + other.name + "）" };
+                }
             }
         }
         // R2: 同一キャラは同じボスの複数PTに入れない（難易度が違っても不可）
         const conflict = seasonParties().find((p) =>
             p.id !== party.id && p.bossId === party.bossId && p.slots.includes(charId));
         if (conflict) {
-            return { ok: false, reason: bossById(conflict.bossId).name + " " + diffLabelJa(conflict.difficulty) + " に配置済みです" };
+            return { ok: false, reason: bossById(conflict.bossId).name + " " + diffLabelJa(conflict.difficulty)
+                + (conflict.isSolo ? " の" + SOLO_LABEL + " に入っています" : " に配置済みです") };
         }
         return { ok: true };
     }
@@ -334,6 +586,8 @@
     function removeFromParty(charId, partyId) {
         const p = state.parties.find((x) => x.id === partyId);
         if (p) p.slots = p.slots.filter((id) => id !== charId);
+        // 誰もいなくなったソロ枠は消す（空の枠を持ち歩かない）
+        if (p && p.isSolo && !p.slots.length) state.parties = state.parties.filter((x) => x !== p);
         saveState();
         render();
     }
@@ -413,7 +667,12 @@
         });
         panel.appendChild(el("div", { class: "panel-head" },
             el("h2", { text: "メンバー" }),
-            el("span", { class: "sub", text: "名前を押すと、そのメンバーのキャラクターと参加希望を編集できます" }),
+            el("span", {
+                class: "sub",
+                text: CS()
+                    ? "コミュニティ名簿と共有です。名前を押すと、そのメンバーのキャラクターと参加希望を編集できます"
+                    : "名前を押すと、そのメンバーのキャラクターと参加希望を編集できます"
+            }),
             el("span", { class: "spacer" }),
             nameInput,
             el("button", {
@@ -423,7 +682,12 @@
 
         const body = el("div", { class: "panel-body" });
         if (!state.members.length) {
-            body.appendChild(el("div", { class: "empty-state", text: "メンバーがいません。「メンバーを追加」から始めてください。" }));
+            body.appendChild(el("div", {
+                class: "empty-state",
+                text: CS()
+                    ? "名簿にメンバーがいません。Community（名簿）で登録するか、ここで「メンバーを追加」してください。"
+                    : "メンバーがいません。「メンバーを追加」から始めてください。"
+            }));
         } else {
             const grid = el("div", { class: "member-grid" });
             state.members.forEach((m) => {
@@ -506,7 +770,7 @@
 
         const body = el("div", { class: "panel-body" });
         body.appendChild(el("div", { class: "row", style: "margin-bottom:10px" },
-            el("label", { class: "field" }, "Discord名",
+            el("label", { class: "field" }, "Discord名（識別用）",
                 el("input", {
                     type: "text", value: me.discordName, style: "width:170px",
                     onchange: (e) => {
@@ -518,7 +782,7 @@
                         me.discordName = v; saveState(); render();
                     }
                 })),
-            el("label", { class: "field" }, "表示名（任意）",
+            el("label", { class: "field" }, "表示名（画面に出る名前）",
                 el("input", {
                     type: "text", value: me.displayName || "", placeholder: "未設定ならDiscord名", style: "width:150px",
                     onchange: (e) => { me.displayName = e.target.value.trim(); saveState(); render(); }
@@ -794,8 +1058,14 @@
             const upper = (!elsewhere && top && diffRank(bossId, top) > diffRank(bossId, difficulty)) ? top : null;
             rows.push({ c, m, elsewhere, upper });
         });
-        // 上位難易度にも希望を出している人を先に。難しい方から埋めるための並び。
+        // 並びは4段階:
+        //   1. 同じボスの別難易度に配置済みの人は最後尾へ（R2で今は入れられないため）
+        //   2. メインが先、サブは後ろ（まずメインで埋める運用に合わせる）
+        //   3. 上位難易度にも希望を出している人を先に（難しい方から埋めるため）
+        //   4. 戦闘力（またはHEXA）の降順
         rows.sort((a, b) =>
+            (a.elsewhere ? 1 : 0) - (b.elsewhere ? 1 : 0) ||
+            (b.c.isMain ? 1 : 0) - (a.c.isMain ? 1 : 0) ||
             (b.upper ? 1 : 0) - (a.upper ? 1 : 0) ||
             ((b.c[state.ui.sortKey] || 0) - (a.c[state.ui.sortKey] || 0)));
         return rows;
@@ -896,12 +1166,96 @@
         const list = partiesOf(state.ui.bossId, state.ui.difficulty);
         if (!list.length) {
             pane.appendChild(el("div", { class: "empty-state", text: "PT枠がありません。右上の「PT枠を追加」から作ります。" }));
-            return;
+        } else {
+            const grid = el("div", { class: "party-grid" });
+            list.forEach((p) => grid.appendChild(partyCard(p)));
+            pane.appendChild(grid);
         }
-        const grid = el("div", { class: "party-grid" });
-        list.forEach((p) => grid.appendChild(partyCard(p)));
-        pane.appendChild(grid);
+        pane.appendChild(soloCard());
         if (window.lucide) window.lucide.createIcons();
+    }
+
+    // PTに割り振れなかった人を置く枠。人数の上限はなく、同じメンバーの
+    // 複数キャラも入る（各自が単独で行くだけなので、PTの制約は当たらない）。
+    // ここに入れた人は「どのPTにも入っていない人」から外れ、あの一覧が
+    // 「まだ行き先が決まっていない人」だけを指すようになる。
+    function soloCard() {
+        const bossId = state.ui.bossId, difficulty = state.ui.difficulty;
+        const existing = soloOf(bossId, difficulty);
+        const slots = existing ? existing.slots : [];
+        const active = state.ui.selectedCharId || (drag && drag.charId);
+        const check = active && existing ? canPlace(active, existing) : null;
+
+        const card = el("div", { class: "solo-card" + (check && !check.ok ? " blocked" : "") });
+
+        const add = () => {
+            const id = state.ui.selectedCharId;
+            if (!id) return;
+            const solo = ensureSolo(bossId, difficulty);
+            placeChar(id, solo.id, null);
+        };
+
+        card.appendChild(el("div", { class: "solo-head" },
+            icon("user", "w-3.5 h-3.5"),
+            el("span", { class: "solo-title", text: SOLO_LABEL }),
+            el("span", { class: "solo-count", text: slots.length + "人" }),
+            el("span", { class: "spacer" }),
+            state.ui.selectedCharId && el("button", { class: "add-here", onclick: add }, "ここに追加")
+        ));
+
+        if (!slots.length) {
+            card.appendChild(el("div", { class: "solo-empty", text: "PTを組まずに、ソロで行く人・サブキャラで行く人はここへ。ドラッグでも、候補を選んで「ここに追加」でも入ります。" }));
+        } else {
+            const listEl = el("div", { class: "solo-list" });
+            slots.forEach((id) => {
+                const c = charById(id);
+                const m = c ? memberById(c.memberId) : null;
+                const chip = el("div", {
+                    class: "solo-chip" + (c && !c.isMain ? " sub" : ""), draggable: "true",
+                    title: (c && !c.isMain ? "サブ：" : "") + (c ? c.name : "")
+                });
+                chip.addEventListener("dragstart", (e) => {
+                    drag = { charId: id, fromPartyId: existing.id };
+                    try { e.dataTransfer.setData("text/plain", id); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
+                    chip.classList.add("dragging");
+                });
+                chip.addEventListener("dragend", () => { drag = null; chip.classList.remove("dragging"); render(); });
+                chip.appendChild(charIconNode(c, "icon"));
+                chip.appendChild(el("div", { class: "solo-body" },
+                    el("div", { class: "solo-name" }, c ? c.name : "(不明)",
+                        c && !c.isMain && el("span", { class: "role-tag", text: "サブ" })),
+                    el("div", { class: "solo-owner", text: displayName(m) })));
+                chip.appendChild(el("span", { class: "solo-cp", text: formatCp(c && c.combatPower) }));
+                chip.appendChild(el("button", {
+                    class: "slot-x", title: SOLO_LABEL + "から外す",
+                    onclick: () => removeFromParty(id, existing.id)
+                }, icon("x", "w-3 h-3")));
+                listEl.appendChild(chip);
+            });
+            card.appendChild(listEl);
+        }
+
+        if (check && !check.ok) card.appendChild(el("div", { class: "block-reason", text: check.reason }));
+
+        // ドロップ先
+        card.addEventListener("dragover", (e) => {
+            if (!drag) return;
+            const solo = soloOf(bossId, difficulty);
+            if (solo && drag.fromPartyId === solo.id) return;
+            if (solo) { const v = canPlace(drag.charId, solo); if (!v.ok) return; }
+            e.preventDefault();
+            card.classList.add("hot");
+        });
+        card.addEventListener("dragleave", () => card.classList.remove("hot"));
+        card.addEventListener("drop", (e) => {
+            e.preventDefault(); card.classList.remove("hot");
+            if (!drag) return;
+            const d = drag; drag = null;
+            const solo = ensureSolo(bossId, difficulty);
+            if (d.fromPartyId === solo.id) { render(); return; }
+            placeChar(d.charId, solo.id, d.fromPartyId);
+        });
+        return card;
     }
 
     function partyCard(p) {
@@ -1069,8 +1423,8 @@
                     const box = el("div", { class: "mine" },
                         el("div", { class: "mine-boss" }, bossIconNode(b, "sm"), b.name, diffBadge(p.difficulty),
                             p.status === "draft" ? el("span", { class: "badge badge-soft", text: "下書き" }) : null),
-                        el("div", { class: "mine-who", text: (p.label || "PT") + " / " + myChar.name + " で参加" }),
-                        el("div", { class: "mine-mates", text: mates.length ? "一緒に行く人: " + mates.join("、") : "他のメンバーは未定" }),
+                        el("div", { class: "mine-who", text: (p.isSolo ? SOLO_LABEL : (p.label || "PT")) + " / " + myChar.name + " で参加" }),
+                        el("div", { class: "mine-mates", text: p.isSolo ? "PTを組まずに消化する予定です" : (mates.length ? "一緒に行く人: " + mates.join("、") : "他のメンバーは未定") }),
                         p.memo && el("div", { class: "mine-memo", text: "メモ: " + p.memo }));
                     box.style.setProperty("--diff-color", diffColor(p.difficulty));
                     g.appendChild(box);
@@ -1086,11 +1440,15 @@
             el("h2", { text: "編成全体" }),
             el("span", { class: "sub", text: ui.includeDraft ? "下書きも表示しています" : "公開されているPTのみ表示しています" }),
             el("span", { class: "spacer" }),
-            el("label", { class: "check" },
+            !VIEW_ONLY && el("label", { class: "check" },
                 el("input", {
                     type: "checkbox", checked: ui.includeDraft,
                     onchange: (e) => { ui.includeDraft = e.target.checked; saveState(); render(); }
-                }), "下書きも表示"));
+                }), "下書きも表示"),
+            !VIEW_ONLY && el("button", { class: "btn btn-xs", onclick: copyShareLink },
+                icon("link", "w-3 h-3"), "共有リンク"),
+            el("button", { class: "btn btn-xs", onclick: openImageModal },
+                icon("image", "w-3 h-3"), "画像で出力"));
         all.appendChild(allHead);
 
         const allBody = el("div", { class: "panel-body" });
@@ -1102,7 +1460,7 @@
         }, "すべて");
         filter.appendChild(allChip);
         bossList().forEach((b) => {
-            const n = shown.filter((p) => p.bossId === b.id).length;
+            const n = shown.filter((p) => p.bossId === b.id && !p.isSolo).length;
             const chip = el("button", {
                 class: "boss-chip" + (ui.dashBossIds.includes(b.id) ? " active" : ""),
                 onclick: () => {
@@ -1123,9 +1481,9 @@
         } else {
             const grid = el("div", { class: "boss-grid" });
             visibleBosses.forEach((b) => {
-                const ps = shown.filter((p) => p.bossId === b.id)
+                const all = shown.filter((p) => p.bossId === b.id)
                     .sort((x, y) => b.difficulties.indexOf(y.difficulty) - b.difficulties.indexOf(x.difficulty));
-                grid.appendChild(dashBossCard(b, ps, viewer));
+                grid.appendChild(dashBossCard(b, all.filter((p) => !p.isSolo), all.filter((p) => p.isSolo), viewer));
             });
             allBody.appendChild(grid);
         }
@@ -1139,8 +1497,327 @@
         root.appendChild(textPanel());
     }
 
-    function dashBossCard(b, parties, viewer) {
-        const card = el("div", { class: "boss-card" + (parties.length ? "" : " empty") });
+    // ============================================================
+    //  ダッシュボードの画像出力
+    //
+    //  DOMをそのまま画像化せず、canvasに描き直している。ボス画像が別ドメイン
+    //  （MapleHub CDN）にあるため、DOMごと変換するとcanvasが汚染されて
+    //  PNGとして取り出せなくなる。職業アイコンは同一オリジンなので描ける。
+    //  表示対象はダッシュボードの絞り込み（ボス・下書き・戦闘力）に従う。
+    // ============================================================
+    const IMG = {
+        scale: 2,              // 端末に依らず等倍2倍で描き、Discordでも粗くならないように
+        pad: 22,
+        cardW: 262,
+        cardGap: 12,
+        cols: 4,
+        rowH: 27,
+        cardHead: 30,
+        cardFoot: 22,
+        bossHead: 40,
+        bg: "#020617",
+        panel: "#0f172a",
+        card: "#020617",
+        line: "#1e293b",
+        text: "#e2e8f0",
+        muted: "#64748b",
+        cp: "#a5b4fc",
+        vacant: "#fda4af",
+        sub: "#f59e0b",
+        subText: "#fcd34d"
+    };
+    const DIFF_FILL = { EASY: "#374151", NORMAL: "#0e7490", HARD: "#991b1b", CHAOS: "#7c5e05", EXTREME: "#7f1d1d" };
+
+    function imageFont(size, weight) {
+        return (weight || "") + " " + size + 'px "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif';
+    }
+
+    // 職業アイコンを先に読み込む。読めなかったものは描かずに飛ばす。
+    function loadJobIcons(charIds) {
+        const paths = {};
+        charIds.forEach((id) => {
+            const c = charById(id);
+            const job = c && classById(c.jobId);
+            if (job) paths[job.path] = true;
+        });
+        return Promise.all(Object.keys(paths).map((p) => new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve([p, img]);
+            img.onerror = () => resolve(null);
+            img.src = p;
+        }))).then((pairs) => {
+            const map = {};
+            pairs.forEach((pair) => { if (pair) map[pair[0]] = pair[1]; });
+            return map;
+        });
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+    }
+
+    function clipText(ctx, text, maxWidth) {
+        if (ctx.measureText(text).width <= maxWidth) return text;
+        let s = text;
+        while (s.length > 1 && ctx.measureText(s + "…").width > maxWidth) s = s.slice(0, -1);
+        return s + "…";
+    }
+
+    async function buildDashboardImage() {
+        const ui = state.ui;
+        const shown = seasonParties().filter((p) => ui.includeDraft || p.status === "published");
+        const bosses = bossList().filter((b) =>
+            (!ui.dashBossIds.length || ui.dashBossIds.includes(b.id)) && shown.some((p) => p.bossId === b.id));
+        if (!bosses.length) return null;
+
+        // ---- 先に配置を決める（高さが確定してから描く） ----
+        const cols = (() => {
+            const most = Math.max.apply(null, bosses.map((b) => shown.filter((p) => p.bossId === b.id && !p.isSolo).length));
+            return Math.min(IMG.cols, Math.max(1, most));   // PTが少ないボスばかりなら横幅も詰める
+        })();
+
+        const blocks = bosses.map((b) => {
+            const all = shown.filter((p) => p.bossId === b.id)
+                .sort((x, y) => b.difficulties.indexOf(y.difficulty) - b.difficulties.indexOf(x.difficulty));
+            const ps = all.filter((p) => !p.isSolo);
+            // ソロ/サブ枠はPT枠ではないので、ボス見出しの下に1行の名簿として書く
+            const soloLines = all.filter((p) => p.isSolo && p.slots.length).map((p) =>
+                diffLabelJa(p.difficulty) + " " + SOLO_SHORT + ": " + p.slots.map((id) => {
+                    const c = charById(id);
+                    return (c ? c.name : "(不明)") + "（" + displayName(c && memberById(c.memberId)) + "）";
+                }).join("、"));
+            const rows = Math.ceil(ps.length / cols);
+            const cardH = IMG.cardHead + b.maxMembers * IMG.rowH + IMG.cardFoot
+                + (ps.some((p) => p.memo) ? 16 : 0);
+            const soloH = soloLines.length ? soloLines.length * 16 + 6 : 0;
+            return {
+                boss: b, parties: ps, soloLines, rows, cardH, soloH,
+                h: IMG.bossHead + soloH + rows * (cardH + IMG.cardGap)
+            };
+        });
+
+        const width = IMG.pad * 2 + cols * IMG.cardW + (cols - 1) * IMG.cardGap;
+        const headerH = 62;
+        const footerH = 26;
+        const height = headerH + blocks.reduce((s, bl) => s + bl.h, 0) + footerH + IMG.pad;
+
+        const icons = await loadJobIcons(shown.flatMap((p) => p.slots));
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width * IMG.scale;
+        canvas.height = height * IMG.scale;
+        const ctx = canvas.getContext("2d");
+        ctx.scale(IMG.scale, IMG.scale);
+        ctx.textBaseline = "middle";
+
+        ctx.fillStyle = IMG.bg;
+        ctx.fillRect(0, 0, width, height);
+
+        // ---- 見出し ----
+        const season = currentSeason();
+        ctx.fillStyle = IMG.text;
+        ctx.font = imageFont(19, "bold");
+        ctx.fillText("週ボスPT編成", IMG.pad, 28);
+        ctx.font = imageFont(12);
+        ctx.fillStyle = IMG.muted;
+        ctx.fillText(season.name || "", IMG.pad + ctx.measureText("週ボスPT編成").width + 90, 29);
+        const stamp = new Date();
+        const stampText = stamp.getFullYear() + "/" + (stamp.getMonth() + 1) + "/" + stamp.getDate() + " "
+            + String(stamp.getHours()).padStart(2, "0") + ":" + String(stamp.getMinutes()).padStart(2, "0") + " 時点";
+        ctx.textAlign = "right";
+        ctx.fillText(stampText, width - IMG.pad, 29);
+        ctx.textAlign = "left";
+        ctx.strokeStyle = IMG.line;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(IMG.pad, 46); ctx.lineTo(width - IMG.pad, 46); ctx.stroke();
+
+        // ---- ボスごと ----
+        let y = headerH;
+        blocks.forEach((bl) => {
+            const b = bl.boss;
+            const filled = bl.parties.reduce((s, p) => s + p.slots.length, 0);
+
+            ctx.fillStyle = b.color || "#6366f1";
+            roundRect(ctx, IMG.pad, y + 4, 4, 18, 2); ctx.fill();
+            ctx.fillStyle = IMG.text;
+            ctx.font = imageFont(15, "bold");
+            ctx.fillText(b.name, IMG.pad + 12, y + 13);
+            ctx.font = imageFont(11);
+            ctx.fillStyle = IMG.muted;
+            ctx.fillText(bl.parties.length + " PT ・ " + filled + "/" + bl.parties.length * b.maxMembers + "人",
+                IMG.pad + 12 + ctx.measureText(b.name).width + 40, y + 13);
+
+            let cy = y + IMG.bossHead;
+            if (bl.soloLines.length) {
+                ctx.font = imageFont(11);
+                bl.soloLines.forEach((line, li) => {
+                    ctx.fillStyle = IMG.subText;
+                    ctx.fillText(clipText(ctx, line, width - IMG.pad * 2), IMG.pad + 12, cy + 2 + li * 16);
+                });
+                cy += bl.soloH;
+            }
+            bl.parties.forEach((p, i) => {
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+                const x = IMG.pad + col * (IMG.cardW + IMG.cardGap);
+                const top = cy + row * (bl.cardH + IMG.cardGap);
+                drawPartyCard(ctx, p, b, x, top, bl.cardH, icons);
+            });
+            y += bl.h;
+        });
+
+        // ---- 凡例 ----
+        ctx.font = imageFont(11);
+        ctx.fillStyle = IMG.muted;
+        ctx.fillText("サブキャラは", IMG.pad, height - IMG.pad - 4);
+        const legendX = IMG.pad + ctx.measureText("サブキャラは").width + 4;
+        ctx.fillStyle = IMG.sub;
+        roundRect(ctx, legendX, height - IMG.pad - 11, 22, 13, 3); ctx.fill();
+        ctx.fillStyle = "#0b1220";
+        ctx.font = imageFont(9, "bold");
+        ctx.fillText("サブ", legendX + 3, height - IMG.pad - 4);
+        ctx.font = imageFont(11);
+        ctx.fillStyle = IMG.muted;
+        ctx.fillText("で表示 / 空きは補充募集中", legendX + 28, height - IMG.pad - 4);
+
+        return canvas;
+    }
+
+    function drawPartyCard(ctx, p, b, x, y, h, icons) {
+        const w = IMG.cardW;
+        ctx.fillStyle = IMG.panel;
+        roundRect(ctx, x, y, w, h, 7); ctx.fill();
+        ctx.strokeStyle = IMG.line; ctx.lineWidth = 1;
+        roundRect(ctx, x + 0.5, y + 0.5, w - 1, h - 1, 7); ctx.stroke();
+
+        // 見出し: 難易度バッジ + PT名（+ 下書き）
+        const label = diffLabel(p.difficulty).toUpperCase();
+        ctx.font = imageFont(9, "bold");
+        const bw = ctx.measureText(label).width + 12;
+        ctx.fillStyle = DIFF_FILL[p.difficulty] || "#374151";
+        roundRect(ctx, x + 9, y + 8, bw, 15, 4); ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.fillText(label, x + 15, y + 16);
+
+        ctx.font = imageFont(12, "bold");
+        ctx.fillStyle = IMG.text;
+        ctx.fillText(p.label || "PT", x + 15 + bw, y + 16);
+        if (p.status === "draft") {
+            ctx.font = imageFont(9, "bold");
+            ctx.fillStyle = IMG.muted;
+            ctx.textAlign = "right";
+            ctx.fillText("下書き", x + w - 10, y + 16);
+            ctx.textAlign = "left";
+        }
+        ctx.strokeStyle = IMG.line;
+        ctx.beginPath(); ctx.moveTo(x + 8, y + 28.5); ctx.lineTo(x + w - 8, y + 28.5); ctx.stroke();
+
+        // メンバー行
+        for (let i = 0; i < b.maxMembers; i++) {
+            const ry = y + IMG.cardHead + i * IMG.rowH + IMG.rowH / 2;
+            const id = p.slots[i];
+            if (!id) {
+                ctx.font = imageFont(11);
+                ctx.fillStyle = IMG.vacant;
+                ctx.fillText("空き", x + 12, ry);
+                continue;
+            }
+            const c = charById(id);
+            const m = c ? memberById(c.memberId) : null;
+            const job = c && classById(c.jobId);
+            const icon = job && icons[job.path];
+            if (icon) {
+                ctx.drawImage(icon, x + 9, ry - 9, 18, 18);
+            } else {
+                ctx.fillStyle = IMG.line;
+                roundRect(ctx, x + 9, ry - 9, 18, 18, 4); ctx.fill();
+            }
+
+            const isSub = c && !c.isMain;
+            ctx.font = imageFont(12, isSub ? "bold" : "");
+            ctx.fillStyle = isSub ? IMG.subText : IMG.text;
+            const cpText = state.ui.includeCp ? formatCp(c && c.combatPower) : "";
+            ctx.font = imageFont(11, "bold");
+            const cpW = cpText ? ctx.measureText(cpText).width + 8 : 0;
+            const owner = displayName(m);
+            ctx.font = imageFont(10);
+            const ownerW = ctx.measureText(owner).width + 8;
+
+            ctx.font = imageFont(12);
+            ctx.fillStyle = isSub ? IMG.subText : IMG.text;
+            const nameMax = w - 34 - cpW - ownerW - 10 - (isSub ? 24 : 0);
+            ctx.fillText(clipText(ctx, c ? c.name : "(不明)", nameMax), x + 32, ry);
+            const nameW = ctx.measureText(clipText(ctx, c ? c.name : "(不明)", nameMax)).width;
+
+            if (isSub) {
+                ctx.fillStyle = IMG.sub;
+                roundRect(ctx, x + 36 + nameW, ry - 6, 22, 12, 3); ctx.fill();
+                ctx.fillStyle = "#0b1220";
+                ctx.font = imageFont(8, "bold");
+                ctx.fillText("サブ", x + 39 + nameW, ry);
+            }
+
+            ctx.textAlign = "right";
+            if (cpText) {
+                ctx.font = imageFont(11, "bold");
+                ctx.fillStyle = IMG.cp;
+                ctx.fillText(cpText, x + w - 10, ry);
+            }
+            ctx.font = imageFont(10);
+            ctx.fillStyle = IMG.muted;
+            ctx.fillText(owner, x + w - 10 - cpW, ry);
+            ctx.textAlign = "left";
+        }
+
+        // 合計とメモ
+        const fy = y + h - 12;
+        const total = p.slots.reduce((s, id) => s + ((charById(id) || {}).combatPower || 0), 0);
+        ctx.font = imageFont(10);
+        ctx.fillStyle = IMG.muted;
+        ctx.fillText(p.slots.length + "/" + b.maxMembers + "人"
+            + (state.ui.includeCp && total ? " ・ 合計 " + formatCp(total) : ""), x + 10, fy);
+        if (p.memo) {
+            ctx.textAlign = "right";
+            ctx.fillStyle = "#94a3b8";
+            ctx.fillText(clipText(ctx, p.memo, w - 120), x + w - 10, fy);
+            ctx.textAlign = "left";
+        }
+    }
+
+    function copyShareLink() {
+        const url = shareUrl();
+        const note = "編集できない閲覧用リンクをコピーしました";
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(
+                () => toast(note, "ok"),
+                () => toast(url, "warn"));
+        } else {
+            toast(url, "warn");
+        }
+    }
+
+    let imageBlob = null;
+
+    async function openImageModal() {
+        const canvas = await buildDashboardImage();
+        if (!canvas) { toast("画像にできる編成がありません", "warn"); return; }
+        const bg = $("#image-modal");
+        const img = $("#image-preview");
+        img.src = canvas.toDataURL("image/png");
+        canvas.toBlob((blob) => { imageBlob = blob; }, "image/png");
+        $("#image-size").textContent = canvas.width + " × " + canvas.height + " px";
+        bg.classList.remove("hidden");
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    function dashBossCard(b, parties, solos, viewer) {
+        const card = el("div", { class: "boss-card" + (parties.length || solos.length ? "" : " empty") });
         card.style.setProperty("--boss-color", b.color || "#6366f1");
 
         const filled = parties.reduce((s, p) => s + p.slots.length, 0);
@@ -1150,8 +1827,9 @@
             el("div", { class: "boss-head-info" },
                 el("div", { class: "boss-title" }, el("span", { class: "boss-title-name", text: b.name })),
                 el("div", { class: "boss-subtitle" },
-                    el("span", { text: parties.length + " PT · " + filled + "/" + cap + "人 · 上限 " + b.maxMembers + "人" }))),
-            el("button", {
+                    el("span", { text: parties.length + " PT · " + filled + "/" + cap + "人 · 上限 " + b.maxMembers + "人" }),
+                    solos.length ? el("span", { text: SOLO_SHORT + " " + solos.reduce((s2, p) => s2 + p.slots.length, 0) + "人" }) : null)),
+            !VIEW_ONLY && el("button", {
                 class: "btn btn-xs", title: "このボスの編成を開く",
                 onclick: () => {
                     state.ui.bossId = b.id;
@@ -1161,12 +1839,11 @@
             }, icon("edit-3", "w-3 h-3"), "編成")
         ));
 
-        if (!parties.length) {
+        const myIds = viewer ? viewer.characters.map((c) => c.id) : [];
+        if (!parties.length && !solos.length) {
             card.appendChild(el("div", { class: "boss-empty-hint", text: "PT未設定" }));
             return card;
         }
-
-        const myIds = viewer ? viewer.characters.map((c) => c.id) : [];
         // 6人ボスはPTを1段、3人ボスは2段に並べる
         const strip = el("div", { class: "parties-strip" + (b.maxMembers <= 3 ? " rows-2" : "") });
         parties.forEach((p, idx) => {
@@ -1206,7 +1883,25 @@
                 p.slots.length + "/" + b.maxMembers + "人 · 合計 ", el("strong", { text: formatCp(total) })));
             strip.appendChild(wrap);
         });
-        card.appendChild(strip);
+        if (parties.length) card.appendChild(strip);
+
+        // ソロ/サブ枠はPTではないので、枠ではなく1行の名簿として出す
+        solos.forEach((p) => {
+            const row = el("div", { class: "solo-line" },
+                diffBadge(p.difficulty),
+                el("span", { class: "solo-line-title", text: SOLO_LABEL }));
+            const names = el("div", { class: "solo-line-names" });
+            p.slots.forEach((id) => {
+                const c = charById(id);
+                const m = c ? memberById(c.memberId) : null;
+                names.appendChild(el("span", {
+                    class: "solo-name-chip" + (c && !c.isMain ? " sub" : "") + (myIds.includes(id) ? " me" : ""),
+                    text: (c ? c.name : "(不明)") + "（" + displayName(m) + "）"
+                }));
+            });
+            row.appendChild(names);
+            card.appendChild(row);
+        });
         return card;
     }
 
@@ -1221,7 +1916,7 @@
 
         // --- 空きのあるPT ---
         const left = el("div");
-        const vac = shown.filter((p) => p.slots.length < bossById(p.bossId).maxMembers);
+        const vac = shown.filter((p) => !p.isSolo && p.slots.length < bossById(p.bossId).maxMembers);
         left.appendChild(el("div", { class: "col-header", text: "空きのあるPT（" + vac.length + "）" }));
         if (!vac.length) {
             left.appendChild(el("div", { class: "empty-state", text: "空き枠はありません。" }));
@@ -1235,7 +1930,7 @@
                     diffBadge(p.difficulty),
                     el("span", { class: "gr-sub", text: (p.label || "PT") + " / あと " + (b.maxMembers - p.slots.length) + "人" }),
                     el("span", { class: "spacer" }),
-                    el("button", {
+                    !VIEW_ONLY && el("button", {
                         class: "btn btn-xs", onclick: () => {
                             state.ui.bossId = p.bossId; state.ui.difficulty = p.difficulty;
                             switchScreen("builder");
@@ -1258,6 +1953,9 @@
             if (placedKeys.has(key)) return;
             const c = charById(w.characterId);
             if (!c || !c.isActive) return;
+            // サブは出さない。ここは「行き先が決まっていないメイン」を数える場所で、
+            // 予備のキャラまで並べると取りこぼしの実数が読めなくなる。
+            if (!c.isMain) return;
             const m = memberById(c.memberId);
             if (!m || !m.isActive) return;
             const top = hardestWish(c.id, w.bossId);
@@ -1269,7 +1967,9 @@
             diffRank(b.bossId, b.difficulty) - diffRank(a.bossId, a.difficulty) ||
             (b.c.combatPower || 0) - (a.c.combatPower || 0));
 
-        right.appendChild(el("div", { class: "col-header", text: "希望を出しているのに、どのPTにも入っていない人（" + unplaced.length + "）" }));
+        right.appendChild(el("div", { class: "col-header",
+            text: "希望を出しているのに、行き先が決まっていない人（" + unplaced.length + "）" }));
+        right.appendChild(el("p", { class: "hint", text: "メインキャラのみ。" + SOLO_LABEL + " に入れた人はここから外れます。" }));
         if (!unplaced.length) {
             right.appendChild(el("div", { class: "empty-state", text: "取りこぼしはありません。" }));
         } else {
@@ -1283,7 +1983,7 @@
                     el("span", { class: "gr-name", style: "flex:1;min-width:0", text: c.name }),
                     el("span", { class: "gr-sub", text: displayName(m) }),
                     el("span", { class: "gr-cp", text: formatCp(c.combatPower) }),
-                    el("button", {
+                    !VIEW_ONLY && el("button", {
                         class: "btn btn-xs", onclick: () => {
                             state.ui.bossId = bossId; state.ui.difficulty = difficulty;
                             state.ui.selectedCharId = c.id;
@@ -1317,7 +2017,7 @@
                     type: "checkbox", checked: ui.includeCp,
                     onchange: (e) => { ui.includeCp = e.target.checked; saveState(); render(); }
                 }), "戦闘力・HEXAを含める"),
-            el("label", { class: "check" },
+            !VIEW_ONLY && el("label", { class: "check" },
                 el("input", {
                     type: "checkbox", checked: ui.includeDraft,
                     onchange: (e) => { ui.includeDraft = e.target.checked; saveState(); render(); }
@@ -1341,6 +2041,16 @@
                 lines.push("");
                 lines.push("【" + b.name + " " + diffLabelJa(d) + "】");
                 list.forEach((p) => {
+                    if (p.isSolo) {
+                        // ソロは人数も空きも無いので、名前を並べるだけにする
+                        const names = p.slots.map((id) => {
+                            const c = charById(id);
+                            const m = c ? memberById(c.memberId) : null;
+                            return (c ? c.name : "(不明)") + " (" + displayName(m) + ")";
+                        });
+                        if (names.length) lines.push(SOLO_LABEL + ": " + names.join("、"));
+                        return;
+                    }
                     lines.push((p.label || "PT") + (p.status === "draft" ? "（下書き）" : ""));
                     for (let i = 0; i < b.maxMembers; i++) {
                         const id = p.slots[i];
@@ -1374,14 +2084,30 @@
     // ============================================================
     //  データ入出力
     // ============================================================
-    function serialize() {
+    // 共有する中身そのもの。時刻のような「毎回変わる値」を入れてはいけない。
+    // 入れると「前回送った内容と同じか」の判定が常に不一致になり、
+    // 画面を切り替えただけでもDBへ書きに行ってしまう。
+    function sharedPayload() {
         return {
             version: VERSION,
-            exportedAt: now(),
             seasons: state.seasons,
-            members: state.members,
             wishes: state.wishes,
             parties: state.parties
+        };
+    }
+
+    // ファイルに書き出すときだけ、いつ出したかを添える。
+    // 共有DBには名簿を入れないが、書き出したJSONは単体で復元できないと困るので
+    // members も一緒に入れる。
+    function serialize() {
+        const d = sharedPayload();
+        return {
+            version: d.version,
+            exportedAt: now(),
+            seasons: d.seasons,
+            members: state.members,
+            wishes: d.wishes,
+            parties: d.parties
         };
     }
     const exportJson = () => JSON.stringify(serialize(), null, 2);
@@ -1585,6 +2311,7 @@
     }
 
     function switchScreen(name) {
+        if (VIEW_ONLY) name = "dashboard";   // 閲覧専用は周知画面だけ
         if (!SCREENS.includes(name)) name = "members";
         state.ui.screen = name;
         state.ui.selectedCharId = null;
@@ -1624,17 +2351,108 @@
             "メンバー " + state.members.length + " / キャラ " + chars +
             " / 希望 " + state.wishes.length +
             " / 公開PT " + published + (drafts ? "（下書き " + drafts + "）" : "");
+
+        renderSyncBadge();
+    }
+
+    const SYNC_LABEL = {
+        local:    { text: "ローカルのみ", icon: "hard-drive" },
+        synced:   { text: "共有中",       icon: "cloud" },
+        saving:   { text: "保存中…",      icon: "cloud-upload" },
+        conflict: { text: "競合",         icon: "alert-triangle" },
+        needkey:  { text: "編集キー",     icon: "key" },
+        error:    { text: "同期エラー",   icon: "cloud-off" }
+    };
+
+    // 最終更新の時刻。今日なら時刻だけ、日をまたいでいれば月日も添える。
+    // 更新者は出さない。ダッシュボードで選んでいるメンバーがそのまま入るため、
+    // 実際に誰が保存したかを表しているとは限らない。
+    function formatStamp(iso, withDate) {
+        if (!iso) return "";
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return "";
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mm = String(d.getMinutes()).padStart(2, "0");
+        const sameDay = d.toDateString() === new Date().toDateString();
+        return (!sameDay || withDate ? (d.getMonth() + 1) + "/" + d.getDate() + " " : "") + hh + ":" + mm;
+    }
+
+    function renderSyncBadge() {
+        const host = $("#sync-status");
+        if (!host) return;
+        const s = SYNC_LABEL[sync.mode] || SYNC_LABEL.local;
+        const stamp = formatStamp(sync.updatedAt);
+        host.textContent = "";
+        host.className = "sync-badge " + sync.mode;
+        host.title = sync.message ||
+            (sync.mode === "synced"
+                ? "共有DBと同期しています" + (sync.updatedAt ? "（最終更新 " + formatStamp(sync.updatedAt, true) + "）" : "")
+                : "");
+        host.appendChild(icon(s.icon, "w-3 h-3"));
+        host.appendChild(document.createTextNode(
+            (VIEW_ONLY && sync.mode === "synced" ? "閲覧のみ" : s.text)
+            + (sync.mode === "synced" && stamp ? " " + stamp : "")));
+        host.onclick = () => {
+            if (sync.mode === "conflict") return resolveConflict();
+            if (sync.mode === "needkey") { $("#btn-data").click(); return; }
+            pullRemote();
+        };
+        if (window.lucide) window.lucide.createIcons();
     }
 
     // ============================================================
     //  WIRE
     // ============================================================
+    // 画像出力モーダルの配線。閲覧専用でも使えるようにここだけ切り出している。
+    function wireImageModal() {
+        const imageModal = $("#image-modal");
+        const closeImage = () => imageModal.classList.add("hidden");
+        $$("[data-close-image]").forEach((b) => b.addEventListener("click", closeImage));
+        imageModal.addEventListener("click", (e) => { if (e.target === imageModal) closeImage(); });
+        $("#btn-image-save").addEventListener("click", () => {
+            if (!imageBlob) { toast("画像を準備中です。少し待ってからもう一度押してください", "warn"); return; }
+            const a = el("a", {
+                href: URL.createObjectURL(imageBlob),
+                download: "boss-party-" + new Date().toISOString().slice(0, 10) + ".png"
+            });
+            document.body.appendChild(a); a.click(); a.remove();
+            toast("画像を保存しました", "ok");
+        });
+        $("#btn-image-copy").addEventListener("click", async () => {
+            if (!imageBlob) { toast("画像を準備中です。少し待ってからもう一度押してください", "warn"); return; }
+            try {
+                // Discordなどにそのまま貼れるよう、PNGとしてクリップボードへ置く
+                await navigator.clipboard.write([new ClipboardItem({ "image/png": imageBlob })]);
+                toast("画像をコピーしました。Discordに貼り付けられます", "ok");
+            } catch (e) {
+                toast("コピーできませんでした。「画像を保存」から書き出してください", "warn");
+            }
+        });
+    }
+
     function wire() {
         // ホストのトップバーから叩かれる隠しタブ
         SCREENS.forEach((s) => {
             const btn = $("#tab-" + s);
             if (btn) btn.addEventListener("click", () => switchScreen(s));
         });
+
+        wireImageModal();
+        // 閲覧専用ではデータ入出力・編集キーの導線を持たない（要素も外している）
+        if (VIEW_ONLY) return;
+
+
+        const keyInput = $("#edit-key");
+        if (keyInput) {
+            keyInput.value = editKey();
+            keyInput.addEventListener("change", (e) => {
+                const v = e.target.value.trim();
+                try { v ? localStorage.setItem(EDIT_KEY_STORAGE, v) : localStorage.removeItem(EDIT_KEY_STORAGE); }
+                catch (err) { /* ignore */ }
+                toast(v ? "編集キーを保存しました" : "編集キーを消しました");
+                if (sync.mode === "needkey") { setSyncMode("synced"); pushRemote(); }
+            });
+        }
 
         $("#season-name").addEventListener("change", (e) => {
             const s = currentSeason();
@@ -1732,10 +2550,37 @@
     // ============================================================
     function init() {
         loadState();
+        if (VIEW_ONLY) {
+            // 周知だけの画面にする。下書きは編成中のものなので出さない。
+            state.ui.screen = "dashboard";
+            state.ui.includeDraft = false;
+            document.body.classList.add("view-only");
+            const dataBtn = $("#btn-data");
+            if (dataBtn) dataBtn.remove();
+            const season = $("#season-name");
+            if (season) { season.readOnly = true; season.tabIndex = -1; }
+        }
         wire();
         render();
         syncHostTab(state.ui.screen);   // 前回開いていた画面をホストのタブにも反映
         if (window.lucide) window.lucide.createIcons();
+
+        // ローカルの内容で一度描いてから、名簿 → 編成 の順に共有DBを見に行く。
+        // 名簿を先に読むのは、希望とPT編成が名簿のキャラidを指しているため。
+        // APIが無ければ静かにローカルのみで動き続ける。
+        const rosterReady = CS() ? CS().ready() : Promise.resolve();
+        rosterReady.then(() => {
+            if (CS()) {
+                // 名簿が誰かに更新されたら、こちらの表示も追随する。
+                CS().onChange(() => render());
+                // 「自分」が名簿で選ばれていれば、それを既定の閲覧者にする。
+                const me = CS().me();
+                if (me && !memberById(state.ui.viewerMemberId)) state.ui.viewerMemberId = me.id;
+            }
+            normalize();
+            render();
+            return pullRemote({ silent: true });
+        }).then((ok) => { if (ok) startPolling(); });
     }
 
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

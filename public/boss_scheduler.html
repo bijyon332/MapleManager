@@ -20,6 +20,8 @@
     <link rel="stylesheet" href="boss_scheduler.css">
     <script src="class_data.js" defer></script>
     <script src="boss_data.js" defer></script>
+    <!-- メンバーとキャラはコミュニティ名簿の共有データ。編成より先に読み込む。 -->
+    <script src="community_store.js" defer></script>
     <script src="boss_scheduler.js" defer></script>
 </head>
 
@@ -42,6 +44,8 @@
         <input type="text" id="season-name" class="season-name" placeholder="シーズン名" />
         <span id="app-stats" class="stat"></span>
         <span class="spacer"></span>
+        <!-- 共有DB(D1)との同期状態。押すと読み直し／競合の解消。 -->
+        <button type="button" id="sync-status" class="sync-badge local"></button>
         <button class="btn btn-ghost btn-xs" id="btn-data">
             <i data-lucide="database" class="w-3.5 h-3.5"></i> データ
         </button>
@@ -93,6 +97,33 @@
         </div>
     </div>
 
+    <!-- ダッシュボードの画像出力プレビュー -->
+    <div id="image-modal" class="modal-bg hidden">
+        <div class="modal" style="max-width: 1200px;">
+            <div class="modal-head">
+                <div class="modal-title">編成の画像</div>
+                <button class="btn btn-ghost btn-icon" data-close-image><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="hint">
+                    ダッシュボードの絞り込み（ボス・下書き・戦闘力の表示）がそのまま反映されます。
+                </p>
+                <div class="image-preview-box"><img id="image-preview" alt="編成の画像" /></div>
+            </div>
+            <div class="modal-foot">
+                <span id="image-size" class="hint" style="margin:0; align-self:center;"></span>
+                <span class="spacer"></span>
+                <button class="btn" id="btn-image-copy">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> 画像をコピー
+                </button>
+                <button class="btn btn-primary" id="btn-image-save">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i> 画像を保存
+                </button>
+                <button class="btn" data-close-image>閉じる</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Data (JSON import / export) -->
     <div id="data-modal" class="modal-bg hidden">
         <div class="modal" style="max-width: 980px;">
@@ -102,8 +133,18 @@
             </div>
             <div class="modal-body">
                 <p class="hint">
-                    編成データはこのブラウザに自動保存されます。別の端末へ渡す場合や、バックアップにはJSONを使ってください。
+                    編成データはこのブラウザに自動保存され、共有DB（Cloudflare D1）が有効な環境では
+                    保存のたびに全員ぶんが同期されます。バックアップや別環境への持ち出しにはJSONを使ってください。
                 </p>
+                <div class="row" style="margin-bottom:10px;">
+                    <label class="field" style="flex:1; min-width:220px;">編集キー（共有DBに保存する人だけ）
+                        <input type="password" id="edit-key" placeholder="未設定なら空のまま" />
+                    </label>
+                    <span class="hint" style="flex:2; min-width:200px; margin:0;">
+                        サーバー側で <code>SCHEDULER_EDIT_KEY</code> を設定している場合のみ必要です。
+                        この端末にだけ保存され、他の人には送られません。
+                    </span>
+                </div>
                 <div class="io-grid">
                     <div>
                         <div class="col-header">書き出し</div>
