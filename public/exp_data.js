@@ -1,6 +1,10 @@
 // =============================================
 // MapleEXP Simulator - Data Definitions
+// Content EXP follows whackybeanz "Everything EXP" (13 Sep 2026);
+// EXP table follows GMS v.271 (9 Sep 2026).
 // =============================================
+
+const lvTable = (fromLv, values) => Object.fromEntries(values.map((v, i) => [fromLv + i, v]));
 
 const farmTable = {
     101: 150065, 102: 150440, 103: 150690, 104: 150845, 105: 150945,
@@ -46,6 +50,8 @@ const mechaFarmTable = {
     295: 6896248444.8, 296: 6896248444.8, 297: 6896248444.8, 298: 6896248444.8, 299: 6896248444.8
 };
 
+// Region daily quests (EXP per day) and Monster Park (EXP per run, Mon-Sat).
+// Both are flat amounts, independent of character level.
 const expRegionData = [
     { id: "r1", name: "Vanishing Journey", lv: 200, daily: 732132258, monpa: 359915080 },
     { id: "r2", name: "Chu Chu Island", lv: 210, daily: 2141658246, monpa: 1285078680 },
@@ -58,25 +64,85 @@ const expRegionData = [
     { id: "r9", name: "Labyrinth of Suffering", lv: 250, daily: 9057690000, monpa: 14058901000 },
     { id: "r10", name: "Limen", lv: 255, daily: 10225741680, monpa: 15552557400 },
     { id: "r11", name: "Cernium", lv: 260, daily: 16455682080, monpa: 37474604460 },
-    { id: "r12", name: "Hotel Arcus", lv: 265, daily: 19372782409, monpa: 0 },
-    { id: "r13", name: "Odium", lv: 270, daily: 23246151120, monpa: 0 },
-    { id: "r14", name: "Shangri-La", lv: 275, daily: 32127015480, monpa: 0 },
-    { id: "r15", name: "Arteria", lv: 280, daily: 38593455264, monpa: 0 },
+    { id: "r12", name: "Hotel Arcus", lv: 265, daily: 19372782409, monpa: 44435446300 },
+    { id: "r13", name: "Odium", lv: 270, daily: 23246151120, monpa: 52818835200 },
+    { id: "r14", name: "Shangri-La", lv: 275, daily: 32127015480, monpa: 76639838000 },
+    { id: "r15", name: "Arteria", lv: 280, daily: 38593455264, monpa: 107204032000 },
+    { id: "r16", name: "Carcion", lv: 285, daily: 45635222880, monpa: 156017856000 },
+    { id: "r17", name: "Tallahart", lv: 290, daily: 89730912960, monpa: 218575316000 },
+    { id: "r18", name: "Geardock", lv: 295, daily: 105641078400, monpa: 316934208200 },
 ];
 
+// Arcane River weekly quests - flat EXP per clear (GMS resets these on Monday).
+const arcaneWeeklyData = [
+    { id: "w1", name: "Erda Spectrum", lv: 200, exp: 187726220 },
+    { id: "w2", name: "Hungry Muto", lv: 210, exp: 549143140 },
+    { id: "w3", name: "Midnight Chaser", lv: 220, exp: 817717500 },
+    { id: "w4", name: "Spirit Savior", lv: 225, exp: 847484010 },
+    { id: "w5", name: "Ranheim Defense", lv: 230, exp: 1127760555 },
+    { id: "w6", name: "Esfera Guardian", lv: 235, exp: 1161754860 },
+];
+
+// Base EXP of a level-range Grandis monster, Lv.260-299. The weekly and
+// ticket contents below scale off it.
+const grandisMobExp = [
+    1725461, 1750290, 1775159, 1800203, 1828409, 2056794, 2085219, 2113572, 2145596, 2174274,
+    2445217, 2481337, 2513634, 2546149, 2582906, 2903024, 2939616, 2981010, 3017988, 3059716,
+    3436027, 3482914, 3524768, 3572010, 3614278, 4062965, 4110304, 4163751, 4217526, 4265489,
+    4793318, 4847012, 4907812, 4968977, 5023491, 5643220, 5711948, 5781080, 5842650, 5912186
+];
+const grandisMob = lv => grandisMobExp[lv - 260];
+
+// Monster Park Extreme - EXP per clear (Lv.260+)
+const mpeTable = lvTable(260, grandisMobExp.map((_, i) => {
+    const lv = 260 + i;
+    if (lv < 265) return lv * 1020000000;
+    if (lv < 270) return lv * 1326000000;
+    if (lv < 275) return lv * 2100000000;
+    return 255000 * grandisMob(Math.min(lv, 294));
+}));
+
+// Blueberry Farm - EXP per ticket (Lv.260+)
+const blueberryFarmTable = lvTable(260, grandisMobExp.map((_, i) => {
+    const lv = 260 + i;
+    if (lv < 270) return 475200 * grandisMob(lv);
+    return 712800 * grandisMob(Math.min(lv, 279));
+}));
+
+// Crimson Mechaberry Farm - EXP per ticket (Lv.280+)
+const crimsonMechaFarmTable = lvTable(280, grandisMobExp.slice(20).map(g => 1478400 * g));
+
+// Epic Dungeon - base clear EXP by character level (Lv.260-299).
+// Clear EXP = base × (reward tier + base-EXP bonus% / 100) × dungeon multiplier.
+const epicDungeonBase = lvTable(260, [
+    2609e8, 2647e8, 2685e8, 2722e8, 2765e8, 311e9, 3153e8, 3196e8, 3245e8, 3288e8,
+    3698e8, 3752e8, 3801e8, 385e9, 3906e8, 439e9, 4445e8, 4508e8, 4564e8, 4627e8,
+    5196e8, 5267e8, 533e9, 5401e8, 5465e8, 6144e8, 6215e8, 6296e8, 6377e8, 645e9,
+    7248e8, 7329e8, 7421e8, 7514e8, 7596e8, 7596e8, 7596e8, 7596e8, 7596e8, 7596e8
+]);
+
+// One Epic Dungeon clear per week per account. gms:false = not released in GMS yet.
+const EPIC_DUNGEONS = [
+    { id: 'hm', name: 'High Mountain', lv: 260, mult: 1, gms: true },
+    { id: 'ac', name: 'Angler Company', lv: 270, mult: 1.5, gms: true },
+    { id: 'np', name: 'Nightmare Paradise', lv: 280, mult: 2, gms: true },
+    { id: 'ar', name: 'Aurum Regis', lv: 290, mult: 3, gms: false },
+];
+
+// EXP to next level. Lv.210-259 reflect the GMS v.271 reduction.
 const tnlData = {
     200: 2207026470, 201: 2471869646, 202: 2768494003, 203: 3100713283, 204: 3472798876,
     205: 3889534741, 206: 4356278909, 207: 4879032378, 208: 5464516263, 209: 6120258214,
-    210: 7956335678, 211: 8831532602, 212: 9803001188, 213: 10881331318, 214: 12078277762,
-    215: 15701761090, 216: 17114919588, 217: 18655262350, 218: 20334235961, 219: 22164317197,
-    220: 28813612356, 221: 30830565220, 222: 32988704785, 223: 35297914119, 224: 37768768107,
-    225: 49099398539, 226: 52536356436, 227: 56213901386, 228: 60148874483, 229: 64359295696,
-    230: 83667084404, 231: 86177096936, 232: 88762409844, 233: 91425282139, 234: 94168040603,
-    235: 122418452783, 236: 126091006366, 237: 129873736556, 238: 133769948652, 239: 137783047111,
-    240: 179117961244, 241: 184491500081, 242: 190026245083, 243: 195727032435, 244: 201598843408,
-    245: 262078496430, 246: 269940851322, 247: 278039076861, 248: 286380249166, 249: 294971656640,
-    250: 442457484960, 251: 455731209508, 252: 469403145793, 253: 483485240166, 254: 497989797370,
-    255: 512929491291, 256: 528317376029, 257: 544166897309, 258: 560491904228, 259: 577306661354,
+    210: 7344309856, 211: 8152183940, 212: 9048924173, 213: 10044305832, 214: 11149179473,
+    215: 13379015367, 216: 14583126750, 217: 15895608157, 218: 17326212891, 219: 18885572051,
+    220: 22662686461, 221: 24249074513, 222: 25946509728, 223: 27762765408, 224: 29706158986,
+    225: 35647390783, 226: 38142708137, 227: 40812697706, 228: 43669586545, 229: 46726457603,
+    230: 56071749123, 231: 57753901596, 232: 59486518643, 233: 61271114202, 234: 63109247628,
+    235: 75731097153, 236: 78003030067, 237: 80343120969, 238: 82753414598, 239: 85236017035,
+    240: 102283220442, 241: 105351717055, 242: 108512268566, 243: 111767636622, 244: 115120665720,
+    245: 138144798864, 246: 142289142829, 247: 146557817113, 248: 150954551626, 249: 155483188174,
+    250: 186579825808, 251: 192177220582, 252: 197942537199, 253: 203880813314, 254: 209997237713,
+    255: 216297154844, 256: 222786069489, 257: 229469651573, 258: 236353741120, 259: 243444353353,
     260: 1731919984062, 261: 1749239183902, 262: 1766731575741, 263: 1784398891498, 264: 1802242880412,
     265: 2342915744535, 266: 2366344901980, 267: 2390008350999, 268: 2413908434508, 269: 2438047518853,
     270: 5412465491853, 271: 5466590146771, 272: 5521256048238, 273: 5576468608720, 274: 5632233294807,
@@ -87,9 +153,16 @@ const tnlData = {
     295: 870403132500696, 296: 957443445750765, 297: 1053187790325841, 298: 1158506569358425, 299: 1737759854037637
 };
 
+// A potion grants the EXP a character at min(current level, capLv) needs to level up.
 const EXP_POTION_TYPES = [
-    { id: 'p249', name: '~Lv.249', capLv: 249 },
-    { id: 'p259', name: '~Lv.259', capLv: 259 },
-    { id: 'p269', name: '~Lv.269', capLv: 269 },
-    { id: 'p279', name: '~Lv.279', capLv: 279 },
+    { id: 'p209', name: 'Growth 1 (~Lv.209)', capLv: 209, minLv: 200 },
+    { id: 'p219', name: 'Growth 2 (~Lv.219)', capLv: 219, minLv: 200 },
+    { id: 'p229', name: 'Growth 3 (~Lv.229)', capLv: 229, minLv: 200 },
+    { id: 'p239', name: 'Typhoon (~Lv.239)', capLv: 239, minLv: 200 },
+    { id: 'p249', name: 'Maximum (~Lv.249)', capLv: 249, minLv: 200 },
+    { id: 'p259', name: 'Leap (~Lv.259)', capLv: 259, minLv: 200 },
+    { id: 'p269', name: 'Transcendent (~Lv.269)', capLv: 269, minLv: 200 },
+    { id: 'p274', name: 'Special Mushroom (~Lv.274)', capLv: 274, minLv: 200 },
+    { id: 'p279', name: 'Legendary (~Lv.279)', capLv: 279, minLv: 200 },
+    { id: 'p284', name: 'Growth (Lv.260~284)', capLv: 284, minLv: 260 },
 ];

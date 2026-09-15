@@ -10,34 +10,63 @@ const expSim = {
         const startDateEl = document.getElementById('exp-startDate');
         if (startDateEl) startDateEl.value = new Date().toISOString().slice(0, 10);
         this.renderRegionCheckboxes();
+        this.renderWeeklyCheckboxes();
+        this.renderEpicDungeonOptions();
         this.bindEvents();
+    },
+
+    buildCheckboxGrid(items, idPrefix) {
+        const grid = document.createElement('div');
+        grid.className = 'exp-cb-grid';
+        items.forEach(r => {
+            const lbl = document.createElement('label');
+            lbl.className = 'exp-cb-item';
+            lbl.innerHTML = `<input type="checkbox" id="${idPrefix}${r.id}" checked><span>${r.name}</span><span class="exp-lv-tag">${r.lv}+</span>`;
+            grid.appendChild(lbl);
+        });
+        return grid;
     },
 
     renderRegionCheckboxes() {
         const container = document.getElementById('exp-regionCheckboxes');
         if (!container) return;
         container.innerHTML = '';
-        const grp1 = expRegionData.filter(r => r.lv >= 200 && r.lv <= 235 && r.daily !== 0);
-        const grp2 = expRegionData.filter(r => r.lv >= 245 && r.lv <= 255 && r.daily !== 0);
-        const grp3 = expRegionData.filter(r => r.lv >= 260 && r.daily !== 0);
+        const groups = [
+            expRegionData.filter(r => r.lv >= 200 && r.lv <= 235 && r.daily !== 0),
+            expRegionData.filter(r => r.lv >= 245 && r.lv <= 255 && r.daily !== 0),
+            expRegionData.filter(r => r.lv >= 260 && r.daily !== 0),
+        ];
+        groups.forEach((regions, i) => {
+            if (i > 0) {
+                const divider = document.createElement('div');
+                divider.className = 'exp-cb-divider';
+                container.appendChild(divider);
+            }
+            container.appendChild(this.buildCheckboxGrid(regions, 'exp-'));
+        });
+    },
 
-        const renderGroup = (regions) => {
-            const grid = document.createElement('div');
-            grid.className = 'exp-cb-grid';
-            regions.forEach(r => {
-                const lbl = document.createElement('label');
-                lbl.className = 'exp-cb-item';
-                lbl.innerHTML = `<input type="checkbox" id="exp-${r.id}" checked><span>${r.name}</span><span class="exp-lv-tag">${r.lv}+</span>`;
-                grid.appendChild(lbl);
-            });
-            container.appendChild(grid);
-        };
+    renderWeeklyCheckboxes() {
+        const container = document.getElementById('exp-weeklyCheckboxes');
+        if (!container) return;
+        container.innerHTML = '';
+        container.appendChild(this.buildCheckboxGrid(arcaneWeeklyData, 'exp-wk-'));
+    },
 
-        renderGroup(grp1);
-        const d1 = document.createElement('div'); d1.className = 'exp-cb-divider'; container.appendChild(d1);
-        renderGroup(grp2);
-        const d2 = document.createElement('div'); d2.className = 'exp-cb-divider'; container.appendChild(d2);
-        renderGroup(grp3);
+    renderEpicDungeonOptions() {
+        const sel = document.getElementById('exp-edDungeon');
+        if (!sel) return;
+        sel.innerHTML = '<option value="auto">Auto (highest unlocked)</option><option value="none">None</option>' +
+            EPIC_DUNGEONS.map(d => `<option value="${d.id}">${d.name} (${d.lv}+)${d.gms ? '' : ' - KMS only'}</option>`).join('');
+    },
+
+    // "auto" picks the strongest GMS dungeon the character can enter; an explicit
+    // choice is skipped until the character reaches its level.
+    pickEpicDungeon(choice, lv) {
+        if (choice === 'none') return null;
+        if (choice === 'auto') return [...EPIC_DUNGEONS].reverse().find(d => d.gms && lv >= d.lv) || null;
+        const d = EPIC_DUNGEONS.find(x => x.id === choice);
+        return d && lv >= d.lv ? d : null;
     },
 
     bindEvents() {
@@ -97,7 +126,7 @@ const expSim = {
             const qty = parseInt(document.getElementById(`exp-pt-qty-${rowId}`).value) || 0;
             const dl = document.getElementById(`exp-pt-dead-${rowId}`).value;
             const ptype = EXP_POTION_TYPES.find(p => p.id === typeId);
-            return (qty > 0 && ptype) ? { capLv: ptype.capLv, qty, deadline: dl } : null;
+            return (qty > 0 && ptype) ? { capLv: ptype.capLv, minLv: ptype.minLv, qty, deadline: dl } : null;
         }).filter(Boolean);
     },
 
@@ -210,6 +239,17 @@ const expSim = {
         const monpaRunsVal = parseInt(document.getElementById('exp-monpaRuns').value);
         const farmRunsWeekly = parseInt(document.getElementById('exp-farmRuns').value);
         const mechaFarmRunsWeekly = parseInt(document.getElementById('exp-mechaFarmRuns').value) || 0;
+        const blueberryRunsWeekly = parseInt(document.getElementById('exp-blueberryRuns').value) || 0;
+        const crimsonRunsWeekly = parseInt(document.getElementById('exp-crimsonRuns').value) || 0;
+        const mpeRunsWeekly = parseInt(document.getElementById('exp-mpeRuns').value) || 0;
+        const mpeMultVal = parseFloat(document.getElementById('exp-mpeMult').value) || 1;
+        const edChoice = document.getElementById('exp-edDungeon').value;
+        const edReward = parseInt(document.getElementById('exp-edReward').value) || 1;
+        const edBonusPct = parseFloat(document.getElementById('exp-edBonus').value) || 0;
+        const weeklyQuests = arcaneWeeklyData.filter(w => {
+            const cbEl = document.getElementById(`exp-wk-${w.id}`);
+            return cbEl && cbEl.checked;
+        });
         this.hyperBurning = document.getElementById('exp-hyperBurning').classList.contains('active');
         this.hyperBurningBeyond = document.getElementById('exp-hyperBurningBeyond').classList.contains('active');
         const dailyMultVal = parseFloat(document.getElementById('exp-dailyMult').value);
@@ -223,16 +263,31 @@ const expSim = {
         const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
         const potions = this.getPotions().map(p => ({
-            capLv: p.capLv, qty: p.qty,
+            capLv: p.capLv, minLv: p.minLv, qty: p.qty,
             deadline: p.deadline ? (() => { const d = new Date(p.deadline); d.setHours(0, 0, 0, 0); return d; })() : null
         }));
 
         const self = this;
+
+        // Grant level-dependent EXP in `parts` slices, so a level-up partway
+        // through a long run re-reads the table at the new level.
+        function gain(expAtLv, parts = 1) {
+            for (let p = 0; p < parts; p++) {
+                const e = expAtLv(curLv);
+                if (!e) return;
+                [curLv, curExp] = self.addExp(e / parts, curLv, curExp, goalLv);
+            }
+        }
+
         function usePotions(loopDate) {
             const lbls = [];
             for (const pot of potions) {
                 if (pot.qty <= 0) continue;
                 const deadlineHit = pot.deadline && loopDate >= pot.deadline;
+                if (curLv < pot.minLv) {
+                    if (deadlineHit) { lbls.push(`Potion×${pot.qty}(wasted)`); pot.qty = 0; }
+                    continue;
+                }
                 const optimalHit = curLv >= pot.capLv;
                 if (!deadlineHit && !optimalHit) continue;
                 const useQty = pot.qty; pot.qty = 0;
@@ -245,7 +300,12 @@ const expSim = {
             return lbls;
         }
 
-        let loopDays = 0, log = [], farmUsedThisWeek = false, mechaFarmUsedThisWeek = false;
+        // Weekly content resets on Thursday; Arcane River weekly quests on Monday.
+        // Level-gated content is only marked done once it was actually run, so
+        // unlocking it mid-week still counts that week.
+        const thursdayWeekly = { farm: false, mecha: false, blueberry: false, crimson: false, mpe: false, epic: false };
+        const arcaneDone = new Set();
+        let loopDays = 0, log = [];
         let endDateLv = null, endDatePct = null, goalReachedDay = null;
 
         while (true) {
@@ -262,12 +322,13 @@ const expSim = {
             const dayIdx = loopDate.getDay();
             const isSun = dayIdx === 0;
             const isThu = dayIdx === 4;
-            if (isThu) { farmUsedThisWeek = false; mechaFarmUsedThisWeek = false; }
+            if (isThu) Object.keys(thursdayWeekly).forEach(k => { thursdayWeekly[k] = false; });
+            if (dayIdx === 1) arcaneDone.clear();
 
             const lvBefore = curLv;
 
             // Farm
-            if (!farmUsedThisWeek) {
+            if (!thursdayWeekly.farm) {
                 for (let fi = 0; fi < farmRunsWeekly; fi++) {
                     let mobsLeft = 1000;
                     while (mobsLeft > 0 && curLv < goalLv && tnlData[curLv]) {
@@ -279,13 +340,12 @@ const expSim = {
                         else { curExp += epm * mobsLeft; mobsLeft = 0; }
                     }
                 }
-                farmUsedThisWeek = true;
+                thursdayWeekly.farm = true;
             }
 
             // Mecha Strawberry Farm (Lv.280+, 1000 mobs per run, level-ups mid-run handled)
-            if (!mechaFarmUsedThisWeek) {
+            if (!thursdayWeekly.mecha && curLv >= 280) {
                 for (let fi = 0; fi < mechaFarmRunsWeekly; fi++) {
-                    if (curLv < 280) break;
                     let mobsLeft = 1000;
                     while (mobsLeft > 0 && curLv < goalLv && tnlData[curLv]) {
                         const epm = mechaFarmTable[curLv] || 0;
@@ -296,7 +356,17 @@ const expSim = {
                         else { curExp += epm * mobsLeft; mobsLeft = 0; }
                     }
                 }
-                mechaFarmUsedThisWeek = true;
+                thursdayWeekly.mecha = true;
+            }
+
+            // Blueberry Farm (Lv.260+) / Crimson Mechaberry Farm (Lv.280+)
+            if (!thursdayWeekly.blueberry && curLv >= 260) {
+                for (let fi = 0; fi < blueberryRunsWeekly; fi++) gain(lv => blueberryFarmTable[lv], 10);
+                thursdayWeekly.blueberry = true;
+            }
+            if (!thursdayWeekly.crimson && curLv >= 280) {
+                for (let fi = 0; fi < crimsonRunsWeekly; fi++) gain(lv => crimsonMechaFarmTable[lv], 10);
+                thursdayWeekly.crimson = true;
             }
 
             // Daily Quests
@@ -307,6 +377,13 @@ const expSim = {
                 [curLv, curExp] = self.addExp(reg.daily * dailyMultVal, curLv, curExp, goalLv);
             });
 
+            // Arcane River Weekly Quests
+            weeklyQuests.forEach(w => {
+                if (arcaneDone.has(w.id) || w.lv > curLv) return;
+                [curLv, curExp] = self.addExp(w.exp, curLv, curExp, goalLv);
+                arcaneDone.add(w.id);
+            });
+
             // Monster Park
             const isEventDay = monpaEventDates.some(evD => evD.getTime() === loopDate.getTime());
             const monpaEffMult = monpaBaseMultVal + (isSun ? 0.5 : 0) + (isEventDay ? 2.5 : 0);
@@ -315,6 +392,21 @@ const expSim = {
                 const monpaBase = availRegions.length ? availRegions[availRegions.length - 1].monpa : 0;
                 if (!monpaBase) break;
                 [curLv, curExp] = self.addExp(monpaBase * monpaEffMult, curLv, curExp, goalLv);
+            }
+
+            // Monster Park Extreme (Lv.260+)
+            if (!thursdayWeekly.mpe && curLv >= 260) {
+                for (let mi = 0; mi < mpeRunsWeekly; mi++) gain(lv => (mpeTable[lv] || 0) * mpeMultVal);
+                thursdayWeekly.mpe = true;
+            }
+
+            // Epic Dungeon (one clear per week)
+            if (!thursdayWeekly.epic) {
+                const dungeon = this.pickEpicDungeon(edChoice, curLv);
+                if (dungeon) {
+                    gain(lv => (epicDungeonBase[lv] || 0) * (edReward + edBonusPct / 100) * dungeon.mult);
+                    thursdayWeekly.epic = true;
+                }
             }
 
             // Potions
