@@ -191,15 +191,22 @@ const hexaTracker = {
     // trackingId selects which saved data set to use; classId selects the board.
     getProgress(trackingId, classId) {
         if (classId === undefined) classId = trackingId;
+        const blankTiers = () => {
+            const t = {};
+            for (const tier of this.TIERS) t[tier.id] = { now: 0, target: 0, max: 0 };
+            return t;
+        };
         const empty = {
             pct: 0, pctToTarget: 0,
             fragSpent: 0, fragMax: 0, fragTarget: 0,
             erdaSpent: 0, erdaMax: 0, erdaTarget: 0,
             fdNow: 0, fdMax: 0, fdTarget: 0,
+            fdPct: 0, fdPctToTarget: 0,
+            byTier: blankTiers(),
         };
         if (!this.getClassSkills(classId)) return empty;
 
-        const out = { ...empty };
+        const out = { ...empty, byTier: blankTiers() };
         for (const s of this.activeSkills(trackingId, classId)) {
             const lv = this.levelOf(trackingId, s);
             const tg = this.targetOf(trackingId, s);
@@ -209,13 +216,28 @@ const hexaTracker = {
             out.erdaSpent += this.erdaAt(s, lv);
             out.erdaTarget += this.erdaAt(s, tg);
             out.erdaMax += this.erdaAt(s, this.MAX_LEVEL);
-            out.fdNow += this.fdAt(s, lv);
-            out.fdTarget += this.fdAt(s, tg);
-            out.fdMax += this.fdAt(s, this.MAX_LEVEL);
+
+            const fdNow = this.fdAt(s, lv);
+            const fdTarget = this.fdAt(s, tg);
+            const fdMax = this.fdAt(s, this.MAX_LEVEL);
+            out.fdNow += fdNow;
+            out.fdTarget += fdTarget;
+            out.fdMax += fdMax;
+            const bucket = out.byTier[s.tier];
+            if (bucket) { bucket.now += fdNow; bucket.target += fdTarget; bucket.max += fdMax; }
         }
         out.pct = out.fragMax > 0 ? Math.round(out.fragSpent / out.fragMax * 100) : 0;
         out.pctToTarget = out.fragTarget > 0 ? Math.round(out.fragSpent / out.fragTarget * 100) : 0;
+        out.fdPct = out.fdMax > 0 ? out.fdNow / out.fdMax * 100 : 0;
+        out.fdPctToTarget = out.fdTarget > 0 ? out.fdNow / out.fdTarget * 100 : 0;
         return out;
+    },
+
+    // HEXA Final Damage stacks additively into one bucket, so going from +a% to
+    // +b% multiplies your damage by (100+b)/(100+a) — not by (b-a)%. The board
+    // is quoted in additive points; this is what those points are actually worth.
+    damageGain(fromFd, toFd) {
+        return ((100 + toFd) / (100 + fromFd) - 1) * 100;
     },
 
     // ========== Priority: what to level next, by FD per resource ==========
@@ -383,10 +405,6 @@ const hexaTracker = {
         if (!cls || !info) return this.buildEmptyState();
 
         const p = this.getProgress(trackingId, classId);
-        const pctColor = p.pct >= 80 ? '#4ade80' : p.pct >= 50 ? '#a78bfa' : '#818cf8';
-        const targetPct = p.fragMax > 0 ? Math.round(p.fragTarget / p.fragMax * 100) : 0;
-        const remFrag = Math.max(0, p.fragTarget - p.fragSpent);
-        const remErda = Math.max(0, p.erdaTarget - p.erdaSpent);
 
         let groups = '';
         for (const tier of this.TIERS) {
@@ -394,43 +412,104 @@ const hexaTracker = {
         }
 
         return `<div class="max-w-4xl mx-auto">
-            <div class="flex items-center gap-5 mb-5 bg-slate-900 rounded-xl p-4 border border-slate-800">
-                <img src="${info.path}" class="w-16 h-16 object-contain shrink-0" loading="lazy">
-                <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-4 mb-3">
+                <img src="${info.path}" class="w-12 h-12 object-contain shrink-0" loading="lazy">
+                <div class="min-w-0">
                     <div class="text-base font-bold text-white">${this.escHtml(info.name)}</div>
-                    <div class="text-xs text-slate-500 mb-2">左が現在地、右が目標値。ゲージの濃い部分が現在地、薄い部分が目標までの残りです。</div>
-                    <div class="flex items-center gap-3">
-                        <div class="relative flex-1 h-2.5 bg-slate-800 rounded-full overflow-hidden">
-                            <div class="absolute inset-y-0 left-0 rounded-full bg-violet-500/25" style="width:${targetPct}%"></div>
-                            <div id="hexa-pbar" class="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
-                                style="width:${p.pct}%; background:linear-gradient(90deg,#7c3aed,#8b5cf6)"></div>
-                        </div>
-                        <span id="hexa-pct" class="text-lg font-bold w-14 text-right" style="color:${pctColor}">${p.pct}%</span>
-                    </div>
-                    <div id="hexa-count" class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] mt-1.5">
-                        <span class="flex items-center gap-1 text-violet-300" title="ソルエルダフラグメント">
-                            <span class="inline-block w-2 h-2 rounded-full" style="background:#a78bfa"></span>
-                            フラグメント <span class="font-bold tabular-nums">${p.fragSpent.toLocaleString()}</span>
-                            <span class="text-slate-500">/ 目標 ${p.fragTarget.toLocaleString()} / 最大 ${p.fragMax.toLocaleString()}</span>
-                        </span>
-                        <span class="flex items-center gap-1 text-amber-300" title="ソルエルダ">
-                            <span class="inline-block w-2 h-2 rounded-full" style="background:#fcd34d"></span>
-                            エルダ <span class="font-bold tabular-nums">${p.erdaSpent.toLocaleString()}</span>
-                            <span class="text-slate-500">/ 目標 ${p.erdaTarget.toLocaleString()} / 最大 ${p.erdaMax.toLocaleString()}</span>
-                        </span>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] mt-1">
-                        <span class="text-slate-400">目標まで残り
-                            <span class="font-bold tabular-nums text-violet-200">${remFrag.toLocaleString()}</span> フラグメント /
-                            <span class="font-bold tabular-nums text-amber-200">${remErda.toLocaleString()}</span> エルダ</span>
-                        <span class="text-slate-400">最終ダメージ
-                            <span class="font-bold tabular-nums text-emerald-300">+${p.fdNow.toFixed(1)}%</span>
-                            <span class="text-slate-500">/ 目標 +${p.fdTarget.toFixed(1)}% / 最大 +${p.fdMax.toFixed(1)}%</span></span>
-                    </div>
+                    <div class="text-[11px] text-slate-500">左の枠が現在地、右の枠が目標値です。</div>
                 </div>
             </div>
-
+            ${this.buildFdSummary(p)}
+            ${this.buildResourceSummary(p)}
             <div class="grid grid-cols-2 gap-3">${groups}</div>
+        </div>`;
+    },
+
+    // The headline: how much Final Damage the board is giving you now, how much
+    // is left on the table, and what it totals if you max everything.
+    buildFdSummary(p) {
+        const headroom = Math.max(0, p.fdMax - p.fdNow);
+        const toTarget = Math.max(0, p.fdTarget - p.fdNow);
+        const realGain = this.damageGain(p.fdNow, p.fdMax);
+        const realToTarget = this.damageGain(p.fdNow, p.fdTarget);
+        const nowPct = p.fdMax > 0 ? p.fdNow / p.fdMax * 100 : 0;
+        const targetPct = p.fdMax > 0 ? p.fdTarget / p.fdMax * 100 : 0;
+
+        const tile = (label, value, sub, color, hint) => `<div class="flex-1 min-w-0 px-3 py-2" title="${this.escHtml(hint)}">
+            <div class="text-[10px] uppercase tracking-wider text-slate-500">${label}</div>
+            <div class="text-xl font-bold tabular-nums leading-tight" style="color:${color}">${value}</div>
+            <div class="text-[10px] text-slate-500 leading-tight mt-0.5">${sub}</div>
+        </div>`;
+
+        const chips = this.TIERS.map(t => {
+            const b = p.byTier[t.id] || { now: 0, max: 0 };
+            if (b.max <= 0) return '';
+            const share = b.max > 0 ? Math.round(b.now / b.max * 100) : 0;
+            return `<span class="flex items-center gap-1.5 text-[10px] text-slate-400" title="${t.label}: 現在 +${b.now.toFixed(2)}% / 全取得 +${b.max.toFixed(2)}%（取得率 ${share}%）">
+                <span class="inline-block w-2 h-2 rounded-sm" style="background:${t.color}"></span>
+                <span class="text-slate-500">${t.label}</span>
+                <span class="font-bold tabular-nums text-slate-300">+${b.now.toFixed(1)}</span>
+                <span class="text-slate-600">/ +${b.max.toFixed(1)}</span>
+            </span>`;
+        }).join('');
+
+        return `<div class="bg-slate-900 rounded-xl border border-slate-800 p-3 mb-3">
+            <div class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300 mb-1 px-1">
+                <i data-lucide="swords" class="w-3.5 h-3.5"></i>HEXAによる最終ダメージ
+            </div>
+            <div class="flex flex-wrap items-stretch divide-x divide-slate-800">
+                ${tile('現在', `+${p.fdNow.toFixed(1)}%`, `全取得時の ${nowPct.toFixed(1)}%`, '#34d399',
+                    'いま入っているHEXAノードが出している最終ダメージの合計')}
+                ${tile('残りの伸びしろ', `+${headroom.toFixed(1)}%`, `実ダメージ +${realGain.toFixed(1)}%`, '#fbbf24',
+                    '全ノードをLv.30まで上げたときに、いまからさらに増える分。最終ダメージは加算で積まれるので、実際のダメージ増加は (100+全取得) / (100+現在) 倍です。')}
+                ${tile('全部取ったら', `+${p.fdMax.toFixed(1)}%`, '全ノード Lv.30', '#a5b4fc',
+                    '除外していない全ノードをLv.30まで上げたときの最終ダメージ合計')}
+            </div>
+            <div class="relative h-2.5 bg-slate-800 rounded-full overflow-hidden mt-2.5">
+                <div class="absolute inset-y-0 left-0 rounded-full bg-emerald-500/25" style="width:${targetPct}%"></div>
+                <div class="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
+                    style="width:${nowPct}%;background:linear-gradient(90deg,#059669,#34d399)"></div>
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 mt-2 px-1">
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-1">${chips}</div>
+                <span class="text-[10px] text-slate-400">目標値まで
+                    <span class="font-bold tabular-nums text-emerald-200">+${toTarget.toFixed(1)}%</span>
+                    <span class="text-slate-600">（実ダメージ +${realToTarget.toFixed(1)}%）</span></span>
+            </div>
+        </div>`;
+    },
+
+    // Secondary: what it costs in Sol Erda Fragments and Sol Erda.
+    buildResourceSummary(p) {
+        const pctColor = p.pct >= 80 ? '#4ade80' : p.pct >= 50 ? '#a78bfa' : '#818cf8';
+        const targetPct = p.fragMax > 0 ? p.fragTarget / p.fragMax * 100 : 0;
+        const remFrag = Math.max(0, p.fragTarget - p.fragSpent);
+        const remErda = Math.max(0, p.erdaTarget - p.erdaSpent);
+
+        return `<div class="bg-slate-900 rounded-xl border border-slate-800 p-3 mb-5">
+            <div class="flex items-center gap-3">
+                <div class="relative flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <div class="absolute inset-y-0 left-0 rounded-full bg-violet-500/25" style="width:${targetPct}%"></div>
+                    <div class="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
+                        style="width:${p.pct}%; background:linear-gradient(90deg,#7c3aed,#8b5cf6)"></div>
+                </div>
+                <span class="text-sm font-bold w-12 text-right tabular-nums" style="color:${pctColor}" title="投入済みフラグメント / 全取得に必要なフラグメント">${p.pct}%</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] mt-2">
+                <span class="flex items-center gap-1 text-violet-300" title="ソルエルダフラグメント">
+                    <span class="inline-block w-2 h-2 rounded-full" style="background:#a78bfa"></span>
+                    フラグメント <span class="font-bold tabular-nums">${p.fragSpent.toLocaleString()}</span>
+                    <span class="text-slate-500">/ 目標 ${p.fragTarget.toLocaleString()} / 全取得 ${p.fragMax.toLocaleString()}</span>
+                </span>
+                <span class="flex items-center gap-1 text-amber-300" title="ソルエルダ">
+                    <span class="inline-block w-2 h-2 rounded-full" style="background:#fcd34d"></span>
+                    エルダ <span class="font-bold tabular-nums">${p.erdaSpent.toLocaleString()}</span>
+                    <span class="text-slate-500">/ 目標 ${p.erdaTarget.toLocaleString()} / 全取得 ${p.erdaMax.toLocaleString()}</span>
+                </span>
+                <span class="text-slate-400">目標まで残り
+                    <span class="font-bold tabular-nums text-violet-200">${remFrag.toLocaleString()}</span> フラグメント /
+                    <span class="font-bold tabular-nums text-amber-200">${remErda.toLocaleString()}</span> エルダ</span>
+            </div>
         </div>`;
     },
 
@@ -454,14 +533,20 @@ const hexaTracker = {
             const iconHtml = iconUrl
                 ? `<img src="${iconUrl}" class="w-6 h-6 object-contain shrink-0 rounded" loading="lazy" alt="">`
                 : `<div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style="background:${sCfg.badge}">${sCfg.label}</div>`;
-            const fdHint = s.fd > 0 ? ` · 最大 +${s.fd.toFixed(2)}% FD` : '';
+
+            const fdNow = this.fdAt(s, lvl);
+            const hint = `${s.name}\n最終ダメージ 現在 +${fdNow.toFixed(2)}% / 全取得 +${s.fd.toFixed(2)}%`
+                + `\nフラグメント ${fragNow.toLocaleString()} / 全取得 ${fragMax.toLocaleString()}`;
+            const stat = isExcl
+                ? '除外'
+                : `<span class="text-emerald-400">+${fdNow.toFixed(1)}%</span><span class="text-slate-700 mx-1">·</span><span class="text-slate-500">${fragNow.toLocaleString()}</span>`;
 
             rows += `<div class="flex items-center gap-2 py-1.5 border-b border-slate-800/50 last:border-0 ${isExcl ? 'opacity-40' : ''}">
                 ${iconHtml}
                 <div class="flex-1 min-w-0">
                     <div class="flex items-baseline justify-between gap-1.5">
-                        <div class="text-[11px] text-slate-300 leading-snug truncate" title="${this.escHtml(s.name)}${fdHint}">${this.escHtml(s.name)}</div>
-                        <div class="text-[9px] text-slate-500 shrink-0 tabular-nums" title="ソルエルダフラグメント（現在 / 目標）">${isExcl ? '除外' : fragNow.toLocaleString()}</div>
+                        <div class="text-[11px] text-slate-300 leading-snug truncate" title="${this.escHtml(hint)}">${this.escHtml(s.name)}</div>
+                        <div class="text-[9px] shrink-0 tabular-nums" title="${this.escHtml(hint)}">${stat}</div>
                     </div>
                     <div class="relative h-1 bg-slate-700/60 rounded-full mt-1 overflow-hidden">
                         <div class="absolute inset-y-0 left-0 rounded-full opacity-40" style="width:${isExcl ? 0 : tgtPct}%;background:${sCfg.badge}"></div>
@@ -506,6 +591,7 @@ const hexaTracker = {
         if (!cls || !info) return this.buildEmptyState();
 
         const steps = this.buildPlan(trackingId, classId);
+        const now = this.getProgress(trackingId, classId);
         const budget = this.getBudget();
         const perErda = this.prioritySort === 'erda';
 
@@ -538,6 +624,12 @@ const hexaTracker = {
                 <div class="flex items-center justify-center h-40 text-center text-slate-500">
                     <div><i data-lucide="check-circle-2" class="w-10 h-10 mx-auto mb-3 opacity-30"></i>
                     <p class="text-sm">目標値に到達済みです</p>
+                    <p class="text-xs mt-1">
+                        最終ダメージ <span class="font-bold text-emerald-300">+${now.fdNow.toFixed(1)}%</span>
+                        ${now.fdMax - now.fdNow > 0.05
+                            ? ` — 全取得まで残り <span class="font-bold text-amber-300">+${(now.fdMax - now.fdNow).toFixed(1)}%</span>`
+                            : '（全取得済み）'}
+                    </p>
                     <p class="text-xs mt-1 opacity-70">進捗入力タブで目標値を上げると、ここに次の一手が並びます。</p></div>
                 </div></div>`;
         }
@@ -598,7 +690,12 @@ const hexaTracker = {
                 <span>全${steps.length}ステップ</span>
                 <span class="text-violet-300">フラグメント計 <span class="font-bold tabular-nums">${cumFrag.toLocaleString()}</span></span>
                 <span class="text-amber-300">エルダ計 <span class="font-bold tabular-nums">${cumErda.toLocaleString()}</span></span>
-                <span class="text-emerald-300">最終ダメージ計 <span class="font-bold tabular-nums">+${cumFd.toFixed(1)}%</span></span>
+                <span class="text-emerald-300" title="この計画をやりきったときに増える最終ダメージ。実ダメージでは +${this.damageGain(now.fdNow, now.fdNow + cumFd).toFixed(1)}% です。">
+                    最終ダメージ <span class="font-bold tabular-nums">+${now.fdNow.toFixed(1)}%</span>
+                    <span class="text-slate-500">→</span>
+                    <span class="font-bold tabular-nums">+${(now.fdNow + cumFd).toFixed(1)}%</span>
+                    <span class="text-slate-500">(+${cumFd.toFixed(1)})</span>
+                </span>
                 <span>${Number.isFinite(totalWeeks) ? `約${Math.ceil(totalWeeks)}週` : '—'}</span>
             </div>
             <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-2 divide-y divide-slate-800/40">${rows}</div>
@@ -788,13 +885,13 @@ const hexaTracker = {
 
     buildModalHeaderStat() {
         const p = this.getProgress(this.modalTrackingId, this.modalClassId);
-        return `<span class="font-bold tabular-nums">${p.pct}%</span>
+        const headroom = Math.max(0, p.fdMax - p.fdNow);
+        return `<span title="いま出ている最終ダメージ">最終ダメージ <span class="font-bold tabular-nums">+${p.fdNow.toFixed(1)}%</span></span>
+            <span class="text-violet-200/60">/ 全取得 <span class="tabular-nums">+${p.fdMax.toFixed(1)}%</span></span>
             <span class="text-violet-200/80">·</span>
-            <span class="tabular-nums">${p.fragSpent.toLocaleString()} / ${p.fragTarget.toLocaleString()}</span>
-            <span class="text-violet-200/80">フラグメント（目標比）</span>
+            <span title="全ノードをLv.30にしたときに、いまからさらに増える分">伸びしろ <span class="font-bold tabular-nums">+${headroom.toFixed(1)}%</span></span>
             <span class="text-violet-200/80">·</span>
-            <span class="tabular-nums">+${p.fdNow.toFixed(1)}%</span>
-            <span class="text-violet-200/80">FD</span>`;
+            <span class="text-violet-200/70 tabular-nums" title="投入済みフラグメント / 全取得に必要なフラグメント">${p.fragSpent.toLocaleString()} / ${p.fragMax.toLocaleString()} フラグメント</span>`;
     },
 
     buildModalContent() {
