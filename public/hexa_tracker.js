@@ -188,6 +188,27 @@ const hexaTracker = {
         return cls.skills.filter(s => !this.isExcluded(trackingId, s));
     },
 
+    // Sol Janus carries no Final Damage — it is a buff-action node — and neither
+    // do a handful of utility nodes the source weights at zero. Counting their
+    // cost would drag down every rate on the board and inflate every "to max"
+    // figure, so damage math leaves them out entirely. They stay on the board so
+    // you can still record their level.
+    countsForDamage(skill) {
+        return skill.fd > 0;
+    },
+
+    // Every aggregate on every tab is built from these.
+    damageSkills(trackingId, classId) {
+        return this.activeSkills(trackingId, classId).filter(s => this.countsForDamage(s));
+    },
+
+    // The ones left out, for the note under the board.
+    nonDamageSkills(classId) {
+        const cls = this.getClassSkills(classId);
+        if (!cls) return [];
+        return cls.skills.filter(s => !this.countsForDamage(s) && s.name !== 'TBD');
+    },
+
     // trackingId selects which saved data set to use; classId selects the board.
     getProgress(trackingId, classId) {
         if (classId === undefined) classId = trackingId;
@@ -207,7 +228,7 @@ const hexaTracker = {
         if (!this.getClassSkills(classId)) return empty;
 
         const out = { ...empty, byTier: blankTiers() };
-        for (const s of this.activeSkills(trackingId, classId)) {
+        for (const s of this.damageSkills(trackingId, classId)) {
             const lv = this.levelOf(trackingId, s);
             const tg = this.targetOf(trackingId, s);
             out.fragSpent += this.fragAt(s, lv);
@@ -313,7 +334,7 @@ const hexaTracker = {
 
     // Nodes that can move the needle, with their level bounds.
     planScope(trackingId, classId) {
-        const skills = this.activeSkills(trackingId, classId).filter(s => s.fd > 0);
+        const skills = this.damageSkills(trackingId, classId);
         const floor = {}, current = {}, target = {}, max = {};
         for (const s of skills) {
             floor[s.key] = this.minLevel(s);
@@ -359,10 +380,7 @@ const hexaTracker = {
     // answers "what do I buy next", one level at a time; this one traces the best
     // rate achievable at each spend level, so it is allowed to commit to a block.
     curveData(trackingId, classId) {
-        // Every node counts here, including the ones with no Final Damage weight,
-        // so the fragment totals match the ones on the progress tab. They simply
-        // sort last, at a rate of zero.
-        const skills = this.activeSkills(trackingId, classId);
+        const skills = this.damageSkills(trackingId, classId);
         const cursor = {}, top = {};
         let fd = 0;
         for (const s of skills) {
@@ -539,7 +557,20 @@ const hexaTracker = {
             ${this.buildFdSummary(p)}
             ${this.buildResourceSummary(p)}
             <div class="grid grid-cols-2 gap-3">${groups}</div>
+            ${this.buildExclusionNote(classId)}
         </div>`;
+    },
+
+    // Say plainly which nodes are kept out of the numbers, so a total that looks
+    // short has a visible reason.
+    buildExclusionNote(classId) {
+        const left = this.nonDamageSkills(classId);
+        if (!left.length) return '';
+        const names = [...new Set(left.map(s => s.name))].join('、');
+        return `<p class="text-[10px] text-slate-600 mt-3 leading-relaxed flex items-start gap-1.5">
+            <i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i>
+            <span>${this.escHtml(names)} は最終ダメージに寄与しないため、フラグメント・エルダ・FDのすべての集計から除外しています（レベルの記録のみ可）。</span>
+        </p>`;
     },
 
     // The headline: how much Final Damage the board is giving you now, how much
@@ -671,14 +702,18 @@ const hexaTracker = {
                 ? `<img src="${iconUrl}" class="w-6 h-6 object-contain shrink-0 rounded" loading="lazy" alt="">`
                 : `<div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style="background:${sCfg.badge}">${sCfg.label}</div>`;
 
+            const counts = this.countsForDamage(s);
             const fdNow = this.fdAt(s, lvl);
-            const hint = `${s.name}\n最終ダメージ 現在 +${fdNow.toFixed(2)}% / 全取得 +${s.fd.toFixed(2)}%`
-                + `\nフラグメント ${fragNow.toLocaleString()} / 全取得 ${fragMax.toLocaleString()}`;
-            const stat = isExcl
-                ? '除外'
+            const hint = counts
+                ? `${s.name}\n最終ダメージ 現在 +${fdNow.toFixed(2)}% / 全取得 +${s.fd.toFixed(2)}%`
+                    + `\nフラグメント ${fragNow.toLocaleString()} / 全取得 ${fragMax.toLocaleString()}`
+                : `${s.name}\n最終ダメージに寄与しないため、画面上のすべての集計から除外しています。`
+                    + `\nレベルの記録だけできます（フラグメント ${fragNow.toLocaleString()}）。`;
+            const stat = isExcl ? '除外'
+                : !counts ? '<span class="text-slate-500">火力計算外</span>'
                 : `<span class="text-emerald-400">+${fdNow.toFixed(1)}%</span><span class="text-slate-700 mx-1">·</span><span class="text-slate-500">${fragNow.toLocaleString()}</span>`;
 
-            rows += `<div class="flex items-center gap-2 py-1.5 border-b border-slate-800/50 last:border-0 ${isExcl ? 'opacity-40' : ''}">
+            rows += `<div class="flex items-center gap-2 py-1.5 border-b border-slate-800/50 last:border-0 ${isExcl ? 'opacity-40' : counts ? '' : 'opacity-60'}">
                 ${iconHtml}
                 <div class="flex-1 min-w-0">
                     <div class="flex items-baseline justify-between gap-1.5">
@@ -697,11 +732,12 @@ const hexaTracker = {
                 <input type="number" min="${this.minLevel(s)}" max="${this.MAX_LEVEL}" value="${tgt}" title="目標値"
                     oninput="hexaTracker.updateTarget('${trackingId}','${classId}','${s.key}',this.value)"
                     class="w-10 bg-slate-950 border border-violet-800/70 rounded text-center text-xs text-violet-200 py-0.5 focus:outline-none focus:border-violet-500 shrink-0">
-                <button onclick="hexaTracker.toggleExclude('${trackingId}','${s.key}')"
+                ${counts ? `<button onclick="hexaTracker.toggleExclude('${trackingId}','${s.key}')"
                     title="${isExcl ? '進捗に含める' : '進捗から除外'}"
                     class="w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors ${isExcl ? 'bg-slate-700 border-slate-600' : 'border-slate-600 hover:border-slate-400 hover:bg-slate-800'}">
                     ${isExcl ? `<svg viewBox="0 0 12 12" width="10" height="10"><line x1="2" y1="2" x2="10" y2="10" stroke="#94a3b8" stroke-width="1.5"/><line x1="10" y1="2" x2="2" y2="10" stroke="#94a3b8" stroke-width="1.5"/></svg>` : ''}
-                </button>
+                </button>`
+                : `<span class="w-5 h-5 shrink-0"></span>`}
             </div>`;
         }
 
@@ -903,10 +939,12 @@ const hexaTracker = {
             ${this.buildCurveChart(curve, now)}
             ${this.buildCurveTable(curve, now, budget, weeks, per1k)}
             <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
-                未強化の盤面から全ノードLv.30までを、1レベルずつ「最終ダメージ / 欠片」が最大の順に振ったときの積み上げです。
+                未強化の盤面から全ノードLv.30までを、「最終ダメージ / 欠片」が最大の順に振ったときの積み上げです。
+                Lv.10/20/30はコストが跳ね上がるため、壁をまたぐ複数レベルをひとまとめに評価しています。
                 現在地や目標値には影響されないので、職業ごとの伸び方の目安として使えます。
                 消費リソースは正確な値、最終ダメージはノード係数からの推定値です。
             </p>
+            ${this.buildExclusionNote(classId)}
         </div>`;
     },
 
@@ -937,18 +975,6 @@ const hexaTracker = {
             ticks += `<text x="${tx.toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="middle" fill="#64748b" font-size="10">${Math.round(frag / 1000)}k</text>`;
         }
 
-        // Some nodes carry no Final Damage at all (Sol Janus, and anything the
-        // source weights at 0), so the curve flattens before the fragments run
-        // out. Call that stretch out rather than leaving a mystery flat tail.
-        const full = this.curveAt(curve, curve.fdMax).p;
-        const deadFrag = curve.totalFrag - full.frag;
-        const deadBand = deadFrag > curve.totalFrag * 0.02
-            ? `<rect x="${x(full.frag).toFixed(1)}" y="${padT}" width="${(x(curve.totalFrag) - x(full.frag)).toFixed(1)}" height="${plotH}"
-                   fill="#334155" opacity="0.28"/>
-               <text x="${((x(full.frag) + x(curve.totalFrag)) / 2).toFixed(1)}" y="${(padT + plotH - 8).toFixed(1)}"
-                   text-anchor="middle" fill="#94a3b8" font-size="9">FD寄与なし</text>`
-            : '';
-
         const brk = curve.points[curve.breakIdx];
         const bx = x(brk.frag), by = y(brk.fd);
         const labelLeft = bx > padL + plotW * 0.62;
@@ -974,7 +1000,7 @@ const hexaTracker = {
                     <stop offset="0%" stop-color="${ink.curve}" stop-opacity="0.28"/>
                     <stop offset="100%" stop-color="${ink.curve}" stop-opacity="0.02"/>
                 </linearGradient></defs>
-                ${grid}${ticks}${deadBand}
+                ${grid}${ticks}
                 <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT + plotH}" stroke="#334155" stroke-width="1"/>
                 <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="#334155" stroke-width="1"/>
                 <polygon points="${area}" fill="url(#hexaCurveFill)"/>
@@ -1061,31 +1087,20 @@ const hexaTracker = {
         rows.push({ label: '分岐点', p: brk, mark: true });
         rows.sort((a, b) => a.p.fd - b.p.fd || (a.mark ? -1 : 1));
 
-        // The board costs more than 100% FD does, because some nodes give none.
-        const full = this.curveAt(curve, curve.fdMax).p;
-        if (curve.totalFrag - full.frag > 1) {
-            rows.push({
-                label: '全ノード最大',
-                p: { fd: curve.fdMax, frag: curve.totalFrag, erda: curve.totalErda, ratio: 0 },
-                dead: true,
-            });
-        }
-
         const nowPct = curve.fdMax > 0 ? now.fdNow / curve.fdMax * 100 : 0;
         let body = '';
         for (const r of rows) {
             const reached = now.fdNow >= r.p.fd - 1e-9;
-            body += `<tr class="${r.mark ? 'bg-amber-500/10' : ''} ${r.dead ? 'bg-slate-800/40' : ''} ${reached && !r.dead ? 'text-slate-500' : 'text-slate-300'}">
+            body += `<tr class="${r.mark ? 'bg-amber-500/10' : ''} ${reached ? 'text-slate-500' : 'text-slate-300'}">
                 <td class="py-1.5 px-2 whitespace-nowrap">
                     ${r.mark ? `<span class="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle" style="background:${this.CHART_INK.breakEven}"></span>` : ''}
                     <span class="${r.mark ? 'font-bold text-amber-300' : 'font-bold'}">${r.label}</span>
-                    ${r.dead ? '<span class="text-[9px] text-slate-500 ml-1">FDは増えない</span>'
-                        : reached ? '<span class="text-[9px] text-emerald-500 ml-1">到達済</span>' : ''}
+                    ${reached ? '<span class="text-[9px] text-emerald-500 ml-1">到達済</span>' : ''}
                 </td>
                 <td class="py-1.5 px-2 text-right tabular-nums text-emerald-300">+${r.p.fd.toFixed(1)}%</td>
                 <td class="py-1.5 px-2 text-right tabular-nums text-violet-300">${Math.round(r.p.frag).toLocaleString()}</td>
                 <td class="py-1.5 px-2 text-right tabular-nums text-amber-300">${Math.round(r.p.erda).toLocaleString()}</td>
-                <td class="py-1.5 px-2 text-right tabular-nums">${r.dead ? '0.0' : Number.isFinite(r.p.ratio) ? per1k(r.p.ratio) : '—'}</td>
+                <td class="py-1.5 px-2 text-right tabular-nums">${Number.isFinite(r.p.ratio) ? per1k(r.p.ratio) : '—'}</td>
                 <td class="py-1.5 px-2 text-right tabular-nums text-slate-500">${weeks(r.p.frag, r.p.erda)}</td>
             </tr>`;
         }

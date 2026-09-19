@@ -138,6 +138,38 @@ const heroCls = CLASSES.find(c => c.id === 'hero');
 for (const s of heroCls.skills) t.updateTarget('char:t2', 'hero', s.key, t.minLevel(s));
 check(t.buildPlan('char:t2', 'hero').length === 0, 'a plan with every target at the floor should be empty');
 
+// ------------------------------------------------- Sol Janus / no-damage nodes
+
+// Sol Janus gives no Final Damage, so it must not appear in any aggregate —
+// including the fragment and Sol Erda totals, where its cost would otherwise
+// inflate every "to max" figure and drag down every rate.
+t.data = {};
+for (const c of CLASSES) {
+    const janus = c.skills.find(s => s.name === 'Sol Janus');
+    check(!!janus, 'no Sol Janus node on ' + c.id);
+    if (janus) check(!t.countsForDamage(janus), 'Sol Janus must not count for damage on ' + c.id);
+    for (const s of t.damageSkills(c.id, c.id)) {
+        check(s.fd > 0, 'a zero-FD node reached the damage aggregates on ' + c.id + ': ' + s.name);
+    }
+}
+const heroCls2 = CLASSES.find(c => c.id === 'hero');
+const janusHero = heroCls2.skills.find(s => s.name === 'Sol Janus');
+const heroProg = t.getProgress('hero', 'hero');
+const boardFrag = heroCls2.skills.reduce((sum, s) => sum + t.fragAt(s, 30), 0);
+check(heroProg.fragMax < boardFrag, 'the hero fragment total must exclude the no-damage nodes');
+check(Math.abs(boardFrag - heroProg.fragMax - (t.fragAt(janusHero, 30)
+    + t.fragAt(heroCls2.skills.find(s => s.name === 'Worldreaver Boost'), 30))) < 1,
+    'exactly the no-damage nodes should be missing from the hero total');
+notes.push('hero totals exclude ' + t.nonDamageSkills('hero').map(s => s.name).join(', ')
+    + ' (' + (boardFrag - heroProg.fragMax).toLocaleString() + ' fragments)');
+
+// Levelling an excluded node must not move any number.
+const before = JSON.stringify(t.getProgress('hero', 'hero'));
+t.updateLevel('hero', 'hero', janusHero.key, 30);
+check(JSON.stringify(t.getProgress('hero', 'hero')) === before,
+    'maxing Sol Janus changed the aggregates');
+check(t.buildPlan('hero', 'hero').every(s => s.skill.fd > 0), 'the plan must not suggest a no-damage node');
+
 // ------------------------------------------------------------- efficiency curve
 
 t.data = {};
@@ -185,16 +217,10 @@ for (let k = 1; k <= 5; k++) {
     check(p.frag > prevFrag, 'lookup rows must increase in cost at ' + (k * 20) + '%');
     prevFrag = p.frag;
 }
-// Reaching 100% Final Damage can cost less than the whole board, because some
-// nodes (Sol Janus, and any node the source weights at 0) carry no FD at all.
 const fullFd = t.curveAt(curve, curve.fdMax).p;
 check(Math.abs(fullFd.fd - curve.fdMax) < 0.01, '100% must land on the maximum FD');
-check(fullFd.frag <= curve.totalFrag + 1, '100% cannot cost more than the whole board');
+check(Math.abs(fullFd.frag - curve.totalFrag) < 1, '100% FD must cost exactly the whole damage board');
 check(Math.abs(pts[pts.length - 1].fd - curve.fdMax) < 0.01, 'the curve must end at maximum FD');
-const deadFrag = curve.totalFrag - fullFd.frag;
-check(deadFrag >= 0, 'the zero-FD tail cannot be negative');
-notes.push('hero: FD 100% costs ' + Math.round(fullFd.frag).toLocaleString() + ' fragments; a further '
-    + Math.round(deadFrag).toLocaleString() + ' buys nodes with no FD weight');
 
 // Every class should produce a usable curve, not just Hero.
 for (const c of CLASSES) {
