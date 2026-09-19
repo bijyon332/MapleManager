@@ -212,22 +212,15 @@ const hexaTracker = {
     // trackingId selects which saved data set to use; classId selects the board.
     getProgress(trackingId, classId) {
         if (classId === undefined) classId = trackingId;
-        const blankTiers = () => {
-            const t = {};
-            for (const tier of this.TIERS) t[tier.id] = { now: 0, target: 0, max: 0 };
-            return t;
-        };
         const empty = {
             pct: 0, pctToTarget: 0,
             fragSpent: 0, fragMax: 0, fragTarget: 0,
             erdaSpent: 0, erdaMax: 0, erdaTarget: 0,
             fdNow: 0, fdMax: 0, fdTarget: 0,
-            fdPct: 0, fdPctToTarget: 0,
-            byTier: blankTiers(),
         };
         if (!this.getClassSkills(classId)) return empty;
 
-        const out = { ...empty, byTier: blankTiers() };
+        const out = { ...empty };
         for (const s of this.damageSkills(trackingId, classId)) {
             const lv = this.levelOf(trackingId, s);
             const tg = this.targetOf(trackingId, s);
@@ -238,19 +231,12 @@ const hexaTracker = {
             out.erdaTarget += this.erdaAt(s, tg);
             out.erdaMax += this.erdaAt(s, this.MAX_LEVEL);
 
-            const fdNow = this.fdAt(s, lv);
-            const fdTarget = this.fdAt(s, tg);
-            const fdMax = this.fdAt(s, this.MAX_LEVEL);
-            out.fdNow += fdNow;
-            out.fdTarget += fdTarget;
-            out.fdMax += fdMax;
-            const bucket = out.byTier[s.tier];
-            if (bucket) { bucket.now += fdNow; bucket.target += fdTarget; bucket.max += fdMax; }
+            out.fdNow += this.fdAt(s, lv);
+            out.fdTarget += this.fdAt(s, tg);
+            out.fdMax += this.fdAt(s, this.MAX_LEVEL);
         }
         out.pct = out.fragMax > 0 ? Math.round(out.fragSpent / out.fragMax * 100) : 0;
         out.pctToTarget = out.fragTarget > 0 ? Math.round(out.fragSpent / out.fragTarget * 100) : 0;
-        out.fdPct = out.fdMax > 0 ? out.fdNow / out.fdMax * 100 : 0;
-        out.fdPctToTarget = out.fdTarget > 0 ? out.fdNow / out.fdTarget * 100 : 0;
         return out;
     },
 
@@ -554,7 +540,6 @@ const hexaTracker = {
                     <div class="text-[11px] text-slate-500">左の枠が現在地、右の枠が目標値です。</div>
                 </div>
             </div>
-            ${this.buildFdSummary(p)}
             ${this.buildResourceSummary(p)}
             <div class="grid grid-cols-2 gap-3">${groups}</div>
             ${this.buildExclusionNote(classId)}
@@ -571,60 +556,6 @@ const hexaTracker = {
             <i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i>
             <span>${this.escHtml(names)} は最終ダメージに寄与しないため、フラグメント・エルダ・FDのすべての集計から除外しています（レベルの記録のみ可）。</span>
         </p>`;
-    },
-
-    // The headline: how much Final Damage the board is giving you now, how much
-    // is left on the table, and what it totals if you max everything.
-    buildFdSummary(p) {
-        const headroom = Math.max(0, p.fdMax - p.fdNow);
-        const toTarget = Math.max(0, p.fdTarget - p.fdNow);
-        const realGain = this.damageGain(p.fdNow, p.fdMax);
-        const realToTarget = this.damageGain(p.fdNow, p.fdTarget);
-        const nowPct = p.fdMax > 0 ? p.fdNow / p.fdMax * 100 : 0;
-        const targetPct = p.fdMax > 0 ? p.fdTarget / p.fdMax * 100 : 0;
-
-        const tile = (label, value, sub, color, hint) => `<div class="flex-1 min-w-0 px-3 py-2" title="${this.escHtml(hint)}">
-            <div class="text-[10px] uppercase tracking-wider text-slate-500">${label}</div>
-            <div class="text-xl font-bold tabular-nums leading-tight" style="color:${color}">${value}</div>
-            <div class="text-[10px] text-slate-500 leading-tight mt-0.5">${sub}</div>
-        </div>`;
-
-        const chips = this.TIERS.map(t => {
-            const b = p.byTier[t.id] || { now: 0, max: 0 };
-            if (b.max <= 0) return '';
-            const share = b.max > 0 ? Math.round(b.now / b.max * 100) : 0;
-            return `<span class="flex items-center gap-1.5 text-[10px] text-slate-400" title="${t.label}: 現在 +${b.now.toFixed(2)}% / 全取得 +${b.max.toFixed(2)}%（取得率 ${share}%）">
-                <span class="inline-block w-2 h-2 rounded-sm" style="background:${t.color}"></span>
-                <span class="text-slate-500">${t.label}</span>
-                <span class="font-bold tabular-nums text-slate-300">+${b.now.toFixed(1)}</span>
-                <span class="text-slate-600">/ +${b.max.toFixed(1)}</span>
-            </span>`;
-        }).join('');
-
-        return `<div class="bg-slate-900 rounded-xl border border-slate-800 p-3 mb-3">
-            <div class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300 mb-1 px-1">
-                <i data-lucide="swords" class="w-3.5 h-3.5"></i>HEXAによる最終ダメージ
-            </div>
-            <div class="flex flex-wrap items-stretch divide-x divide-slate-800">
-                ${tile('現在', `+${p.fdNow.toFixed(1)}%`, `全取得時の ${nowPct.toFixed(1)}%`, '#34d399',
-                    'いま入っているHEXAノードが出している最終ダメージの合計')}
-                ${tile('残りの伸びしろ', `+${headroom.toFixed(1)}%`, `実ダメージ +${realGain.toFixed(1)}%`, '#fbbf24',
-                    '全ノードをLv.30まで上げたときに、いまからさらに増える分。最終ダメージは加算で積まれるので、実際のダメージ増加は (100+全取得) / (100+現在) 倍です。')}
-                ${tile('全部取ったら', `+${p.fdMax.toFixed(1)}%`, '全ノード Lv.30', '#a5b4fc',
-                    '除外していない全ノードをLv.30まで上げたときの最終ダメージ合計')}
-            </div>
-            <div class="relative h-2.5 bg-slate-800 rounded-full overflow-hidden mt-2.5">
-                <div class="absolute inset-y-0 left-0 rounded-full bg-emerald-500/25" style="width:${targetPct}%"></div>
-                <div class="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
-                    style="width:${nowPct}%;background:linear-gradient(90deg,#059669,#34d399)"></div>
-            </div>
-            <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 mt-2 px-1">
-                <div class="flex flex-wrap items-center gap-x-3 gap-y-1">${chips}</div>
-                <span class="text-[10px] text-slate-400">目標値まで
-                    <span class="font-bold tabular-nums text-emerald-200">+${toTarget.toFixed(1)}%</span>
-                    <span class="text-slate-600">（実ダメージ +${realToTarget.toFixed(1)}%）</span></span>
-            </div>
-        </div>`;
     },
 
     // Secondary: the three running totals, each as its own 現在 / 目標 / 最大 stack
