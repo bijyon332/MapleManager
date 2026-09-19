@@ -266,16 +266,12 @@ const hexaTracker = {
     // Greedy chain from current levels to targets: repeatedly take the single
     // level with the best FD per resource, then merge consecutive levels of the
     // same node into one step (their ratios are equal, so the order is unchanged).
-    buildPlan(trackingId, classId) {
-        const skills = this.activeSkills(trackingId, classId).filter(s => s.fd > 0);
-        const cursor = {};
-        const target = {};
-        for (const s of skills) {
-            cursor[s.key] = this.levelOf(trackingId, s);
-            target[s.key] = this.targetOf(trackingId, s);
-        }
-        const perErda = this.prioritySort === 'erda';
-
+    // One greedy level at a time, from `from` to `to`. Because each pick is the
+    // best remaining ratio and the nodes are independent, the ratios come out
+    // non-increasing — which is what makes the cumulative curve concave and the
+    // break-even point below well defined.
+    planSingles(skills, from, to, perErda) {
+        const cursor = { ...from };
         const singles = [];
         // Bounded by every node's remaining levels, so this always terminates.
         const cap = skills.length * this.MAX_LEVEL;
@@ -283,7 +279,7 @@ const hexaTracker = {
             let best = null;
             for (const s of skills) {
                 const lv = cursor[s.key];
-                if (lv >= target[s.key]) continue;
+                if (lv >= to[s.key]) continue;
                 const frag = this.fragAt(s, lv + 1) - this.fragAt(s, lv);
                 const erda = this.erdaAt(s, lv + 1) - this.erdaAt(s, lv);
                 const fd = this.fdAt(s, lv + 1) - this.fdAt(s, lv);
@@ -295,7 +291,11 @@ const hexaTracker = {
             cursor[best.skill.key] = best.from + 1;
             singles.push(best);
         }
+        return singles;
+    },
 
+    // Collapse a run of consecutive levels on one node into a single step.
+    mergeSteps(singles) {
         const steps = [];
         for (const step of singles) {
             const last = steps[steps.length - 1];
@@ -309,6 +309,121 @@ const hexaTracker = {
             steps.push({ skill: step.skill, from: step.from, to: step.from + 1, frag: step.frag, erda: step.erda, fd: step.fd, ratio: step.ratio });
         }
         return steps;
+    },
+
+    // Nodes that can move the needle, with their level bounds.
+    planScope(trackingId, classId) {
+        const skills = this.activeSkills(trackingId, classId).filter(s => s.fd > 0);
+        const floor = {}, current = {}, target = {}, max = {};
+        for (const s of skills) {
+            floor[s.key] = this.minLevel(s);
+            current[s.key] = this.levelOf(trackingId, s);
+            target[s.key] = this.targetOf(trackingId, s);
+            max[s.key] = this.MAX_LEVEL;
+        }
+        return { skills, floor, current, target, max };
+    },
+
+    // The chain from where you are now to your targets, merged for display.
+    buildPlan(trackingId, classId) {
+        const { skills, current, target } = this.planScope(trackingId, classId);
+        return this.mergeSteps(this.planSingles(skills, current, target, this.prioritySort === 'erda'));
+    },
+
+    // ========== Efficiency curve ==========
+
+    // The best jump available from `lv` on one node, measured in Final Damage per
+    // fragment. This looks past the next level rather than only at it, which
+    // matters because levels 10, 20 and 30 cost several times their neighbours:
+    // taking 9→10 alone is a terrible rate, but 9→12 as a block can still be the
+    // best move on the board. Evaluating blocks is what makes the resulting curve
+    // concave, and a concave curve is what makes a break-even point meaningful.
+    bestBlock(skill, lv, top) {
+        const fdL = this.fdAt(skill, lv), fragL = this.fragAt(skill, lv), erdaL = this.erdaAt(skill, lv);
+        let best = null;
+        for (let m = lv + 1; m <= top; m++) {
+            const frag = this.fragAt(skill, m) - fragL;
+            const fd = this.fdAt(skill, m) - fdL;
+            const ratio = frag > 0 ? fd / frag : (fd > 0 ? Infinity : 0);
+            if (!best || ratio > best.ratio) best = { to: m, frag, erda: this.erdaAt(skill, m) - erdaL, fd, ratio };
+        }
+        return best;
+    },
+
+    // The class's whole investment curve: an untouched board taken to Lv.30
+    // everywhere, always spending on whatever block returns the most Final Damage
+    // per fragment. It does not depend on where you are now, which is what makes
+    // it a planning reference — your own position gets plotted on top of it.
+    //
+    // Note this is deliberately not the same ordering as the 効率順 tab. That tab
+    // answers "what do I buy next", one level at a time; this one traces the best
+    // rate achievable at each spend level, so it is allowed to commit to a block.
+    curveData(trackingId, classId) {
+        // Every node counts here, including the ones with no Final Damage weight,
+        // so the fragment totals match the ones on the progress tab. They simply
+        // sort last, at a rate of zero.
+        const skills = this.activeSkills(trackingId, classId);
+        const cursor = {}, top = {};
+        let fd = 0;
+        for (const s of skills) {
+            cursor[s.key] = this.minLevel(s);
+            top[s.key] = this.MAX_LEVEL;
+            fd += this.fdAt(s, cursor[s.key]);
+        }
+
+        const fdFloor = fd;
+        const points = [{ frag: 0, erda: 0, fd, ratio: Infinity, skill: null, to: 0 }];
+        let frag = 0, erda = 0;
+        // Bounded: every iteration advances one node's level by at least one.
+        const cap = skills.length * this.MAX_LEVEL;
+        for (let guard = 0; guard < cap; guard++) {
+            let best = null;
+            for (const s of skills) {
+                const lv = cursor[s.key];
+                if (lv >= top[s.key]) continue;
+                const b = this.bestBlock(s, lv, top[s.key]);
+                if (b && (!best || b.ratio > best.ratio)) best = { skill: s, from: lv, ...b };
+            }
+            if (!best) break;
+            cursor[best.skill.key] = best.to;
+            frag += best.frag; erda += best.erda; fd += best.fd;
+            points.push({ frag, erda, fd, ratio: best.ratio, skill: best.skill, from: best.from, to: best.to });
+        }
+
+        // The slope to compare against: the whole board's Final Damage divided by
+        // its whole fragment cost, i.e. the average rate of maxing everything.
+        // Because the block rates only ever fall, there is exactly one crossing —
+        // before it every purchase beats that average, after it none do.
+        const avg = frag > 0 ? (fd - fdFloor) / frag : 0;
+        let breakIdx = points.length - 1;
+        for (let i = 1; i < points.length; i++) {
+            if (points[i].ratio < avg) { breakIdx = i - 1; break; }
+        }
+        return { points, totalFrag: frag, totalErda: erda, fdMax: fd, fdFloor, avg, breakIdx };
+    },
+
+    // Where `fdWanted` sits on the curve. Inside a block the curve is a straight
+    // line by construction, so interpolating there is exact rather than a guess.
+    curveAt(curve, fdWanted) {
+        const pts = curve.points;
+        for (let i = 1; i < pts.length; i++) {
+            if (pts[i].fd < fdWanted - 1e-9) continue;
+            const a = pts[i - 1], b = pts[i];
+            const span = b.fd - a.fd;
+            const k = span > 1e-12 ? Math.max(0, Math.min(1, (fdWanted - a.fd) / span)) : 1;
+            return {
+                idx: i,
+                p: {
+                    fd: a.fd + (b.fd - a.fd) * k,
+                    frag: a.frag + (b.frag - a.frag) * k,
+                    erda: a.erda + (b.erda - a.erda) * k,
+                    ratio: b.ratio,
+                    skill: b.skill,
+                    to: b.to,
+                },
+            };
+        }
+        return { p: pts[pts.length - 1], idx: pts.length - 1 };
     },
 
     // ========== Rendering ==========
@@ -382,7 +497,9 @@ const hexaTracker = {
             class="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-t-lg border-b-2 -mb-px transition-colors ${active === id ? 'border-violet-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}">
             <i data-lucide="${icon}" class="w-3.5 h-3.5"></i>${label}
         </button>`;
-        return tab('progress', '進捗入力', 'sliders-horizontal') + tab('priority', '効率順', 'trending-up');
+        return tab('progress', '進捗入力', 'sliders-horizontal')
+            + tab('priority', '効率順', 'trending-up')
+            + tab('curve', '効率カーブ', 'activity');
     },
 
     setTab(scope, tab) {
@@ -392,9 +509,9 @@ const hexaTracker = {
 
     buildPanel(classId, trackingId, scope) {
         const tab = scope === 'modal' ? this.modalTab : this.panelTab;
-        return tab === 'priority'
-            ? this.buildPriority(classId, trackingId)
-            : this.buildSkillPanel(classId, trackingId);
+        if (tab === 'priority') return this.buildPriority(classId, trackingId);
+        if (tab === 'curve') return this.buildCurveTab(classId, trackingId);
+        return this.buildSkillPanel(classId, trackingId);
     },
 
     buildSkillPanel(classId, trackingId) {
@@ -479,15 +596,33 @@ const hexaTracker = {
         </div>`;
     },
 
-    // Secondary: what it costs in Sol Erda Fragments and Sol Erda.
+    // Secondary: the three running totals, each as its own 現在 / 目標 / 最大 stack
+    // so the rows line up and the numbers stay comparable down the column.
     buildResourceSummary(p) {
         const pctColor = p.pct >= 80 ? '#4ade80' : p.pct >= 50 ? '#a78bfa' : '#818cf8';
         const targetPct = p.fragMax > 0 ? p.fragTarget / p.fragMax * 100 : 0;
         const remFrag = Math.max(0, p.fragTarget - p.fragSpent);
         const remErda = Math.max(0, p.erdaTarget - p.erdaSpent);
+        const remFd = Math.max(0, p.fdTarget - p.fdNow);
+
+        const column = (title, dot, color, rows, remaining) => `<div class="flex-1 min-w-[150px] px-3 py-1">
+            <div class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider mb-1" style="color:${color}">
+                <span class="inline-block w-2 h-2 rounded-full" style="background:${dot}"></span>${title}
+            </div>
+            <dl class="space-y-0.5">
+                ${rows.map(([label, value, strong]) => `<div class="flex items-baseline justify-between gap-2">
+                    <dt class="text-[10px] text-slate-500 shrink-0">${label}</dt>
+                    <dd class="text-[12px] tabular-nums ${strong ? 'font-bold text-slate-100' : 'text-slate-400'}">${value}</dd>
+                </div>`).join('')}
+            </dl>
+            <div class="flex items-baseline justify-between gap-2 mt-1 pt-1 border-t border-slate-800">
+                <span class="text-[10px] text-slate-500 shrink-0">目標まで残り</span>
+                <span class="text-[11px] font-bold tabular-nums" style="color:${color}">${remaining}</span>
+            </div>
+        </div>`;
 
         return `<div class="bg-slate-900 rounded-xl border border-slate-800 p-3 mb-5">
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 mb-3">
                 <div class="relative flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
                     <div class="absolute inset-y-0 left-0 rounded-full bg-violet-500/25" style="width:${targetPct}%"></div>
                     <div class="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
@@ -495,20 +630,22 @@ const hexaTracker = {
                 </div>
                 <span class="text-sm font-bold w-12 text-right tabular-nums" style="color:${pctColor}" title="投入済みフラグメント / 全取得に必要なフラグメント">${p.pct}%</span>
             </div>
-            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] mt-2">
-                <span class="flex items-center gap-1 text-violet-300" title="ソルエルダフラグメント">
-                    <span class="inline-block w-2 h-2 rounded-full" style="background:#a78bfa"></span>
-                    フラグメント <span class="font-bold tabular-nums">${p.fragSpent.toLocaleString()}</span>
-                    <span class="text-slate-500">/ 目標 ${p.fragTarget.toLocaleString()} / 全取得 ${p.fragMax.toLocaleString()}</span>
-                </span>
-                <span class="flex items-center gap-1 text-amber-300" title="ソルエルダ">
-                    <span class="inline-block w-2 h-2 rounded-full" style="background:#fcd34d"></span>
-                    エルダ <span class="font-bold tabular-nums">${p.erdaSpent.toLocaleString()}</span>
-                    <span class="text-slate-500">/ 目標 ${p.erdaTarget.toLocaleString()} / 全取得 ${p.erdaMax.toLocaleString()}</span>
-                </span>
-                <span class="text-slate-400">目標まで残り
-                    <span class="font-bold tabular-nums text-violet-200">${remFrag.toLocaleString()}</span> フラグメント /
-                    <span class="font-bold tabular-nums text-amber-200">${remErda.toLocaleString()}</span> エルダ</span>
+            <div class="flex flex-wrap items-stretch divide-x divide-slate-800">
+                ${column('フラグメント', '#a78bfa', '#c4b5fd', [
+                    ['現在', p.fragSpent.toLocaleString(), true],
+                    ['目標', p.fragTarget.toLocaleString(), false],
+                    ['最大', p.fragMax.toLocaleString(), false],
+                ], remFrag.toLocaleString())}
+                ${column('ソルエルダ', '#fcd34d', '#fcd34d', [
+                    ['現在', p.erdaSpent.toLocaleString(), true],
+                    ['目標', p.erdaTarget.toLocaleString(), false],
+                    ['最大', p.erdaMax.toLocaleString(), false],
+                ], remErda.toLocaleString())}
+                ${column('最終ダメージ', '#34d399', '#34d399', [
+                    ['現在', `+${p.fdNow.toFixed(1)}%`, true],
+                    ['目標', `+${p.fdTarget.toFixed(1)}%`, false],
+                    ['最大', `+${p.fdMax.toFixed(1)}%`, false],
+                ], `+${remFd.toFixed(1)}%`)}
             </div>
         </div>`;
     },
@@ -703,6 +840,276 @@ const hexaTracker = {
                 現在地から目標値まで、1レベルずつ「最終ダメージ / 消費リソース」が最大の一手を選び続けた順序です。
                 同じスキルの連続レベルは1ステップにまとめています。リソース消費量は正確な値、最終ダメージ量はノード係数からの推定値です。
             </p>
+        </div>`;
+    },
+
+    // ========== Efficiency curve tab ==========
+
+    // Chart geometry, in viewBox units. Kept on the object so the hover handler
+    // can invert a mouse position back to a point without re-deriving it.
+    CHART: { W: 760, H: 330, padL: 54, padR: 14, padT: 14, padB: 46 },
+    // Validated against the slate-900 card surface: lightness band, chroma floor,
+    // CVD separation (worst adjacent ΔE 9.7) and 3:1 contrast all pass.
+    CHART_INK: { curve: '#0ea570', breakEven: '#d97706', you: '#7c5cf0', surface: '#0f172a' },
+
+    buildCurveTab(classId, trackingId) {
+        const cls = this.getClassSkills(classId);
+        const info = this.getClassInfo(classId);
+        if (!cls || !info) return this.buildEmptyState();
+
+        const curve = this.curveData(trackingId, classId);
+        if (curve.totalFrag <= 0) {
+            return `<div class="flex items-center justify-center h-40 text-center text-slate-500">
+                <div><i data-lucide="activity" class="w-10 h-10 mx-auto mb-3 opacity-30"></i>
+                <p class="text-sm">この職業はまだ効率を計算できるノードがありません</p></div>
+            </div>`;
+        }
+
+        const now = this.getProgress(trackingId, classId);
+        const budget = this.getBudget();
+        const brk = curve.points[curve.breakIdx];
+        const per1k = r => (r * 1000).toFixed(1);
+        const weeks = (frag, erda) => {
+            const w = Math.max(budget.frag > 0 ? frag / budget.frag : Infinity, budget.erda > 0 ? erda / budget.erda : Infinity);
+            return Number.isFinite(w) ? Math.ceil(w) + '週' : '—';
+        };
+
+        // Marginal rate just past the break-even point, for the contrast.
+        const after = curve.points[Math.min(curve.breakIdx + 1, curve.points.length - 1)];
+        const brkPct = curve.fdMax > 0 ? brk.fd / curve.fdMax * 100 : 0;
+        const brkFragPct = curve.totalFrag > 0 ? brk.frag / curve.totalFrag * 100 : 0;
+
+        const tile = (label, value, sub, color, hint) => `<div class="flex-1 min-w-[150px] px-3 py-2" title="${this.escHtml(hint)}">
+            <div class="text-[10px] uppercase tracking-wider text-slate-500">${label}</div>
+            <div class="text-lg font-bold tabular-nums leading-tight" style="color:${color}">${value}</div>
+            <div class="text-[10px] text-slate-500 leading-tight mt-0.5">${sub}</div>
+        </div>`;
+
+        const summary = `<div class="bg-slate-900 rounded-xl border border-slate-800 p-3 mb-3">
+            <div class="flex flex-wrap items-stretch divide-x divide-slate-800">
+                ${tile('全体の平均効率', per1k(curve.avg), '欠片1,000あたりのFD', '#94a3b8',
+                    '未強化の盤面を全ノードLv.30まで持っていったときの、欠片あたり最終ダメージの平均。下のグラフの破線の傾きです。')}
+                ${tile('コスパの分岐点', `FD ${brkPct.toFixed(0)}%`, `欠片 ${brk.frag.toLocaleString()}（全体の ${brkFragPct.toFixed(0)}%）`, this.CHART_INK.breakEven,
+                    '1レベルあたりの効率が全体平均と並ぶ地点。ここまでは平均より割がよく、ここから先は平均を下回ります。')}
+                ${tile('分岐点までの効率', per1k(curve.avg > 0 && brk.frag > 0 ? (brk.fd - curve.fdFloor) / brk.frag : 0), `ここから先は ${per1k(after.ratio)}`, '#34d399',
+                    '分岐点までの平均効率と、その直後の1レベルの効率。落ち込み幅がそのまま「伸ばしにくさ」です。')}
+                ${tile('あなたの現在地', `FD ${now.fdMax > 0 ? (now.fdNow / now.fdMax * 100).toFixed(0) : 0}%`, `欠片 ${now.fragSpent.toLocaleString()} 投入済み`, this.CHART_INK.you,
+                    'いまの最終ダメージが、全取得時に対して何%かです。')}
+            </div>
+        </div>`;
+
+        return `<div class="max-w-4xl mx-auto">
+            ${summary}
+            ${this.buildCurveChart(curve, now)}
+            ${this.buildCurveTable(curve, now, budget, weeks, per1k)}
+            <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
+                未強化の盤面から全ノードLv.30までを、1レベルずつ「最終ダメージ / 欠片」が最大の順に振ったときの積み上げです。
+                現在地や目標値には影響されないので、職業ごとの伸び方の目安として使えます。
+                消費リソースは正確な値、最終ダメージはノード係数からの推定値です。
+            </p>
+        </div>`;
+    },
+
+    buildCurveChart(curve, now) {
+        const { W, H, padL, padR, padT, padB } = this.CHART;
+        const ink = this.CHART_INK;
+        const plotW = W - padL - padR, plotH = H - padT - padB;
+        const x = frag => padL + (curve.totalFrag > 0 ? frag / curve.totalFrag : 0) * plotW;
+        const y = fd => padT + (1 - (curve.fdMax > 0 ? fd / curve.fdMax : 0)) * plotH;
+
+        // Keep the geometry around for the hover handler.
+        this._curve = { ...curve, W, H, padL, plotW, plotH };
+
+        const line = curve.points.map(p => `${x(p.frag).toFixed(1)},${y(p.fd).toFixed(1)}`).join(' ');
+        const area = `${padL},${padT + plotH} ${line} ${x(curve.totalFrag).toFixed(1)},${padT + plotH}`;
+
+        let grid = '';
+        for (let k = 0; k <= 5; k++) {
+            const fd = curve.fdMax * k / 5;
+            const gy = y(fd);
+            grid += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${padL + plotW}" y2="${gy.toFixed(1)}" stroke="#1e293b" stroke-width="1"/>
+                <text x="${padL - 8}" y="${(gy + 3.5).toFixed(1)}" text-anchor="end" fill="#64748b" font-size="10">${k * 20}%</text>`;
+        }
+        let ticks = '';
+        for (let k = 0; k <= 4; k++) {
+            const frag = curve.totalFrag * k / 4;
+            const tx = x(frag);
+            ticks += `<text x="${tx.toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="middle" fill="#64748b" font-size="10">${Math.round(frag / 1000)}k</text>`;
+        }
+
+        // Some nodes carry no Final Damage at all (Sol Janus, and anything the
+        // source weights at 0), so the curve flattens before the fragments run
+        // out. Call that stretch out rather than leaving a mystery flat tail.
+        const full = this.curveAt(curve, curve.fdMax).p;
+        const deadFrag = curve.totalFrag - full.frag;
+        const deadBand = deadFrag > curve.totalFrag * 0.02
+            ? `<rect x="${x(full.frag).toFixed(1)}" y="${padT}" width="${(x(curve.totalFrag) - x(full.frag)).toFixed(1)}" height="${plotH}"
+                   fill="#334155" opacity="0.28"/>
+               <text x="${((x(full.frag) + x(curve.totalFrag)) / 2).toFixed(1)}" y="${(padT + plotH - 8).toFixed(1)}"
+                   text-anchor="middle" fill="#94a3b8" font-size="9">FD寄与なし</text>`
+            : '';
+
+        const brk = curve.points[curve.breakIdx];
+        const bx = x(brk.frag), by = y(brk.fd);
+        const labelLeft = bx > padL + plotW * 0.62;
+
+        // Your own position sits wherever your fragments actually went, which is
+        // not necessarily on the optimal curve.
+        const showYou = now.fragSpent > 0;
+        const yx = x(Math.min(now.fragSpent, curve.totalFrag)), yy = y(Math.min(now.fdNow, curve.fdMax));
+
+        return `<div class="bg-slate-900 rounded-xl border border-slate-800 p-3 mb-3 relative">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-1 px-1">
+                <div class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
+                    <i data-lucide="activity" class="w-3.5 h-3.5"></i>欠片の投入量と最終ダメージ
+                </div>
+                <div class="flex items-center gap-3 text-[10px] text-slate-400">
+                    <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5" style="background:${ink.curve}"></span>最適順で振った場合</span>
+                    <span class="flex items-center gap-1"><span class="inline-block w-3 border-t border-dashed border-slate-500"></span>全体平均の傾き</span>
+                </div>
+            </div>
+            <svg viewBox="0 0 ${W} ${H}" class="w-full" style="height:auto" role="img"
+                aria-label="欠片の累計投入量に対する最終ダメージの伸びを示す曲線。下の早見表に同じ数値があります。">
+                <defs><linearGradient id="hexaCurveFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="${ink.curve}" stop-opacity="0.28"/>
+                    <stop offset="100%" stop-color="${ink.curve}" stop-opacity="0.02"/>
+                </linearGradient></defs>
+                ${grid}${ticks}${deadBand}
+                <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT + plotH}" stroke="#334155" stroke-width="1"/>
+                <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="#334155" stroke-width="1"/>
+                <polygon points="${area}" fill="url(#hexaCurveFill)"/>
+                <line x1="${x(0)}" y1="${y(curve.fdFloor).toFixed(1)}" x2="${x(curve.totalFrag)}" y2="${y(curve.fdMax).toFixed(1)}"
+                    stroke="#64748b" stroke-width="1.5" stroke-dasharray="5 4"/>
+                <polyline points="${line}" fill="none" stroke="${ink.curve}" stroke-width="2" stroke-linejoin="round"/>
+
+                <line id="hexa-curve-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 3" style="display:none"/>
+                <circle id="hexa-curve-dot" r="4.5" fill="#e2e8f0" stroke="${ink.surface}" stroke-width="2" style="display:none"/>
+
+                <line x1="${bx.toFixed(1)}" y1="${by.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${padT + plotH}" stroke="${ink.breakEven}" stroke-width="1" stroke-dasharray="3 3" opacity="0.7"/>
+                <circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="5" fill="${ink.breakEven}" stroke="${ink.surface}" stroke-width="2"/>
+                <text x="${(labelLeft ? bx - 10 : bx + 10).toFixed(1)}" y="${(by - 10).toFixed(1)}" text-anchor="${labelLeft ? 'end' : 'start'}" fill="#fbbf24" font-size="11" font-weight="bold">分岐点</text>
+                <text x="${(labelLeft ? bx - 10 : bx + 10).toFixed(1)}" y="${(by + 2).toFixed(1)}" text-anchor="${labelLeft ? 'end' : 'start'}" fill="#94a3b8" font-size="10">欠片 ${brk.frag.toLocaleString()} / FD +${brk.fd.toFixed(1)}%</text>
+                ${showYou ? `<circle cx="${yx.toFixed(1)}" cy="${yy.toFixed(1)}" r="5" fill="${ink.you}" stroke="${ink.surface}" stroke-width="2"/>
+                <text x="${(yx + 9).toFixed(1)}" y="${(yy + 14).toFixed(1)}" fill="#c4b5fd" font-size="11" font-weight="bold">現在地</text>` : ''}
+
+                <rect x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"
+                    onmousemove="hexaTracker.curveHover(event)" onmouseleave="hexaTracker.curveHover(null)"/>
+            </svg>
+            <div id="hexa-curve-tip" class="absolute z-10 pointer-events-none hidden rounded-lg border border-slate-700 bg-slate-950/95 px-2.5 py-1.5 text-[10px] leading-relaxed shadow-xl"></div>
+            <div class="flex items-center justify-between text-[10px] text-slate-600 mt-1 px-1">
+                <span>縦軸: 全取得時を100%とした最終ダメージ</span>
+                <span>横軸: ソルエルダフラグメントの累計投入量</span>
+            </div>
+        </div>`;
+    },
+
+    // Crosshair + readout. Bound inline so it survives the innerHTML re-render.
+    curveHover(ev) {
+        const tip = document.getElementById('hexa-curve-tip');
+        const cross = document.getElementById('hexa-curve-cross');
+        const dot = document.getElementById('hexa-curve-dot');
+        const c = this._curve;
+        if (!tip || !cross || !dot) return;
+        if (!ev || !c) {
+            tip.classList.add('hidden');
+            cross.style.display = 'none';
+            dot.style.display = 'none';
+            return;
+        }
+        const svg = ev.currentTarget.ownerSVGElement;
+        const box = svg.getBoundingClientRect();
+        if (!box.width) return;
+        const vx = (ev.clientX - box.left) / box.width * c.W;
+        const frag = Math.max(0, Math.min(c.totalFrag, (vx - c.padL) / c.plotW * c.totalFrag));
+
+        let best = c.points[0];
+        for (const p of c.points) { if (Math.abs(p.frag - frag) < Math.abs(best.frag - frag)) best = p; }
+
+        const px = c.padL + (best.frag / c.totalFrag) * c.plotW;
+        const py = this.CHART.padT + (1 - best.fd / c.fdMax) * c.plotH;
+        cross.setAttribute('x1', px); cross.setAttribute('x2', px);
+        cross.style.display = '';
+        dot.setAttribute('cx', px); dot.setAttribute('cy', py);
+        dot.style.display = '';
+
+        const pct = c.fdMax > 0 ? best.fd / c.fdMax * 100 : 0;
+        const rate = Number.isFinite(best.ratio) ? (best.ratio * 1000).toFixed(1) : '—';
+        tip.innerHTML = `<div class="font-bold text-slate-100">FD +${best.fd.toFixed(1)}% <span class="text-slate-500 font-normal">(${pct.toFixed(0)}%)</span></div>
+            <div class="text-violet-300 tabular-nums">欠片 ${Math.round(best.frag).toLocaleString()}</div>
+            <div class="text-amber-300 tabular-nums">エルダ ${Math.round(best.erda).toLocaleString()}</div>
+            <div class="text-slate-400 tabular-nums">この地点の効率 ${rate} / 欠片1,000</div>
+            ${best.skill ? `<div class="text-slate-500 mt-0.5">直前: ${this.escHtml(best.skill.name)} Lv.${best.to}</div>` : ''}`;
+        tip.classList.remove('hidden');
+
+        // Keep the card inside the chart box.
+        const leftPx = px / c.W * box.width;
+        const flip = leftPx > box.width * 0.55;
+        tip.style.left = flip ? '' : (leftPx + 16) + 'px';
+        tip.style.right = flip ? (box.width - leftPx + 16) + 'px' : '';
+        tip.style.top = '44px';
+    },
+
+    // The same curve as a table: what each 20% of Final Damage costs.
+    buildCurveTable(curve, now, budget, weeks, per1k) {
+        const brk = curve.points[curve.breakIdx];
+        const rows = [];
+        for (let k = 1; k <= 5; k++) {
+            const fdWanted = curve.fdMax * k / 5;
+            const { p } = this.curveAt(curve, fdWanted);
+            rows.push({ label: `${k * 20}%`, p, mark: false });
+        }
+        rows.push({ label: '分岐点', p: brk, mark: true });
+        rows.sort((a, b) => a.p.fd - b.p.fd || (a.mark ? -1 : 1));
+
+        // The board costs more than 100% FD does, because some nodes give none.
+        const full = this.curveAt(curve, curve.fdMax).p;
+        if (curve.totalFrag - full.frag > 1) {
+            rows.push({
+                label: '全ノード最大',
+                p: { fd: curve.fdMax, frag: curve.totalFrag, erda: curve.totalErda, ratio: 0 },
+                dead: true,
+            });
+        }
+
+        const nowPct = curve.fdMax > 0 ? now.fdNow / curve.fdMax * 100 : 0;
+        let body = '';
+        for (const r of rows) {
+            const reached = now.fdNow >= r.p.fd - 1e-9;
+            body += `<tr class="${r.mark ? 'bg-amber-500/10' : ''} ${r.dead ? 'bg-slate-800/40' : ''} ${reached && !r.dead ? 'text-slate-500' : 'text-slate-300'}">
+                <td class="py-1.5 px-2 whitespace-nowrap">
+                    ${r.mark ? `<span class="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle" style="background:${this.CHART_INK.breakEven}"></span>` : ''}
+                    <span class="${r.mark ? 'font-bold text-amber-300' : 'font-bold'}">${r.label}</span>
+                    ${r.dead ? '<span class="text-[9px] text-slate-500 ml-1">FDは増えない</span>'
+                        : reached ? '<span class="text-[9px] text-emerald-500 ml-1">到達済</span>' : ''}
+                </td>
+                <td class="py-1.5 px-2 text-right tabular-nums text-emerald-300">+${r.p.fd.toFixed(1)}%</td>
+                <td class="py-1.5 px-2 text-right tabular-nums text-violet-300">${Math.round(r.p.frag).toLocaleString()}</td>
+                <td class="py-1.5 px-2 text-right tabular-nums text-amber-300">${Math.round(r.p.erda).toLocaleString()}</td>
+                <td class="py-1.5 px-2 text-right tabular-nums">${r.dead ? '0.0' : Number.isFinite(r.p.ratio) ? per1k(r.p.ratio) : '—'}</td>
+                <td class="py-1.5 px-2 text-right tabular-nums text-slate-500">${weeks(r.p.frag, r.p.erda)}</td>
+            </tr>`;
+        }
+
+        return `<div class="bg-slate-900 rounded-xl border border-slate-800 p-3">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2 px-1">
+                <div class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-300">
+                    <i data-lucide="table" class="w-3.5 h-3.5"></i>FD進捗ごとの必要量（早見表）
+                </div>
+                <span class="text-[10px] text-slate-500">現在 ${nowPct.toFixed(0)}% · 週あたり ${budget.frag.toLocaleString()} 欠片 / ${budget.erda.toLocaleString()} エルダ換算</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-[11px] border-collapse">
+                    <thead><tr class="text-[9px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                        <th class="py-1 px-2 text-left font-bold">FD進捗</th>
+                        <th class="py-1 px-2 text-right font-bold">最終ダメージ</th>
+                        <th class="py-1 px-2 text-right font-bold" title="累計のソルエルダフラグメント">必要欠片</th>
+                        <th class="py-1 px-2 text-right font-bold" title="累計のソルエルダ">必要エルダ</th>
+                        <th class="py-1 px-2 text-right font-bold" title="その地点で1レベル上げたときの、欠片1,000あたりの最終ダメージ">その地点の効率</th>
+                        <th class="py-1 px-2 text-right font-bold">所要</th>
+                    </tr></thead>
+                    <tbody class="divide-y divide-slate-800/60">${body}</tbody>
+                </table>
+            </div>
         </div>`;
     },
 

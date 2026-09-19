@@ -138,6 +138,73 @@ const heroCls = CLASSES.find(c => c.id === 'hero');
 for (const s of heroCls.skills) t.updateTarget('char:t2', 'hero', s.key, t.minLevel(s));
 check(t.buildPlan('char:t2', 'hero').length === 0, 'a plan with every target at the floor should be empty');
 
+// ------------------------------------------------------------- efficiency curve
+
+t.data = {};
+const curve = t.curveData('hero', 'hero');
+const pts = curve.points;
+check(pts.length > 10, 'the hero curve should have several blocks, got ' + pts.length);
+for (let i = 1; i < pts.length; i++) {
+    check(pts[i].frag >= pts[i - 1].frag, 'curve fragments must be non-decreasing at ' + i);
+    check(pts[i].fd >= pts[i - 1].fd - 1e-9, 'curve FD must be non-decreasing at ' + i);
+}
+// Each step takes the best block available, and a node's next-best block can only
+// be worse than the one just taken, so the rate falls monotonically. That is what
+// makes the curve concave and the break-even point unique — if this ever fails,
+// the break-even reading is meaningless, not just imprecise.
+for (let i = 2; i < pts.length; i++) {
+    check(pts[i].ratio <= pts[i - 1].ratio + 1e-12,
+        'curve marginal rate must not rise at step ' + i + ' (' + pts[i - 1].ratio + ' -> ' + pts[i].ratio + ')');
+}
+
+const heroFresh = t.getProgress('hero', 'hero');
+check(Math.abs(curve.totalFrag - (heroFresh.fragMax - heroFresh.fragSpent)) < 1,
+    'curve total should equal the fragments needed to max the board, got ' + curve.totalFrag
+    + ' vs ' + (heroFresh.fragMax - heroFresh.fragSpent));
+check(Math.abs(curve.totalErda - (heroFresh.erdaMax - heroFresh.erdaSpent)) < 1,
+    'curve Sol Erda total should equal the progress tab\'s');
+check(Math.abs(curve.fdMax - heroFresh.fdMax) < 0.01, 'curve top should equal fdMax');
+check(Math.abs(curve.fdFloor - heroFresh.fdNow) < 0.01, 'curve floor should equal a fresh board\'s FD');
+
+// The break-even point is the last level still beating the whole-board average.
+check(pts[curve.breakIdx].ratio >= curve.avg, 'break-even point must be at or above the average slope');
+check(curve.breakIdx + 1 >= pts.length || pts[curve.breakIdx + 1].ratio < curve.avg,
+    'the level after the break-even point must fall below the average slope');
+const brkPct = curve.breakIdx > 0 ? pts[curve.breakIdx].fd / curve.fdMax * 100 : 0;
+const brkFragPct = pts[curve.breakIdx].frag / curve.totalFrag * 100;
+check(brkPct > 10 && brkPct < 100, 'break-even FD share should be a meaningful fraction, got ' + brkPct.toFixed(1) + '%');
+notes.push('hero curve: ' + pts.length + ' points, break-even at FD ' + brkPct.toFixed(0)
+    + '% for ' + brkFragPct.toFixed(0) + '% of the fragments, average '
+    + (curve.avg * 1000).toFixed(1) + ' FD per 1,000');
+
+// The 20% lookup table must land on real points, in order.
+let prevFrag = -1;
+for (let k = 1; k <= 5; k++) {
+    const { p } = t.curveAt(curve, curve.fdMax * k / 5);
+    check(p.fd >= curve.fdMax * k / 5 - 1e-9, 'curveAt must reach the requested FD for ' + (k * 20) + '%');
+    check(p.frag > prevFrag, 'lookup rows must increase in cost at ' + (k * 20) + '%');
+    prevFrag = p.frag;
+}
+// Reaching 100% Final Damage can cost less than the whole board, because some
+// nodes (Sol Janus, and any node the source weights at 0) carry no FD at all.
+const fullFd = t.curveAt(curve, curve.fdMax).p;
+check(Math.abs(fullFd.fd - curve.fdMax) < 0.01, '100% must land on the maximum FD');
+check(fullFd.frag <= curve.totalFrag + 1, '100% cannot cost more than the whole board');
+check(Math.abs(pts[pts.length - 1].fd - curve.fdMax) < 0.01, 'the curve must end at maximum FD');
+const deadFrag = curve.totalFrag - fullFd.frag;
+check(deadFrag >= 0, 'the zero-FD tail cannot be negative');
+notes.push('hero: FD 100% costs ' + Math.round(fullFd.frag).toLocaleString() + ' fragments; a further '
+    + Math.round(deadFrag).toLocaleString() + ' buys nodes with no FD weight');
+
+// Every class should produce a usable curve, not just Hero.
+for (const c of CLASSES) {
+    if (PLACEHOLDER_CLASSES.has(c.id)) continue;
+    const cv = t.curveData(c.id, c.id);
+    check(cv.totalFrag > 0 && cv.fdMax > 0, 'no usable curve for ' + c.id);
+    check(cv.breakIdx > 0 && cv.breakIdx < cv.points.length, 'break-even out of range for ' + c.id);
+}
+notes.push('curves build for all ' + (CLASSES.length - PLACEHOLDER_CLASSES.size) + ' classes with node data');
+
 // ------------------------------------------------------------------- report
 
 for (const n of notes) console.log('  ' + n);
