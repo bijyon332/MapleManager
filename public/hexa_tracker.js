@@ -533,15 +533,8 @@ const hexaTracker = {
         }
 
         return `<div class="max-w-4xl mx-auto">
-            <div class="flex items-center gap-4 mb-3">
-                <img src="${info.path}" class="w-12 h-12 object-contain shrink-0" loading="lazy">
-                <div class="min-w-0">
-                    <div class="text-base font-bold text-white">${this.escHtml(info.name)}</div>
-                    <div class="text-[11px] text-slate-500">左の枠が現在地、右の枠が目標値です。</div>
-                </div>
-            </div>
             ${this.buildResourceSummary(p)}
-            <div class="grid grid-cols-2 gap-3">${groups}</div>
+            <div class="grid grid-cols-2 gap-2.5">${groups}</div>
             ${this.buildExclusionNote(classId)}
         </div>`;
     },
@@ -552,7 +545,7 @@ const hexaTracker = {
         const left = this.nonDamageSkills(classId);
         if (!left.length) return '';
         const names = [...new Set(left.map(s => s.name))].join('、');
-        return `<p class="text-[10px] text-slate-600 mt-3 leading-relaxed flex items-start gap-1.5">
+        return `<p class="text-[10px] text-slate-600 mt-2 leading-relaxed flex items-start gap-1.5">
             <i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i>
             <span>${this.escHtml(names)} は最終ダメージに寄与しないため、フラグメント・エルダ・FDのすべての集計から除外しています（レベルの記録のみ可）。</span>
         </p>`;
@@ -567,30 +560,30 @@ const hexaTracker = {
         const remErda = Math.max(0, p.erdaTarget - p.erdaSpent);
         const remFd = Math.max(0, p.fdTarget - p.fdNow);
 
-        const column = (title, dot, color, rows, remaining) => `<div class="flex-1 min-w-[150px] px-3 py-1">
-            <div class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider mb-1" style="color:${color}">
+        const column = (title, dot, color, rows, remaining) => `<div class="flex-1 min-w-[150px] px-3">
+            <div class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider leading-4" style="color:${color}">
                 <span class="inline-block w-2 h-2 rounded-full" style="background:${dot}"></span>${title}
             </div>
-            <dl class="space-y-0.5">
-                ${rows.map(([label, value, strong]) => `<div class="flex items-baseline justify-between gap-2">
+            <dl>
+                ${rows.map(([label, value, strong]) => `<div class="flex items-baseline justify-between gap-2 leading-tight">
                     <dt class="text-[10px] text-slate-500 shrink-0">${label}</dt>
                     <dd class="text-[12px] tabular-nums ${strong ? 'font-bold text-slate-100' : 'text-slate-400'}">${value}</dd>
                 </div>`).join('')}
+                <div class="flex items-baseline justify-between gap-2 leading-tight mt-0.5 pt-0.5 border-t border-slate-800">
+                    <dt class="text-[10px] text-slate-500 shrink-0">目標まで残り</dt>
+                    <dd class="text-[11px] font-bold tabular-nums" style="color:${color}">${remaining}</dd>
+                </div>
             </dl>
-            <div class="flex items-baseline justify-between gap-2 mt-1 pt-1 border-t border-slate-800">
-                <span class="text-[10px] text-slate-500 shrink-0">目標まで残り</span>
-                <span class="text-[11px] font-bold tabular-nums" style="color:${color}">${remaining}</span>
-            </div>
         </div>`;
 
-        return `<div class="bg-slate-900 rounded-xl border border-slate-800 p-3 mb-5">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="relative flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+        return `<div class="bg-slate-900 rounded-xl border border-slate-800 p-2 mb-2">
+            <div class="flex items-center gap-3 mb-1.5">
+                <div class="relative flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
                     <div class="absolute inset-y-0 left-0 rounded-full bg-violet-500/25" style="width:${targetPct}%"></div>
                     <div class="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
                         style="width:${p.pct}%; background:linear-gradient(90deg,#7c3aed,#8b5cf6)"></div>
                 </div>
-                <span class="text-sm font-bold w-12 text-right tabular-nums" style="color:${pctColor}" title="投入済みフラグメント / 全取得に必要なフラグメント">${p.pct}%</span>
+                <span class="text-xs font-bold w-10 text-right tabular-nums leading-none" style="color:${pctColor}" title="投入済みフラグメント / 全取得に必要なフラグメント">${p.pct}%</span>
             </div>
             <div class="flex flex-wrap items-stretch divide-x divide-slate-800">
                 ${column('フラグメント', '#a78bfa', '#c4b5fd', [
@@ -644,14 +637,14 @@ const hexaTracker = {
                 : !counts ? '<span class="text-slate-500">火力計算外</span>'
                 : `<span class="text-emerald-400">+${fdNow.toFixed(1)}%</span><span class="text-slate-700 mx-1">·</span><span class="text-slate-500">${fragNow.toLocaleString()}</span>`;
 
-            rows += `<div class="flex items-center gap-2 py-1.5 border-b border-slate-800/50 last:border-0 ${isExcl ? 'opacity-40' : counts ? '' : 'opacity-60'}">
+            rows += `<div class="flex items-center gap-2 py-1 border-b border-slate-800/50 last:border-0 ${isExcl ? 'opacity-40' : counts ? '' : 'opacity-60'}">
                 ${iconHtml}
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-baseline justify-between gap-1.5">
+                    <div class="flex items-baseline justify-between gap-1.5 leading-4">
                         <div class="text-[11px] text-slate-300 leading-snug truncate" title="${this.escHtml(hint)}">${this.escHtml(s.name)}</div>
                         <div class="text-[9px] shrink-0 tabular-nums" title="${this.escHtml(hint)}">${stat}</div>
                     </div>
-                    <div class="relative h-1 bg-slate-700/60 rounded-full mt-1 overflow-hidden">
+                    <div class="relative h-1 bg-slate-700/60 rounded-full mt-0.5 overflow-hidden">
                         <div class="absolute inset-y-0 left-0 rounded-full opacity-40" style="width:${isExcl ? 0 : tgtPct}%;background:${sCfg.badge}"></div>
                         <div class="absolute inset-y-0 left-0 rounded-full transition-all" style="width:${isExcl ? 0 : pct}%;background:${sCfg.badge}"></div>
                     </div>
@@ -672,17 +665,21 @@ const hexaTracker = {
             </div>`;
         }
 
-        // Board slots GMS has not released yet, shown so the layout matches in-game.
+        // Board slots GMS has not released yet. One line for the lot of them —
+        // drawing an empty row each would push the inputs off-screen for the sake
+        // of slots you cannot fill.
         const pending = Math.max(0, slots - skills.length);
-        for (let i = 0; i < pending; i++) {
-            rows += `<div class="flex items-center gap-2 py-1.5 border-b border-slate-800/50 last:border-0">
-                <div class="w-6 h-6 rounded border border-dashed border-slate-700 shrink-0"></div>
-                <div class="flex-1 text-[10px] text-slate-600 tracking-widest uppercase">未実装</div>
+        if (pending > 0) {
+            rows += `<div class="flex items-center gap-2 pt-1.5">
+                <div class="flex gap-1 shrink-0">
+                    ${Array.from({ length: pending }, () => '<span class="w-2.5 h-2.5 rounded-sm border border-dashed border-slate-700"></span>').join('')}
+                </div>
+                <div class="flex-1 text-[10px] text-slate-600 tracking-widest uppercase">未実装 ×${pending}</div>
             </div>`;
         }
 
-        return `<div class="bg-slate-900 rounded-xl border border-slate-800 p-3">
-            <div class="text-[10px] font-bold uppercase tracking-wider mb-2" style="color:${tier.color}">${tier.label}</div>
+        return `<div class="bg-slate-900 rounded-xl border border-slate-800 px-2.5 py-1.5">
+            <div class="text-[10px] font-bold uppercase tracking-wider mb-1" style="color:${tier.color}">${tier.label}</div>
             <div>${rows}</div>
         </div>`;
     },
@@ -1174,7 +1171,7 @@ const hexaTracker = {
             overlay.id = 'hexa-modal-overlay';
             document.body.appendChild(overlay);
         }
-        overlay.className = 'fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4';
+        overlay.className = 'fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-3';
         overlay.setAttribute('onclick', 'if(event.target===this)hexaTracker.closeModal()');
         if (!this._escHandler) {
             this._escHandler = (e) => { if (e.key === 'Escape') this.closeModal(); };
@@ -1238,11 +1235,8 @@ const hexaTracker = {
 
     buildModalHeaderStat() {
         const p = this.getProgress(this.modalTrackingId, this.modalClassId);
-        const headroom = Math.max(0, p.fdMax - p.fdNow);
         return `<span title="いま出ている最終ダメージ">最終ダメージ <span class="font-bold tabular-nums">+${p.fdNow.toFixed(1)}%</span></span>
             <span class="text-violet-200/60">/ 全取得 <span class="tabular-nums">+${p.fdMax.toFixed(1)}%</span></span>
-            <span class="text-violet-200/80">·</span>
-            <span title="全ノードをLv.30にしたときに、いまからさらに増える分">伸びしろ <span class="font-bold tabular-nums">+${headroom.toFixed(1)}%</span></span>
             <span class="text-violet-200/80">·</span>
             <span class="text-violet-200/70 tabular-nums" title="投入済みフラグメント / 全取得に必要なフラグメント">${p.fragSpent.toLocaleString()} / ${p.fragMax.toLocaleString()} フラグメント</span>`;
     },
@@ -1256,7 +1250,7 @@ const hexaTracker = {
         const portrait = (char.image && char.image.startsWith('http')) ? char.image : (char.classImage || info.path || '');
         const overlay = this.ensureOverlay();
         overlay.innerHTML = `
-            <div class="bg-slate-900 border border-violet-500/40 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="bg-slate-900 border border-violet-500/40 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[94vh] flex flex-col overflow-hidden">
                 <div class="flex items-center justify-between gap-3 px-5 py-3 bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-700 shrink-0">
                     <div class="flex items-center gap-3 min-w-0">
                         ${portrait ? `<img src="${portrait}" class="w-11 h-11 rounded-lg object-cover bg-slate-950/40 shrink-0">` : ''}
@@ -1281,7 +1275,7 @@ const hexaTracker = {
                     <div id="hexa-modal-tabs" class="shrink-0 flex items-center gap-1 px-4 pt-3 border-b border-slate-800">
                         ${this.buildTabs('modal')}
                     </div>
-                    <div id="hexa-modal-content" class="overflow-y-auto custom-scrollbar p-5 flex-1">
+                    <div id="hexa-modal-content" class="overflow-y-auto custom-scrollbar px-4 py-3 flex-1">
                         ${this.buildModalContent()}
                     </div>
                 </div>
