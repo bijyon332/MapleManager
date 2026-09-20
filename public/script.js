@@ -1,7 +1,12 @@
+// 起動時に読むのは config / class_data / community_store とこのファイルだけ。
+// 各アプリのHTML断片とJSは、そのアプリを初めて開いたときに読む（APPS / loadAppAssets）。
+// Chart.js は EXP Leaderboard と HEXA だけが使う。
+const CHART_JS = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+
 const app = {
     data: { config: { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' }, characters: [], masterDailies: [], masterWeeklies: [], masterBosses: [], memo: "" },
     lastLoginDate: null, lastCheckAt: null, editingBossId: null, currentTaskTab: 'daily', activeCharId: null, currentBossFilter: 'ALL', tempBossIds: new Set(), tempPartySizes: {},
-    currentApp: 'planner', expInitialized: false, costInitialized: false, ranksInitialized: false, hexaInitialized: false,
+    currentApp: 'planner',
     bcCharId: null, bcTab: 'WEEKLY', bcSelected: {}, bcParty: {}, bcDiff: {},
     DEFAULT_IMG_OFFSET_X: 50,
     DEFAULT_IMG_OFFSET_Y: 50,
@@ -74,6 +79,7 @@ const app = {
         this.navigate('dashboard');
         this.loadJobSelect();
         this.initCommunity();
+        this.prefetchHexa();
     },
     loadJobSelect() {
         if (typeof CLASS_DATA === 'undefined') return;
@@ -499,117 +505,216 @@ const app = {
         if (view === 'dashboard') this.renderDashboard(); if (view === 'characters') this.renderCharacters(); if (view === 'tasks') this.renderTaskMaster();
     },
 
+    // ---------------------------------------------------------
+    //  アプリの登録表
+    // ---------------------------------------------------------
+    // 左サイドバーのアイコン1つ = ここの1エントリ。switchApp はこの表しか見ない。
+    //
+    //   view    … 表示する #view-* の id
+    //   nav     … 上部バーに出すアプリ専用サブナビの id
+    //   html    … view の中身として初回に読み込むHTML断片
+    //   cdn     … 同じく初回に読み込むが、外部CDN頼みなので失敗しても先に進むもの
+    //   scripts … 初回に読み込むJS。上から順に読み、読み終わるまで init は呼ばない
+    //   init    … 初回オープン時に1度だけ
+    //   reopen  … 2回目以降オープンするたびに
+    //   open    … 読み込みと関係なく、オープンのたびに同期で
+    //
+    // planner だけは navigate() が中の画面を持っているので view を持たない。
+    // 上部バーの並びも planner のときだけ元に戻す（chrome: 'planner'）。
+    APPS: {
+        planner: {
+            chrome: 'planner',
+            open() { this.navigate('dashboard'); }
+        },
+        ranks: {
+            view: 'view-ranks',
+            html: 'ranks.html',
+            cdn: [CHART_JS],
+            scripts: ['exp_data.js', 'ranks.js'],
+            init() { ranks.init(); lucide.createIcons(); }
+        },
+        scheduler: {
+            view: 'view-scheduler',
+            nav: 'scheduler-nav',
+            // 中身は iframe（boss_scheduler.html）。初回に src を入れたら以降はそのまま。
+            open() {
+                const frame = document.getElementById('scheduler-frame');
+                if (frame && !frame.getAttribute('src')) frame.setAttribute('src', 'boss_scheduler.html');
+            }
+        },
+        gear: {
+            view: 'view-gear-priority',
+            scripts: ['gear_priority.js'],
+            init() { gearPriority.init('gear-priority-root'); }
+        },
+        community: {
+            view: 'view-community',
+            scripts: ['community.js', 'community_import.js'],
+            init() { community.init('community-root'); lucide.createIcons(); }
+        },
+        exp: {
+            view: 'view-exp-sim',
+            html: 'exp_sim.html',
+            scripts: ['exp_data.js', 'exp_sim.js'],
+            init() { expSim.init(); lucide.createIcons(); }
+        },
+        cost: {
+            view: 'view-cost-calc',
+            scripts: ['cost_calc.js'],
+            init() { costCalc.init(); }
+        },
+        hexa: {
+            view: 'view-hexa',
+            nav: 'hexa-nav',
+            cdn: [CHART_JS],
+            scripts: ['hexa_data.js', 'hexa_tracker.js'],
+            init() { hexaTracker.init(); },
+            reopen() { hexaTracker.syncPageNav(); }
+        },
+        liberation: {
+            view: 'view-liberation-calc',
+            // liberation_calc.js の createLiberationCalc を3つが読み込み時点で使うので、
+            // 必ずこの順で読む。
+            scripts: ['liberation_calc.js', 'genesis_calc.js', 'destiny_calc.js', 'astra_calc.js'],
+            init() {
+                genesisCalc.init('genesis-calc-root');
+                destinyCalc.init('destiny-calc-root');
+                astraCalc.init('astra-calc-root');
+            }
+        }
+    },
+
     switchApp(appName) {
+        const entry = this.APPS[appName];
+        if (!entry) return;
         this.currentApp = appName;
+
         document.querySelectorAll('[id^="app-"]').forEach(e => { e.classList.remove('nav-active'); e.classList.add('nav-inactive'); });
         const appBtn = document.getElementById(`app-${appName}`);
         if (appBtn) { appBtn.classList.add('nav-active'); appBtn.classList.remove('nav-inactive'); }
 
         document.querySelectorAll('[id^="view-"]').forEach(e => e.classList.add('hidden-page'));
+        this.applyChrome(entry.chrome === 'planner');
 
+        // アプリ専用サブナビ（Boss Scheduler / HEXA）は、そのアプリのときだけ出す。
+        ['scheduler-nav', 'hexa-nav'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const on = (entry.nav === id);
+            el.classList.toggle('hidden', !on);
+            el.classList.toggle('flex', on);
+        });
+
+        if (entry.view) document.getElementById(entry.view).classList.remove('hidden-page');
+        if (entry.open) entry.open.call(this);
+        if (entry.html || entry.scripts || entry.cdn || entry.init || entry.reopen) {
+            this.openApp(appName).catch(e => console.error(e));
+        }
+    },
+
+    // 上部バーの並び。planner は自前のサブナビとダッシュボード統計を出し、
+    // 他のアプリはそれを畳んで時計を右端に寄せる。
+    applyChrome(isPlanner) {
+        const display = isPlanner ? '' : 'none';
         const headerNav = document.querySelector('header nav');
         const dashStats = document.getElementById('dashboard-stats-container');
         const clockEl = document.querySelector('header > div:last-child');
-        // Scheduler and HEXA sub-navs live in the top bar; hidden unless their app is active.
-        const schedNav = document.getElementById('scheduler-nav');
-        if (schedNav) { schedNav.classList.add('hidden'); schedNav.classList.remove('flex'); }
-        const hexaNav = document.getElementById('hexa-nav');
-        if (hexaNav) { hexaNav.classList.add('hidden'); hexaNav.classList.remove('flex'); }
-
-        if (appName === 'planner') {
-            if (headerNav) headerNav.style.display = '';
-            if (dashStats) dashStats.style.display = '';
-            if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = '';
-            if (clockEl) clockEl.classList.remove('ml-auto');
-            this.navigate('dashboard');
-        } else if (appName === 'exp') {
-            if (headerNav) headerNav.style.display = 'none';
-            if (dashStats) dashStats.style.display = 'none';
-            if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = 'none';
-            if (clockEl) clockEl.classList.add('ml-auto');
-            document.getElementById('view-exp-sim').classList.remove('hidden-page');
-            if (!this.expInitialized) {
-                expSim.init();
-                this.expInitialized = true;
-                lucide.createIcons();
-            }
-        } else if (appName === 'cost') {
-            if (headerNav) headerNav.style.display = 'none';
-            if (dashStats) dashStats.style.display = 'none';
-            if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = 'none';
-            if (clockEl) clockEl.classList.add('ml-auto');
-            document.getElementById('view-cost-calc').classList.remove('hidden-page');
-            if (!this.costInitialized) {
-                costCalc.init();
-                this.costInitialized = true;
-            }
-        } else if (appName === 'ranks') {
-            if (headerNav) headerNav.style.display = 'none';
-            if (dashStats) dashStats.style.display = 'none';
-            if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = 'none';
-            if (clockEl) clockEl.classList.add('ml-auto');
-            document.getElementById('view-ranks').classList.remove('hidden-page');
-            if (!this.ranksInitialized) {
-                if (typeof ranks !== 'undefined') ranks.init();
-                this.ranksInitialized = true;
-                lucide.createIcons();
-            }
-        } else if (appName === 'hexa') {
-            if (headerNav) headerNav.style.display = 'none';
-            if (dashStats) dashStats.style.display = 'none';
-            if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = 'none';
-            if (clockEl) clockEl.classList.add('ml-auto');
-            document.getElementById('view-hexa').classList.remove('hidden-page');
-            if (hexaNav) { hexaNav.classList.remove('hidden'); hexaNav.classList.add('flex'); }
-            if (!this.hexaInitialized) {
-                if (typeof hexaTracker !== 'undefined') hexaTracker.init();
-                this.hexaInitialized = true;
-            } else if (typeof hexaTracker !== 'undefined') {
-                hexaTracker.syncPageNav();
-            }
-        } else if (appName === 'scheduler') {
-            if (headerNav) headerNav.style.display = 'none';
-            if (dashStats) dashStats.style.display = 'none';
-            if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = 'none';
-            if (clockEl) clockEl.classList.add('ml-auto');
-            document.getElementById('view-scheduler').classList.remove('hidden-page');
-            if (schedNav) { schedNav.classList.remove('hidden'); schedNav.classList.add('flex'); }
-            const frame = document.getElementById('scheduler-frame');
-            if (frame && !frame.getAttribute('src')) frame.setAttribute('src', 'boss_scheduler.html');
-        } else if (appName === 'gear') {
-            if (headerNav) headerNav.style.display = 'none';
-            if (dashStats) dashStats.style.display = 'none';
-            if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = 'none';
-            if (clockEl) clockEl.classList.add('ml-auto');
-            document.getElementById('view-gear-priority').classList.remove('hidden-page');
-            if (!this.gearInitialized) {
-                if (typeof gearPriority !== 'undefined') gearPriority.init('gear-priority-root');
-                this.gearInitialized = true;
-            }
-        } else if (appName === 'community') {
-            if (headerNav) headerNav.style.display = 'none';
-            if (dashStats) dashStats.style.display = 'none';
-            if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = 'none';
-            if (clockEl) clockEl.classList.add('ml-auto');
-            document.getElementById('view-community').classList.remove('hidden-page');
-            if (!this.communityInitialized) {
-                if (typeof community !== 'undefined') community.init('community-root');
-                this.communityInitialized = true;
-                lucide.createIcons();
-            }
-        } else if (appName === 'liberation') {
-            if (headerNav) headerNav.style.display = 'none';
-            if (dashStats) dashStats.style.display = 'none';
-            if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = 'none';
-            if (clockEl) clockEl.classList.add('ml-auto');
-            document.getElementById('view-liberation-calc').classList.remove('hidden-page');
-            if (!this.liberationInitialized) {
-                if (typeof genesisCalc !== 'undefined') genesisCalc.init('genesis-calc-root');
-                if (typeof destinyCalc !== 'undefined') destinyCalc.init('destiny-calc-root');
-                if (typeof astraCalc !== 'undefined') astraCalc.init('astra-calc-root');
-                this.liberationInitialized = true;
-            }
+        if (headerNav) headerNav.style.display = display;
+        if (dashStats) {
+            dashStats.style.display = display;
+            if (dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = display;
         }
+        if (clockEl) clockEl.classList.toggle('ml-auto', !isPlanner);
+    },
+
+    // ---------------------------------------------------------
+    //  アプリの遅延読み込み
+    // ---------------------------------------------------------
+    // 起動時に読むのは config / class_data / community_store / script だけ。
+    // 各アプリのHTML断片とJSは、そのアプリを初めて開いたときに読む。
+    _scripts: {},   // src -> 読み込みの Promise
+    _html: {},      // url -> 読み込みの Promise
+    _assets: {},    // アプリ名 -> 断片とJSを読み終えた Promise
+    _started: {},   // アプリ名 -> init を呼んだか
+
+    loadScript(src) {
+        if (this._scripts[src]) return this._scripts[src];
+        const p = new Promise((resolve, reject) => {
+            const el = document.createElement('script');
+            el.src = src;
+            el.onload = () => resolve();
+            el.onerror = () => reject(new Error(`読み込めませんでした: ${src}`));
+            document.head.appendChild(el);
+        });
+        // 失敗したものは覚えない。次に開いたときにもう一度試せるようにする。
+        p.catch(() => { delete this._scripts[src]; });
+        return this._scripts[src] = p;
+    },
+
+    loadHtml(url, targetId) {
+        if (this._html[url]) return this._html[url];
+        const p = (async () => {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`読み込めませんでした: ${url} (${res.status})`);
+            document.getElementById(targetId).innerHTML = await res.text();
+        })();
+        p.catch(() => { delete this._html[url]; });
+        return this._html[url] = p;
+    },
+
+    // HTML断片とJSを読むところまで。init は呼ばない。
+    // 読み込み中にもう一度呼ばれても、同じ Promise を返すので二重には走らない。
+    loadAppAssets(name) {
+        if (this._assets[name]) return this._assets[name];
+        const entry = this.APPS[name];
+        const p = (async () => {
+            if (entry.html) await this.loadHtml(entry.html, entry.view);
+            // 外部CDNのものは、落ちていてもアプリごと死なせない。
+            // Chart.js が無ければグラフだけ出ない、という形で済ませる。
+            for (const src of entry.cdn || []) {
+                await this.loadScript(src).catch(e => console.error(e));
+            }
+            // JSは順番に読む。前のファイルが定義したものを、次のファイルが
+            // 読み込み時点で使うことがある（liberation_calc → genesis_calc など）。
+            for (const src of entry.scripts || []) await this.loadScript(src);
+        })();
+        p.catch(() => { delete this._assets[name]; });
+        return this._assets[name] = p;
+    },
+
+    async openApp(name) {
+        const entry = this.APPS[name];
+        try {
+            await this.loadAppAssets(name);
+        } catch (e) {
+            console.error(e);
+            const box = entry.view && document.getElementById(entry.view);
+            if (box) {
+                box.innerHTML = `<div class="text-center py-20 text-slate-500 text-xs">
+                    読み込みに失敗しました。ページを再読み込みしてください。<br>
+                    <span class="text-slate-600">${e.message}</span></div>`;
+            }
+            return;
+        }
+        if (!this._started[name]) {
+            this._started[name] = true;
+            if (entry.init) entry.init.call(this);
+        } else if (entry.reopen) {
+            entry.reopen.call(this);
+        }
+    },
+
+    // HEXA は「アプリ」であると同時に、Planner のキャラカードに進捗バッジを出す側でもある
+    // （renderCharacters / renderDashboard 内の hexaReady を参照）。開かれるまで待つと、
+    // HEXAを一度も開かない人にはバッジが出ないままになるので、起動直後の空いたところで
+    // 裏で読んでおき、読み終わったら描き直す。起動そのものからは外れる（約190KB）。
+    // init は呼ばない。hexaTracker は ensureLoaded() で init 前でも動くようにしてある。
+    prefetchHexa() {
+        const start = () => this.loadAppAssets('hexa').then(() => {
+            if (this.currentApp === 'planner') { this.renderDashboard(); this.renderCharacters(); }
+        }).catch(e => console.error(e));
+        if (window.requestIdleCallback) requestIdleCallback(start, { timeout: 3000 });
+        else setTimeout(start, 1000);
     },
 
     // Drives the Boss Scheduler's tabs from the top bar. The scheduler runs in
