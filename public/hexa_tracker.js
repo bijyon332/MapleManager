@@ -542,13 +542,20 @@ const hexaTracker = {
     // Say plainly which nodes are kept out of the numbers, so a total that looks
     // short has a visible reason.
     buildExclusionNote(classId) {
+        const sentence = this.exclusionSentence(classId);
+        if (!sentence) return '';
+        return `<p class="text-[10px] text-slate-600 mt-2 leading-relaxed flex items-start gap-1.5">
+            <i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i>
+            <span>${sentence}</span>
+        </p>`;
+    },
+
+    // Same sentence, for tabs that already have a footnote to append it to.
+    exclusionSentence(classId) {
         const left = this.nonDamageSkills(classId);
         if (!left.length) return '';
         const names = [...new Set(left.map(s => s.name))].join('、');
-        return `<p class="text-[10px] text-slate-600 mt-2 leading-relaxed flex items-start gap-1.5">
-            <i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i>
-            <span>${this.escHtml(names)} は最終ダメージに寄与しないため、フラグメント・エルダ・FDのすべての集計から除外しています（レベルの記録のみ可）。</span>
-        </p>`;
+        return `${this.escHtml(names)} は最終ダメージに寄与しないため、フラグメント・エルダ・FDのすべての集計から除外しています（レベルの記録のみ可）。`;
     },
 
     // Secondary: the three running totals, each as its own 現在 / 目標 / 最大 stack
@@ -811,7 +818,7 @@ const hexaTracker = {
 
     // Chart geometry, in viewBox units. Kept on the object so the hover handler
     // can invert a mouse position back to a point without re-deriving it.
-    CHART: { W: 760, H: 330, padL: 54, padR: 14, padT: 14, padB: 46 },
+    CHART: { W: 760, H: 290, padL: 54, padR: 14, padT: 12, padB: 42 },
     // Validated against the slate-900 card surface: lightness band, chroma floor,
     // CVD separation (worst adjacent ΔE 9.7) and 3:1 contrast all pass.
     CHART_INK: { curve: '#0ea570', breakEven: '#d97706', you: '#7c5cf0', surface: '#0f172a' },
@@ -866,13 +873,12 @@ const hexaTracker = {
             ${summary}
             ${this.buildCurveChart(curve, now)}
             ${this.buildCurveTable(curve, now, budget, weeks, per1k)}
-            <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
+            <p class="text-[10px] text-slate-600 mt-2 leading-relaxed">
                 未強化の盤面から全ノードLv.30までを、「最終ダメージ / 欠片」が最大の順に振ったときの積み上げです。
                 Lv.10/20/30はコストが跳ね上がるため、壁をまたぐ複数レベルをひとまとめに評価しています。
                 現在地や目標値には影響されないので、職業ごとの伸び方の目安として使えます。
-                消費リソースは正確な値、最終ダメージはノード係数からの推定値です。
+                消費リソースは正確な値、最終ダメージはノード係数からの推定値です。${this.exclusionSentence(classId)}
             </p>
-            ${this.buildExclusionNote(classId)}
         </div>`;
     },
 
@@ -1020,16 +1026,16 @@ const hexaTracker = {
         for (const r of rows) {
             const reached = now.fdNow >= r.p.fd - 1e-9;
             body += `<tr class="${r.mark ? 'bg-amber-500/10' : ''} ${reached ? 'text-slate-500' : 'text-slate-300'}">
-                <td class="py-1.5 px-2 whitespace-nowrap">
+                <td class="py-1 px-2 whitespace-nowrap">
                     ${r.mark ? `<span class="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle" style="background:${this.CHART_INK.breakEven}"></span>` : ''}
                     <span class="${r.mark ? 'font-bold text-amber-300' : 'font-bold'}">${r.label}</span>
                     ${reached ? '<span class="text-[9px] text-emerald-500 ml-1">到達済</span>' : ''}
                 </td>
-                <td class="py-1.5 px-2 text-right tabular-nums text-emerald-300">+${r.p.fd.toFixed(1)}%</td>
-                <td class="py-1.5 px-2 text-right tabular-nums text-violet-300">${Math.round(r.p.frag).toLocaleString()}</td>
-                <td class="py-1.5 px-2 text-right tabular-nums text-amber-300">${Math.round(r.p.erda).toLocaleString()}</td>
-                <td class="py-1.5 px-2 text-right tabular-nums">${Number.isFinite(r.p.ratio) ? per1k(r.p.ratio) : '—'}</td>
-                <td class="py-1.5 px-2 text-right tabular-nums text-slate-500">${weeks(r.p.frag, r.p.erda)}</td>
+                <td class="py-1 px-2 text-right tabular-nums text-emerald-300">+${r.p.fd.toFixed(1)}%</td>
+                <td class="py-1 px-2 text-right tabular-nums text-violet-300">${Math.round(r.p.frag).toLocaleString()}</td>
+                <td class="py-1 px-2 text-right tabular-nums text-amber-300">${Math.round(r.p.erda).toLocaleString()}</td>
+                <td class="py-1 px-2 text-right tabular-nums">${Number.isFinite(r.p.ratio) ? per1k(r.p.ratio) : '—'}</td>
+                <td class="py-1 px-2 text-right tabular-nums text-slate-500">${weeks(r.p.frag, r.p.erda)}</td>
             </tr>`;
         }
 
@@ -1250,7 +1256,7 @@ const hexaTracker = {
         const portrait = (char.image && char.image.startsWith('http')) ? char.image : (char.classImage || info.path || '');
         const overlay = this.ensureOverlay();
         overlay.innerHTML = `
-            <div class="bg-slate-900 border border-violet-500/40 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[94vh] flex flex-col overflow-hidden">
+            <div class="bg-slate-900 border border-violet-500/40 rounded-2xl shadow-2xl w-full max-w-4xl h-[700px] max-h-[94vh] flex flex-col overflow-hidden">
                 <div class="flex items-center justify-between gap-3 px-5 py-3 bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-700 shrink-0">
                     <div class="flex items-center gap-3 min-w-0">
                         ${portrait ? `<img src="${portrait}" class="w-11 h-11 rounded-lg object-cover bg-slate-950/40 shrink-0">` : ''}
