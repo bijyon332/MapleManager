@@ -1,0 +1,21 @@
+{
+  "name": "maplemanager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GMS 向けの身内用管理ツール。Cloudflare Worker + public/ の静的アセットで動く。",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "node tools/check_hexa.js",
+    "hexa:gen": "node tools/gen_hexa_data.js",
+    "hexa:icons": "node tools/gen_hexa_data.js --icons",
+    "db:local": "wrangler d1 execute maplemanager-scheduler --local --file=./schema.sql",
+    "db:remote": "wrangler d1 execute maplemanager-scheduler --remote --file=./schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "4.135.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
