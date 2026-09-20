@@ -6,7 +6,6 @@
 //   { classId?, levels: {skillKey: 0..30}, targets: {skillKey: 0..30}, excluded: {skillKey: bool} }
 // `levels` is where you are now, `targets` is where you want to end up. Keys match
 // the ones written by earlier versions, so existing saves carry over untouched.
-// The reserved key `__budget` holds the account-wide weekly farming rate.
 
 const hexaTracker = {
     STORAGE_KEY: 'mapleManager_hexa_v1',
@@ -36,10 +35,6 @@ const hexaTracker = {
         FRIENDSWORLD: 'Friendship World', TRANSCENDENT: 'Transcendent',
         SENGOKU: 'Sengoku', JIANGHU: 'Jianghu', SHINE: 'Shine',
     },
-
-    // Weekly farming budget used to turn remaining cost into an ETA. The defaults
-    // are the no-grind baseline (dailies only).
-    DEFAULT_BUDGET: { frag: 90, erda: 9 },
 
     page: 'ranking',        // 'ranking' | 'tracker'
     prioritySort: 'frag',   // 'frag' | 'erda'
@@ -247,22 +242,6 @@ const hexaTracker = {
     },
 
     // ========== Priority: what to level next, by FD per resource ==========
-
-    getBudget() {
-        const b = this.data.__budget || {};
-        return {
-            frag: typeof b.frag === 'number' ? b.frag : this.DEFAULT_BUDGET.frag,
-            erda: typeof b.erda === 'number' ? b.erda : this.DEFAULT_BUDGET.erda,
-        };
-    },
-
-    setBudget(which, value) {
-        const n = Math.max(0, parseInt(value, 10) || 0);
-        if (!this.data.__budget) this.data.__budget = { ...this.DEFAULT_BUDGET };
-        this.data.__budget[which] = n;
-        this.saveData();
-        this.refreshAll();
-    },
 
     setPrioritySort(kind) {
         this.prioritySort = kind;
@@ -525,7 +504,6 @@ const hexaTracker = {
         const rows = this.rankRows(this.rankStep);
         if (!rows.length) return this.buildEmptyState();
 
-        const budget = this.getBudget();
         const maxFrag = rows[rows.length - 1].frag || 1;
         const isBreak = this.rankStep === 'break';
 
@@ -534,7 +512,6 @@ const hexaTracker = {
 
         let list = '';
         rows.forEach((r, i) => {
-            const weeks = budget.frag > 0 ? Math.ceil(Math.max(r.frag / budget.frag, budget.erda > 0 ? r.erda / budget.erda : 0)) : null;
             const medal = i === 0 ? '#fcd34d' : i === 1 ? '#cbd5e1' : i === 2 ? '#d97706' : null;
             list += `<button onclick="hexaTracker.openForClass('${r.id}')"
                 class="w-full flex items-center gap-3 px-2.5 py-1.5 rounded-lg text-left transition-colors hover:bg-slate-800/70 ${i % 2 ? 'bg-slate-900/40' : ''}">
@@ -553,7 +530,6 @@ const hexaTracker = {
                 <span class="w-16 text-right text-xs tabular-nums text-amber-300 shrink-0">${Math.round(r.erda).toLocaleString()}</span>
                 <span class="w-20 text-right text-xs tabular-nums text-emerald-300 shrink-0" title="この地点の最終ダメージ（全取得時 +${r.fdMax.toFixed(1)}%）">+${r.fd.toFixed(1)}%</span>
                 ${isBreak ? `<span class="w-12 text-right text-[10px] tabular-nums text-slate-500 shrink-0" title="全取得FDに対する到達率">${r.share.toFixed(0)}%</span>` : ''}
-                <span class="w-14 text-right text-[10px] tabular-nums text-slate-500 shrink-0">${weeks != null ? weeks + '週' : '—'}</span>
             </button>`;
         });
 
@@ -592,13 +568,11 @@ const hexaTracker = {
                     <span class="w-16 text-right shrink-0">エルダ</span>
                     <span class="w-20 text-right shrink-0">到達FD</span>
                     ${isBreak ? '<span class="w-12 text-right shrink-0">到達率</span>' : ''}
-                    <span class="w-14 text-right shrink-0">所要</span>
                 </div>
                 ${list}
             </div>
             <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
-                未強化の盤面から、「最終ダメージ / 欠片」が最大の順に振った場合の必要量です。所要週数は週あたり
-                ${budget.frag.toLocaleString()} 欠片 / ${budget.erda.toLocaleString()} エルダ換算（トラッカーの効率順タブで変更できます）。
+                未強化の盤面から、「最終ダメージ / 欠片」が最大の順に振った場合の必要量です。
                 行をクリックすると、その職業のトラッカーが開きます。
                 消費リソースは正確な値、最終ダメージはノード係数からの推定値です。
             </p>
@@ -855,30 +829,15 @@ const hexaTracker = {
 
         const steps = this.buildPlan(trackingId, classId);
         const now = this.getProgress(trackingId, classId);
-        const budget = this.getBudget();
         const perErda = this.prioritySort === 'erda';
 
         const sortBtn = (kind, label, hint) => `<button onclick="hexaTracker.setPrioritySort('${kind}')" title="${hint}"
             class="px-3 py-1 text-[11px] font-bold rounded-md transition-colors ${this.prioritySort === kind ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'}">${label}</button>`;
 
-        const header = `<div class="bg-slate-900 rounded-xl border border-slate-800 p-3 mb-4">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div class="inline-flex rounded-lg bg-slate-800 p-0.5 border border-slate-700">
-                    ${sortBtn('frag', 'フラグメント効率', '最終ダメージ / ソルエルダフラグメント で並べ替え')}
-                    ${sortBtn('erda', 'エルダ効率', '最終ダメージ / ソルエルダ で並べ替え')}
-                </div>
-                <div class="flex items-center gap-3 text-[11px] text-slate-400">
-                    <label class="flex items-center gap-1.5" title="1週間に入手するソルエルダフラグメント">
-                        <span class="inline-block w-2 h-2 rounded-full" style="background:#a78bfa"></span>
-                        <input type="number" min="0" value="${budget.frag}" oninput="hexaTracker.setBudget('frag',this.value)"
-                            class="w-16 bg-slate-800 border border-slate-700 rounded text-center text-xs text-white py-0.5 focus:outline-none focus:border-violet-500"> / 週
-                    </label>
-                    <label class="flex items-center gap-1.5" title="1週間に入手するソルエルダ">
-                        <span class="inline-block w-2 h-2 rounded-full" style="background:#fcd34d"></span>
-                        <input type="number" min="0" value="${budget.erda}" oninput="hexaTracker.setBudget('erda',this.value)"
-                            class="w-16 bg-slate-800 border border-slate-700 rounded text-center text-xs text-white py-0.5 focus:outline-none focus:border-violet-500"> / 週
-                    </label>
-                </div>
+        const header = `<div class="bg-slate-900 rounded-xl border border-slate-800 p-2.5 mb-3">
+            <div class="inline-flex rounded-lg bg-slate-800 p-0.5 border border-slate-700">
+                ${sortBtn('frag', 'フラグメント効率', '最終ダメージ / ソルエルダフラグメント で並べ替え')}
+                ${sortBtn('erda', 'エルダ効率', '最終ダメージ / ソルエルダ で並べ替え')}
             </div>
         </div>`;
 
@@ -908,13 +867,6 @@ const hexaTracker = {
                 ? `<img src="${iconUrl}" class="w-8 h-8 object-contain shrink-0 rounded" loading="lazy" alt="">`
                 : `<div class="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style="background:${sCfg.badge}">${sCfg.label}</div>`;
 
-            // Weeks to afford everything up to and including this step; whichever
-            // resource runs out last is the one that gates you.
-            const wFrag = budget.frag > 0 ? cumFrag / budget.frag : Infinity;
-            const wErda = budget.erda > 0 ? cumErda / budget.erda : Infinity;
-            const weeks = Math.max(wFrag, wErda);
-            const gate = wErda > wFrag ? 'エルダ待ち' : 'フラグメント待ち';
-            const eta = Number.isFinite(weeks) ? `${Math.ceil(weeks)}週（${gate}）` : '—';
             const levels = step.to - step.from;
 
             rows += `<div class="flex items-center gap-3 py-2 px-2.5 rounded-lg ${i % 2 ? 'bg-slate-900/40' : ''}">
@@ -929,7 +881,7 @@ const hexaTracker = {
                         Lv.${step.from} → ${step.to}${levels > 1 ? `（${levels}段階）` : ''}
                         · <span class="text-violet-300">${step.frag.toLocaleString()}</span> フラグメント
                         · <span class="text-amber-300">${step.erda.toLocaleString()}</span> エルダ
-                        · 累計 ${eta}
+                        · ここまで計 <span class="text-slate-400">${cumFrag.toLocaleString()}</span> フラグメント
                     </div>
                 </div>
                 <div class="text-right shrink-0">
@@ -941,11 +893,6 @@ const hexaTracker = {
                 </div>
             </div>`;
         });
-
-        const totalWeeks = Math.max(
-            budget.frag > 0 ? cumFrag / budget.frag : Infinity,
-            budget.erda > 0 ? cumErda / budget.erda : Infinity,
-        );
 
         return `<div class="max-w-4xl mx-auto">
             ${header}
@@ -959,7 +906,6 @@ const hexaTracker = {
                     <span class="font-bold tabular-nums">+${(now.fdNow + cumFd).toFixed(1)}%</span>
                     <span class="text-slate-500">(+${cumFd.toFixed(1)})</span>
                 </span>
-                <span>${Number.isFinite(totalWeeks) ? `約${Math.ceil(totalWeeks)}週` : '—'}</span>
             </div>
             <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-2 divide-y divide-slate-800/40">${rows}</div>
             <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
@@ -992,13 +938,8 @@ const hexaTracker = {
         }
 
         const now = this.getProgress(trackingId, classId);
-        const budget = this.getBudget();
         const brk = curve.points[curve.breakIdx];
         const per1k = r => (r * 1000).toFixed(1);
-        const weeks = (frag, erda) => {
-            const w = Math.max(budget.frag > 0 ? frag / budget.frag : Infinity, budget.erda > 0 ? erda / budget.erda : Infinity);
-            return Number.isFinite(w) ? Math.ceil(w) + '週' : '—';
-        };
 
         // Marginal rate just past the break-even point, for the contrast.
         const after = curve.points[Math.min(curve.breakIdx + 1, curve.points.length - 1)];
@@ -1027,7 +968,7 @@ const hexaTracker = {
         return `<div class="max-w-4xl mx-auto">
             ${summary}
             ${this.buildCurveChart(curve, now)}
-            ${this.buildCurveTable(curve, now, budget, weeks, per1k)}
+            ${this.buildCurveTable(curve, now, per1k)}
             <p class="text-[10px] text-slate-600 mt-2 leading-relaxed">
                 未強化の盤面から全ノードLv.30までを、「最終ダメージ / 欠片」が最大の順に振ったときの積み上げです。
                 Lv.10/20/30はコストが跳ね上がるため、壁をまたぐ複数レベルをひとまとめに評価しています。
@@ -1165,7 +1106,7 @@ const hexaTracker = {
     },
 
     // The same curve as a table: what each 20% of Final Damage costs.
-    buildCurveTable(curve, now, budget, weeks, per1k) {
+    buildCurveTable(curve, now, per1k) {
         const brk = curve.points[curve.breakIdx];
         const rows = [];
         for (let k = 1; k <= 5; k++) {
@@ -1190,7 +1131,6 @@ const hexaTracker = {
                 <td class="py-1 px-2 text-right tabular-nums text-violet-300">${Math.round(r.p.frag).toLocaleString()}</td>
                 <td class="py-1 px-2 text-right tabular-nums text-amber-300">${Math.round(r.p.erda).toLocaleString()}</td>
                 <td class="py-1 px-2 text-right tabular-nums">${Number.isFinite(r.p.ratio) ? per1k(r.p.ratio) : '—'}</td>
-                <td class="py-1 px-2 text-right tabular-nums text-slate-500">${weeks(r.p.frag, r.p.erda)}</td>
             </tr>`;
         }
 
@@ -1199,7 +1139,7 @@ const hexaTracker = {
                 <div class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-300">
                     <i data-lucide="table" class="w-3.5 h-3.5"></i>FD進捗ごとの必要量（早見表）
                 </div>
-                <span class="text-[10px] text-slate-500">現在 ${nowPct.toFixed(0)}% · 週あたり ${budget.frag.toLocaleString()} 欠片 / ${budget.erda.toLocaleString()} エルダ換算</span>
+                <span class="text-[10px] text-slate-500">現在 ${nowPct.toFixed(0)}%</span>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-[11px] border-collapse">
@@ -1209,7 +1149,6 @@ const hexaTracker = {
                         <th class="py-1 px-2 text-right font-bold" title="累計のソルエルダフラグメント">必要欠片</th>
                         <th class="py-1 px-2 text-right font-bold" title="累計のソルエルダ">必要エルダ</th>
                         <th class="py-1 px-2 text-right font-bold" title="その地点で1レベル上げたときの、欠片1,000あたりの最終ダメージ">その地点の効率</th>
-                        <th class="py-1 px-2 text-right font-bold">所要</th>
                     </tr></thead>
                     <tbody class="divide-y divide-slate-800/60">${body}</tbody>
                 </table>
