@@ -510,9 +510,11 @@ const app = {
         const headerNav = document.querySelector('header nav');
         const dashStats = document.getElementById('dashboard-stats-container');
         const clockEl = document.querySelector('header > div:last-child');
-        // Scheduler sub-nav lives in the top bar; hidden unless that app is active.
+        // Scheduler and HEXA sub-navs live in the top bar; hidden unless their app is active.
         const schedNav = document.getElementById('scheduler-nav');
         if (schedNav) { schedNav.classList.add('hidden'); schedNav.classList.remove('flex'); }
+        const hexaNav = document.getElementById('hexa-nav');
+        if (hexaNav) { hexaNav.classList.add('hidden'); hexaNav.classList.remove('flex'); }
 
         if (appName === 'planner') {
             if (headerNav) headerNav.style.display = '';
@@ -558,9 +560,12 @@ const app = {
             if (dashStats && dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = 'none';
             if (clockEl) clockEl.classList.add('ml-auto');
             document.getElementById('view-hexa').classList.remove('hidden-page');
+            if (hexaNav) { hexaNav.classList.remove('hidden'); hexaNav.classList.add('flex'); }
             if (!this.hexaInitialized) {
                 if (typeof hexaTracker !== 'undefined') hexaTracker.init();
                 this.hexaInitialized = true;
+            } else if (typeof hexaTracker !== 'undefined') {
+                hexaTracker.syncPageNav();
             }
         } else if (appName === 'scheduler') {
             if (headerNav) headerNav.style.display = 'none';

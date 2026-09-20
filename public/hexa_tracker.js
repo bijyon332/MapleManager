@@ -43,6 +43,7 @@ const hexaTracker = {
 
     init() {
         this.loadData();
+        this.syncPageNav();
         this.render();
     },
 
@@ -419,26 +420,28 @@ const hexaTracker = {
 
     buildHTML() {
         return `<div class="flex flex-col h-[calc(100vh-7rem)] -m-6">
-            <div class="shrink-0 flex items-center gap-1 px-5 pt-3 border-b border-slate-800">
-                ${this.buildPageTabs()}
-            </div>
             <div class="flex-1 overflow-y-auto custom-scrollbar p-5" id="hexa-page">
                 ${this.buildPageBody()}
             </div>
         </div>`;
     },
 
-    buildPageTabs() {
-        const tab = (id, label, icon) => `<button onclick="hexaTracker.setPage('${id}')"
-            class="flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 -mb-px transition-colors ${this.page === id ? 'border-violet-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}">
-            <i data-lucide="${icon}" class="w-4 h-4"></i>${label}
-        </button>`;
-        return tab('ranking', '効率ランキング', 'trophy') + tab('tracker', 'トラッカー', 'hexagon');
-    },
-
+    // The page switch lives in the app's top bar (#hexa-nav in index.html), next
+    // to the other apps' sub-navs, rather than as a second tab row inside the view.
     setPage(page) {
         this.page = page;
+        this.syncPageNav();
         this.render();
+    },
+
+    syncPageNav() {
+        for (const id of ['ranking', 'tracker']) {
+            const btn = document.getElementById('hnav-' + id);
+            if (!btn) continue;
+            const on = this.page === id;
+            btn.classList.toggle('nav-active', on);
+            btn.classList.toggle('nav-inactive', !on);
+        }
     },
 
     buildPageBody() {

@@ -145,6 +145,17 @@
                     <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>Dashboard
                 </button>
             </nav>
+            <!-- HEXA sub navigation (shown only for the hexa app) -->
+            <nav id="hexa-nav" class="hidden items-center gap-0.5 mr-4 flex-shrink-0">
+                <button onclick="hexaTracker.setPage('ranking')" id="hnav-ranking"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all nav-active flex items-center gap-1.5">
+                    <i data-lucide="trophy" class="w-3.5 h-3.5"></i>効率ランキング
+                </button>
+                <button onclick="hexaTracker.setPage('tracker')" id="hnav-tracker"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all nav-inactive flex items-center gap-1.5">
+                    <i data-lucide="hexagon" class="w-3.5 h-3.5"></i>トラッカー
+                </button>
+            </nav>
             <!-- Dashboard Stats -->
             <div id="dashboard-stats-container"
                 class="flex items-center gap-4 flex-1 justify-end min-w-0 overflow-hidden"></div>
