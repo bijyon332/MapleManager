@@ -41,8 +41,7 @@ const hexaTracker = {
     // are the no-grind baseline (dailies only).
     DEFAULT_BUDGET: { frag: 90, erda: 9 },
 
-    currentClassId: null,
-    panelTab: 'progress',   // 'progress' | 'priority'
+    page: 'ranking',        // 'ranking' | 'tracker'
     prioritySort: 'frag',   // 'frag' | 'erda'
     data: {},
     _loaded: false,
@@ -440,65 +439,229 @@ const hexaTracker = {
     },
 
     buildHTML() {
-        return `<div class="flex h-[calc(100vh-7rem)] -m-6">
-            <div class="w-56 shrink-0 border-r border-slate-800 overflow-y-auto custom-scrollbar bg-slate-900/50 p-2" id="hexa-class-list">
-                ${this.buildClassList()}
+        return `<div class="flex flex-col h-[calc(100vh-7rem)] -m-6">
+            <div class="shrink-0 flex items-center gap-1 px-5 pt-3 border-b border-slate-800">
+                ${this.buildPageTabs()}
             </div>
-            <div class="flex-1 flex flex-col min-w-0">
-                <div id="hexa-panel-tabs" class="shrink-0 flex items-center gap-1 px-5 pt-3 border-b border-slate-800">
-                    ${this.currentClassId ? this.buildTabs('panel') : ''}
-                </div>
-                <div class="flex-1 overflow-y-auto custom-scrollbar p-5" id="hexa-skill-panel">
-                    ${this.currentClassId ? this.buildPanel(this.currentClassId, this.currentClassId, 'panel') : this.buildEmptyState()}
-                </div>
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-5" id="hexa-page">
+                ${this.buildPageBody()}
             </div>
         </div>`;
     },
 
-    buildClassList() {
+    buildPageTabs() {
+        const tab = (id, label, icon) => `<button onclick="hexaTracker.setPage('${id}')"
+            class="flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 -mb-px transition-colors ${this.page === id ? 'border-violet-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}">
+            <i data-lucide="${icon}" class="w-4 h-4"></i>${label}
+        </button>`;
+        return tab('ranking', '効率ランキング', 'trophy') + tab('tracker', 'トラッカー', 'hexagon');
+    },
+
+    setPage(page) {
+        this.page = page;
+        this.render();
+    },
+
+    buildPageBody() {
+        return this.page === 'tracker' ? this.buildTrackerGrid() : this.buildRanking();
+    },
+
+    // ========== Ranking: fragments needed to reach a given share of max FD ==========
+
+    // Progress milestones to rank by. `pct` is a share of the class's own maximum
+    // Final Damage; the break-even point is where a level's rate falls to the
+    // whole-board average, so it lands at a different share for every class.
+    RANK_STEPS: [
+        { key: '20', label: '20%' }, { key: '40', label: '40%' }, { key: '60', label: '60%' },
+        { key: '80', label: '80%' }, { key: '85', label: '85%' }, { key: '90', label: '90%' },
+        { key: '95', label: '95%' }, { key: 'break', label: '分岐点' },
+    ],
+    rankStep: 'break',
+
+    setRankStep(key) {
+        this.rankStep = key;
+        const body = document.getElementById('hexa-page');
+        if (body) body.innerHTML = this.buildPageBody();
+        if (window.lucide) lucide.createIcons();
+    },
+
+    // Curves for the ranking ignore per-character exclusions, so every class is
+    // measured on the same board. They never change, so compute each one once.
+    rankCurve(classId) {
+        if (!this._rankCurves) this._rankCurves = {};
+        if (!(classId in this._rankCurves)) this._rankCurves[classId] = this.curveData(null, classId);
+        return this._rankCurves[classId];
+    },
+
+    rankRows(stepKey) {
+        const rows = [];
+        for (const cls of (window.HEXA_CLASS_SKILLS || [])) {
+            const info = this.getClassInfo(cls.id);
+            if (!info) continue;
+            const curve = this.rankCurve(cls.id);
+            // Classes with no GMS node table yet (Erel Light) have nothing to rank.
+            if (!curve || curve.totalFrag <= 0) continue;
+            const p = stepKey === 'break'
+                ? curve.points[curve.breakIdx]
+                : this.curveAt(curve, curve.fdMax * Number(stepKey) / 100).p;
+            rows.push({
+                id: cls.id, name: info.name, path: info.path, group: this.getClassGroup(cls.id),
+                frag: p.frag, erda: p.erda, fd: p.fd, fdMax: curve.fdMax,
+                share: curve.fdMax > 0 ? p.fd / curve.fdMax * 100 : 0,
+            });
+        }
+        rows.sort((a, b) => a.frag - b.frag);
+        return rows;
+    },
+
+    getClassGroup(classId) {
+        for (const [groupId, classes] of Object.entries(window.CLASS_DATA || {})) {
+            if (classes.some(c => c.id === classId)) return this.GROUP_LABELS[groupId] || groupId;
+        }
+        return '';
+    },
+
+    buildRanking() {
+        const rows = this.rankRows(this.rankStep);
+        if (!rows.length) return this.buildEmptyState();
+
+        const budget = this.getBudget();
+        const maxFrag = rows[rows.length - 1].frag || 1;
+        const isBreak = this.rankStep === 'break';
+
+        const steps = this.RANK_STEPS.map(s => `<button onclick="hexaTracker.setRankStep('${s.key}')"
+            class="px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${this.rankStep === s.key ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}">${s.label}</button>`).join('');
+
+        let list = '';
+        rows.forEach((r, i) => {
+            const weeks = budget.frag > 0 ? Math.ceil(Math.max(r.frag / budget.frag, budget.erda > 0 ? r.erda / budget.erda : 0)) : null;
+            const medal = i === 0 ? '#fcd34d' : i === 1 ? '#cbd5e1' : i === 2 ? '#d97706' : null;
+            list += `<button onclick="hexaTracker.openForClass('${r.id}')"
+                class="w-full flex items-center gap-3 px-2.5 py-1.5 rounded-lg text-left transition-colors hover:bg-slate-800/70 ${i % 2 ? 'bg-slate-900/40' : ''}">
+                <span class="w-7 text-right text-xs font-bold tabular-nums shrink-0" style="color:${medal || '#64748b'}">${i + 1}</span>
+                <img src="${r.path}" class="w-8 h-8 object-contain shrink-0" loading="lazy" alt="">
+                <span class="w-40 shrink-0 min-w-0">
+                    <span class="block text-xs text-slate-200 truncate">${this.escHtml(r.name)}</span>
+                    <span class="block text-[9px] text-slate-500 truncate">${this.escHtml(r.group)}</span>
+                </span>
+                <span class="flex-1 min-w-0 hidden sm:block">
+                    <span class="block h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                        <span class="block h-full rounded-full" style="width:${(r.frag / maxFrag * 100).toFixed(1)}%;background:linear-gradient(90deg,#7c3aed,#a78bfa)"></span>
+                    </span>
+                </span>
+                <span class="w-24 text-right text-xs font-bold tabular-nums text-violet-300 shrink-0">${Math.round(r.frag).toLocaleString()}</span>
+                <span class="w-16 text-right text-xs tabular-nums text-amber-300 shrink-0">${Math.round(r.erda).toLocaleString()}</span>
+                <span class="w-20 text-right text-xs tabular-nums text-emerald-300 shrink-0" title="この地点の最終ダメージ（全取得時 +${r.fdMax.toFixed(1)}%）">+${r.fd.toFixed(1)}%</span>
+                ${isBreak ? `<span class="w-12 text-right text-[10px] tabular-nums text-slate-500 shrink-0" title="全取得FDに対する到達率">${r.share.toFixed(0)}%</span>` : ''}
+                <span class="w-14 text-right text-[10px] tabular-nums text-slate-500 shrink-0">${weeks != null ? weeks + '週' : '—'}</span>
+            </button>`;
+        });
+
+        const fastest = rows[0], slowest = rows[rows.length - 1];
+        return `<div class="max-w-5xl mx-auto">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <div>
+                    <h2 class="text-base font-bold text-white flex items-center gap-2">
+                        <i data-lucide="trophy" class="w-4 h-4 text-amber-300"></i>HEXA効率ランキング
+                    </h2>
+                    <p class="text-[11px] text-slate-500 mt-0.5">
+                        ${isBreak
+                            ? 'コスパの分岐点（1レベルの効率が全体平均まで落ちる地点）に必要なソルエルダフラグメントが少ない順です。'
+                            : `全取得時の最終ダメージの${this.rankStep}%に到達するまでに必要なソルエルダフラグメントが少ない順です。`}
+                    </p>
+                </div>
+                <div class="inline-flex flex-wrap rounded-lg bg-slate-900 p-0.5 border border-slate-700">${steps}</div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 mb-2 px-1">
+                <span>${rows.length}職</span>
+                <span>最少 <span class="text-slate-200 font-bold">${this.escHtml(fastest.name)}</span>
+                    <span class="text-violet-300 tabular-nums font-bold">${Math.round(fastest.frag).toLocaleString()}</span> 欠片</span>
+                <span>最多 <span class="text-slate-200 font-bold">${this.escHtml(slowest.name)}</span>
+                    <span class="text-violet-300 tabular-nums font-bold">${Math.round(slowest.frag).toLocaleString()}</span> 欠片</span>
+                <span class="text-slate-600">差 ${Math.round(slowest.frag - fastest.frag).toLocaleString()} 欠片（${(slowest.frag / Math.max(1, fastest.frag)).toFixed(1)}倍）</span>
+            </div>
+
+            <div class="bg-slate-900 rounded-xl border border-slate-800 p-2">
+                <div class="flex items-center gap-3 px-2.5 pb-1.5 mb-1 border-b border-slate-800 text-[9px] uppercase tracking-wider text-slate-500 font-bold">
+                    <span class="w-7 text-right shrink-0">#</span>
+                    <span class="w-8 shrink-0"></span>
+                    <span class="w-40 shrink-0">職業</span>
+                    <span class="flex-1 hidden sm:block"></span>
+                    <span class="w-24 text-right shrink-0">必要欠片</span>
+                    <span class="w-16 text-right shrink-0">エルダ</span>
+                    <span class="w-20 text-right shrink-0">到達FD</span>
+                    ${isBreak ? '<span class="w-12 text-right shrink-0">到達率</span>' : ''}
+                    <span class="w-14 text-right shrink-0">所要</span>
+                </div>
+                ${list}
+            </div>
+            <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
+                未強化の盤面から、「最終ダメージ / 欠片」が最大の順に振った場合の必要量です。所要週数は週あたり
+                ${budget.frag.toLocaleString()} 欠片 / ${budget.erda.toLocaleString()} エルダ換算（トラッカーの効率順タブで変更できます）。
+                行をクリックすると、その職業のトラッカーが開きます。
+                消費リソースは正確な値、最終ダメージはノード係数からの推定値です。
+            </p>
+        </div>`;
+    },
+
+    // ========== Tracker: one card per class, grouped like the roster ==========
+
+    buildTrackerGrid() {
         if (!window.CLASS_DATA) return '';
         let html = '';
         for (const [groupId, classes] of Object.entries(CLASS_DATA)) {
-            const label = this.GROUP_LABELS[groupId] || groupId;
             const hexaClasses = classes.filter(c => this.getClassSkills(c.id));
             if (!hexaClasses.length) continue;
-            html += `<div class="mb-3">
-                <div class="text-[9px] text-slate-500 font-bold uppercase tracking-widest px-2 py-1">${this.escHtml(label)}</div>
-                <div class="space-y-0.5">`;
+            const label = this.GROUP_LABELS[groupId] || groupId;
+
+            let cards = '';
             for (const cls of hexaClasses) {
-                const isActive = this.currentClassId === cls.id;
-                const { pct } = this.getProgress(cls.id, cls.id);
-                const pctHtml = pct > 0
-                    ? `<span class="text-[9px] font-bold shrink-0" style="color:#8b5cf6">${pct}%</span>`
-                    : '';
-                html += `<button onclick="hexaTracker.selectClass('${cls.id}')"
-                    class="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors ${isActive ? 'bg-violet-900/50 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
-                    <img src="${cls.path}" class="w-6 h-6 object-contain shrink-0" loading="lazy">
-                    <span class="text-xs flex-1 truncate">${this.escHtml(cls.name)}</span>
-                    ${pctHtml}
+                const p = this.getProgress(cls.id, cls.id);
+                const started = p.fragSpent > 0;
+                cards += `<button onclick="hexaTracker.openForClass('${cls.id}')"
+                    class="flex items-center gap-3 p-2.5 rounded-xl border text-left transition-colors ${started ? 'bg-slate-900 border-violet-800/60 hover:border-violet-500' : 'bg-slate-900/60 border-slate-800 hover:border-slate-600'}">
+                    <img src="${cls.path}" class="w-12 h-12 object-contain shrink-0" loading="lazy" alt="">
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs font-bold text-slate-100 truncate">${this.escHtml(cls.name)}</div>
+                        ${started
+                            ? `<div class="text-[10px] text-emerald-300 tabular-nums">+${p.fdNow.toFixed(1)}% <span class="text-slate-600">/ +${p.fdMax.toFixed(1)}%</span></div>
+                               <div class="h-1 bg-slate-800 rounded-full overflow-hidden mt-1">
+                                   <div class="h-full rounded-full" style="width:${p.pct}%;background:linear-gradient(90deg,#7c3aed,#8b5cf6)"></div>
+                               </div>`
+                            : `<div class="text-[10px] text-slate-600">未入力</div>`}
+                    </div>
+                    ${started ? `<span class="text-[11px] font-bold tabular-nums text-violet-300 shrink-0">${p.pct}%</span>` : ''}
                 </button>`;
             }
-            html += `</div></div>`;
+
+            html += `<div class="mb-4">
+                <div class="flex items-baseline gap-2 px-1 mb-1.5">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">${this.escHtml(label)}</span>
+                    <span class="text-[10px] text-slate-600">${hexaClasses.length}職</span>
+                </div>
+                <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5">${cards}</div>
+            </div>`;
         }
-        return html;
+        return `<div class="max-w-6xl mx-auto">
+            <p class="text-[11px] text-slate-500 mb-3 px-1">職業カードをクリックすると、進捗入力・効率順・効率カーブを開けます。</p>
+            ${html}
+        </div>`;
     },
 
     buildEmptyState() {
         return `<div class="flex items-center justify-center h-full">
             <div class="text-center text-slate-500">
                 <i data-lucide="layers" class="w-14 h-14 mx-auto mb-4 opacity-20"></i>
-                <p class="text-sm font-medium">左から職業を選択してください</p>
-                <p class="text-xs mt-1 opacity-60">HEXAスキルの進捗を管理できます</p>
+                <p class="text-sm font-medium">表示できる職業データがありません</p>
             </div>
         </div>`;
     },
 
-    // Tab strip shared by the standalone panel and the character modal.
-    // `scope` is 'panel' or 'modal' and decides which tab state is read/written.
-    buildTabs(scope) {
-        const active = scope === 'modal' ? this.modalTab : this.panelTab;
-        const tab = (id, label, icon) => `<button onclick="hexaTracker.setTab('${scope}','${id}')"
-            class="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-t-lg border-b-2 -mb-px transition-colors ${active === id ? 'border-violet-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}">
+    // Tab strip inside the modal.
+    buildTabs() {
+        const tab = (id, label, icon) => `<button onclick="hexaTracker.setTab('${id}')"
+            class="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-t-lg border-b-2 -mb-px transition-colors ${this.modalTab === id ? 'border-violet-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}">
             <i data-lucide="${icon}" class="w-3.5 h-3.5"></i>${label}
         </button>`;
         return tab('progress', '進捗入力', 'sliders-horizontal')
@@ -506,20 +669,12 @@ const hexaTracker = {
             + tab('curve', '効率カーブ', 'activity');
     },
 
-    setTab(scope, tab) {
-        if (scope === 'modal') this.modalTab = tab; else this.panelTab = tab;
+    setTab(tab) {
+        this.modalTab = tab;
         this.refreshAll();
     },
 
-    buildPanel(classId, trackingId, scope) {
-        const tab = scope === 'modal' ? this.modalTab : this.panelTab;
-        if (tab === 'priority') return this.buildPriority(classId, trackingId);
-        if (tab === 'curve') return this.buildCurveTab(classId, trackingId);
-        return this.buildSkillPanel(classId, trackingId);
-    },
-
     buildSkillPanel(classId, trackingId) {
-        if (classId === undefined) classId = this.currentClassId;
         if (trackingId === undefined) trackingId = classId;
         const cls = this.getClassSkills(classId);
         const info = this.getClassInfo(classId);
@@ -1062,21 +1217,13 @@ const hexaTracker = {
         </div>`;
     },
 
-    selectClass(classId) {
-        this.currentClassId = classId;
-        this.refreshAll();
-    },
-
-    // Re-render every live HEXA surface (standalone tab panel/list + character modal body).
+    // Re-render every live HEXA surface: the page behind the modal (so a card's
+    // progress updates as you type) and the modal itself.
     refreshAll() {
-        const panel = document.getElementById('hexa-skill-panel');
-        if (panel && this.currentClassId) panel.innerHTML = this.buildPanel(this.currentClassId, this.currentClassId, 'panel');
-        const panelTabs = document.getElementById('hexa-panel-tabs');
-        if (panelTabs) panelTabs.innerHTML = this.currentClassId ? this.buildTabs('panel') : '';
-        const list = document.getElementById('hexa-class-list');
-        if (list) list.innerHTML = this.buildClassList();
+        const page = document.getElementById('hexa-page');
+        if (page && this.page === 'tracker') page.innerHTML = this.buildPageBody();
         const mtabs = document.getElementById('hexa-modal-tabs');
-        if (mtabs && this.modalClassId) mtabs.innerHTML = this.buildTabs('modal');
+        if (mtabs && this.modalClassId) mtabs.innerHTML = this.buildTabs();
         const mcontent = document.getElementById('hexa-modal-content');
         if (mcontent && this.modalClassId) mcontent.innerHTML = this.buildModalContent();
         const mhead = document.getElementById('hexa-modal-progress');
@@ -1248,30 +1395,60 @@ const hexaTracker = {
     },
 
     buildModalContent() {
-        return this.buildPanel(this.modalClassId, this.modalTrackingId, 'modal');
+        if (this.modalTab === 'priority') return this.buildPriority(this.modalClassId, this.modalTrackingId);
+        if (this.modalTab === 'curve') return this.buildCurveTab(this.modalClassId, this.modalTrackingId);
+        return this.buildSkillPanel(this.modalClassId, this.modalTrackingId);
     },
 
     renderModal(char) {
         const info = this.getClassInfo(this.modalClassId) || {};
         const portrait = (char.image && char.image.startsWith('http')) ? char.image : (char.classImage || info.path || '');
+        this.renderModalShell({
+            portrait,
+            portraitClass: 'w-11 h-11 rounded-lg object-cover bg-slate-950/40',
+            title: this.escHtml(char.name),
+            badge: char.level ? `<span class="text-[11px] font-mono font-bold text-violet-100/90">Lv.${this.escHtml(char.level)}</span>` : '',
+            actions: `<button onclick="hexaTracker.openClassPicker('${this.modalCharId}')" title="HEXA職業を変更" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
+                <i data-lucide="repeat" class="w-4 h-4"></i>
+            </button>`,
+        });
+    },
+
+    // Open the tracker for a class on its own, with no character attached.
+    // Levels saved here live under the class id, the same as before.
+    openForClass(classId) {
+        this.ensureLoaded();
+        if (!this.getClassSkills(classId)) return;
+        const info = this.getClassInfo(classId);
+        this.modalCharId = null;
+        this.modalClassId = classId;
+        this.modalTrackingId = classId;
+        this.renderModalShell({
+            portrait: info ? info.path : '',
+            portraitClass: 'w-11 h-11 object-contain shrink-0',
+            title: this.escHtml(info ? info.name : classId),
+            badge: `<span class="text-[11px] font-bold text-violet-100/80">${this.escHtml(this.getClassGroup(classId))}</span>`,
+            actions: '',
+        });
+    },
+
+    renderModalShell({ portrait, portraitClass, title, badge, actions }) {
         const overlay = this.ensureOverlay();
         overlay.innerHTML = `
             <div class="bg-slate-900 border border-violet-500/40 rounded-2xl shadow-2xl w-full max-w-4xl h-[700px] max-h-[94vh] flex flex-col overflow-hidden">
                 <div class="flex items-center justify-between gap-3 px-5 py-3 bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-700 shrink-0">
                     <div class="flex items-center gap-3 min-w-0">
-                        ${portrait ? `<img src="${portrait}" class="w-11 h-11 rounded-lg object-cover bg-slate-950/40 shrink-0">` : ''}
+                        ${portrait ? `<img src="${portrait}" class="${portraitClass} shrink-0">` : ''}
                         <div class="min-w-0">
                             <div class="text-white font-extrabold text-sm truncate flex items-center gap-2">
-                                <i data-lucide="hexagon" class="w-4 h-4 shrink-0"></i>${this.escHtml(char.name)}
-                                ${char.level ? `<span class="text-[11px] font-mono font-bold text-violet-100/90">Lv.${this.escHtml(char.level)}</span>` : ''}
+                                <i data-lucide="hexagon" class="w-4 h-4 shrink-0"></i>${title}
+                                ${badge}
                             </div>
                             <div id="hexa-modal-progress" class="text-[11px] text-violet-100 flex items-center gap-1.5 mt-0.5">${this.buildModalHeaderStat()}</div>
                         </div>
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
-                        <button onclick="hexaTracker.openClassPicker('${this.modalCharId}')" title="HEXA職業を変更" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
-                            <i data-lucide="repeat" class="w-4 h-4"></i>
-                        </button>
+                        ${actions}
                         <button onclick="hexaTracker.closeModal()" title="閉じる" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
                             <i data-lucide="x" class="w-4 h-4"></i>
                         </button>
@@ -1279,7 +1456,7 @@ const hexaTracker = {
                 </div>
                 <div id="hexa-modal-body" class="flex-1 flex flex-col min-h-0">
                     <div id="hexa-modal-tabs" class="shrink-0 flex items-center gap-1 px-4 pt-3 border-b border-slate-800">
-                        ${this.buildTabs('modal')}
+                        ${this.buildTabs()}
                     </div>
                     <div id="hexa-modal-content" class="overflow-y-auto custom-scrollbar px-4 py-3 flex-1">
                         ${this.buildModalContent()}
@@ -1296,6 +1473,11 @@ const hexaTracker = {
         this.modalCharId = null;
         this.modalClassId = null;
         this.modalTrackingId = null;
+        const page = document.getElementById('hexa-page');
+        if (page && this.page === 'tracker') {
+            page.innerHTML = this.buildPageBody();
+            if (window.lucide) lucide.createIcons();
+        }
         this.refreshRoster();
     },
 

@@ -231,6 +231,62 @@ for (const c of CLASSES) {
 }
 notes.push('curves build for all ' + (CLASSES.length - PLACEHOLDER_CLASSES.size) + ' classes with node data');
 
+// ----------------------------------------------------------------- ranking
+
+t.data = {};
+const rankable = CLASSES.filter(c => !PLACEHOLDER_CLASSES.has(c.id)).length;
+const byClass = {};
+for (const step of t.RANK_STEPS) {
+    const rows = t.rankRows(step.key);
+    check(rows.length === rankable,
+        'the ' + step.label + ' ranking should list every class with node data, got ' + rows.length);
+    for (let i = 1; i < rows.length; i++) {
+        check(rows[i].frag >= rows[i - 1].frag,
+            'the ' + step.label + ' ranking must be sorted by fragments (row ' + i + ')');
+    }
+    for (const r of rows) {
+        check(r.frag > 0 && r.erda > 0, step.label + ': ' + r.id + ' has no cost');
+        check(!!r.group, step.label + ': ' + r.id + ' has no class group');
+        if (step.key !== 'break') {
+            // Landing exactly on the requested share is the whole point of
+            // interpolating inside a block.
+            check(Math.abs(r.share - Number(step.key)) < 0.51,
+                step.label + ': ' + r.id + ' landed at ' + r.share.toFixed(1) + '% of max FD');
+        }
+        (byClass[r.id] = byClass[r.id] || []).push(r.frag);
+    }
+}
+
+// Each class must get steadily more expensive as the target rises. The break-even
+// step is appended last and can sit anywhere, so compare only the % steps.
+const pctSteps = t.RANK_STEPS.filter(s => s.key !== 'break').length;
+for (const [id, frags] of Object.entries(byClass)) {
+    for (let i = 1; i < pctSteps; i++) {
+        check(frags[i] > frags[i - 1], id + ': cost did not rise between ranking steps ' + (i - 1) + ' and ' + i);
+    }
+}
+
+const breakRows = t.rankRows('break');
+for (const r of breakRows) {
+    const curve = t.rankCurve(r.id);
+    check(Math.abs(r.frag - curve.points[curve.breakIdx].frag) < 0.01,
+        'break-even ranking row disagrees with the curve for ' + r.id);
+}
+const cheapest = breakRows[0], dearest = breakRows[breakRows.length - 1];
+notes.push('break-even ranking: ' + cheapest.name + ' ' + Math.round(cheapest.frag).toLocaleString()
+    + ' → ' + dearest.name + ' ' + Math.round(dearest.frag).toLocaleString() + ' fragments');
+
+// The ranking is a class comparison, so a character's own exclusions must not
+// leak into it.
+const heroBreak = t.rankRows('break').find(r => r.id === 'hero').frag;
+t.toggleExclude('hero', 'mastery1');
+t._rankCurves = null;   // drop the memo, or the check would pass on stale values
+const heroBreakAfter = t.rankRows('break').find(r => r.id === 'hero').frag;
+check(heroBreakAfter === heroBreak,
+    'a saved exclusion leaked into the ranking (' + heroBreak + ' -> ' + heroBreakAfter + ')');
+t.data = {};
+t._rankCurves = null;
+
 // ------------------------------------------------------------------- report
 
 for (const n of notes) console.log('  ' + n);
