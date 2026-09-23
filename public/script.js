@@ -80,6 +80,7 @@ const app = {
         this.loadJobSelect();
         this.initCommunity();
         this.prefetchHexa();
+        this.initAppRouting();
     },
     loadJobSelect() {
         if (typeof CLASS_DATA === 'undefined') return;
@@ -584,10 +585,52 @@ const app = {
         }
     },
 
-    switchApp(appName) {
+    // ---------------------------------------------------------
+    //  URL とアプリの対応
+    // ---------------------------------------------------------
+    // アプリごとに共有できるよう、開いているアプリを URL のハッシュに出す
+    // （/#hexa, /#scheduler …）。名前は APPS のキーそのまま。planner はハッシュ無し。
+    // パス（/hexa）にしないのは、静的アセットが拡張子なしのURLを .html に解決するので
+    // /ranks で断片の ranks.html が返ってしまうのと、Worker 側の振り分けが要るため。
+    // ?view=1 などのクエリはそのまま残す。
+    appFromHash() {
+        let name = location.hash.slice(1);
+        try { name = decodeURIComponent(name); } catch (e) { /* 壊れた %xx はそのまま照合して外れる */ }
+        return Object.hasOwn(this.APPS, name) ? name : 'planner';
+    },
+
+    appUrl(appName) {
+        const base = location.pathname + location.search;
+        return appName === 'planner' ? base : `${base}#${appName}`;
+    },
+
+    initAppRouting() {
+        // 戻る・進むと、アドレスバーでハッシュを書き換えたとき。
+        // 両方来ることがあるが、同じアプリなら何もしないので二重には切り替わらない。
+        const follow = () => {
+            const name = this.appFromHash();
+            if (name !== this.currentApp) this.switchApp(name, { fromUrl: true });
+        };
+        window.addEventListener('popstate', follow);
+        window.addEventListener('hashchange', follow);
+
+        const first = this.appFromHash();
+        // 知らない名前のハッシュは、ダッシュボードを出したうえで URL からも消す。
+        if (first === 'planner' && location.hash) history.replaceState(null, '', this.appUrl('planner'));
+        if (first !== 'planner') this.switchApp(first, { fromUrl: true });
+    },
+
+    switchApp(appName, { fromUrl = false } = {}) {
         const entry = this.APPS[appName];
         if (!entry) return;
         this.currentApp = appName;
+
+        // サイドバーから切り替えたときは履歴に積む（ブラウザの戻るで前のアプリへ）。
+        // URL から来たときは、URL の方が既に正しいので触らない。
+        if (!fromUrl) {
+            const url = this.appUrl(appName);
+            if (url !== location.pathname + location.search + location.hash) history.pushState(null, '', url);
+        }
 
         document.querySelectorAll('[id^="app-"]').forEach(e => { e.classList.remove('nav-active'); e.classList.add('nav-inactive'); });
         const appBtn = document.getElementById(`app-${appName}`);
