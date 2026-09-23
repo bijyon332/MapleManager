@@ -65,6 +65,17 @@
                 title="Community Roster">
                 <i data-lucide="users-round" class="w-5 h-5"></i>
             </button>
+            <button onclick="app.switchApp('hexa')" id="app-hexa"
+                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
+                title="HEXA Matrix Tracker">
+                <!-- HEXA core: a hexagon inside a hexagon. Hand-drawn in lucide's
+                     stroke style since lucide has no nested-hexagon icon. -->
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    <path d="M12 7.5l4 2.25v4.5L12 16.5l-4-2.25v-4.5z" fill="currentColor" fill-opacity="0.35"/>
+                </svg>
+            </button>
 
             <!-- In-development apps -->
             <div class="w-full flex flex-col items-center gap-1.5 mt-3 pt-3 border-t border-slate-700/70">
@@ -80,12 +91,6 @@
                     class="dev-app relative w-10 h-10 flex items-center justify-center rounded-xl transition-all nav-inactive"
                     title="Cost Calculator(開発中)">
                     <i data-lucide="calculator" class="w-5 h-5"></i>
-                    <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                </button>
-                <button onclick="app.switchApp('hexa')" id="app-hexa"
-                    class="dev-app relative w-10 h-10 flex items-center justify-center rounded-xl transition-all nav-inactive"
-                    title="HEXA Matrix Tracker(開発中)">
-                    <i data-lucide="layers" class="w-5 h-5"></i>
                     <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                 </button>
                 <button onclick="app.switchApp('liberation')" id="app-liberation"

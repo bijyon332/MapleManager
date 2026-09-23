@@ -629,7 +629,7 @@ const hexaTracker = {
     buildEmptyState() {
         return `<div class="flex items-center justify-center h-full">
             <div class="text-center text-slate-500">
-                <i data-lucide="layers" class="w-14 h-14 mx-auto mb-4 opacity-20"></i>
+                <i data-lucide="hexagon" class="w-14 h-14 mx-auto mb-4 opacity-20"></i>
                 <p class="text-sm font-medium">表示できる職業データがありません</p>
             </div>
         </div>`;
@@ -788,13 +788,17 @@ const hexaTracker = {
                         <div class="absolute inset-y-0 left-0 rounded-full transition-all" style="width:${isExcl ? 0 : pct}%;background:${sCfg.badge}"></div>
                     </div>
                 </div>
-                <input type="number" min="${this.minLevel(s)}" max="${this.MAX_LEVEL}" value="${lvl}" title="現在地"
-                    oninput="hexaTracker.updateLevel('${trackingId}','${classId}','${s.key}',this.value)"
-                    class="w-10 bg-slate-800 border border-slate-700 rounded text-center text-xs text-white py-0.5 focus:outline-none focus:border-violet-500 shrink-0">
+                <select title="現在地"
+                    onchange="hexaTracker.updateLevel('${trackingId}','${classId}','${s.key}',this.value)"
+                    class="w-12 bg-slate-800 border border-slate-700 rounded text-xs text-white py-0.5 pl-1 cursor-pointer focus:outline-none focus:border-violet-500 shrink-0">
+                    ${this.levelOptions(this.minLevel(s), lvl)}
+                </select>
                 <span class="text-[10px] text-slate-600 shrink-0">→</span>
-                <input type="number" min="${this.minLevel(s)}" max="${this.MAX_LEVEL}" value="${tgt}" title="目標値"
-                    oninput="hexaTracker.updateTarget('${trackingId}','${classId}','${s.key}',this.value)"
-                    class="w-10 bg-slate-950 border border-violet-800/70 rounded text-center text-xs text-violet-200 py-0.5 focus:outline-none focus:border-violet-500 shrink-0">
+                <select title="目標値"
+                    onchange="hexaTracker.updateTarget('${trackingId}','${classId}','${s.key}',this.value)"
+                    class="w-12 bg-slate-950 border border-violet-800/70 rounded text-xs text-violet-200 py-0.5 pl-1 cursor-pointer focus:outline-none focus:border-violet-500 shrink-0">
+                    ${this.levelOptions(lvl, tgt)}
+                </select>
                 ${counts ? `<button onclick="hexaTracker.toggleExclude('${trackingId}','${s.key}')"
                     title="${isExcl ? '進捗に含める' : '進捗から除外'}"
                     class="w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors ${isExcl ? 'bg-slate-700 border-slate-600' : 'border-slate-600 hover:border-slate-400 hover:bg-slate-800'}">
@@ -821,6 +825,18 @@ const hexaTracker = {
             <div class="text-[10px] font-bold uppercase tracking-wider mb-1" style="color:${tier.color}">${tier.label}</div>
             <div>${rows}</div>
         </div>`;
+    },
+
+    // Level pickers are dropdowns rather than number fields: every change
+    // re-renders the panel, which would throw the caret out of a text field
+    // after the first digit. `from` is the lowest level offered — the node's
+    // floor for the current level, the current level for the target.
+    levelOptions(from, selected) {
+        let html = '';
+        for (let v = from; v <= this.MAX_LEVEL; v++) {
+            html += `<option value="${v}"${v === selected ? ' selected' : ''}>${v}</option>`;
+        }
+        return html;
     },
 
     // Ranked "what to level next", by Final Damage gained per Sol Erda Fragment
