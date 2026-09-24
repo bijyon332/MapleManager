@@ -300,6 +300,69 @@ const cheatsheet = {
             + `<div class="text-[10px] text-slate-500 mt-2 space-y-0.5">${outside}</div>`);
     },
 
+    // ---------------------------------------------------------
+    //  結晶石の価格
+    // ---------------------------------------------------------
+    // 値は Planner と同じボスマスタ（System で編集したものがあればそれ）を使う。
+    // PT人数を選ぶと、1人あたりの額（価格 ÷ 人数）に切り替わる。
+    party: 1,
+    CRYSTAL_COL: { EASY: 'E', NORMAL: 'N', HARD: 'H', CHAOS: 'H', EXTREME: 'X' },
+
+    crystalBosses() {
+        const master = (window.app && app.data && app.data.masterBosses && app.data.masterBosses.length)
+            ? app.data.masterBosses : DEFAULT_BOSSES;
+        const byName = new Map();
+        master.filter(b => b.type !== 'DAILY' && b.meso > 0).forEach(b => {
+            const col = this.CRYSTAL_COL[b.difficulty];
+            if (!col) return;
+            if (!byName.has(b.name)) byName.set(b.name, { name: b.kana || b.name, monthly: false, max: 0 });
+            const e = byName.get(b.name);
+            e[col] = { meso: b.meso, chaos: b.difficulty === 'CHAOS' };
+            e.monthly = e.monthly || b.type === 'MONTHLY';
+            e.max = Math.max(e.max, b.meso);
+        });
+        return [...byName.values()].sort((a, b) => b.max - a.max);
+    },
+
+    fmtMesoM(v) { return Math.round(v / this.party / 1e6).toLocaleString(); },
+
+    setParty(n) {
+        this.party = n;
+        const box = document.getElementById('cs-crystal');
+        if (box) box.outerHTML = this.renderCrystal();
+    },
+
+    crystalTable(list) {
+        const cols = this.COLS;
+        const head = `<tr><th class="text-left px-1.5 pb-1 font-bold">ボス</th>${cols.map(c =>
+            `<th class="text-right px-1.5 pb-1 font-bold">${c.label}</th>`).join('')}</tr>`;
+        const rows = list.map(b => `<tr class="border-t border-slate-800">
+            <td class="px-1.5 py-0.5 whitespace-nowrap text-slate-100 font-bold">${b.name}${b.monthly ? '<span class="ml-1 text-[10px] text-rose-300 font-normal">月</span>' : ''}</td>
+            ${cols.map(c => {
+                const x = b[c.key];
+                if (!x) return '<td class="px-1.5 py-0.5 text-right text-slate-700">—</td>';
+                return `<td class="px-1.5 py-0.5 text-right" title="${(x.meso / this.party).toLocaleString()}">
+                    ${x.chaos ? '<span class="text-[10px] text-slate-500 mr-1">C</span>' : ''}<b class="text-amber-300">${this.fmtMesoM(x.meso)}</b></td>`;
+            }).join('')}
+        </tr>`).join('');
+        return `<table class="w-full text-[12px] tabular-nums">
+            <thead class="text-[10px] text-slate-500 border-b border-slate-700">${head}</thead><tbody>${rows}</tbody></table>`;
+    },
+
+    renderCrystal() {
+        const list = this.crystalBosses();
+        const half = Math.ceil(list.length / 2);
+        const btns = [1, 2, 3, 4, 5, 6].map(n => `<button type="button" onclick="cheatsheet.setParty(${n})"
+            class="w-6 h-5 rounded text-[11px] font-bold ${n === this.party ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}">${n}</button>`).join('');
+        return `<div id="cs-crystal">${this.card('結晶石の価格',
+            `単位は百万メル（M）。${this.party === 1 ? 'ソロでの価格' : `${this.party}人PTの1人あたり（価格 ÷ ${this.party}）`}。C はカオス、月 は月ボス。マウスを載せると1メル単位`,
+            `<div class="flex items-center gap-1 mb-2"><span class="text-[10px] text-slate-400 mr-1">PT人数</span>${btns}</div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-6 overflow-x-auto">
+                ${this.crystalTable(list.slice(0, half))}
+                ${this.crystalTable(list.slice(half))}
+            </div>`)}</div>`;
+    },
+
     render() {
         const sources = this.SOURCES.map(s =>
             `<a href="${s.url}" target="_blank" rel="noopener" class="text-indigo-300 hover:text-indigo-200 underline decoration-slate-700">${s.label}</a>`).join('<span class="text-slate-700"> / </span>');
@@ -320,6 +383,7 @@ const cheatsheet = {
                 </div>
             </div>
             ${this.renderLevel()}
+            ${this.renderCrystal()}
             <div class="text-[10px] text-slate-500 leading-relaxed">
                 <div>※1 最初の対敵者ハード/エクストリームのボスLv（285/290）は Mapler House が 285/290、MapleStory Wiki が 270 で食い違っている。
                     ※2 ベローナは KMS で 2026-08 に実装。GMS に来ているかは未確認。
