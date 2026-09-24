@@ -317,6 +317,8 @@ const cheatsheet = {
     // デミアンより安いボスは載せない（最大価格がデミアンの最大価格未満のもの）。
     CRYSTAL_COL: { EASY: 'E', NORMAL: 'N', HARD: 'H', CHAOS: 'H', EXTREME: 'X' },
     CRYSTAL_FLOOR_BOSS: 'Damien',
+    // 要求フォースの無いボス（ボスマスタの name）。
+    NO_FORCE_BOSSES: ['Lotus', 'Damien', 'Guardian Angel Slime'],
     // 最大人数。boss_data.js（Boss Scheduler）の maxMembers と同じ。ここに無いボスは6人。
     MAX_PARTY: { 'First Adversary': 3, 'Malefic Star': 3, 'Limbo': 3, 'Bellona': 3, 'Baldrix': 3, 'Jupiter': 3 },
 
@@ -336,13 +338,21 @@ const cheatsheet = {
         });
         const all = [...byName.values()];
         const floor = all.find(b => b.key === this.CRYSTAL_FLOOR_BOSS);
-        // 並びは上のボスの表と同じ（ハードの要求フォースの降順）。要求フォースの無いボス
-        // （スウ・デミアン・Gスライム）はアーケイン側の末尾に、ハード（カオス）の価格の降順で置く。
+        // 左がオーセンティック、右がアーケイン。どちらもハードの要求フォースの降順
+        // （上のボスの表と同じ並び）。
+        // - 要求フォースが上の表（ARCANE_BOSSES / SACRED_BOSSES）にあるボスはその値で並べる。
+        // - 要求フォースが無いと分かっているボス（NO_FORCE_BOSSES）はアーケイン側の末尾に、
+        //   最大価格の降順で置く。
+        // - どちらでもないボス（上の表にまだ入れていない新ボス）は、新しいボスはオーセンティック
+        //   だとみなして、オーセンティック側の先頭に最大価格の降順で置く。名前の横に「要求未登録」
+        //   と出るので、上の表に要求フォースを足せば正しい位置に移る。
         const req = {};
         [...this.ARCANE_BOSSES, ...this.SACRED_BOSSES].forEach(b => { req[b.en] = this.hardReq(b); });
-        const rank = b => req[b.key] != null ? req[b.key] : (b.H ? b.H.meso : b.max) / 1e12;
+        const rank = b => req[b.key] != null ? req[b.key]
+            : this.NO_FORCE_BOSSES.includes(b.key) ? b.max / 1e12
+            : 1e6 + b.max / 1e12;
         return all.filter(b => !floor || b.max >= floor.max).sort((a, b) => rank(b) - rank(a))
-            .map(b => ({ ...b, sacred: req[b.key] >= 10000 }));
+            .map(b => ({ ...b, sacred: rank(b) >= 10000, unknown: req[b.key] == null && !this.NO_FORCE_BOSSES.includes(b.key) }));
     },
 
     fmtM(v) { return Math.round(v / 1e6).toLocaleString(); },
@@ -357,7 +367,7 @@ const cheatsheet = {
                 <th class="text-right px-1.5 pb-1 font-normal">1人分</th>`).join('')}</tr>`;
         const rows = list.map(b => `<tr class="border-t border-slate-800">
             <td class="px-1.5 py-0.5 whitespace-nowrap"><span class="text-slate-100 font-bold">${b.name}</span>
-                <span class="text-[10px] text-slate-500 ml-1">${b.party}人</span>${b.monthly ? '<span class="ml-1 text-[10px] text-rose-300">月</span>' : ''}</td>
+                <span class="text-[10px] text-slate-500 ml-1">${b.party}人</span>${b.monthly ? '<span class="ml-1 text-[10px] text-rose-300">月</span>' : ''}${b.unknown ? '<span class="ml-1 text-[10px] text-amber-400" title="上のボスの表に要求フォースが無いので、オーセンティックの先頭に仮置きしている">要求未登録</span>' : ''}</td>
             ${cols.map(c => {
                 const x = b[c.key];
                 if (!x) return '<td colspan="2" class="px-1.5 py-0.5 text-center text-slate-700 border-l border-slate-800">—</td>';
