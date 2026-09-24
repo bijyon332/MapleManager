@@ -91,118 +91,102 @@ const costCalc = {
     buildHTML() {
         return `
         <style>
-            .cc-wrapper { max-width: 1120px; margin: 0 auto; }
-            .cc-header { text-align: center; margin-bottom: 28px; }
-            .cc-header h1 {
-                font-family: 'Orbitron', sans-serif; font-size: clamp(16px, 3.5vw, 28px);
-                font-weight: 900; letter-spacing: 0.06em;
-                background: linear-gradient(120deg, #f5a623 0%, #e8621a 45%, #5b9cf6 100%);
-                -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-            }
-            .cc-header p { color: #8892aa; font-size: 12px; margin-top: 6px; }
+            .cc-wrapper { max-width: 1480px; }
+            .cc-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+            .cc-header h1 { font-size: 18px; font-weight: 700; color: #fff; margin: 0; white-space: nowrap; }
+            .cc-header p { color: #8b98ad; font-size: 11.5px; margin: 0; }
             .cc-sec-label {
-                font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
-                color: #5b9cf6; margin-bottom: 10px;
+                font-size: 11px; font-weight: 600; color: #8b98ad; margin-bottom: 4px;
                 display: flex; align-items: center; gap: 8px;
             }
-            .cc-sec-label::after { content: ''; flex: 1; height: 1px; background: #1e2a45; }
-            .cc-top-bar { display: flex; gap: 12px; align-items: stretch; margin-bottom: 24px; flex-wrap: wrap; }
-            .cc-global-bar-label { font-size: 10px; color: #8892aa; font-weight: 700; letter-spacing: 0.08em; }
-            .cc-event-checks { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+            .cc-sec-label::after { content: ''; flex: 1; height: 1px; background: #1e293b; }
+            .cc-toolbar { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; margin-bottom: 8px; background: #0f172a; border: 1px solid #1e293b; }
+            .cc-tool { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-left: 1px solid #1e293b; }
+            .cc-tool:first-child { border-left: 0; }
+            .cc-global-bar-label, .cc-bulk-label { font-size: 11px; color: #8b98ad; font-weight: 600; white-space: nowrap; }
+            .cc-event-checks { display: flex; gap: 0; }
             .cc-ev-btn {
-                display: flex; align-items: center; gap: 6px;
-                background: #161c2e; border: 1px solid #1e2a45; border-radius: 7px;
-                padding: 6px 11px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
-                user-select: none;
+                display: flex; align-items: center; gap: 5px;
+                background: #020617; border: 1px solid #334155; border-radius: 0; margin-left: -1px;
+                padding: 2px 9px; cursor: pointer; user-select: none;
             }
-            .cc-ev-btn:hover { border-color: #3a7bd5; }
-            .cc-ev-btn.active { border-color: #5b9cf6; background: rgba(91,156,246,0.12); }
-            .cc-ev-btn span { font-size: 12px; font-weight: 600; color: #e8eaf0; }
-            .cc-ev-dot { width: 8px; height: 8px; border-radius: 50%; background: #1e2a45; transition: background 0.15s; flex-shrink: 0; }
-            .cc-ev-btn.active .cc-ev-dot { background: #5b9cf6; box-shadow: 0 0 6px #5b9cf6; }
-            .cc-live-total {
-                background: linear-gradient(135deg, rgba(58,123,213,0.15), rgba(245,166,35,0.1));
-                border: 1px solid rgba(91,156,246,0.35); border-radius: 12px;
-                padding: 14px 22px; display: flex; flex-direction: column; justify-content: center;
-                gap: 4px; min-width: 180px;
-            }
-            .cc-live-total .lt-label { font-size: 10px; color: #8892aa; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+            .cc-ev-btn:first-child { margin-left: 0; }
+            .cc-ev-btn:hover { border-color: #6366f1; position: relative; }
+            .cc-ev-btn.active { border-color: #6366f1; background: #312e81; position: relative; }
+            .cc-ev-btn span { font-size: 12px; font-weight: 600; color: #e2e8f0; }
+            .cc-ev-dot { display: none; }
+            .cc-live-total { margin-left: auto; display: flex; align-items: center; gap: 10px; padding: 3px 12px; border-left: 1px solid #1e293b; background: #111a2e; }
+            .cc-live-total .lt-label { font-size: 11px; color: #8b98ad; font-weight: 600; }
             .cc-live-total .lt-val {
-                font-family: 'Orbitron', sans-serif; font-size: 28px; font-weight: 900; color: #f5a623;
-                transition: color 0.2s; line-height: 1;
+                font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums;
+                font-size: 24px; font-weight: 700; color: #f5a623; line-height: 1; min-width: 6ch; text-align: right;
             }
-            .cc-live-total .lt-val .u { font-size: 13px; color: #8892aa; font-family: 'Noto Sans JP', sans-serif; margin-left: 3px; }
-            .cc-live-total .lt-hint { font-size: 10px; color: #8892aa; }
-            .cc-equip-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 7px; margin-bottom: 28px; }
+            .cc-live-total .lt-val .u { font-size: 12px; color: #8b98ad; margin-left: 3px; }
+            .cc-live-total .lt-hint { font-size: 10.5px; color: #64748b; }
+            .cc-equip-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; margin-bottom: 8px; max-width: 1180px; }
             .cc-equip-card {
-                background: #111522; border: 1px solid #1e2a45; border-radius: 10px;
-                padding: 9px 8px 11px; display: flex; flex-direction: column; gap: 5px;
-                cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s, opacity 0.2s, background 0.15s;
-                user-select: none;
+                background: #0f172a; border: 1px solid #1e293b; border-radius: 0;
+                padding: 4px 5px 5px; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 2px 4px; align-items: center; align-content: start;
+                cursor: pointer; user-select: none;
             }
-            .cc-equip-card:not(.inactive):hover { border-color: rgba(91,156,246,0.6); box-shadow: 0 0 14px rgba(58,123,213,0.22); }
+            .cc-equip-card:not(.inactive):hover { border-color: #6366f1; }
             .cc-equip-card.ph { background: transparent; border: none; pointer-events: none; cursor: default; }
-            .cc-equip-card.inactive { opacity: 0.25; background: #161c2e; }
+            .cc-equip-card.inactive { opacity: 0.3; background: #020617; }
             .cc-equip-card select { pointer-events: auto; }
             .cc-equip-card.inactive select { pointer-events: none; }
             .cc-card-name {
-                font-size: 11px; font-weight: 700; color: #f5a623;
+                grid-column: 1 / -1; font-size: 12px; font-weight: 700; color: #f5a623;
                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             }
-            .cc-equip-card.inactive .cc-card-name { color: #8892aa; }
-            .cc-fld-lbl { font-size: 9px; color: #8892aa; font-weight: 600; margin-top: 2px; }
+            .cc-equip-card.inactive .cc-card-name { color: #8b98ad; }
+            .cc-fld-lbl { font-size: 10px; color: #64748b; font-weight: 600; text-align: right; white-space: nowrap; }
             .cc-equip-card select {
-                font-size: 11px; padding: 5px 6px; width: 100%; cursor: pointer;
-                background: #161c2e; border: 1px solid #1e2a45; border-radius: 6px;
-                color: #e8eaf0; font-family: 'Noto Sans JP', sans-serif; outline: none;
-                transition: border-color 0.15s;
+                font-size: 11.5px; padding: 1px 3px; width: 100%; cursor: pointer;
+                background: #020617; border: 1px solid #334155; border-radius: 0;
+                color: #e2e8f0; font-family: "IBM Plex Mono", ui-monospace, monospace; outline: none;
             }
-            .cc-equip-card select:focus { border-color: #3a7bd5; }
-            .cc-result-panel { background: #111522; border: 1px solid #1e2a45; border-radius: 13px; padding: 22px; }
-            .cc-bk { overflow-x: auto; margin-top: 4px; }
-            .cc-bk table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            .cc-equip-card select:focus { border-color: #6366f1; }
+            .cc-result-panel { background: #0f172a; border: 1px solid #1e293b; border-top: 2px solid #6366f1; border-radius: 0; padding: 6px 8px; }
+            .cc-bk { overflow-x: auto; margin-top: 2px; }
+            .cc-bk table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
             .cc-bk th {
-                background: #161c2e; color: #8892aa; font-weight: 700; font-size: 10px;
-                letter-spacing: 0.06em; padding: 8px 10px; text-align: left; border-bottom: 1px solid #1e2a45; white-space: nowrap;
+                background: #0f172a; color: #64748b; font-weight: 600; font-size: 11px;
+                padding: 4px 8px; text-align: left; border-bottom: 1px solid #334155; white-space: nowrap;
             }
-            .cc-bk td { padding: 7px 10px; border-bottom: 1px solid rgba(30,42,69,0.5); }
+            .cc-bk td { padding: 3px 8px; border-bottom: 1px solid #172036; }
+            .cc-bk tbody tr:nth-child(even) td { background: #0c1428; }
             .cc-bk tr:last-child td { border-bottom: none; }
-            .cc-bk tr:hover td { background: rgba(255,255,255,0.02); }
-            .cc-bk td.num { text-align: right; font-weight: 700; color: #f5a623; font-variant-numeric: tabular-nums; }
-            .cc-bk td.sub { color: #8892aa; font-size: 10px; }
-            .cc-bk td.tot { text-align: right; font-weight: 700; color: #e8621a; font-variant-numeric: tabular-nums; }
-            .cc-bk tfoot td { background: #161c2e; font-weight: 700; padding: 9px 10px; border-top: 1px solid #1e2a45; font-size: 12px; }
-            .cc-bk tfoot td.tot { color: #f5a623; font-size: 14px; }
-            .cc-empty-msg { color: #8892aa; font-size: 13px; padding: 12px 0; }
+            .cc-bk tr:hover td { background: #18223a; }
+            .cc-bk td.num { text-align: right; font-weight: 700; color: #f5a623; font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+            .cc-bk td.sub { color: #8b98ad; font-size: 11px; }
+            .cc-bk td.tot { text-align: right; font-weight: 700; color: #fb923c; font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+            .cc-bk tfoot td { background: #111a2e; font-weight: 700; padding: 5px 8px; border-top: 1px solid #334155; font-size: 12.5px; }
+            .cc-bk tfoot td.tot { color: #f5a623; font-size: 15px; }
+            .cc-empty-msg { color: #8b98ad; font-size: 12.5px; padding: 8px 0; }
             .cc-show-detail-btn {
-                display: block; width: 100%; padding: 12px;
-                background: #161c2e; border: 1px solid #1e2a45; border-radius: 9px;
-                color: #8892aa; font-family: 'Noto Sans JP', sans-serif; font-size: 12px; font-weight: 700;
-                cursor: pointer; transition: border-color 0.15s, color 0.15s; margin-bottom: 20px;
+                display: block; width: 100%; padding: 4px;
+                background: #0f172a; border: 1px solid #1e293b; border-radius: 0;
+                color: #8b98ad; font-family: inherit; font-size: 12px; font-weight: 700;
+                cursor: pointer; margin-bottom: 8px;
             }
-            .cc-show-detail-btn:hover { border-color: #3a7bd5; color: #e8eaf0; }
-            .cc-bulk-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; align-items: center; }
-            .cc-bulk-label { font-size: 10px; color: #8892aa; font-weight: 700; letter-spacing: 0.06em; white-space: nowrap; }
+            .cc-show-detail-btn:hover { border-color: #6366f1; color: #e2e8f0; }
             .cc-bulk-btn {
-                padding: 6px 12px; border-radius: 7px; border: 1px solid #1e2a45;
-                background: #161c2e; color: #e8eaf0; font-family: 'Noto Sans JP', sans-serif;
-                font-size: 11px; font-weight: 700; cursor: pointer;
-                transition: border-color 0.15s, background 0.15s, color 0.15s; white-space: nowrap;
+                padding: 2px 9px; border-radius: 0; border: 1px solid #334155;
+                background: #020617; color: #e2e8f0; font-family: inherit;
+                font-size: 11.5px; font-weight: 700; cursor: pointer; white-space: nowrap;
             }
             .cc-bulk-btn.sf:hover  { border-color: #f5a623; color: #f5a623; }
-            .cc-bulk-btn.pot:hover { border-color: #5b9cf6; color: #5b9cf6; }
-            .cc-bulk-sep { width: 1px; height: 20px; background: #1e2a45; margin: 0 2px; }
-            @media (max-width: 640px) { .cc-equip-grid { grid-template-columns: repeat(4, 1fr); } }
+            .cc-bulk-btn.pot:hover { border-color: #6366f1; color: #a5b4fc; }
+            @media (max-width: 900px) { .cc-equip-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
         </style>
         <div class="cc-wrapper">
             <div class="cc-header">
-                <h1>MAPLE COST CALCULATOR</h1>
-                <p>Star Force &amp; Potential Enhancement Cost Estimator</p>
+                <h1>Gear Cost Calculator</h1>
+                <p>スターフォースと潜在の期待費用。カードを押すとその部位を計算から外します。</p>
             </div>
-            <div class="cc-sec-label">Settings &amp; Total Cost</div>
-            <div class="cc-top-bar">
-                <div style="display:flex; flex-direction:column; gap:8px; justify-content:center;">
-                    <div class="cc-global-bar-label">Event Discount</div>
+            <div class="cc-toolbar">
+                <div class="cc-tool">
+                    <span class="cc-global-bar-label">Event</span>
                     <div class="cc-event-checks" id="cc-event-checks">
                         <div class="cc-ev-btn active" data-val="none"><div class="cc-ev-dot"></div><span>None</span></div>
                         <div class="cc-ev-btn" data-val="meso30"><div class="cc-ev-dot"></div><span>meso -30%</span></div>
@@ -210,28 +194,23 @@ const costCalc = {
                         <div class="cc-ev-btn" data-val="both"><div class="cc-ev-dot"></div><span>both</span></div>
                     </div>
                 </div>
+                <div class="cc-tool">
+                    <span class="cc-bulk-label">一括 ★</span>
+                    <button class="cc-bulk-btn sf" id="cc-bulk-sf18">18&#9733;</button>
+                    <button class="cc-bulk-btn sf" id="cc-bulk-sf21">21&#9733;</button>
+                    <button class="cc-bulk-btn sf" id="cc-bulk-sf22">22&#9733;</button>
+                </div>
+                <div class="cc-tool">
+                    <span class="cc-bulk-label">一括 潜在</span>
+                    <button class="cc-bulk-btn pot" id="cc-bulk-pot-first">2ライン</button>
+                    <button class="cc-bulk-btn pot" id="cc-bulk-pot-third">3ライン</button>
+                </div>
                 <div class="cc-live-total">
-                    <div class="lt-label">Total Cost (Expected)</div>
+                    <div class="lt-label">合計（期待値）</div>
                     <div class="lt-val" id="cc-live-val">0<span class="u">g</span></div>
-                    <div class="lt-hint">Click a card to exclude it</div>
                 </div>
             </div>
-            <div class="cc-sec-label">Bulk Set</div>
-            <div class="cc-bulk-bar">
-                <span class="cc-bulk-label">Star Force</span>
-                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                    <button class="cc-bulk-btn sf" id="cc-bulk-sf18">All 18&#9733;</button>
-                    <button class="cc-bulk-btn sf" id="cc-bulk-sf21">All 21&#9733;</button>
-                    <button class="cc-bulk-btn sf" id="cc-bulk-sf22">All 22&#9733;</button>
-                </div>
-                <div class="cc-bulk-sep"></div>
-                <span class="cc-bulk-label">Potential</span>
-                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                    <button class="cc-bulk-btn pot" id="cc-bulk-pot-first">All 2-Line</button>
-                    <button class="cc-bulk-btn pot" id="cc-bulk-pot-third">All 3-Line</button>
-                </div>
-            </div>
-            <div class="cc-sec-label">Equipment Settings</div>
+            <div class="cc-sec-label">装備</div>
             <div class="cc-equip-grid" id="cc-equip-grid"></div>
             <button class="cc-show-detail-btn" id="cc-toggle-detail">&#9660; Show Breakdown</button>
             <div class="cc-result-panel" id="cc-result-panel" style="display:none">
@@ -318,7 +297,7 @@ const costCalc = {
 
             if (!eq.noSF) {
                 const lvLbl = document.createElement('div');
-                lvLbl.className = 'cc-fld-lbl'; lvLbl.textContent = 'Equip Level';
+                lvLbl.className = 'cc-fld-lbl'; lvLbl.textContent = 'Lv';
                 card.appendChild(lvLbl);
 
                 const lvSel = document.createElement('select');
@@ -333,7 +312,7 @@ const costCalc = {
                 card.appendChild(lvSel);
 
                 const sfLbl = document.createElement('div');
-                sfLbl.className = 'cc-fld-lbl'; sfLbl.textContent = 'Target \u2605 (from 0\u2605)';
+                sfLbl.className = 'cc-fld-lbl'; sfLbl.textContent = '\u2605'; sfLbl.title = '目標の★（0★から）';
                 card.appendChild(sfLbl);
 
                 const toSel = document.createElement('select');
@@ -352,7 +331,7 @@ const costCalc = {
 
             if (eq.potType) {
                 const ptLbl = document.createElement('div');
-                ptLbl.className = 'cc-fld-lbl'; ptLbl.textContent = 'Target Potential';
+                ptLbl.className = 'cc-fld-lbl'; ptLbl.textContent = '潜在'; ptLbl.title = '目標の潜在';
                 card.appendChild(ptLbl);
 
                 const ptSel = document.createElement('select');
