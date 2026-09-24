@@ -191,6 +191,15 @@
                     <i data-lucide="hexagon" class="w-3.5 h-3.5"></i>トラッカー
                 </button>
             </nav>
+            <!-- EXP Tracker sub navigation (shown only for the ranks app) -->
+            <nav id="ranks-nav" class="hidden self-stretch mr-3 flex-shrink-0">
+                <button type="button" data-tab="board" class="ranks-tab-btn htab nav-active flex items-center gap-1.5">
+                    <i data-lucide="list-ordered" class="w-3.5 h-3.5"></i>リーダーボード
+                </button>
+                <button type="button" data-tab="trend" class="ranks-tab-btn htab nav-inactive flex items-center gap-1.5">
+                    <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>推移
+                </button>
+            </nav>
             <!-- Community Members sub navigation (shown only for the community app) -->
             <nav id="community-nav" class="hidden self-stretch mr-3 flex-shrink-0">
                 <button onclick="community.setTab('roster')" id="cnav-roster"

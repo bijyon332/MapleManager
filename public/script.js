@@ -534,6 +534,7 @@ const app = {
         },
         ranks: {
             view: 'view-ranks',
+            nav: 'ranks-nav',
             html: 'ranks.html',
             cdn: [CHART_JS],
             scripts: ['exp_data.js', 'ranks.js'],

@@ -553,9 +553,9 @@ const ranks = {
     renderTabs() {
         document.querySelectorAll('.ranks-tab-btn').forEach(btn => {
             const active = btn.dataset.tab === this.activeTab;
-            btn.classList.toggle('bg-indigo-600', active);
-            btn.classList.toggle('text-white', active);
-            btn.classList.toggle('text-slate-400', !active);
+            // タブは上部バー（index.html の ranks-nav）にある。
+            btn.classList.toggle('nav-active', active);
+            btn.classList.toggle('nav-inactive', !active);
         });
         const board = document.getElementById('ranks-tab-board');
         const trend = document.getElementById('ranks-tab-trend');
@@ -979,7 +979,7 @@ const ranks = {
             const arrow = active ? (this.sortDir === 'desc' ? ' ▼' : ' ▲') : '';
             const alignCls = col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left';
             const textCls = active ? 'text-indigo-300' : 'text-slate-400';
-            return `<th data-sort="${sortable ? col.key : ''}" class="px-3 py-3 text-xs font-bold tracking-wide whitespace-nowrap ${alignCls} ${this._colBg(col, 'head')} ${textCls} ${sortable ? 'cursor-pointer select-none hover:text-white' : ''}">${col.label}${arrow}</th>`;
+            return `<th data-sort="${sortable ? col.key : ''}" class="px-2 py-1.5 text-[11px] font-semibold whitespace-nowrap ${alignCls} ${this._colBg(col, 'head')} ${textCls} ${sortable ? 'cursor-pointer select-none hover:text-white' : ''}">${col.label}${arrow}</th>`;
         }).join('') + '</tr>';
 
         body.innerHTML = rows.map(row => this._boardRowHtml(row, rank290, rank295)).join('');
@@ -1030,7 +1030,7 @@ const ranks = {
 
         const tds = this.BOARD_COLUMNS.map(col => {
             const alignCls = col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left';
-            return `<td class="px-3 py-2.5 align-middle ${alignCls} ${this._colBg(col, 'cell')}">${inner[col.key]}</td>`;
+            return `<td class="px-2 py-1 align-middle ${alignCls} ${this._colBg(col, 'cell')}">${inner[col.key]}</td>`;
         }).join('');
 
         const rowHtml = `

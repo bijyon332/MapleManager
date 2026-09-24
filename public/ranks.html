@@ -1,20 +1,13 @@
 <!-- EXP Leaderboard & Progress のマークアップ。
      index.html の #view-ranks に、初回オープン時に読み込まれる
      （script.js の APPS テーブルを参照）。動かすのは ranks.js。 -->
-<div class="max-w-[1600px] mx-auto space-y-4">
+<div class="max-w-[1600px] space-y-2">
     <!-- キャラ追加用の検索バー -->
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-        <div class="flex items-center gap-3 mb-3">
-            <div class="bg-indigo-600/20 border border-indigo-500/30 rounded-lg p-2">
-                <i data-lucide="line-chart" class="w-4 h-4 text-indigo-400"></i>
-            </div>
-            <div class="flex-1 min-w-0">
-                <h2 class="text-white font-bold text-base leading-tight">EXP Tracker</h2>
-                <p class="text-[11px] text-slate-500">キャラ名で検索して追加。データはMapleHubから自動取得(日次スナップショット 最大90日分)。</p>
-            </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2">
+        <div class="flex items-baseline gap-3 mb-2 min-w-0">
+            <h2 class="text-white font-bold text-lg leading-tight whitespace-nowrap">EXP Tracker</h2>
+            <p class="text-[11px] text-slate-500 truncate">キャラ名で検索して追加。データはMapleHubから自動取得(日次スナップショット 最大90日分)。</p>
         </div>
-
-        <!-- Import form -->
         <form id="ranks-import-form" class="space-y-2">
             <div class="flex flex-wrap items-center gap-2">
                 <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
@@ -24,12 +17,12 @@
                 <div class="flex-1 relative min-w-[220px]">
                     <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
                     <input type="text" id="ranks-input-name" placeholder="キャラクター名で検索して追加"
-                        class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white outline-none focus:border-indigo-500">
+                        class="w-full bg-slate-950 border border-slate-700 rounded-lg pl-9 pr-3 py-1 text-sm text-white outline-none focus:border-indigo-500">
                 </div>
-                <button type="submit" id="ranks-import-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors">
+                <button type="submit" id="ranks-import-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors">
                     <i data-lucide="plus" class="w-3.5 h-3.5"></i>追加
                 </button>
-                <button type="button" id="ranks-refresh-all" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors" title="全キャラのデータをMapleHubから再取得">
+                <button type="button" id="ranks-refresh-all" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors" title="全キャラのデータをMapleHubから再取得">
                     <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>全更新
                 </button>
             </div>
@@ -44,15 +37,7 @@
         <div id="ranks-msg" class="hidden mt-2 text-[11px] font-medium"></div>
     </div>
 
-    <!-- Tabs: リーダーボード / 推移 -->
-    <div class="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-xl p-1 w-fit">
-        <button type="button" data-tab="board" class="ranks-tab-btn px-5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5">
-            <i data-lucide="list-ordered" class="w-3.5 h-3.5"></i>リーダーボード
-        </button>
-        <button type="button" data-tab="trend" class="ranks-tab-btn px-5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5">
-            <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>推移
-        </button>
-    </div>
+    <!-- リーダーボード / 推移 の切り替えは上部バー（index.html の ranks-nav）にある。 -->
 
     <!-- ===== Leaderboard tab ===== -->
     <div id="ranks-tab-board">
