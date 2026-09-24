@@ -884,24 +884,32 @@ const app = {
         </div>`;
     },
 
-    // 上部バーの収入欄。サーバーごとの収入は全桁、合計は 77.36B のように縮めて全桁はツールチップに出す。
+    // 上部バーの収入欄。左の「週 / 月」で集計期間を切り替え、サーバーごとに収入（全桁）と、その下に結晶の埋まり具合（バーと個数）を出す。
     // Kronos / Challenger の欄はそのままサーバーの切り替えボタンを兼ねる（別の切り替えボタンを置くと上部バーに収まらない）。
     // 幅を固定して、桁が変わっても横の並びを動かさない。
-    headerStatsHTML({ revMode, total, k, c, worldLimit, kOn, cOn }) {
-        const short = n => n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : Math.floor(n).toLocaleString();
+    headerStatsHTML({ revMode, k, c, worldLimit, kOn, cOn }) {
         const full = n => Math.floor(n).toLocaleString();
-        const srv = (key, name, color, s, on) => `
+        const srv = (key, name, color, s, on) => {
+            const pct = Math.min(100, worldLimit ? s.count / worldLimit * 100 : 0);
+            const isFull = s.count >= worldLimit;
+            return `
             <button type="button" onclick="app.setServer('${key}')" title="${name} に切り替え"
                 class="mm-hstat mm-hstat-srv ${on ? `border-b-${color}-400 bg-${color}-950/40` : 'opacity-45 hover:opacity-80'}">
-                <span class="text-[11px] font-semibold text-${color}-400">${name}</span>
-                <span class="mm-hstat-full font-mono text-[13px] font-semibold text-${color}-300">${full(s.rev)}</span>
-                <span class="font-mono text-[10px] ${s.count >= worldLimit ? 'text-red-400' : 'text-slate-500'}" title="結晶の数">${s.count}/${worldLimit}</span>
+                <span class="flex items-baseline gap-1">
+                    <span class="text-[11px] font-semibold text-${color}-400">${name}</span>
+                    <span class="mm-hstat-full font-mono text-[13px] font-semibold text-${color}-300">${full(s.rev)}</span>
+                </span>
+                <span class="mm-cry" title="結晶 ${s.count} / ${worldLimit}（残り ${Math.max(0, worldLimit - s.count)}）">
+                    <span class="mm-cry-bar"><span class="${isFull ? 'bg-red-400' : `bg-${color}-400`}" style="width:${pct}%"></span></span>
+                    <span class="mm-cry-n font-mono text-[11px] font-semibold ${isFull ? 'text-red-400' : 'text-slate-200'}">${s.count}<span class="text-slate-500 font-normal">/${worldLimit}</span></span>
+                </span>
             </button>`;
+        };
+        const seg = (mode, label) => `<span class="mm-seg ${revMode === mode ? 'mm-seg-on' : ''}">${label}</span>`;
         return `
             <div class="flex items-stretch h-full">
-                <button type="button" class="mm-hstat group" onclick="app.toggleRevenueMode()" title="クリックで週 / 月を切り替え">
-                    <span class="text-[11px] font-semibold text-slate-400 group-hover:text-slate-200">${revMode === 'monthly' ? '月計' : '週計'}</span>
-                    <span class="mm-hstat-v font-mono text-sm font-semibold text-amber-300" title="${full(total)}">${short(total)}</span>
+                <button type="button" class="mm-hstat" style="gap:0" onclick="app.toggleRevenueMode()" title="クリックで週 / 月を切り替え">
+                    ${seg('weekly', '週')}${seg('monthly', '月')}
                 </button>
                 ${srv('KRONOS', 'Kronos', this.data.config.serverKColor || 'emerald', k, kOn)}
                 ${srv('CHALLENGER', 'Challenger', this.data.config.serverCColor || 'purple', c, cOn)}
@@ -940,7 +948,7 @@ const app = {
             c.innerHTML = ''; if (e) e.classList.remove('hidden');
             const statsContainer = document.getElementById('dashboard-stats-container');
             if (statsContainer) {
-                statsContainer.innerHTML = this.headerStatsHTML({ revMode: this.data.config.revenueMode || 'weekly', total: 0, k: { rev: 0, count: 0 }, c: { rev: 0, count: 0 }, worldLimit: this.data.config.worldMaxCrystals || 180, kOn: false, cOn: false });
+                statsContainer.innerHTML = this.headerStatsHTML({ revMode: this.data.config.revenueMode || 'weekly', k: { rev: 0, count: 0 }, c: { rev: 0, count: 0 }, worldLimit: this.data.config.worldMaxCrystals || 180, kOn: false, cOn: false });
                 lucide.createIcons();
             }
             return;
@@ -976,7 +984,6 @@ const app = {
         const cStats = calcStats(this.data.characters.filter(c => c.server === 'CHALLENGER'));
 
         const rev = (s) => Math.floor(revMode === 'monthly' ? (s.weekly * 4 + s.monthly) : s.weekly);
-        const totalRev = rev(kStats) + rev(cStats);
 
         const activeSrv = this.data.config.activeServer;
         const kOpacity = activeSrv === 'ALL' || activeSrv === 'KRONOS' ? 'opacity-100' : 'opacity-40';
@@ -984,7 +991,7 @@ const app = {
 
         const statsContainer = document.getElementById('dashboard-stats-container');
         if (statsContainer) {
-            statsContainer.innerHTML = this.headerStatsHTML({ revMode, total: totalRev, k: { rev: rev(kStats), count: kStats.count }, c: { rev: rev(cStats), count: cStats.count }, worldLimit, kOn: kOpacity === 'opacity-100', cOn: cOpacity === 'opacity-100' });
+            statsContainer.innerHTML = this.headerStatsHTML({ revMode, k: { rev: rev(kStats), count: kStats.count }, c: { rev: rev(cStats), count: cStats.count }, worldLimit, kOn: kOpacity === 'opacity-100', cOn: cOpacity === 'opacity-100' });
         }
 
         const addCardHTML = `
