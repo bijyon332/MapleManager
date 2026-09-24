@@ -88,48 +88,49 @@
     /* ---------- styles ---------- */
     // モーダルは .cm の外（body直下）に出すので、共通ルールは .cm-veil にも効かせる。
     const CSS = `
-.cm,.cm-veil{--bg:#0b1020;--sf:#141a2c;--sf2:#1b2238;--ln:#2b3350;--tx:#e8ecf8;--mu:#8792ae;
+.cm,.cm-veil{--bg:#020617;--sf:#0f172a;--sf2:#0b1324;--ln:#1e293b;--ln2:#334155;--tx:#e2e8f0;--mu:#8b98ad;
 --ac:#818cf8;--ok:#4ade80;--warn:#fbbf24;--red:#f87171;
-color:var(--tx);font-family:"Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;font-size:13px;line-height:1.6}
-.cm{padding:4px 0 48px}
+color:var(--tx);font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;font-size:13px;line-height:1.5}
+.cm{padding:0 0 24px}
 .cm *,.cm-veil *{box-sizing:border-box}
-.cm .wrap{max-width:1180px;margin:0 auto}
-.cm h1{font-family:"Orbitron",system-ui,sans-serif;font-size:26px;font-weight:700;
-letter-spacing:.06em;margin:0 0 4px;text-transform:uppercase}
-.cm .sub{color:var(--mu);margin:0 0 22px;font-size:12.5px}
+.cm .wrap{max-width:1480px}
+.cm .head{display:flex;align-items:baseline;gap:12px;margin:0 0 8px}
+.cm .head .stat{margin-left:auto;color:var(--mu);font-size:11.5px;font-family:"IBM Plex Mono",ui-monospace,monospace;white-space:nowrap}
+.cm .meg{display:flex;align-items:center;gap:6px;flex:1 1 100%;min-width:0;padding-top:5px;border-top:1px solid var(--ln)}
+.cm h1{font-size:18px;font-weight:700;margin:0;color:#fff;white-space:nowrap}
+.cm .sub{color:var(--mu);margin:0;font-size:11.5px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cm .spacer{flex:1}
 
 .cm input,.cm select,.cm textarea,.cm-veil input,.cm-veil select,.cm-veil textarea{
-background:var(--bg);border:1px solid var(--ln);border-radius:7px;color:var(--tx);
-padding:6px 9px;font:inherit;font-size:12.5px;outline:none;min-width:0}
+background:var(--bg);border:1px solid var(--ln2);border-radius:0;color:var(--tx);
+padding:3px 7px;font:inherit;font-size:12.5px;outline:none;min-width:0}
 .cm input:focus,.cm select:focus,.cm textarea:focus,
 .cm-veil input:focus,.cm-veil select:focus,.cm-veil textarea:focus{border-color:var(--ac)}
 .cm input::placeholder,.cm-veil input::placeholder{color:#5b6480}
-.cm button,.cm-veil button{background:var(--sf2);border:1px solid var(--ln);border-radius:7px;
-color:var(--tx);padding:6px 11px;font:inherit;font-size:12.5px;cursor:pointer;
+.cm button,.cm-veil button{background:var(--sf2);border:1px solid var(--ln2);border-radius:0;
+color:var(--tx);padding:3px 9px;font:inherit;font-size:12.5px;cursor:pointer;
 display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .cm button:hover,.cm-veil button:hover{border-color:var(--ac)}
 .cm button:disabled,.cm-veil button:disabled{opacity:.45;cursor:not-allowed}
-.cm .primary,.cm-veil .primary{background:var(--ac);border-color:var(--ac);color:#0b1020;font-weight:700}
-.cm .primary:hover,.cm-veil .primary:hover{opacity:.88}
+.cm .primary,.cm-veil .primary{background:#4f46e5;border-color:#6366f1;color:#fff;font-weight:700}
+.cm .primary:hover,.cm-veil .primary:hover{background:#6366f1}
 .cm .danger:hover,.cm-veil .danger:hover{border-color:var(--red);color:var(--red)}
-.cm .icon,.cm-veil .icon{padding:5px;border-radius:6px;color:var(--mu)}
+.cm .icon,.cm-veil .icon{padding:3px;border-radius:0;color:var(--mu)}
 .cm .icon:hover{color:var(--tx)}
 
-.cm .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--sf);
-border:1px solid var(--ln);border-radius:11px;padding:10px 12px;margin-bottom:14px}
+.cm .bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--sf);
+border:1px solid var(--ln);border-radius:0;padding:5px 8px;margin-bottom:8px}
 .cm .bar .add{display:flex;gap:6px}
-.cm .bar #cm-new-member{width:160px}
-.cm .bar #cm-new-display{width:140px}
-.cm .bar #cm-q{width:240px}
+.cm .bar #cm-new-member{width:130px}
+.cm .bar #cm-new-display{width:120px}
+.cm .bar #cm-q{width:210px}
 
 .cm .bar.me{margin-top:-6px;padding:7px 12px}
-.cm .bar.me .melabel{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
-color:var(--mu);font-weight:700}
-.cm .bar.me #cm-me{min-width:170px}
+.cm .bar .melabel{font-size:11px;color:var(--mu);font-weight:700}
+.cm .bar #cm-me{min-width:140px}
 .cm .menote{color:var(--mu);font-size:11px}
-.cm .sync{font-size:11px;color:var(--mu);border:1px solid var(--ln);border-radius:999px;
-padding:2px 10px;white-space:nowrap}
+.cm .sync{font-size:10.5px;color:var(--mu);border:1px solid var(--ln);border-radius:0;
+padding:1px 6px;white-space:nowrap;margin-left:auto}
 .cm .sync.synced{border-color:#2f5d43;color:#86efac}
 .cm .sync.saving{border-color:#4a5480;color:#c9d2f0}
 .cm .sync.local{border-color:var(--ln);color:var(--mu)}
@@ -142,30 +143,30 @@ color:var(--mu);padding:8px 14px;font-size:12.5px;font-weight:700}
 .cm .tab.on{color:#fff;border-bottom-color:var(--ac);background:rgba(129,140,248,.08)}
 .cm .tabs .stat{margin-left:auto;color:var(--mu);font-size:11.5px;font-family:ui-monospace,monospace}
 
-.cm .empty{color:var(--mu);text-align:center;padding:44px 12px;border:1px dashed var(--ln);border-radius:12px}
+.cm .empty{color:var(--mu);text-align:center;padding:24px 12px;border:1px dashed var(--ln);border-radius:0}
 .cm .tab .badge{background:var(--warn);color:#241a00;border-radius:999px;font-size:9.5px;
 font-weight:700;padding:0 5px;margin-left:6px;vertical-align:1px}
 .cm .tab .badge:empty{display:none}
-.cm .todo{margin-bottom:22px}
-.cm .todo .eyebrow{font-family:"Orbitron",monospace;font-size:10.5px;letter-spacing:.2em;
-color:var(--mu);text-transform:uppercase;margin:0 0 9px;display:flex;align-items:center;gap:8px}
+.cm .todo{margin-bottom:12px}
+.cm .todo .eyebrow{font-size:11px;font-weight:600;
+color:var(--mu);margin:0 0 4px;display:flex;align-items:center;gap:8px}
 .cm .todo .cnt{font-family:ui-monospace,monospace;letter-spacing:0;color:var(--tx);
-background:var(--sf2);border:1px solid var(--ln);border-radius:999px;padding:0 8px}
+background:var(--sf2);border:1px solid var(--ln);border-radius:0;padding:0 6px}
 .cm .todobar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
 .cm .todobar .spacer{flex:1}
 .cm .todobar select,.cm .todobar input{min-width:170px}
 .cm .cfoot select{flex:1;min-width:0;font-size:11px;padding:3px 6px}
 
-.cm .mcard{background:var(--sf);border:1px solid var(--ln);border-radius:12px;margin-bottom:10px;overflow:hidden}
-.cm .mhead{display:flex;align-items:center;gap:9px;padding:10px 12px;cursor:pointer}
+.cm .mcard{background:var(--sf);border:1px solid var(--ln);border-radius:0;margin-bottom:6px;overflow:hidden}
+.cm .mhead{display:flex;align-items:center;gap:8px;padding:4px 8px;cursor:pointer;background:#111a2e}
 .cm .mhead:hover{background:rgba(129,140,248,.05)}
 .cm .mdot{width:8px;height:8px;border-radius:50%;flex:none}
 .cm .mname{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none;max-width:260px}
 .cm .mname .alias{font-weight:400;color:var(--mu);font-size:12px;margin-left:7px}
 .cm .mmeta{color:var(--mu);font-size:11.5px;font-family:ui-monospace,monospace;white-space:nowrap;flex:none}
 .cm .gtags{display:flex;gap:4px;flex-wrap:wrap;overflow:hidden}
-.cm .chip{background:var(--sf2);border:1px solid var(--ln);border-radius:999px;
-padding:1px 8px;font-size:10.5px;color:var(--mu);white-space:nowrap;
+.cm .chip{background:var(--sf2);border:1px solid var(--ln2);border-radius:0;
+padding:0 6px;font-size:10.5px;color:var(--mu);white-space:nowrap;
 display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .cm .ccard .chip{background:var(--sf)}
 .cm .chip.on{border-color:#4a5480;color:#c9d2f0}
@@ -173,78 +174,77 @@ display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .cm .caret{transition:transform .15s ease;color:var(--mu);display:inline-flex}
 .cm .mcard.closed .caret{transform:rotate(-90deg)}
 .cm .mcard.closed .cbody{display:none}
-.cm .cbody{border-top:1px solid var(--ln);padding:8px 12px 12px}
+.cm .cbody{border-top:1px solid var(--ln);padding:6px 8px 6px}
 
 /* メンバーを開いた先はキャラのカードを並べる。キャラ画像を主役にしたいので
    アバターは88px、その右に 名前 / Lv+職 / ギルド / 操作 を積む。 */
-.cm .cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));gap:8px}
-.cm .ccard{display:grid;grid-template-columns:88px minmax(0,1fr);gap:11px;
-background:var(--sf2);border:1px solid var(--ln);border-radius:11px;padding:9px}
-.cm .ccard:hover{border-color:#3d4770}
-.cm .avatar{position:relative;width:88px;height:88px;border-radius:9px;background:var(--bg);
+.cm .cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:4px}
+.cm .ccard{display:grid;grid-template-columns:56px minmax(0,1fr);gap:8px;
+background:var(--sf2);border:1px solid var(--ln);border-radius:0;padding:4px}
+.cm .ccard:hover{border-color:#4f46e5}
+.cm .avatar{position:relative;width:56px;height:56px;border-radius:0;background:var(--bg);
 border:1px solid var(--ln);overflow:hidden;flex:none}
 .cm .avatar img.face{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 .cm .avatar .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#3d4767}
 .cm .cinfo{display:flex;flex-direction:column;min-width:0;padding-top:1px}
-.cm .cname{font-size:13.5px;font-weight:700;line-height:1.35;word-break:break-all}
+.cm .cname{font-size:13.5px;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cm .cmeta{display:flex;align-items:baseline;gap:8px;min-width:0;margin-top:1px}
 .cm .cmeta .job{color:var(--mu);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cm .cfoot{display:flex;align-items:center;gap:6px;margin-top:auto;min-width:0}
 .cm .cfoot .chip{min-width:0;flex:0 1 auto}
-.cm .flag{background:rgba(129,140,248,.16);color:#c7cdfb;border-radius:4px;
+.cm .flag{background:rgba(129,140,248,.16);color:#c7cdfb;border-radius:0;
 font-size:9.5px;padding:1px 5px;margin-left:6px;letter-spacing:.06em;vertical-align:1px}
-.cm .lv{font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--mu)}
-.cm .lv b{color:var(--tx);font-size:15px;font-weight:700}
+.cm .lv{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--mu)}
+.cm .lv b{color:#fff;font-size:14px;font-weight:700}
 .cm .lv.none b{color:var(--warn)}
 .cm .cbtns{display:flex;gap:2px;justify-content:flex-end;margin-left:auto;flex:none}
 .cm .ccard .cbtns{opacity:.5;transition:opacity .12s ease}
 .cm .ccard:hover .cbtns,.cm .ccard:focus-within .cbtns{opacity:1}
 
-.cm .addrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:10px;
-padding-top:10px;border-top:1px dashed var(--ln)}
-.cm .addrow input[data-cm="nc-name"]{width:190px}
-.cm .addrow input[data-cm="nc-guild"]{width:150px}
+.cm .addrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;
+padding-top:6px;border-top:1px solid var(--ln)}
+.cm .addrow input[data-cm="nc-name"]{width:160px}
+.cm .addrow input[data-cm="nc-guild"]{width:130px}
 .cm .addrow .hint{color:var(--mu);font-size:11px}
 
-.cm .tblwrap{overflow-x:auto;background:var(--sf);border:1px solid var(--ln);border-radius:12px}
+.cm .tblwrap{overflow-x:auto;background:var(--sf);border:1px solid var(--ln);border-radius:0}
 .cm table{width:100%;border-collapse:collapse;min-width:840px}
-.cm th{text-align:left;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mu);
-font-weight:700;padding:10px;border-bottom:1px solid var(--ln);white-space:nowrap}
+.cm th{text-align:left;font-size:11px;color:#64748b;
+font-weight:600;padding:5px 8px;border-bottom:1px solid var(--ln2);white-space:nowrap}
 .cm th.sortable{cursor:pointer;user-select:none}
 .cm th.sortable:hover{color:var(--tx)}
 .cm th .dir{color:var(--ac);margin-left:3px}
-.cm td{padding:7px 10px;border-bottom:1px solid rgba(43,51,80,.5);vertical-align:middle}
+.cm td{padding:2px 8px;height:34px;border-bottom:1px solid #172036;vertical-align:middle}
+.cm tbody tr:nth-child(even){background:#0c1428}
 .cm tbody tr:last-child td{border-bottom:0}
-.cm tbody tr:hover{background:rgba(129,140,248,.04)}
-.cm td.num{font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums;text-align:right}
+.cm tbody tr:hover{background:#18223a}
+.cm td.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-weight:600;color:#fff;font-variant-numeric:tabular-nums;text-align:right}
 .cm td .who{display:flex;align-items:center;gap:7px}
 .cm .handle{color:var(--mu);font-size:10.5px;margin-left:6px}
 .cm td .who .mdot{width:7px;height:7px}
-.cm .thumb{position:relative;width:34px;height:34px;border-radius:7px;background:var(--bg);
+.cm .thumb{position:relative;width:28px;height:28px;border-radius:0;background:var(--bg);
 border:1px solid var(--ln);overflow:hidden}
 .cm .thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 
-.cm .gwrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
-.cm .gcard{background:var(--sf);border:1px solid var(--ln);border-radius:12px;padding:12px 14px}
+.cm .gwrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:6px}
+.cm .gcard{background:var(--sf);border:1px solid var(--ln);border-top:2px solid #4f46e5;border-radius:0;padding:6px 10px}
 .cm .gcard h3{margin:0 0 2px;font-size:14px;font-weight:700}
-.cm .gcard .gstat{color:var(--mu);font-size:11.5px;font-family:ui-monospace,monospace;margin-bottom:9px}
-.cm .gcard ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.cm .gcard .gstat{color:var(--mu);font-size:11.5px;font-family:"IBM Plex Mono",ui-monospace,monospace;margin-bottom:4px}
+.cm .gcard ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
 .cm .gcard li{display:flex;align-items:center;gap:7px;font-size:12px}
 .cm .gcard li .lvs{margin-left:auto;font-family:ui-monospace,monospace;color:var(--mu);font-size:11.5px}
-.cm .gcard li img{width:18px;height:18px;border-radius:4px;object-fit:contain;flex:none}
+.cm .gcard li img{width:18px;height:18px;border-radius:0;object-fit:contain;flex:none}
 .cm .gcard li .who{color:var(--mu);font-size:11px}
 
 .cm-veil{position:fixed;inset:0;background:rgba(6,8,16,.74);display:flex;align-items:center;
 justify-content:center;padding:20px;z-index:60}
 .cm-veil.top{z-index:70}
-.cm-veil .modal{background:var(--sf);border:1px solid var(--ln);border-radius:13px;width:100%;
-max-width:440px;padding:20px;box-shadow:0 24px 60px rgba(0,0,0,.55);max-height:88vh;overflow:auto}
+.cm-veil .modal{background:var(--sf);border:1px solid var(--ln2);border-top:2px solid #6366f1;border-radius:0;width:100%;
+max-width:440px;padding:14px 16px;box-shadow:0 24px 60px rgba(0,0,0,.55);max-height:88vh;overflow:auto}
 .cm-veil .modal.wide{max-width:880px}
-.cm-veil h2{font-family:"Orbitron",system-ui,sans-serif;font-size:15px;letter-spacing:.14em;
-text-transform:uppercase;margin:0 0 16px;font-weight:700}
+.cm-veil h2{font-size:15px;margin:0 0 10px;font-weight:700}
 .cm-veil .fld{margin-bottom:11px}
-.cm-veil .fld label{display:block;color:var(--mu);font-size:10.5px;text-transform:uppercase;
-letter-spacing:.1em;font-weight:700;margin-bottom:4px}
+.cm-veil .fld label{display:block;color:var(--mu);font-size:10.5px;font-weight:600;margin-bottom:2px}
 .cm-veil .fld input,.cm-veil .fld select,.cm-veil .fld textarea{width:100%}
 .cm-veil .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .cm-veil .chk{display:flex;align-items:center;gap:7px;font-size:12.5px;cursor:pointer}
@@ -264,9 +264,9 @@ font-weight:700;margin-bottom:6px}
 @keyframes cm-pop{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
 
 .cm-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:80;
-background:#1b2238;border:1px solid #2b3350;color:#e8ecf8;border-radius:9px;
+background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:0;
 padding:9px 16px;font-size:12.5px;box-shadow:0 12px 34px rgba(0,0,0,.5);
-font-family:"Hiragino Sans","Yu Gothic UI",system-ui,sans-serif}
+font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-serif}
 .cm-toast.ok{border-color:#4ade80;color:#bbf7d0}
 .cm-toast.warn{border-color:#fbbf24;color:#fde68a}
 .cm-toast.err{border-color:#f87171;color:#fecaca}
@@ -401,9 +401,9 @@ font-family:"Hiragino Sans","Yu Gothic UI",system-ui,sans-serif}
         shell() {
             return '<style>' + CSS + '</style>' +
                 '<div class="cm"><div class="wrap">' +
-                '<h1>Community Members</h1>' +
-                '<p class="sub">Discord名にキャラクターを紐づけてコミュニティの名簿を作ります。1人が何体でも登録できます。' +
-                'キャラ名を入れると レベル・職・キャラ画像 をランキングAPIから取得します（所属ギルドは手入力）。</p>' +
+                '<div class="head"><h1>Community Members</h1>' +
+                '<p class="sub">Discord名にキャラクターを紐づけた名簿。キャラ名を入れると レベル・職・画像 をランキングAPIから取得します（ギルドは手入力）。</p>' +
+                '<span class="stat" id="cm-stat"></span></div>' +
                 '<div class="bar">' +
                 // Discord名は「誰か」を決める識別子、表示名は各ツールに出る呼び名。
                 // 別物なので入口で両方受け取る（表示名は後から編集でも可）。
@@ -418,41 +418,41 @@ font-family:"Hiragino Sans","Yu Gothic UI",system-ui,sans-serif}
                 '<button data-cm="refresh-all" id="cm-refresh-all" title="登録済みキャラのレベル・職・画像を取り直す">' +
                 '<i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>全員を更新</button>' +
                 '<button data-cm="open-data"><i data-lucide="database" class="w-3.5 h-3.5"></i>データ</button>' +
-                '</div>' +
                 // 「自分は誰か」は名簿以外の3アプリ（Planner / Scheduler / Leaderboard）が
                 // 参照する。ここで選ぶとこの端末に覚える。
-                '<div class="bar me">' +
-                '<span class="melabel">自分</span>' +
+                '<span class="meg"><span class="melabel">自分</span>' +
                 '<select id="cm-me" data-cm="me" title="この端末の持ち主。Planner・Scheduler・Leaderboardの初期選択に使います"></select>' +
                 '<span id="cm-me-note" class="menote"></span>' +
-                '<span class="spacer"></span>' +
-                '<span id="cm-sync" class="sync"></span>' +
-                '</div>' +
-                '<div class="tabs">' +
-                '<button class="tab" data-cm="tab" data-tab="roster">名簿</button>' +
-                '<button class="tab" data-cm="tab" data-tab="list">キャラ一覧</button>' +
-                '<button class="tab" data-cm="tab" data-tab="guild">ギルド別</button>' +
-                '<button class="tab" data-cm="tab" data-tab="todo">未割り当て<span id="cm-todo-badge" class="badge"></span></button>' +
-                '<span class="stat" id="cm-stat"></span>' +
+                '<span id="cm-sync" class="sync"></span></span>' +
                 '</div>' +
                 '<div id="cm-body"></div>' +
                 '<datalist id="cm-guild-list"></datalist>' +
                 '</div></div>';
         },
 
+        // タブは上部バー（index.html の community-nav）に置いている。
+        setTab(tab) { this.state.ui.tab = tab; this.save(); this.render(); },
+        syncNav() {
+            for (const id of ['roster', 'list', 'guild', 'todo']) {
+                const b = document.getElementById('cnav-' + id);
+                if (!b) continue;
+                const on = this.state.ui.tab === id;
+                b.classList.toggle('nav-active', on);
+                b.classList.toggle('nav-inactive', !on);
+            }
+        },
+
         render() {
             if (!this.root) return;
             const ui = this.state.ui;
-            this.root.querySelectorAll('[data-cm="tab"]').forEach((b) => {
-                b.classList.toggle('on', b.dataset.tab === ui.tab);
-            });
+            this.syncNav();
             const all = this.allChars();
             const stat = this.root.querySelector('#cm-stat');
             if (stat) {
                 stat.textContent = `${this.state.members.length} メンバー / ${all.length} キャラ / ${this.guilds().length} ギルド`;
             }
             // 未割り当てタブのバッジ（人に未割り当て＋ギルド未設定の合計）
-            const badge = this.root.querySelector('#cm-todo-badge');
+            const badge = document.getElementById('cm-todo-badge');
             if (badge) {
                 const todo = (CS() ? CS().pending().length : 0) + all.filter((c) => !c.guild).length;
                 badge.textContent = todo ? String(todo) : '';

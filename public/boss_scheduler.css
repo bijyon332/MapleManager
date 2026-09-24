@@ -9,12 +9,12 @@
 body {
     background-color: #020617;
     color: #e2e8f0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+    font-family: "IBM Plex Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif;
 }
 
 ::-webkit-scrollbar          { width: 7px; height: 7px; }
 ::-webkit-scrollbar-track    { background: #0f172a; }
-::-webkit-scrollbar-thumb    { background: #334155; border-radius: 4px; }
+::-webkit-scrollbar-thumb    { background: #334155; border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
 .title-font { font-family: "Orbitron", sans-serif; letter-spacing: 0.06em; }
@@ -26,7 +26,7 @@ body {
 .badge {
     display: inline-flex; align-items: center;
     font-size: 9px; font-weight: 700; letter-spacing: 0.05em;
-    padding: 1px 6px; border-radius: 4px; text-transform: uppercase;
+    padding: 1px 6px; border-radius: 2px; text-transform: uppercase;
     line-height: 1.5;
 }
 .badge-easy    { background-color: #374151; color: #9ca3af; border: 1px solid #4b5563; }
@@ -54,13 +54,13 @@ body {
 .role-tag {
     display: inline-block; margin-left: 5px; padding: 0 4px;
     font-size: 9px; font-weight: 700; line-height: 1.5;
-    color: #0b1220; background: var(--role-sub); border-radius: 3px;
+    color: #0b1220; background: var(--role-sub); border-radius: 2px;
     vertical-align: middle;
 }
 /* キャラカードのメイン／サブ切り替え */
 .role-pill {
     font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;
-    padding: 2px 8px; border-radius: 10px; cursor: pointer; flex-shrink: 0;
+    padding: 2px 8px; border-radius: 2px; cursor: pointer; flex-shrink: 0;
     background: #150f04; border: 1px solid var(--role-sub); color: var(--role-sub-text);
 }
 .role-pill:hover { background: #1d1406; }
@@ -75,7 +75,7 @@ input, select, textarea {
     background: #020617;
     border: 1px solid #1e293b;
     color: #e2e8f0;
-    border-radius: 5px;
+    border-radius: 2px;
     padding: 5px 8px;
     font-size: 12px;
     font-family: inherit;
@@ -91,7 +91,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 /* === Buttons === */
 .btn {
     background: #1e293b; color: #e2e8f0; border: 1px solid #334155;
-    padding: 5px 11px; border-radius: 5px; font-size: 12px; font-weight: 600;
+    padding: 5px 11px; border-radius: 2px; font-size: 12px; font-weight: 600;
     cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
     transition: background 0.15s, border-color 0.15s, color 0.15s;
     line-height: 1;
@@ -111,7 +111,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 /* === Shared bits === */
 .empty-state {
     padding: 1.25rem 1rem; text-align: center;
-    border: 1px dashed #1e293b; border-radius: 8px;
+    border: 1px dashed #1e293b; border-radius: 2px;
     color: #475569; font-size: 12px;
 }
 .col-header {
@@ -136,7 +136,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 }
 .app-bar .season-name {
     font-size: 12px; font-weight: 700; color: #cbd5e1;
-    background: transparent; border: 1px dashed transparent; padding: 3px 7px; border-radius: 5px;
+    background: transparent; border: 1px dashed transparent; padding: 3px 7px; border-radius: 2px;
     min-width: 150px;
 }
 .app-bar .season-name:hover { border-color: #334155; }
@@ -153,7 +153,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 /* 共有DBとの同期状態 */
 .sync-badge {
     display: inline-flex; align-items: center; gap: 5px;
-    padding: 3px 9px; border-radius: 12px; cursor: pointer;
+    padding: 3px 9px; border-radius: 2px; cursor: pointer;
     font-size: 10.5px; font-weight: 700; font-family: monospace;
     background: #0f172a; border: 1px solid #1e293b; color: #64748b;
     transition: background 0.12s, border-color 0.12s, color 0.12s;
@@ -167,7 +167,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 
 /* === Panel === */
 .panel {
-    background: #0f172a; border: 1px solid #1e293b; border-radius: 9px;
+    background: #0f172a; border: 1px solid #1e293b; border-radius: 2px;
     margin-bottom: 12px;
 }
 .panel-head {
@@ -183,7 +183,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .boss-chip {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 3px 9px 3px 4px;
-    background: #0b1220; border: 1px solid #1e293b; border-radius: 6px;
+    background: #0b1220; border: 1px solid #1e293b; border-radius: 2px;
     cursor: pointer; font-size: 12px; font-weight: 600; color: #cbd5e1;
     line-height: 1.4;
     transition: background 0.12s, border-color 0.12s, color 0.12s;
@@ -196,19 +196,19 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 }
 .boss-chip .chip-count {
     font-size: 9.5px; font-family: monospace; color: #64748b;
-    background: #020617; padding: 0 5px; border-radius: 8px;
+    background: #020617; padding: 0 5px; border-radius: 2px;
 }
 .boss-chip.active .chip-count { color: #c7d2fe; }
 
 .boss-icon {
-    width: 32px; height: 32px; border-radius: 6px;
+    width: 32px; height: 32px; border-radius: 2px;
     display: flex; align-items: center; justify-content: center;
     background: color-mix(in srgb, var(--boss-color, #6366f1) 18%, #0f172a);
     color: var(--boss-color, #6366f1);
     border: 1px solid color-mix(in srgb, var(--boss-color, #6366f1) 35%, #1e293b);
     overflow: hidden; flex-shrink: 0;
 }
-.boss-icon.sm { width: 22px; height: 22px; border-radius: 5px; }
+.boss-icon.sm { width: 22px; height: 22px; border-radius: 2px; }
 .boss-icon img {
     width: 100%; height: 100%; object-fit: contain; padding: 2px;
     image-rendering: -webkit-optimize-contrast;
@@ -218,7 +218,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .diff-select { display: flex; gap: 4px; flex-wrap: wrap; }
 .diff-btn {
     background: #0b1220; border: 1px solid #1e293b; color: #94a3b8;
-    border-radius: 5px; padding: 4px 10px; font-size: 11.5px; font-weight: 700;
+    border-radius: 2px; padding: 4px 10px; font-size: 11.5px; font-weight: 700;
     cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
 }
 .diff-btn:hover { border-color: #334155; color: #e2e8f0; }
@@ -233,7 +233,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .member-card {
     text-align: left; background: #0b1220;
     border: 1px solid #1e293b; border-left: 3px solid var(--member-color, #6366f1);
-    border-radius: 7px; padding: 9px 11px;
+    border-radius: 2px; padding: 9px 11px;
     display: flex; flex-direction: column; gap: 4px; cursor: pointer;
     transition: background 0.12s, border-color 0.12s;
 }
@@ -249,13 +249,13 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 
 .char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 9px; }
 .char-card {
-    background: #020617; border: 1px solid #1e293b; border-radius: 7px; padding: 9px 10px;
+    background: #020617; border: 1px solid #1e293b; border-radius: 2px; padding: 9px 10px;
 }
 .char-card.inactive { opacity: 0.5; }
 .cc-top { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
 .cc-name {
     flex: 1; min-width: 0; font-size: 13.5px; font-weight: 700; color: #f1f5f9;
-    background: transparent; border: 1px dashed transparent; padding: 2px 5px; border-radius: 4px;
+    background: transparent; border: 1px dashed transparent; padding: 2px 5px; border-radius: 2px;
 }
 .cc-name:hover { border-color: #334155; }
 .cc-name:focus { border-color: #6366f1; border-style: solid; background: #0f172a; }
@@ -267,7 +267,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .cc-ranks a { color: #64748b; }
 .cc-ranks a:hover { color: #a5b4fc; text-decoration: underline; }
 .char-icon {
-    width: 30px; height: 30px; border-radius: 5px;
+    width: 30px; height: 30px; border-radius: 2px;
     background: #0b1220; border: 1px solid #1e293b;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0; overflow: hidden;
@@ -278,13 +278,13 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .char-tabs { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
 .char-tab {
     background: #0b1220; border: 1px solid #1e293b; color: #cbd5e1;
-    border-radius: 6px; padding: 5px 11px; font-size: 12px; font-weight: 700;
+    border-radius: 2px; padding: 5px 11px; font-size: 12px; font-weight: 700;
     cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
 }
 .char-tab:hover { border-color: #475569; color: #fff; }
 .char-tab[aria-pressed="true"] { background: #1e1b4b; border-color: #6366f1; color: #fff; }
 .char-tab .icon {
-    width: 20px; height: 20px; border-radius: 4px; flex-shrink: 0; overflow: hidden;
+    width: 20px; height: 20px; border-radius: 2px; flex-shrink: 0; overflow: hidden;
     background: #020617; display: flex; align-items: center; justify-content: center;
 }
 .char-tab .icon img { width: 100%; height: 100%; object-fit: contain; }
@@ -296,7 +296,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     font-size: 11.5px; color: #94a3b8; margin-bottom: 8px;
 }
-.wish-rows { border: 1px solid #1e293b; border-radius: 7px; overflow: hidden; }
+.wish-rows { border: 1px solid #1e293b; border-radius: 2px; overflow: hidden; }
 .wish-row {
     display: flex; align-items: center; gap: 11px; flex-wrap: wrap;
     padding: 7px 10px; background: #020617; border-bottom: 1px solid #0f172a;
@@ -332,7 +332,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
  * ========================================================= */
 .builder-bar {
     display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
-    background: #0f172a; border: 1px solid #1e293b; border-radius: 7px;
+    background: #0f172a; border: 1px solid #1e293b; border-radius: 2px;
     padding: 7px 9px; margin-bottom: 10px;
 }
 .builder-bar .bar-label {
@@ -345,7 +345,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 @media (max-width: 900px) { .builder { grid-template-columns: 1fr; } }
 
 .cand-pane {
-    background: #0f172a; border: 1px solid #1e293b; border-radius: 8px;
+    background: #0f172a; border: 1px solid #1e293b; border-radius: 2px;
     padding: 9px; position: sticky; top: 4px;
 }
 .cand-list { display: flex; flex-direction: column; gap: 3px; max-height: 58vh; overflow-y: auto; padding-right: 3px; }
@@ -353,7 +353,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
     display: flex; align-items: center; gap: 7px;
     padding: 5px 7px; background: #0b1220;
     border: 1px solid #1e293b; border-left: 3px solid #334155;
-    border-radius: 5px; cursor: grab; user-select: none; flex-shrink: 0;
+    border-radius: 2px; cursor: grab; user-select: none; flex-shrink: 0;
     transition: background 0.12s, border-color 0.12s, opacity 0.12s;
 }
 .cand:hover { background: #131c2e; border-color: #475569; }
@@ -368,7 +368,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .cand.dragging { opacity: 0.4; }
 .cand.placed-elsewhere { opacity: 0.45; cursor: default; }
 .cand .icon {
-    width: 22px; height: 22px; border-radius: 4px; flex-shrink: 0; overflow: hidden;
+    width: 22px; height: 22px; border-radius: 2px; flex-shrink: 0; overflow: hidden;
     background: #020617; display: flex; align-items: center; justify-content: center;
 }
 .cand .icon img { width: 100%; height: 100%; object-fit: contain; }
@@ -382,11 +382,11 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .upper-badge {
     display: inline-block; font-size: 9px; font-weight: 700;
     color: #fda4af; background: #3b0d22; border: 1px solid #9f1239;
-    border-radius: 3px; padding: 0 4px; margin-top: 2px;
+    border-radius: 2px; padding: 0 4px; margin-top: 2px;
 }
 .drop-back {
     margin-top: 7px; padding: 8px; text-align: center;
-    border: 1px dashed #1e293b; border-radius: 6px;
+    border: 1px dashed #1e293b; border-radius: 2px;
     font-size: 10.5px; color: #475569;
 }
 .drop-back.hot { border-color: #22c55e; border-style: solid; color: #6ee7b7; background: rgba(34,197,94,0.08); }
@@ -395,7 +395,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .party-card {
     background: #0f172a; border: 1px solid #1e293b;
     border-left: 4px solid var(--diff-color, #334155);
-    border-radius: 8px; overflow: hidden;
+    border-radius: 2px; overflow: hidden;
     transition: border-color 0.15s, opacity 0.15s;
 }
 .party-card.blocked { opacity: 0.38; }
@@ -406,7 +406,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 }
 .party-name-input {
     width: 82px; font-size: 12px; font-weight: 700; color: #e2e8f0;
-    background: transparent; border: 1px dashed transparent; padding: 2px 5px; border-radius: 4px;
+    background: transparent; border: 1px dashed transparent; padding: 2px 5px; border-radius: 2px;
 }
 .party-name-input:hover { border-color: #334155; }
 .party-name-input:focus { border-color: #6366f1; border-style: solid; background: #0f172a; }
@@ -414,7 +414,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .party-count.full { color: #6ee7b7; }
 .pill {
     font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-    padding: 2px 8px; border-radius: 10px; cursor: pointer;
+    padding: 2px 8px; border-radius: 2px; cursor: pointer;
     background: #1e293b; border: 1px solid #334155; color: #94a3b8;
 }
 .pill:hover { border-color: #475569; color: #e2e8f0; }
@@ -423,7 +423,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 /* --slot-h: 空きスロットを埋まっているスロット（アイコン＋キャラ名＋メンバー名の
    2行ぶん）と同じ高さに揃える。PTごとに枠の位置がずれると人数が読み取りにくい。 */
 .slots { list-style: none; margin: 0; padding: 5px 6px; display: flex; flex-direction: column; gap: 2px; --slot-h: 50px; }
-.slot { display: flex; align-items: center; gap: 6px; padding: 4px 5px; border-radius: 5px; min-height: var(--slot-h); }
+.slot { display: flex; align-items: center; gap: 6px; padding: 4px 5px; border-radius: 2px; min-height: var(--slot-h); }
 .slot.filled { background: #020617; border: 1px solid #1e293b; cursor: grab; }
 .slot.filled:active { cursor: grabbing; }
 .slot.filled.dragging { opacity: 0.4; }
@@ -434,7 +434,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .slot.empty { border: 1px dashed #1e293b; color: #475569; font-size: 11px; }
 .slot-no { font-size: 9.5px; color: #475569; font-family: monospace; width: 12px; text-align: right; flex-shrink: 0; }
 .slot .icon {
-    width: 22px; height: 22px; border-radius: 4px; flex-shrink: 0; overflow: hidden;
+    width: 22px; height: 22px; border-radius: 2px; flex-shrink: 0; overflow: hidden;
     background: #0b1220; display: flex; align-items: center; justify-content: center;
 }
 .slot .icon img { width: 100%; height: 100%; object-fit: contain; }
@@ -448,12 +448,12 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .slot-cp .hx { font-size: 9.5px; color: #64748b; }
 .slot-x {
     background: none; border: 0; color: #475569; cursor: pointer; flex-shrink: 0;
-    width: 18px; height: 18px; border-radius: 4px;
+    width: 18px; height: 18px; border-radius: 2px;
     display: flex; align-items: center; justify-content: center;
 }
 .slot-x:hover { color: #ef4444; background: #1e293b; }
 .add-here {
-    font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+    font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 2px;
     background: #4f46e5; border: 1px solid #6366f1; color: #fff; cursor: pointer;
 }
 .add-here:hover { background: #6366f1; }
@@ -466,7 +466,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .party-foot strong { color: #a5b4fc; font-weight: 700; }
 .party-memo {
     flex: 1; min-width: 110px; font-family: inherit; font-size: 11px;
-    background: transparent; border: 1px dashed #1e293b; padding: 2px 6px; border-radius: 4px;
+    background: transparent; border: 1px dashed #1e293b; padding: 2px 6px; border-radius: 2px;
 }
 .party-memo:focus { border-color: #6366f1; border-style: solid; background: #0f172a; }
 
@@ -475,7 +475,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
  * ========================================================= */
 .dash-hero {
     background: linear-gradient(180deg, #131c33 0%, #0b1220 100%);
-    border: 1px solid #1e293b; border-radius: 10px;
+    border: 1px solid #1e293b; border-radius: 2px;
     padding: 12px 14px; margin-bottom: 12px;
 }
 .dash-hero-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 9px; }
@@ -484,7 +484,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .mine {
     background: #020617; border: 1px solid #1e293b;
     border-left: 3px solid var(--diff-color, #334155);
-    border-radius: 7px; padding: 8px 10px;
+    border-radius: 2px; padding: 8px 10px;
 }
 .mine-boss { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: #f1f5f9; }
 .mine-who { font-size: 11px; color: #94a3b8; margin-top: 3px; }
@@ -499,7 +499,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
     background: color-mix(in srgb, var(--boss-color, #6366f1) 7%, #0f172a);
     border: 1px solid color-mix(in srgb, var(--boss-color, #6366f1) 24%, #1e293b);
     border-top: 3px solid var(--boss-color, #6366f1);
-    border-radius: 9px; padding: 10px 11px;
+    border-radius: 2px; padding: 10px 11px;
 }
 .boss-card.empty { opacity: 0.55; }
 .boss-card.empty:hover { opacity: 1; }
@@ -513,7 +513,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 }
 .boss-empty-hint {
     text-align: center; font-size: 11px; color: #475569; font-style: italic;
-    padding: 8px; border: 1px dashed #1e293b; border-radius: 6px;
+    padding: 8px; border: 1px dashed #1e293b; border-radius: 2px;
 }
 /* PTカードは左から右へ並べる。段数は定員で決める:
    6人PTは1段、3人PTは2段（PT1の下にPT2、その右にPT3…と列単位で埋まる）。
@@ -540,7 +540,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 }
 .party-mini {
     min-width: 0; background: #020617; border: 1px solid #1e293b;
-    border-radius: 7px; padding: 7px; display: flex; flex-direction: column; gap: 3px;
+    border-radius: 2px; padding: 7px; display: flex; flex-direction: column; gap: 3px;
 }
 .party-mini-head {
     display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
@@ -548,20 +548,20 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 }
 .party-mini-letter {
     font-family: "Orbitron", sans-serif; font-size: 10px; font-weight: 700;
-    background: #1e293b; color: #cbd5e1; padding: 1px 5px; border-radius: 4px;
+    background: #1e293b; color: #cbd5e1; padding: 1px 5px; border-radius: 2px;
 }
 .party-mini-name { font-size: 11.5px; font-weight: 600; color: #cbd5e1; flex: 1; min-width: 0;
                    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .party-mini-members { display: flex; flex-direction: column; gap: 2px; min-height: 24px; }
 .party-mini-member {
     display: flex; align-items: center; gap: 6px;
-    padding: 3px 5px; background: #0f172a; border: 1px solid #1e293b; border-radius: 4px;
+    padding: 3px 5px; background: #0f172a; border: 1px solid #1e293b; border-radius: 2px;
 }
 .party-mini-member.sub { border-left: 3px solid var(--role-sub); }
 .party-mini-member.sub .pmm-name { color: var(--role-sub-text); }
 .party-mini-member.vacant { border-style: dashed; border-color: #3b0d22; background: #0b1220; }
 .party-mini-member .mini-icon {
-    width: 20px; height: 20px; border-radius: 3px; background: #020617;
+    width: 20px; height: 20px; border-radius: 2px; background: #020617;
     display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
 }
 .party-mini-member .mini-icon img { width: 100%; height: 100%; object-fit: contain; }
@@ -581,7 +581,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .gap-list { display: flex; flex-direction: column; gap: 3px; max-height: 46vh; overflow-y: auto; padding-right: 3px; }
 .gap-row {
     display: flex; align-items: center; gap: 7px;
-    padding: 5px 7px; background: #020617; border: 1px solid #1e293b; border-radius: 5px;
+    padding: 5px 7px; background: #020617; border: 1px solid #1e293b; border-radius: 2px;
     font-size: 12px; flex-shrink: 0;
 }
 .gap-row:hover { border-color: #475569; }
@@ -612,7 +612,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 /* 確認ダイアログは他のモーダル（データ画面など）の上に出す */
 #confirm-modal { z-index: 70; }
 .modal {
-    background: #0f172a; border: 1px solid #1e293b; border-radius: 11px;
+    background: #0f172a; border: 1px solid #1e293b; border-radius: 2px;
     width: 100%; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden;
 }
 .modal-head {
@@ -630,7 +630,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .toast {
     position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
     background: #1e293b; border: 1px solid #334155; color: #e2e8f0;
-    padding: 8px 16px; border-radius: 7px; font-size: 12px; font-weight: 600;
+    padding: 8px 16px; border-radius: 2px; font-size: 12px; font-weight: 600;
     box-shadow: 0 8px 24px rgba(0,0,0,0.5); z-index: 90;
 }
 .toast.warn { background: #3b0d22; border-color: #9f1239; color: #fecdd3; }
@@ -653,7 +653,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 
 /* === 画像出力プレビュー === */
 .image-preview-box {
-    background: #020617; border: 1px solid #1e293b; border-radius: 8px;
+    background: #020617; border: 1px solid #1e293b; border-radius: 2px;
     padding: 8px; max-height: 66vh; overflow: auto;
 }
 .image-preview-box img { display: block; width: 100%; height: auto; }
@@ -661,7 +661,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 /* === ソロ消化枠（編成編集） === */
 .solo-card {
     margin-top: 10px;
-    background: #0b1220; border: 1px dashed #334155; border-radius: 8px;
+    background: #0b1220; border: 1px dashed #334155; border-radius: 2px;
     padding: 9px 10px;
     transition: border-color 0.15s, opacity 0.15s;
 }
@@ -676,14 +676,14 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
     display: flex; align-items: center; gap: 6px;
     padding: 4px 6px; min-width: 190px;
     background: #020617; border: 1px solid #1e293b; border-left: 3px solid var(--role-main);
-    border-radius: 5px; cursor: grab;
+    border-radius: 2px; cursor: grab;
 }
 .solo-chip:active { cursor: grabbing; }
 .solo-chip.dragging { opacity: 0.4; }
 .solo-chip.sub { border-left-color: var(--role-sub); }
 .solo-chip.sub .solo-name { color: var(--role-sub-text); }
 .solo-chip .icon {
-    width: 22px; height: 22px; border-radius: 4px; flex-shrink: 0; overflow: hidden;
+    width: 22px; height: 22px; border-radius: 2px; flex-shrink: 0; overflow: hidden;
     background: #0b1220; display: flex; align-items: center; justify-content: center;
 }
 .solo-chip .icon img { width: 100%; height: 100%; object-fit: contain; }
@@ -701,7 +701,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .solo-line-names { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; }
 .solo-name-chip {
     font-size: 11px; color: #cbd5e1;
-    background: #020617; border: 1px solid #1e293b; border-radius: 4px; padding: 1px 6px;
+    background: #020617; border: 1px solid #1e293b; border-radius: 2px; padding: 1px 6px;
 }
 .solo-name-chip.sub { color: var(--role-sub-text); border-color: #3b2708; }
 .solo-name-chip.me { border-color: #6366f1; background: #1e1b4b; }

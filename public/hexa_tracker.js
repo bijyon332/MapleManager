@@ -419,8 +419,8 @@ const hexaTracker = {
     },
 
     buildHTML() {
-        return `<div class="flex flex-col h-[calc(100vh-7rem)] -m-6">
-            <div class="flex-1 overflow-y-auto custom-scrollbar p-5" id="hexa-page">
+        return `<div class="flex flex-col h-[calc(100vh-8.5rem)]">
+            <div class="flex-1 overflow-y-auto custom-scrollbar pr-1" id="hexa-page">
                 ${this.buildPageBody()}
             </div>
         </div>`;
@@ -517,16 +517,16 @@ const hexaTracker = {
         rows.forEach((r, i) => {
             const medal = i === 0 ? '#fcd34d' : i === 1 ? '#cbd5e1' : i === 2 ? '#d97706' : null;
             list += `<button onclick="hexaTracker.openForClass('${r.id}')"
-                class="w-full flex items-center gap-3 px-2.5 py-1.5 rounded-lg text-left transition-colors hover:bg-slate-800/70 ${i % 2 ? 'bg-slate-900/40' : ''}">
+                class="w-full flex items-center gap-3 px-2.5 py-0.5 text-left transition-colors hover:bg-slate-800/70 ${i % 2 ? 'bg-slate-950/50' : ''}">
                 <span class="w-7 text-right text-xs font-bold tabular-nums shrink-0" style="color:${medal || '#64748b'}">${i + 1}</span>
-                <img src="${r.path}" class="w-8 h-8 object-contain shrink-0" loading="lazy" alt="">
-                <span class="w-40 shrink-0 min-w-0">
-                    <span class="block text-xs text-slate-200 truncate">${this.escHtml(r.name)}</span>
-                    <span class="block text-[9px] text-slate-500 truncate">${this.escHtml(r.group)}</span>
+                <img src="${r.path}" class="w-7 h-7 object-contain shrink-0" loading="lazy" alt="">
+                <span class="w-56 shrink-0 min-w-0 flex items-baseline gap-2">
+                    <span class="text-xs text-slate-200 truncate">${this.escHtml(r.name)}</span>
+                    <span class="text-[10px] text-slate-500 truncate">${this.escHtml(r.group)}</span>
                 </span>
                 <span class="flex-1 min-w-0 hidden sm:block">
-                    <span class="block h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                        <span class="block h-full rounded-full" style="width:${(r.frag / maxFrag * 100).toFixed(1)}%;background:linear-gradient(90deg,#7c3aed,#a78bfa)"></span>
+                    <span class="block h-1.5 bg-slate-800 overflow-hidden">
+                        <span class="block h-full" style="width:${(r.frag / maxFrag * 100).toFixed(1)}%;background:linear-gradient(90deg,#7c3aed,#a78bfa)"></span>
                     </span>
                 </span>
                 <span class="w-24 text-right text-xs font-bold tabular-nums text-violet-300 shrink-0">${Math.round(r.frag).toLocaleString()}</span>
@@ -537,10 +537,10 @@ const hexaTracker = {
         });
 
         const fastest = rows[0], slowest = rows[rows.length - 1];
-        return `<div class="max-w-5xl mx-auto">
-            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+        return `<div class="max-w-6xl">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
                 <div>
-                    <h2 class="text-base font-bold text-white flex items-center gap-2">
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2 leading-tight">
                         <i data-lucide="trophy" class="w-4 h-4 text-amber-300"></i>HEXA効率ランキング
                     </h2>
                     <p class="text-[11px] text-slate-500 mt-0.5">
@@ -561,11 +561,11 @@ const hexaTracker = {
                 <span class="text-slate-600">差 ${Math.round(slowest.frag - fastest.frag).toLocaleString()} 欠片（${(slowest.frag / Math.max(1, fastest.frag)).toFixed(1)}倍）</span>
             </div>
 
-            <div class="bg-slate-900 rounded-xl border border-slate-800 p-2">
+            <div class="bg-slate-900 border border-slate-800 py-1">
                 <div class="flex items-center gap-3 px-2.5 pb-1.5 mb-1 border-b border-slate-800 text-[9px] uppercase tracking-wider text-slate-500 font-bold">
                     <span class="w-7 text-right shrink-0">#</span>
-                    <span class="w-8 shrink-0"></span>
-                    <span class="w-40 shrink-0">職業</span>
+                    <span class="w-7 shrink-0"></span>
+                    <span class="w-56 shrink-0">職業</span>
                     <span class="flex-1 hidden sm:block"></span>
                     <span class="w-24 text-right shrink-0">必要欠片</span>
                     <span class="w-16 text-right shrink-0">エルダ</span>
@@ -597,10 +597,10 @@ const hexaTracker = {
                 const p = this.getProgress(cls.id, cls.id);
                 const started = p.fragSpent > 0;
                 cards += `<button onclick="hexaTracker.openForClass('${cls.id}')"
-                    class="flex items-center gap-3 p-2.5 rounded-xl border text-left transition-colors ${started ? 'bg-slate-900 border-violet-800/60 hover:border-violet-500' : 'bg-slate-900/60 border-slate-800 hover:border-slate-600'}">
-                    <img src="${cls.path}" class="w-12 h-12 object-contain shrink-0" loading="lazy" alt="">
+                    class="flex items-center gap-2 px-1.5 py-1 rounded-none border text-left transition-colors ${started ? 'bg-slate-900 border-violet-800/60 hover:border-violet-500' : 'bg-slate-900/60 border-slate-800 hover:border-slate-600'}">
+                    <img src="${cls.path}" class="w-9 h-9 object-contain shrink-0" loading="lazy" alt="">
                     <div class="flex-1 min-w-0">
-                        <div class="text-xs font-bold text-slate-100 truncate">${this.escHtml(cls.name)}</div>
+                        <div class="text-[13px] font-bold text-slate-100 truncate">${this.escHtml(cls.name)}</div>
                         ${started
                             ? `<div class="text-[10px] text-emerald-300 tabular-nums">+${p.fdNow.toFixed(1)}% <span class="text-slate-600">/ +${p.fdMax.toFixed(1)}%</span></div>
                                <div class="h-1 bg-slate-800 rounded-full overflow-hidden mt-1">
@@ -612,16 +612,19 @@ const hexaTracker = {
                 </button>`;
             }
 
-            html += `<div class="mb-4">
-                <div class="flex items-baseline gap-2 px-1 mb-1.5">
+            html += `<div class="mb-3">
+                <div class="flex items-baseline gap-2 px-1 mb-1">
                     <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">${this.escHtml(label)}</span>
                     <span class="text-[10px] text-slate-600">${hexaClasses.length}職</span>
                 </div>
-                <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5">${cards}</div>
+                <div class="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-1">${cards}</div>
             </div>`;
         }
-        return `<div class="max-w-6xl mx-auto">
-            <p class="text-[11px] text-slate-500 mb-3 px-1">職業カードをクリックすると、進捗入力・効率順・効率カーブを開けます。</p>
+        return `<div>
+            <div class="flex items-baseline gap-3 mb-2">
+                <h2 class="text-lg font-bold text-white leading-tight">HEXAトラッカー</h2>
+                <p class="text-[11px] text-slate-500">職業カードをクリックすると、進捗入力・効率順・効率カーブを開けます。</p>
+            </div>
             ${html}
         </div>`;
     },

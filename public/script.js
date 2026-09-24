@@ -275,7 +275,7 @@ const app = {
         const cBtn = document.getElementById('btn-server-challenger');
 
         if (kBtn && cBtn) {
-            const base = "px-2.5 py-1 rounded text-[10px] font-bold transition-all border";
+            const base = "px-2 py-0.5 text-[11px] font-bold transition-all border";
 
             const kActive = "bg-emerald-950/40 text-emerald-200 border-emerald-800 shadow-sm";
             const cActive = "bg-purple-950/40 text-purple-200 border-purple-800 shadow-sm";
@@ -534,6 +534,7 @@ const app = {
         },
         ranks: {
             view: 'view-ranks',
+            nav: 'ranks-nav',
             html: 'ranks.html',
             cdn: [CHART_JS],
             scripts: ['exp_data.js', 'ranks.js'],
@@ -555,6 +556,7 @@ const app = {
         },
         community: {
             view: 'view-community',
+            nav: 'community-nav',
             scripts: ['community.js', 'community_import.js'],
             init() { community.init('community-root'); lucide.createIcons(); }
         },
@@ -579,6 +581,7 @@ const app = {
         },
         liberation: {
             view: 'view-liberation-calc',
+            nav: 'liberation-nav',
             // liberation_calc.js の createLiberationCalc を3つが読み込み時点で使うので、
             // 必ずこの順で読む。
             scripts: ['liberation_calc.js', 'genesis_calc.js', 'destiny_calc.js', 'astra_calc.js'],
@@ -650,8 +653,8 @@ const app = {
         document.querySelectorAll('[id^="view-"]').forEach(e => e.classList.add('hidden-page'));
         this.applyChrome(entry.chrome === 'planner');
 
-        // アプリ専用サブナビ（Boss Scheduler / HEXA）は、そのアプリのときだけ出す。
-        ['scheduler-nav', 'hexa-nav'].forEach(id => {
+        // アプリ専用サブナビ（APPS の nav）は、そのアプリのときだけ出す。
+        Object.values(this.APPS).map(a => a.nav).filter(Boolean).forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             const on = (entry.nav === id);
@@ -674,10 +677,7 @@ const app = {
         const dashStats = document.getElementById('dashboard-stats-container');
         const clockEl = document.querySelector('header > div:last-child');
         if (headerNav) headerNav.style.display = display;
-        if (dashStats) {
-            dashStats.style.display = display;
-            if (dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = display;
-        }
+        if (dashStats) dashStats.style.display = display;
         if (clockEl) clockEl.classList.toggle('ml-auto', !isPlanner);
     },
 
@@ -799,8 +799,8 @@ const app = {
         ['genesis', 'destiny', 'astra'].forEach(t => {
             document.getElementById(`lib-content-${t}`).classList.toggle('hidden', t !== tab);
             const btn = document.getElementById(`lib-tab-btn-${t}`);
-            btn.classList.toggle('tab-active', t === tab);
-            btn.classList.toggle('tab-inactive', t !== tab);
+            btn.classList.toggle('nav-active', t === tab);
+            btn.classList.toggle('nav-inactive', t !== tab);
         });
     },
 
@@ -871,24 +871,48 @@ const app = {
     // ボス1体ぶんのタイル。消し込みはボス単位ではなく、週ボス／月ボスの
     // エリアごと（toggleCharDone）で行うので、ここは表示だけ。
     getBossTileHTML(boss, partySize) {
-        const typeStripe = boss.type === 'WEEKLY' ? 'bg-purple-500' : (boss.type === 'MONTHLY' ? 'bg-yellow-500' : 'bg-cyan-500');
-        const containerClass = boss.type === 'WEEKLY' ? "bg-purple-900/40 border-purple-500/50" : (boss.type === 'MONTHLY' ? "bg-yellow-900/30 border-yellow-500/50" : "bg-cyan-900/40 border-cyan-500/50");
-        const badgeStyle = this.getBadgeClass(boss.difficulty);
         const img = this.getBossImageUrl(boss.name);
         const diff = (boss.difficulty || '').toUpperCase();
         const typeChar = boss.type === 'WEEKLY' ? 'W' : (boss.type === 'MONTHLY' ? 'M' : 'D');
-
+        // 枠全体を難易度の色で囲み、下の帯に難易度をフルで書く。画像が読めないときはボス名を出す。
         return `
         <div title="[${typeChar}] ${boss.difficulty} ${boss.name}${partySize > 1 ? ` ×${partySize}` : ''}"
-            class="relative aspect-square rounded border overflow-hidden task-btn-compact ${containerClass}">
-            <span class="absolute inset-x-0 top-0 h-1 ${typeStripe}"></span>
-            ${img
-                ? `<img src="${img}" alt="${boss.name}" class="w-full h-full object-contain pt-1 pb-2 px-0.5" onerror="this.style.display='none'">`
-                : `<div class="w-full h-full flex items-center justify-center text-[7px] font-bold text-slate-300 px-0.5 text-center leading-tight pt-1">${boss.name}</div>`
-            }
-            <span class="absolute inset-x-0 bottom-0 ${badgeStyle} text-[9px] font-extrabold leading-none uppercase text-center px-0.5 py-0.5 tracking-wider backdrop-blur-sm">${diff}</span>
-            ${partySize > 1 ? `<span class="absolute top-1 left-0 bg-slate-950/80 text-[7px] font-mono font-bold text-blue-300 px-0.5 rounded-br">×${partySize}</span>` : ''}
+            class="mm-tile mm-diff-${diff.toLowerCase()} ${boss.type === 'MONTHLY' ? 'mm-tile-mo' : ''}">
+            <div class="mm-tile-body">
+                ${img ? `<img src="${img}" alt="${boss.name}" onerror="this.nextElementSibling.style.display='block';this.remove()">` : ''}
+                <span class="mm-tile-name" ${img ? 'style="display:none"' : ''}>${this.BOSS_SHORT_NAMES[boss.name] || boss.name}</span>
+            </div>
+            <span class="${this.getBadgeClass(boss.difficulty)} mm-tile-diff">${diff}</span>
+            ${partySize > 1 ? `<span class="absolute top-0 left-0 bg-slate-950/80 text-[9px] font-mono font-bold text-blue-300 px-0.5">×${partySize}</span>` : ''}
         </div>`;
+    },
+
+    // 上部バーの収入欄。左の「週 / 月」で集計期間を切り替え、サーバーごとに、左に結晶アイコンと個数（上限で赤）、右にサーバー名と収入（全桁）を出す。
+    // Kronos / Challenger の欄はそのままサーバーの切り替えボタンを兼ねる（別の切り替えボタンを置くと上部バーに収まらない）。
+    // 幅を固定して、桁が変わっても横の並びを動かさない。
+    headerStatsHTML({ revMode, k, c, worldLimit, kOn, cOn }) {
+        const full = n => Math.floor(n).toLocaleString();
+        const srv = (key, name, color, s, on) => `
+            <button type="button" onclick="app.setServer('${key}')" title="${name} に切り替え"
+                class="mm-hstat mm-hstat-srv ${on ? `border-b-${color}-400 bg-${color}-950/40` : 'opacity-45 hover:opacity-80'}">
+                <span class="mm-hstat-cry border-${color}-500/40 bg-${color}-950/60" title="結晶の数（残り ${Math.max(0, worldLimit - s.count)}）">
+                    <i data-lucide="gem" class="w-3.5 h-3.5 text-${color}-400"></i>
+                    <span class="font-mono text-[10px] leading-none ${s.count >= worldLimit ? 'text-red-400' : 'text-slate-300'}">${s.count}/${worldLimit}</span>
+                </span>
+                <span class="flex flex-col items-start leading-none gap-0.5">
+                    <span class="text-[10px] font-bold tracking-wider text-${color}-400">${name.toUpperCase()}</span>
+                    <span class="mm-hstat-full font-mono text-[17px] font-semibold text-${color}-300">${full(s.rev)}</span>
+                </span>
+            </button>`;
+        const seg = (mode, label) => `<span class="mm-seg ${revMode === mode ? 'mm-seg-on' : ''}">${label}</span>`;
+        return `
+            <div class="flex items-stretch h-full">
+                <button type="button" class="mm-hstat" style="gap:0" onclick="app.toggleRevenueMode()" title="クリックで週 / 月を切り替え">
+                    ${seg('weekly', '週')}${seg('monthly', '月')}
+                </button>
+                ${srv('KRONOS', 'Kronos', this.data.config.serverKColor || 'emerald', k, kOn)}
+                ${srv('CHALLENGER', 'Challenger', this.data.config.serverCColor || 'purple', c, cOn)}
+            </div>`;
     },
 
     renderDashboard() {
@@ -923,39 +947,7 @@ const app = {
             c.innerHTML = ''; if (e) e.classList.remove('hidden');
             const statsContainer = document.getElementById('dashboard-stats-container');
             if (statsContainer) {
-                statsContainer.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <!-- Total Revenue Section -->
-                        <div class="min-w-[200px] flex flex-col items-start justify-center border-r border-slate-700/50 pr-4 mr-1 cursor-pointer group" onclick="app.toggleRevenueMode()">
-                            <div class="text-[10px] uppercase font-black text-slate-400 tracking-widest transition-colors mb-0.5">Total ${(this.data.config.revenueMode || 'weekly') === 'monthly' ? 'Monthly' : 'Weekly'}</div>
-                            <div class="text-xl font-bold font-mono text-amber-300 tracking-tight group-hover:scale-105 transition-transform leading-none shadow-amber-900/20 drop-shadow-md">0</div>
-                        </div>
-
-                        <!-- Kronos Section -->
-                        <div class="w-52 flex items-center gap-2 opacity-40">
-                            <div class="flex flex-col items-center justify-center bg-slate-800/50 rounded px-2 py-1 border border-emerald-900/30 min-w-[54px]">
-                                <i data-lucide="gem" class="w-3.5 h-3.5 text-emerald-400 mb-0.5"></i>
-                                <span class="text-xs font-mono font-bold text-white">0/${this.data.config.worldMaxCrystals || 180}</span>
-                            </div>
-                            <div class="flex flex-col items-start justify-center min-w-0 flex-1">
-                                <span class="text-[11px] uppercase font-bold text-emerald-500 tracking-wider leading-none mb-0.5">Kronos</span>
-                                <span class="text-base font-mono text-emerald-300 font-bold leading-none truncate w-full">0</span>
-                            </div>
-                        </div>
-
-                        <!-- Challenger Section -->
-                        <div class="w-52 flex items-center gap-2 opacity-40">
-                            <div class="flex flex-col items-center justify-center bg-slate-800/50 rounded px-2 py-1 border border-purple-900/30 min-w-[54px]">
-                                <i data-lucide="gem" class="w-3.5 h-3.5 text-purple-400 mb-0.5"></i>
-                                <span class="text-xs font-mono font-bold text-white">0/${this.data.config.worldMaxCrystals || 180}</span>
-                            </div>
-                            <div class="flex flex-col items-start justify-center min-w-0 flex-1">
-                                <span class="text-[11px] uppercase font-bold text-purple-500 tracking-wider leading-none mb-0.5">Challenger</span>
-                                <span class="text-base font-mono text-purple-300 font-bold leading-none truncate w-full">0</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                statsContainer.innerHTML = this.headerStatsHTML({ revMode: this.data.config.revenueMode || 'weekly', k: { rev: 0, count: 0 }, c: { rev: 0, count: 0 }, worldLimit: this.data.config.worldMaxCrystals || 180, kOn: false, cOn: false });
                 lucide.createIcons();
             }
             return;
@@ -990,10 +982,7 @@ const app = {
         const kStats = calcStats(this.data.characters.filter(c => c.server === 'KRONOS'));
         const cStats = calcStats(this.data.characters.filter(c => c.server === 'CHALLENGER'));
 
-        const getRev = (s) => Math.floor(revMode === 'monthly' ? (s.weekly * 4 + s.monthly) : s.weekly).toLocaleString();
-        const kRevDisp = getRev(kStats);
-        const cRevDisp = getRev(cStats);
-        const totalRevDisp = Math.floor((revMode === 'monthly' ? (kStats.weekly * 4 + kStats.monthly) : kStats.weekly) + (revMode === 'monthly' ? (cStats.weekly * 4 + cStats.monthly) : cStats.weekly)).toLocaleString();
+        const rev = (s) => Math.floor(revMode === 'monthly' ? (s.weekly * 4 + s.monthly) : s.weekly);
 
         const activeSrv = this.data.config.activeServer;
         const kOpacity = activeSrv === 'ALL' || activeSrv === 'KRONOS' ? 'opacity-100' : 'opacity-40';
@@ -1001,43 +990,11 @@ const app = {
 
         const statsContainer = document.getElementById('dashboard-stats-container');
         if (statsContainer) {
-            statsContainer.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <!-- Total Revenue Section -->
-                    <div class="min-w-[200px] flex flex-col items-start justify-center border-r border-slate-700/50 pr-4 mr-1 cursor-pointer group" onclick="app.toggleRevenueMode()">
-                        <div class="text-[10px] uppercase font-black text-slate-400 tracking-widest transition-colors mb-0.5">Total ${revMode === 'monthly' ? 'Monthly' : 'Weekly'}</div>
-                        <div class="text-xl font-bold font-mono text-amber-300 tracking-tight group-hover:scale-105 transition-transform leading-none shadow-amber-900/20 drop-shadow-md">${totalRevDisp}</div>
-                    </div>
-
-                    <!-- Kronos Section -->
-                    <div class="w-52 flex items-center gap-2 ${kOpacity} transition-opacity">
-                        <div class="flex flex-col items-center justify-center bg-slate-800/50 rounded px-2 py-1 border border-emerald-900/30 min-w-[54px]">
-                            <i data-lucide="gem" class="w-3.5 h-3.5 text-emerald-400 mb-0.5"></i>
-                            <span class="text-xs font-mono font-bold ${kStats.count >= worldLimit ? 'text-red-400' : 'text-white'}">${kStats.count}/${worldLimit}</span>
-                        </div>
-                        <div class="flex flex-col items-start justify-center min-w-0 flex-1">
-                            <span class="text-[11px] uppercase font-bold text-emerald-500 tracking-wider leading-none mb-0.5">Kronos</span>
-                            <span class="text-base font-mono text-emerald-300 font-bold leading-none truncate w-full">${kRevDisp}</span>
-                        </div>
-                    </div>
-
-                    <!-- Challenger Section -->
-                    <div class="w-52 flex items-center gap-2 ${cOpacity} transition-opacity">
-                        <div class="flex flex-col items-center justify-center bg-slate-800/50 rounded px-2 py-1 border border-purple-900/30 min-w-[54px]">
-                            <i data-lucide="gem" class="w-3.5 h-3.5 text-purple-400 mb-0.5"></i>
-                             <span class="text-xs font-mono font-bold ${cStats.count >= worldLimit ? 'text-red-400' : 'text-white'}">${cStats.count}/${worldLimit}</span>
-                        </div>
-                         <div class="flex flex-col items-start justify-center min-w-0 flex-1">
-                            <span class="text-[11px] uppercase font-bold text-purple-500 tracking-wider leading-none mb-0.5">Challenger</span>
-                            <span class="text-base font-mono text-purple-300 font-bold leading-none truncate w-full">${cRevDisp}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
+            statsContainer.innerHTML = this.headerStatsHTML({ revMode, k: { rev: rev(kStats), count: kStats.count }, c: { rev: rev(cStats), count: cStats.count }, worldLimit, kOn: kOpacity === 'opacity-100', cOn: cOpacity === 'opacity-100' });
         }
 
         const addCardHTML = `
-            <button type="button" onclick="app.openAddCharacterFromDashboard()" class="bg-slate-900/40 hover:bg-slate-800/60 border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-lg flex flex-col items-center justify-center gap-2 transition-all min-h-[13.75rem] w-full max-w-[32rem] text-slate-500 hover:text-indigo-300 group">
+            <button type="button" onclick="app.openAddCharacterFromDashboard()" class="bg-slate-900/40 hover:bg-slate-800/60 border border-dashed border-slate-700 hover:border-indigo-500 flex flex-col items-center justify-center gap-2 transition-all w-full max-w-[32rem] text-slate-500 hover:text-indigo-300 group">
                 <div class="w-14 h-14 rounded-full bg-slate-800 group-hover:bg-indigo-600/20 border border-slate-700 group-hover:border-indigo-500 flex items-center justify-center transition-all"><i data-lucide="plus" class="w-7 h-7"></i></div>
                 <div class="text-sm font-bold">Add Character</div>
                 <div class="text-[10px] text-slate-600 group-hover:text-slate-400">Fetch from Ranking API by name</div>
@@ -1069,89 +1026,77 @@ const app = {
             const countAll = (isWeeklyDone ? wkSorted.length : 0) + (isMonthlyDone ? mB.length : 0);
             const allDone = (wkSorted.length + mB.length > 0) && (!wkSorted.length || isWeeklyDone) && (!mB.length || isMonthlyDone);
 
+            // 月ボス1行・週ボス2行の枠は必ず取り、全カードの高さを揃える。
+            // 枠に収まらない分は最後のマスを「+N and more」にする（中身はツールチップ）。
+            const section = (label, key, list, done, rows) => {
+                const scope = key === 'mo' ? 'monthly' : 'weekly';
+                const cap = rows * 7;
+                const head = `
+                    <div class="flex items-center gap-2 mb-0.5 h-4">
+                        <span class="mm-sec-label ${key === 'mo' ? 'bg-yellow-500 text-slate-950' : 'bg-purple-600 text-white'}">${label}${done && list.length ? ' ✓' : ''}</span>
+                    </div>`;
+                if (!list.length) {
+                    return `<div>${head}<div class="mm-tiles-empty" style="--rows:${rows}">${key === 'mo' ? '月' : '週'}ボスなし</div></div>`;
+                }
+                const shown = list.length > cap ? list.slice(0, cap - 1) : list;
+                const rest = list.slice(shown.length);
+                const more = rest.length ? `
+                    <div class="mm-tile mm-tile-more" title="${rest.map(b => `${b.difficulty} ${b.name}`).join('\n')}">
+                        <span class="text-sm font-mono font-bold text-white leading-none">+${rest.length}</span>
+                        <span class="text-[10px] text-slate-400 leading-none">and more</span>
+                    </div>` : '';
+                return `
+                <div>${head}
+                    <div class="relative">
+                        <div onclick="app.toggleCharDone('${char.id}','${scope}')" title="${done ? 'クリックで消し込みを解除' : `クリックで${key === 'mo' ? '月' : '週'}ボスをまとめて消し込む`}"
+                            class="mm-tiles ${key === 'mo' ? 'mm-tiles-mo' : 'mm-tiles-wk'}" style="--rows:${rows}">
+                            ${shown.map(b => this.getBossTileHTML(b, b.pSize)).join('')}${more}
+                        </div>
+                        ${done ? `
+                        <div onclick="app.toggleCharDone('${char.id}','${scope}')" title="クリックで消し込みを解除"
+                            class="mm-stamp ${key === 'mo' ? 'border-yellow-400/90 text-yellow-300' : 'border-purple-400/90 text-purple-300'}">
+                            <i data-lucide="check-circle-2" class="w-5 h-5"></i><span>COMPLETE</span>
+                        </div>` : ''}
+                    </div>
+                </div>`;
+            };
+
             return `
-            <div class="bg-${sCol}-950/40 border ${allDone ? 'border-emerald-500/70 ring-1 ring-emerald-500/30' : themeClass} rounded-lg overflow-hidden shadow-sm flex transition-all relative w-full max-w-[32rem]">
-                <!-- Left: Slim portrait job image (clickable → opens editor) -->
-                <div onclick="app.openCharModal('${char.id}')" class="w-28 bg-gradient-to-b from-${sCol}-950/80 to-slate-950 border-r border-slate-800 flex-shrink-0 relative overflow-hidden cursor-pointer group hover:brightness-110 transition" title="Edit ${char.name}">
+            <div class="mm-card ${allDone ? 'border-emerald-500/80 ring-1 ring-emerald-500/30' : `border-${sCol}-500/45`} border-t-${sCol}-400 bg-gradient-to-b from-${sCol}-950/40 to-slate-950/60">
+                <!-- 左: 立ち絵（クリックで編集） -->
+                <div onclick="app.openCharModal('${char.id}')" class="w-[5.5rem] bg-gradient-to-b from-${sCol}-950/80 to-slate-950 border-r border-slate-800 flex-shrink-0 relative overflow-hidden cursor-pointer hover:brightness-110 transition" title="Edit ${char.name}">
                     ${char.classImage ? `<img src="${char.classImage}" style="${this.getCharImgStyle(char)}">` : `<div class="w-full h-full flex items-center justify-center text-slate-700"><i data-lucide="user" class="w-8 h-8 opacity-40"></i></div>`}
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none"></div>
-                    <span class="absolute top-1 left-1 px-1 py-0.5 rounded text-[9px] font-bold border ${char.role === 'MAIN' ? 'border-yellow-500/50 text-yellow-300 bg-yellow-950/80' : (char.role === 'SUB' ? 'border-cyan-500/50 text-cyan-300 bg-cyan-950/80' : 'border-slate-600 text-slate-400 bg-slate-900/90')} backdrop-blur-sm">${char.role}</span>
+                    <span class="absolute top-1 left-1 px-1 text-[10px] font-mono font-bold border ${char.role === 'MAIN' ? 'border-yellow-500/50 text-yellow-300 bg-yellow-950/80' : (char.role === 'SUB' ? 'border-cyan-500/50 text-cyan-300 bg-cyan-950/80' : 'border-slate-600 text-slate-400 bg-slate-900/90')}">${char.role}</span>
                     ${hexaReady ? (hexaClassId ? `
                     <button onclick="event.stopPropagation(); hexaTracker.openForCharacter('${char.id}')" title="HEXA Matrix 進捗を開く"
-                        class="absolute bottom-0 left-0 right-0 z-10 py-1 px-1 bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:from-violet-600 hover:via-indigo-500 hover:to-blue-500 text-white flex items-center justify-center gap-1.5 transition-all overflow-hidden border-t border-violet-300/50 shadow-[0_-3px_10px_rgba(20,16,60,0.55)]">
-                        <span class="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/30 to-transparent pointer-events-none"></span>
-                        <i data-lucide="hexagon" class="w-3.5 h-3.5 relative shrink-0 drop-shadow-[0_1px_1px_rgba(0,0,0,.5)]"></i>
-                        <span class="text-xs font-black tracking-widest relative drop-shadow-[0_1px_1px_rgba(0,0,0,.6)]">HEXA</span>
-                        ${hexaPct > 0 ? `<span class="text-[10px] font-bold tabular-nums relative text-blue-100 drop-shadow-[0_1px_1px_rgba(0,0,0,.6)]">${hexaPct}%</span>` : ''}
+                        class="absolute bottom-0 left-0 right-0 z-10 py-0.5 bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:from-violet-600 hover:via-indigo-500 hover:to-blue-500 text-white flex items-center justify-center gap-1 border-t border-violet-300/50 text-[11px] font-mono font-bold">
+                        <i data-lucide="hexagon" class="w-3 h-3 shrink-0"></i>HEXA${hexaPct > 0 ? `<span class="text-blue-100">${hexaPct}%</span>` : ''}
                     </button>` : `
                     <button onclick="event.stopPropagation(); hexaTracker.openForCharacter('${char.id}')" title="HEXA職業を登録"
-                        class="absolute bottom-0 left-0 right-0 z-10 py-1 px-1 bg-violet-950/90 hover:bg-violet-800/80 text-violet-200 border-t-2 border-dashed border-violet-400/70 flex items-center justify-center gap-1 transition-all backdrop-blur-sm shadow-[0_-3px_10px_rgba(20,16,60,0.5)]">
-                        <i data-lucide="plus" class="w-3.5 h-3.5 shrink-0"></i>
-                        <span class="text-xs font-extrabold tracking-widest drop-shadow-[0_1px_1px_rgba(0,0,0,.6)]">HEXA</span>
+                        class="absolute bottom-0 left-0 right-0 z-10 py-0.5 bg-violet-950/90 hover:bg-violet-800/80 text-violet-200 border-t border-dashed border-violet-400/70 flex items-center justify-center gap-1 text-[11px] font-mono font-bold">
+                        <i data-lucide="plus" class="w-3 h-3 shrink-0"></i>HEXA
                     </button>`) : ''}
                 </div>
-                <!-- Right: Header + Boss checklist -->
+                <!-- 右: 名前の行 + ボス -->
                 <div class="flex-1 flex flex-col min-w-0">
-                    <!-- Top: Character info bar -->
-                    <div class="flex items-center gap-2 px-3 py-1.5 border-b border-slate-800 bg-slate-900/40">
-                        <div class="min-w-0 flex-1">
-                            <div class="flex items-baseline gap-2 min-w-0">
-                                <h3 class="text-base font-extrabold text-white truncate leading-tight">${char.name}</h3>
-                                <span class="text-xs font-mono font-extrabold text-${sCol}-300 flex-shrink-0">Lv.${char.level || '?'}</span>
+                    <div class="flex items-center gap-2 px-2 py-1 border-b border-slate-800 bg-slate-900/45">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-baseline gap-2 text-[11px] leading-4">
+                                <span class="text-indigo-300 truncate min-w-0">${char.job || '—'}</span>
+                                <span class="font-mono text-${sCol}-300 flex-shrink-0">Lv.${char.level || '?'}</span>
                             </div>
-                            <p class="text-xs text-indigo-300 font-semibold truncate leading-tight">${char.job || '—'}</p>
+                            <h3 class="text-base font-bold text-white truncate leading-5">${char.name}</h3>
                         </div>
-                        <div class="text-right flex-shrink-0 leading-none">
-                            <div class="text-[9px] text-emerald-400 font-extrabold uppercase tracking-wider">Mesos</div>
-                            <div class="text-lg font-extrabold text-emerald-300 font-mono leading-none mt-0.5">${Math.floor(localMaxTotal).toLocaleString()}</div>
+                        <div class="flex-shrink-0 text-right" title="週の収入（上位${charLimit}体）">
+                            <div class="text-[10px] leading-4 text-slate-500">mesos</div>
+                            <div class="mm-meso font-mono text-base font-semibold text-emerald-300 leading-5">${Math.floor(localMaxTotal).toLocaleString()}</div>
                         </div>
-                        <span class="text-[10px] font-mono font-extrabold text-slate-300 bg-slate-950/70 border border-slate-700 px-2 py-1 rounded flex-shrink-0">${countAll}/${wkSorted.length + mB.length}</span>
+                        <span class="mm-count font-mono text-[11px] text-slate-300 bg-slate-950/70 border border-slate-700 px-1.5 self-center">${countAll}/${wkSorted.length + mB.length}</span>
                     </div>
-                    <!-- Boss checklist (min height ≈ 4 boss rows total: Monthly + 3 Weekly, or 4 Weekly) -->
-                    <div class="flex-1 p-1.5 bg-slate-950/20 space-y-1 min-h-[13.75rem]">
-                        ${mB.length ? `
-                        <div>
-                            <div class="flex items-center gap-1.5 mb-0.5">
-                                <span class="text-[9px] font-black uppercase tracking-widest text-yellow-400 leading-none">Monthly</span>
-                                <button onclick="app.toggleCharDone('${char.id}','monthly')" title="${isMonthlyDone ? '月ボスの消し込みを解除' : 'このキャラの月ボスを消し込む'}"
-                                    class="flex items-center gap-0.5 px-1.5 py-0.5 rounded font-extrabold text-[9px] leading-none transition-all border ${isMonthlyDone ? 'bg-yellow-500 border-yellow-300 text-slate-950' : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-yellow-700/50 hover:border-yellow-500 hover:text-yellow-200'}">
-                                    <i data-lucide="${isMonthlyDone ? 'check-circle-2' : 'circle'}" class="w-2.5 h-2.5"></i><span>COMPLETE</span>
-                                </button>
-                            </div>
-                            <div class="relative">
-                                <div onclick="app.toggleCharDone('${char.id}','monthly')" title="クリックで月ボスをまとめて消し込む" class="grid grid-flow-col auto-cols-[3rem] gap-1 overflow-x-auto justify-start cursor-pointer rounded transition hover:brightness-125">${mB.sort((a, b) => b.effectiveMeso - a.effectiveMeso).map(b => this.getBossTileHTML(b, b.pSize)).join('')}</div>
-                                ${isMonthlyDone ? `
-                                <div onclick="app.toggleCharDone('${char.id}','monthly')" title="クリックで消し込みを解除" class="absolute inset-0 z-10 rounded bg-slate-950/75 backdrop-blur-[1px] flex items-center justify-center cursor-pointer hover:bg-slate-950/60 transition-colors">
-                                    <div class="flex items-center gap-1.5 border-2 border-yellow-400/90 text-yellow-300 rounded-lg px-3 py-0.5 -rotate-3 bg-slate-950/70 shadow-lg shadow-yellow-950/60">
-                                        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
-                                        <span class="text-xs font-black tracking-[0.2em]">COMPLETE</span>
-                                    </div>
-                                </div>` : ''}
-                            </div>
-                        </div>` : ''}
-                        ${wkSorted.length ? `
-                        <div>
-                            <div class="flex items-center gap-1.5 mb-0.5">
-                                <span class="text-[9px] font-black uppercase tracking-widest text-purple-400 leading-none">Weekly</span>
-                                <button onclick="app.toggleCharDone('${char.id}','weekly')" title="${isWeeklyDone ? '週ボスの消し込みを解除' : 'このキャラの週ボスを消し込む'}"
-                                    class="flex items-center gap-0.5 px-1.5 py-0.5 rounded font-extrabold text-[9px] leading-none transition-all border ${isWeeklyDone ? 'bg-purple-600 border-purple-400 text-white' : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-purple-700/50 hover:border-purple-500 hover:text-purple-200'}">
-                                    <i data-lucide="${isWeeklyDone ? 'check-circle-2' : 'circle'}" class="w-2.5 h-2.5"></i><span>COMPLETE</span>
-                                </button>
-                            </div>
-                            <div class="relative">
-                                <div onclick="app.toggleCharDone('${char.id}','weekly')" title="クリックで週ボスをまとめて消し込む" class="grid grid-cols-[repeat(7,minmax(0,3rem))] gap-1 cursor-pointer rounded transition hover:brightness-125">
-                                    ${wkSorted.map(b => this.getBossTileHTML(b, b.pSize)).join('')}
-                                </div>
-                                ${isWeeklyDone ? `
-                                <div onclick="app.toggleCharDone('${char.id}','weekly')" title="クリックで消し込みを解除" class="absolute inset-0 z-10 rounded bg-slate-950/75 backdrop-blur-[1px] flex items-center justify-center cursor-pointer hover:bg-slate-950/60 transition-colors">
-                                    <div class="flex items-center gap-2 border-2 border-purple-400/90 text-purple-300 rounded-lg px-4 py-1 -rotate-3 bg-slate-950/70 shadow-lg shadow-purple-950/60">
-                                        <i data-lucide="check-circle-2" class="w-5 h-5"></i>
-                                        <span class="text-base font-black tracking-[0.25em]">COMPLETE</span>
-                                    </div>
-                                </div>` : ''}
-                            </div>
-                        </div>` : ''}
-                        ${!mB.length && !wkSorted.length ? this.getEmptyPlaceholderHTML("No Bosses Configured", "") : ''}
+                    <div class="flex-1 px-2 pt-1 pb-2 space-y-1">
+                        ${section('Monthly', 'mo', mB, isMonthlyDone, 1)}
+                        ${section('Weekly', 'wk', wkSorted, isWeeklyDone, 2)}
                     </div>
                 </div>
             </div>`;
@@ -1179,40 +1124,53 @@ const app = {
         const countBadge = document.getElementById('roster-count-badge');
         if (countBadge) countBadge.innerText = `${activeChars.length} Character${activeChars.length === 1 ? '' : 's'}`;
 
-        if (c) c.innerHTML = activeChars.map((x, idx) => {
+        // 表計算調の一覧。1行1キャラで、Lv・週ボス数・HEXA進捗を横に並べる。
+        const charLimit = this.data.config.charMaxCrystals || 14;
+        const hexaReady = (typeof hexaTracker !== 'undefined');
+        const rows = activeChars.map((x, idx) => {
             const settings = x.settings || { daily_ids: [], weekly_ids: [], boss_ids: [] };
-            const bossCount = (settings.boss_ids || []).length;
-            const isKronos = x.server === 'KRONOS';
-            const sCol = isKronos ? (this.data.config.serverKColor || 'emerald') : (this.data.config.serverCColor || 'purple');
-            const charLimit = this.data.config.charMaxCrystals || 14;
+            const sCol = x.server === 'KRONOS' ? (this.data.config.serverKColor || 'emerald') : (this.data.config.serverCColor || 'purple');
             const charWeekly = this.data.masterBosses.filter(b => (settings.boss_ids || []).includes(b.id) && b.type === 'WEEKLY').length;
-
+            const hexaClassId = hexaReady ? hexaTracker.getCharClassId(x) : null;
+            const hexaPct = hexaClassId ? hexaTracker.getProgress('char:' + x.id, hexaClassId).pct : null;
+            const roleCls = x.role === 'MAIN' ? 'border-yellow-500/50 text-yellow-300 bg-yellow-950/80' : (x.role === 'SUB' ? 'border-cyan-500/50 text-cyan-300 bg-cyan-950/80' : 'border-slate-600 text-slate-400 bg-slate-900/90');
+            const act = (fn, icon, label, hover) => `<button onclick="${fn}" title="${label}" class="flex items-center gap-1 px-1.5 py-0.5 text-[11px] text-slate-400 border border-transparent hover:border-slate-700 ${hover}"><i data-lucide="${icon}" class="w-3 h-3"></i>${label}</button>`;
             return `
-            <div class="bg-slate-900 border border-${sCol}-500/40 rounded-xl overflow-hidden flex flex-col group shadow-lg transition-all hover:border-${sCol}-500/70 relative">
-                <span class="absolute top-2 left-2 z-10 text-[10px] font-bold text-slate-500 bg-slate-950/70 px-1.5 py-0.5 rounded">#${idx + 1}</span>
-                ${x.hidden ? `<span class="absolute top-2 right-2 z-10 text-[9px] font-bold text-slate-400 bg-slate-950/80 border border-slate-700 px-1.5 py-0.5 rounded flex items-center gap-1"><i data-lucide="eye-off" class="w-2.5 h-2.5"></i>Hidden</span>` : ''}
-                <div class="w-full aspect-square bg-slate-950 relative overflow-hidden flex items-center justify-center">
-                    ${x.classImage ? `<img src="${x.classImage}" class="w-full h-full object-cover">` : `<div class="text-slate-800"><i data-lucide="user" class="w-16 h-16"></i></div>`}
-                    ${x.image && x.image.startsWith('http') ? `<img src="${x.image}" class="absolute bottom-0 right-0 w-20 h-20 object-contain opacity-90 pointer-events-none">` : ''}
-                </div>
-                <div class="p-2 flex flex-col gap-1 min-w-0">
-                    <div class="flex items-baseline gap-1 min-w-0">
-                        <h3 class="text-[13px] font-extrabold text-white truncate leading-tight flex-1 min-w-0" title="${x.name}">${x.name}</h3>
-                        <span class="text-[10px] font-mono font-bold text-${sCol}-300 flex-shrink-0">Lv.${x.level || '?'}</span>
+            <tr class="${x.hidden ? 'opacity-45' : ''}">
+                <td class="text-right font-mono text-slate-500">${idx + 1}</td>
+                <td>
+                    <div class="flex items-center gap-2 min-w-0 cursor-pointer" onclick="app.openCharModal('${x.id}')" title="Edit ${x.name}">
+                        <span class="w-7 h-7 flex-shrink-0 border border-${sCol}-500/40 bg-slate-950 relative overflow-hidden">${x.classImage ? `<img src="${x.classImage}" style="${this.getCharImgStyle(x)}">` : ''}</span>
+                        <span class="font-semibold text-white truncate">${x.name}</span>
+                        ${x.hidden ? '<span class="text-[10px] text-slate-500 flex items-center gap-0.5"><i data-lucide="eye-off" class="w-3 h-3"></i>Hidden</span>' : ''}
                     </div>
-                    <div class="flex items-center justify-between text-[9px] min-w-0 gap-1">
-                        <span class="text-slate-400 truncate flex-1 min-w-0" title="${x.job || ''}">${x.job || '—'}</span>
-                        <span class="font-mono ${charWeekly > charLimit ? 'text-amber-400' : 'text-slate-500'} flex-shrink-0" title="Weekly bosses">${charWeekly}/${charLimit}</span>
+                </td>
+                <td class="text-right font-mono text-${sCol}-300">${x.level || '?'}</td>
+                <td class="text-slate-300 truncate">${x.job || '—'}</td>
+                <td class="font-mono text-[11px] text-${sCol}-400">${x.server === 'KRONOS' ? 'Kronos' : 'Challenger'}</td>
+                <td><span class="px-1 text-[10px] font-mono font-bold border ${roleCls}">${x.role || '—'}</span></td>
+                <td class="text-right font-mono ${charWeekly > charLimit ? 'text-amber-400' : 'text-slate-300'}" title="週ボスの数 / 上限">${charWeekly}/${charLimit}</td>
+                <td class="text-right font-mono text-violet-300">${hexaPct === null ? '<span class="text-slate-600">—</span>' : hexaPct + '%'}</td>
+                <td>
+                    <div class="flex items-center gap-0.5 justify-end">
+                        ${act(`app.openCharModal('${x.id}')`, 'pencil', 'Edit', 'hover:text-white')}
+                        ${act(`app.refreshCharacter('${x.id}')`, 'refresh-cw', 'Refresh', 'hover:text-emerald-300')}
+                        ${act(`app.toggleCharHidden('${x.id}')`, x.hidden ? 'eye' : 'eye-off', x.hidden ? 'Show' : 'Hide', 'hover:text-white')}
+                        ${act(`app.deleteCharacter('${x.id}')`, 'trash-2', 'Delete', 'hover:text-rose-400')}
                     </div>
-                    <div class="grid grid-cols-4 gap-0.5 pt-1 border-t border-slate-800/60">
-                        <button onclick="app.openCharModal('${x.id}')" title="Edit details" class="p-1 bg-slate-800 hover:bg-indigo-600 rounded text-slate-400 hover:text-white transition-colors flex justify-center"><i data-lucide="pencil" class="w-2.5 h-2.5"></i></button>
-                        <button onclick="app.refreshCharacter('${x.id}')" title="Refresh from API" class="p-1 bg-slate-800 hover:bg-emerald-600 rounded text-slate-400 hover:text-white transition-colors flex justify-center"><i data-lucide="refresh-cw" class="w-2.5 h-2.5"></i></button>
-                        <button onclick="app.toggleCharHidden('${x.id}')" title="${x.hidden ? 'Show' : 'Hide'} on dashboard" class="p-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors flex justify-center"><i data-lucide="${x.hidden ? 'eye-off' : 'eye'}" class="w-2.5 h-2.5"></i></button>
-                        <button onclick="app.deleteCharacter('${x.id}')" title="Delete" class="p-1 bg-slate-800 hover:bg-rose-600 rounded text-slate-400 hover:text-white transition-colors flex justify-center"><i data-lucide="trash-2" class="w-2.5 h-2.5"></i></button>
-                    </div>
-                </div>
-            </div>`;
+                </td>
+            </tr>`;
         }).join('');
+        if (c) c.innerHTML = activeChars.length ? `
+            <div class="overflow-x-auto">
+                <table class="mm-table w-full">
+                    <thead><tr>
+                        <th class="w-8 text-right">#</th><th>Name</th><th class="w-12 text-right">Lv</th><th>Job</th><th class="w-24">Server</th>
+                        <th class="w-16">Role</th><th class="w-16 text-right">Weekly</th><th class="w-14 text-right">HEXA</th><th class="w-64"></th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>` : `<div class="border border-dashed border-slate-700 py-10 text-center text-slate-500 text-xs">このサーバーにはキャラがいません。上の欄から追加できます。</div>`;
         lucide.createIcons();
     },
 
@@ -1774,6 +1732,12 @@ const app = {
     DIFF_ORDER: ['EASY', 'NORMAL', 'HARD', 'CHAOS', 'EXTREME'],
 
     // MapleHub CDN boss image slug mapping (key: boss.name)
+    // マスが狭いので、長いボス名は画像が読めないときの表示用に縮める。
+    BOSS_SHORT_NAMES: {
+        'Kalos the Guardian': 'Kalos', 'First Adversary': 'First Adv.', 'Chosen Seren': 'Seren',
+        'Verus Hilla': 'V.Hilla', 'Guardian Angel Slime': 'Slime', 'Malefic Star': 'Malefic',
+        'Crimson Queen': 'Queen', 'Princess No': 'P.No', 'Papulatus': 'Papulatus'
+    },
     BOSS_SLUG_MAP: {
         'Black Mage': 'black-mage',
         'Kaling': 'kaling',

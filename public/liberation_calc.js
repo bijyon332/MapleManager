@@ -87,65 +87,64 @@ function createLiberationCalc(cfg) {
 
             return `
             <style>
-                .lc-wrapper { max-width: 720px; margin: 0 auto; }
-                .lc-header { text-align: center; margin-bottom: 20px; }
-                .lc-header h1 {
-                    font-family: 'Orbitron', sans-serif; font-size: clamp(15px, 3vw, 22px);
-                    font-weight: 900; letter-spacing: 0.05em;
-                    background: linear-gradient(120deg, #5b9cf6 0%, #9d6bf0 50%, #f5a623 100%);
-                    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-                }
-                .lc-header p { color: #8892aa; font-size: 11px; margin-top: 6px; }
-                .lc-card { background: #111522; border: 1px solid #1e2a45; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+                .lc-wrapper { max-width: 1280px; }
+                .lc-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+                .lc-header h1 { font-size: 18px; font-weight: 700; color: #fff; margin: 0; white-space: nowrap; }
+                .lc-header p { color: #8b98ad; font-size: 11.5px; margin: 0; }
+                .lc-cols { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 8px; align-items: start; }
+                @media (max-width: 1000px) { .lc-cols { grid-template-columns: 1fr; } }
+                .lc-card { background: #0f172a; border: 1px solid #1e293b; border-radius: 0; padding: 8px 10px; margin-bottom: 8px; }
+                .lc-result { border-top: 2px solid #6366f1; }
                 .lc-sec-label {
-                    font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
-                    color: #5b9cf6; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+                    font-size: 11px; font-weight: 600; color: #8b98ad; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;
                 }
-                .lc-sec-label::after { content: ''; flex: 1; height: 1px; background: #1e2a45; }
-                .lc-settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 14px; }
-                .lc-field { display: flex; flex-direction: column; gap: 4px; }
-                .lc-field label { font-size: 10px; color: #8892aa; font-weight: 600; }
+                .lc-sec-label::after { content: ''; flex: 1; height: 1px; background: #1e293b; }
+                .lc-settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px 10px; }
+                .lc-field { display: flex; flex-direction: column; gap: 2px; }
+                .lc-field label { font-size: 10.5px; color: #8b98ad; font-weight: 600; }
                 .lc-input, select.lc-input {
-                    background: #161c2e; border: 1px solid #1e2a45; border-radius: 6px; color: #e8eaf0;
-                    font-size: 12px; padding: 6px 8px; outline: none; font-family: inherit;
+                    background: #020617; border: 1px solid #334155; border-radius: 0; color: #e2e8f0;
+                    font-size: 12.5px; padding: 3px 6px; outline: none; font-family: inherit;
                 }
-                .lc-input:focus { border-color: #3a7bd5; }
-                .lc-input option, .lc-diff-sel option {
-                    background: #161c2e; color: #e8eaf0;
-                }
+                .lc-input:focus { border-color: #6366f1; }
+                .lc-input option, .lc-diff-sel option { background: #0f172a; color: #e2e8f0; }
                 .lc-input::-webkit-calendar-picker-indicator { filter: invert(0.8); }
                 .lc-diff-sel, .lc-party-inp {
-                    background: #161c2e; border: 1px solid #1e2a45; border-radius: 6px; color: #e8eaf0;
-                    font-size: 11px; padding: 4px 6px; outline: none; font-family: inherit;
+                    background: #020617; border: 1px solid #334155; border-radius: 0; color: #e2e8f0;
+                    font-size: 12px; padding: 2px 5px; outline: none; font-family: inherit;
                 }
-                .lc-diff-sel:focus, .lc-party-inp:focus { border-color: #3a7bd5; }
+                .lc-diff-sel:focus, .lc-party-inp:focus { border-color: #6366f1; }
                 .lc-diff-sel:disabled, .lc-party-inp:disabled { opacity: 0.5; }
-                .lc-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #e8eaf0; cursor: pointer; margin-bottom: 4px; }
-                .lc-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                .lc-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #e2e8f0; cursor: pointer; margin-bottom: 2px; }
+                .lc-check input { accent-color: #6366f1; }
+                .lc-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
                 .lc-table th {
-                    background: #161c2e; color: #8892aa; font-weight: 700; font-size: 9px; letter-spacing: 0.04em;
-                    padding: 6px 8px; text-align: left; border-bottom: 1px solid #1e2a45; white-space: nowrap;
+                    background: #0f172a; color: #64748b; font-weight: 600; font-size: 11px;
+                    padding: 4px 8px; text-align: left; border-bottom: 1px solid #334155; white-space: nowrap;
                 }
-                .lc-table td { padding: 5px 8px; border-bottom: 1px solid rgba(30,42,69,0.5); vertical-align: middle; }
+                .lc-table td { padding: 2px 8px; height: 30px; border-bottom: 1px solid #172036; vertical-align: middle; }
+                .lc-table tbody tr:nth-child(even) { background: #0c1428; }
                 .lc-boss-name { font-weight: 700; color: #f5a623; white-space: nowrap; }
-                .lc-monthly-tag { margin-left: 5px; font-size: 8px; background: #3a2d5c; color: #c9a8ff; padding: 1px 5px; border-radius: 4px; }
+                .lc-monthly-tag { margin-left: 5px; font-size: 9px; background: #3a2d5c; color: #c9a8ff; padding: 0 4px; border-radius: 0; }
                 .lc-diff-sel { width: 100%; min-width: 90px; }
-                .lc-party-inp { width: 44px; text-align: center; }
+                .lc-party-inp { width: 44px; text-align: center; font-family: "IBM Plex Mono", ui-monospace, monospace; }
                 .lc-center { text-align: center; }
-                .lc-num { text-align: right; font-weight: 700; color: #f5a623; font-variant-numeric: tabular-nums; }
-                .lc-result-grid { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 12px; align-items: center; }
-                .lc-result-label { color: #8892aa; font-size: 11px; }
-                .lc-result-val { font-weight: 700; color: #e8eaf0; }
-                .lc-result-val.big { font-size: 16px; color: #5b9cf6; }
-                .lc-note { font-size: 10px; color: #8892aa; margin-top: 8px; line-height: 1.5; }
-                .lc-tier-list { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; font-size: 11px; }
-                .lc-tier-list .row { display: flex; justify-content: space-between; border-bottom: 1px dashed #1e2a45; padding: 3px 0; }
+                .lc-center input { accent-color: #6366f1; }
+                .lc-num { text-align: right; font-weight: 700; color: #f5a623; font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+                .lc-result-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13px; align-items: baseline; }
+                .lc-result-label { color: #8b98ad; font-size: 11px; }
+                .lc-result-val { font-weight: 700; color: #e2e8f0; font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+                .lc-result-val.big { font-size: 20px; line-height: 1.2; color: #a5b4fc; }
+                .lc-note { font-size: 10.5px; color: #64748b; margin-top: 6px; line-height: 1.5; }
+                .lc-tier-list { display: flex; flex-direction: column; gap: 0; margin-top: 8px; font-size: 12px; }
+                .lc-tier-list .row { display: flex; justify-content: space-between; border-bottom: 1px solid #172036; padding: 2px 0; font-variant-numeric: tabular-nums; }
             </style>
             <div class="lc-wrapper">
                 <div class="lc-header">
                     <h1>${c.titleJa}</h1>
                     <p>${c.subtitleJa}</p>
                 </div>
+                <div class="lc-cols"><div>
                 <div class="lc-card">
                     <div class="lc-sec-label">計算設定</div>
                     <div class="lc-settings-grid">
@@ -170,13 +169,14 @@ function createLiberationCalc(cfg) {
                     <div style="overflow-x:auto">
                         <table class="lc-table">
                             <thead><tr>
-                                <th>ボス</th><th>難易度</th><th>人数</th><th>今週<br>討伐済</th><th>週間獲得量</th>
+                                <th>ボス</th><th>難易度</th><th>人数</th><th>今週討伐済</th><th>週間獲得量</th>
                             </tr></thead>
                             <tbody>${bossRows}</tbody>
                         </table>
                     </div>
                 </div>
-                <div class="lc-card">
+                </div><div>
+                <div class="lc-card lc-result">
                     <div class="lc-sec-label">結果</div>
                     <div class="lc-result-grid">
                         <div class="lc-result-label">獲得量</div>
@@ -191,6 +191,7 @@ function createLiberationCalc(cfg) {
                     <div id="lc-tier-block"></div>
                     <div class="lc-note" id="lc-note"></div>
                 </div>
+                </div></div>
             </div>`;
         },
 
