@@ -893,7 +893,7 @@ const app = {
             <button type="button" onclick="app.setServer('${key}')" title="${name} に切り替え"
                 class="mm-hstat mm-hstat-srv ${on ? `border-b-${color}-400 bg-${color}-950/40` : 'opacity-45 hover:opacity-80'}">
                 <span class="text-[11px] font-semibold text-${color}-400">${name}</span>
-                <span class="mm-hstat-full font-mono text-[13px] font-semibold text-${color}-300">${full(s.rev)}</span>
+                <span class="mm-hstat-full font-mono text-[15px] font-semibold text-${color}-300">${full(s.rev)}</span>
                 <span class="mm-cry-n font-mono text-[13px] font-semibold ${s.count >= worldLimit ? 'text-red-400' : 'text-sky-300'}" title="結晶の数（残り ${Math.max(0, worldLimit - s.count)}）">${s.count}/${worldLimit}</span>
             </button>`;
         const seg = (mode, label) => `<span class="mm-seg ${revMode === mode ? 'mm-seg-on' : ''}">${label}</span>`;
