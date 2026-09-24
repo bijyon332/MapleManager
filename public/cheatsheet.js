@@ -187,13 +187,13 @@ const cheatsheet = {
         ];
     },
 
-    // ボスの並びは、ハード（無ければカオス、それも無ければ一番上の難易度）の要求フォース順。
-    // アーケインのボスが先、オーセンティックのボスが後。
+    // ボスの並びは、ハード（無ければカオス、それも無ければ一番上の難易度）の要求フォースの
+    // 多い順（降順）。オーセンティックのボスはアーケインのボスより上に扱う。
     hardReq(b) {
         const c = b.H || b.X || b.N || b.E;
         return c.af != null ? c.af : 10000 + c.sac;
     },
-    byHardReq(list) { return [...list].sort((a, b) => this.hardReq(a) - this.hardReq(b)); },
+    byHardReq(list) { return [...list].sort((a, b) => this.hardReq(b) - this.hardReq(a)); },
 
     bossTable(list, cells) {
         list = this.byHardReq(list);
@@ -336,12 +336,13 @@ const cheatsheet = {
         });
         const all = [...byName.values()];
         const floor = all.find(b => b.key === this.CRYSTAL_FLOOR_BOSS);
-        // 並びは上のボスの表と同じ（ハードの要求フォース順）。要求フォースの無いボス
-        // （スウ・デミアン・Gスライム）は先頭に、ハード（カオス）の価格順で置く。
+        // 並びは上のボスの表と同じ（ハードの要求フォースの降順）。要求フォースの無いボス
+        // （スウ・デミアン・Gスライム）はアーケイン側の末尾に、ハード（カオス）の価格の降順で置く。
         const req = {};
         [...this.ARCANE_BOSSES, ...this.SACRED_BOSSES].forEach(b => { req[b.en] = this.hardReq(b); });
         const rank = b => req[b.key] != null ? req[b.key] : (b.H ? b.H.meso : b.max) / 1e12;
-        return all.filter(b => !floor || b.max >= floor.max).sort((a, b) => rank(a) - rank(b));
+        return all.filter(b => !floor || b.max >= floor.max).sort((a, b) => rank(b) - rank(a))
+            .map(b => ({ ...b, sacred: req[b.key] >= 10000 }));
     },
 
     fmtM(v) { return Math.round(v / 1e6).toLocaleString(); },
@@ -371,12 +372,12 @@ const cheatsheet = {
 
     renderCrystal() {
         const list = this.crystalBosses();
-        const half = Math.ceil(list.length / 2);
+
         return this.card('結晶石の価格',
             '単位は百万メル（M）。1人分は最大人数で割った額。C はカオス、月 は月ボス。マウスを載せると1メル単位',
             `<div class="grid grid-cols-1 2xl:grid-cols-2 gap-x-6 gap-y-2 overflow-x-auto">
-                ${this.crystalTable(list.slice(0, half))}
-                ${this.crystalTable(list.slice(half))}
+                ${this.crystalTable(list.filter(b => b.sacred))}
+                ${this.crystalTable(list.filter(b => !b.sacred))}
             </div>`);
     },
 
@@ -390,13 +391,13 @@ const cheatsheet = {
             </div>
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 items-start">
                 <div class="space-y-3">
+                    ${this.renderSacred()}
+                    ${this.renderSacredDiff()}
+                </div>
+                <div class="space-y-3">
                     ${this.renderArcane()}
                     ${this.renderArcaneRatio()}
                     ${this.renderSymbols()}
-                </div>
-                <div class="space-y-3">
-                    ${this.renderSacred()}
-                    ${this.renderSacredDiff()}
                 </div>
             </div>
             ${this.renderLevel()}
