@@ -158,7 +158,7 @@ const cheatsheet = {
     },
 
     // ---------------------------------------------------------
-    //  ボスの表（行 = ボス、列 = 難易度 × 必要 / 最大 / ボスLv）
+    //  ボスの表（行 = ボス、列 = 難易度 × ボスLv / 必要 / 最大）
     //  数字の位置が揃うよう、1マスには数字1つだけを入れる。
     // ---------------------------------------------------------
     TIER_COLOR: { 1.5: 'text-amber-300', 1.3: 'text-orange-400', 1.1: 'text-rose-300' },
@@ -173,23 +173,23 @@ const cheatsheet = {
     arcaneCells(c) {
         const max = this.arcaneMax(c.af);
         return [
+            `<span class="text-slate-500">${c.lv}</span>`,
             `<b class="text-indigo-300">${c.af}</b>`,
             `<b class="${this.TIER_COLOR[max.m]}">${max.v}</b>`,
-            `<span class="text-slate-500">${c.lv}</span>`,
         ];
     },
 
     sacredCells(c) {
         return [
+            `<span class="text-slate-500">${c.lv}</span>`,
             `<b class="text-cyan-300">${c.sac}</b>`,
             `<b class="text-amber-300">${c.sac + this.SACRED_MAX_OVER}</b>`,
-            `<span class="text-slate-500">${c.lv}</span>`,
         ];
     },
 
     bossTable(list, cells) {
         const cols = this.COLS.filter(col => list.some(b => b[col.key]));
-        const sub = ['必要', '最大', 'Lv'];
+        const sub = ['Lv', '必要', '最大'];
         const head = `<tr>
                 <th rowspan="2" class="text-left px-1.5 font-bold align-bottom">ボス</th>
                 ${cols.map(c => `<th colspan="3" class="text-center px-1 font-bold text-slate-400 border-l border-slate-800">${c.label}</th>`).join('')}
@@ -216,13 +216,13 @@ const cheatsheet = {
     renderArcane() {
         const legend = Object.entries(this.TIER_COLOR).sort((a, b) => b[0] - a[0])
             .map(([m, cls]) => `<span class="${cls}">■</span>${m}倍`).join(' ');
-        return this.card('アーケインボス', `必要AF / 最大倍率に要るAF（${legend}）/ ボスLv`,
+        return this.card('アーケインボス', `ボスLv / 必要AF / 最大倍率に要るAF（${legend}）`,
             this.bossTable(this.ARCANE_BOSSES, this.arcaneCells)
             + `<p class="text-[10px] text-slate-500 mt-1.5">シンボルだけのAF上限は1320。1.5倍が上限を超えるボスは、届く中で一番上の倍率を出している。暗黒の魔法使いの1.1倍（1452）はシンボル以外で +132 が要る。</p>`);
     },
 
     renderSacred() {
-        return this.card('オーセンティックボス', '必要AUT / 最大倍率（要求 +50）に要るAUT / ボスLv',
+        return this.card('オーセンティックボス', 'ボスLv / 必要AUT / 最大倍率（要求 +50）に要るAUT',
             this.bossTable(this.SACRED_BOSSES, this.sacredCells));
     },
 
