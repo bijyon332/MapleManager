@@ -479,14 +479,14 @@ header { box-shadow: inset 0 -1px 0 rgba(99, 102, 241, 0.25); }
 .mm-count { flex-shrink: 0; min-width: 5ch; text-align: right; box-sizing: content-box; }
 .mm-sec-label { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 0 6px; line-height: 16px; }
 
-.mm-tiles { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: repeat(var(--rows, 1), 44px); gap: 3px; cursor: pointer; }
+.mm-tiles { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: repeat(var(--rows, 1), 52px); gap: 3px; cursor: pointer; }
 .mm-tiles:hover .mm-tile { filter: brightness(1.2); }
-.mm-tiles-empty { height: calc(var(--rows, 1) * 44px + (var(--rows, 1) - 1) * 3px); display: flex; align-items: center; justify-content: center; border: 1px dashed #334155; font-size: 11px; color: #64748b; }
+.mm-tiles-empty { height: calc(var(--rows, 1) * 52px + (var(--rows, 1) - 1) * 3px); display: flex; align-items: center; justify-content: center; border: 1px dashed #334155; font-size: 11px; color: #64748b; }
 
 .mm-tile { position: relative; display: flex; flex-direction: column; min-width: 0; border: 1px solid #334155; background: linear-gradient(180deg, rgba(88, 28, 135, 0.45), rgba(59, 7, 100, 0.35)); overflow: hidden; }
 .mm-tile-mo { background: linear-gradient(180deg, rgba(113, 63, 18, 0.4), rgba(66, 32, 6, 0.35)); }
 .mm-tile-body { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
-.mm-tile-body img { width: 100%; height: 100%; object-fit: contain; padding: 2px 2px 0; }
+.mm-tile-body img { width: 100%; height: 100%; object-fit: contain; padding: 1px 1px 0; transform: scale(1.08); }
 .mm-tile-name { font-size: 10px; line-height: 1.15; color: #e2e8f0; padding: 0 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 100%; }
 .mm-tile-diff { border: 0 !important; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 9px; font-weight: 700; line-height: 13px; text-align: center; letter-spacing: 0.02em; }
 .mm-diff-extreme { border-color: #ef4444; }
