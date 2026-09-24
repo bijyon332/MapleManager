@@ -884,27 +884,18 @@ const app = {
         </div>`;
     },
 
-    // 上部バーの収入欄。左の「週 / 月」で集計期間を切り替え、サーバーごとに収入（全桁）と、その下に結晶の埋まり具合（バーと個数）を出す。
+    // 上部バーの収入欄。左の「週 / 月」で集計期間を切り替え、サーバーごとに収入（全桁）と結晶の数（水色、上限で赤）を出す。
     // Kronos / Challenger の欄はそのままサーバーの切り替えボタンを兼ねる（別の切り替えボタンを置くと上部バーに収まらない）。
     // 幅を固定して、桁が変わっても横の並びを動かさない。
     headerStatsHTML({ revMode, k, c, worldLimit, kOn, cOn }) {
         const full = n => Math.floor(n).toLocaleString();
-        const srv = (key, name, color, s, on) => {
-            const pct = Math.min(100, worldLimit ? s.count / worldLimit * 100 : 0);
-            const isFull = s.count >= worldLimit;
-            return `
+        const srv = (key, name, color, s, on) => `
             <button type="button" onclick="app.setServer('${key}')" title="${name} に切り替え"
                 class="mm-hstat mm-hstat-srv ${on ? `border-b-${color}-400 bg-${color}-950/40` : 'opacity-45 hover:opacity-80'}">
-                <span class="flex items-baseline gap-1">
-                    <span class="text-[11px] font-semibold text-${color}-400">${name}</span>
-                    <span class="mm-hstat-full font-mono text-[13px] font-semibold text-${color}-300">${full(s.rev)}</span>
-                </span>
-                <span class="mm-cry" title="結晶 ${s.count} / ${worldLimit}（残り ${Math.max(0, worldLimit - s.count)}）">
-                    <span class="mm-cry-bar"><span class="${isFull ? 'bg-red-400' : `bg-${color}-400`}" style="width:${pct}%"></span></span>
-                    <span class="mm-cry-n font-mono text-[11px] font-semibold ${isFull ? 'text-red-400' : 'text-slate-200'}">${s.count}<span class="text-slate-500 font-normal">/${worldLimit}</span></span>
-                </span>
+                <span class="text-[11px] font-semibold text-${color}-400">${name}</span>
+                <span class="mm-hstat-full font-mono text-[13px] font-semibold text-${color}-300">${full(s.rev)}</span>
+                <span class="mm-cry-n font-mono text-[13px] font-semibold ${s.count >= worldLimit ? 'text-red-400' : 'text-sky-300'}" title="結晶の数（残り ${Math.max(0, worldLimit - s.count)}）">${s.count}/${worldLimit}</span>
             </button>`;
-        };
         const seg = (mode, label) => `<span class="mm-seg ${revMode === mode ? 'mm-seg-on' : ''}">${label}</span>`;
         return `
             <div class="flex items-stretch h-full">
