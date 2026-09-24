@@ -7,13 +7,8 @@
  * ========================================================= */
 
 const cheatsheet = {
-    // ---- シンボル合計Lv とフォースの換算 ------------------------------------
-    // アーケイン: Lv1で30、1Lvごとに+10、Lv20で220。6地域すべて装備して
-    //             ARC = 120 + 10 × 合計Lv（最大 Lv120 = 1320）。
-    // オーセンティック: Lv1で10、1Lvごとに+10、Lv11で110。AUT = 10 × 合計Lv。
+    // アーケインシンボルは Lv20 で 220。6地域すべて Lv20 で 1320 がシンボルだけの上限。
     ARC_CAP: 1320,
-    arcLevel(f) { return f > this.ARC_CAP ? null : Math.max(0, Math.ceil((f - 120) / 10)); },
-    autLevel(f) { return Math.ceil(f / 10); },
 
     // 難易度の列。カオスはハードの列に入れる（同じボスに両方あることはない）。
     COLS: [
@@ -28,7 +23,7 @@ const cheatsheet = {
     ARCANE_BOSSES: [
         { boss: 'ルシード', entry: 220, E: { lv: 230, af: 360 }, N: { lv: 230, af: 360 }, H: { lv: 230, af: 360 } },
         { boss: 'ウィル', entry: 235, E: { lv: 235, af: 560 }, N: { lv: 250, af: 760 }, H: { lv: 250, af: 760 } },
-        { boss: 'ダスク', entry: 245, N: { lv: 255, af: 730 }, H: { lv: 255, af: 730, chaos: true } },
+        { boss: 'ダスク', entry: 245, N: { lv: 255, af: 730 }, H: { lv: 255, af: 730 } },
         { boss: '真・ヒルラ', entry: 250, N: { lv: 250, af: 820 }, H: { lv: 250, af: 900 } },
         { boss: 'デュンケル', entry: 255, N: { lv: 265, af: 850 }, H: { lv: 265, af: 850 } },
         { boss: '暗黒の魔法使い', entry: 255, H: { lv: 275, af: 1320 }, X: { lv: 280, af: 1320 } },
@@ -36,14 +31,14 @@ const cheatsheet = {
     ARC_TIERS: [1.5, 1.3, 1.1],
 
     // ---- オーセンティックボス ------------------------------------------------
-    // sac1: 1段階目だけ要求が低いボスの、1段階目の値。note: 注記番号。
+    // sub: ボス名の横に出す補足（1段階目だけ要求が低いなど）。note: 注記番号。
     SACRED_BOSSES: [
-        { boss: '選ばれし者セレン', entry: 260,
-          N: { lv: 270, sac: 200, sac1: 150 }, H: { lv: 275, sac: 200, sac1: 150 }, X: { lv: 280, sac: 200, sac1: 150 } },
-        { boss: 'カロス', entry: 265,
-          E: { lv: 270, sac: 200 }, N: { lv: 280, sac: 300, sac1: 250 }, H: { lv: 285, sac: 330, chaos: true }, X: { lv: 285, sac: 440 } },
-        { boss: '最初の対敵者', entry: 270,
-          E: { lv: 270, sac: 220 }, N: { lv: 280, sac: 320 }, H: { lv: 285, sac: 340, note: 1 }, X: { lv: 290, sac: 460, note: 1 } },
+        { boss: '選ばれし者セレン', entry: 260, sub: '1段階目は150',
+          N: { lv: 270, sac: 200 }, H: { lv: 275, sac: 200 }, X: { lv: 280, sac: 200 } },
+        { boss: 'カロス', entry: 265, sub: 'ノーマル1段階目は250',
+          E: { lv: 270, sac: 200 }, N: { lv: 280, sac: 300 }, H: { lv: 285, sac: 330 }, X: { lv: 285, sac: 440 } },
+        { boss: '最初の対敵者', entry: 270, note: 1,
+          E: { lv: 270, sac: 220 }, N: { lv: 280, sac: 320 }, H: { lv: 285, sac: 340 }, X: { lv: 290, sac: 460 } },
         { boss: 'カリーン', entry: 275,
           E: { lv: 275, sac: 230 }, N: { lv: 285, sac: 330 }, H: { lv: 285, sac: 350 }, X: { lv: 285, sac: 480 } },
         { boss: '凶星', entry: 280, N: { lv: 280, sac: 400 }, H: { lv: 280, sac: 550 } },
@@ -163,73 +158,72 @@ const cheatsheet = {
     },
 
     // ---------------------------------------------------------
-    //  ボスの表（行 = ボス、列 = 難易度）
+    //  ボスの表（行 = ボス、列 = 難易度 × 必要 / 最大 / ボスLv）
+    //  数字の位置が揃うよう、1マスには数字1つだけを入れる。
     // ---------------------------------------------------------
-    arcaneCell(c) {
-        if (!c) return '<td class="px-1.5 py-1 text-center text-slate-700">—</td>';
-        const lv = this.arcLevel(c.af);
-        // 1.5倍がシンボル上限（1320）を超えるときは、届く中で一番上の倍率を出す。
-        // どれも届かない（暗黒の魔法使い）ときは 1.1倍 を出して、足りない分を添える。
-        const tiers = this.ARC_TIERS.map(m => ({ m, v: Math.ceil(c.af * m - 1e-9) }));
-        const reach = tiers.find(t => t.v <= this.ARC_CAP);
-        const top = tiers[0];
-        let max;
-        if (reach === top) {
-            max = `<span class="text-slate-500">×1.5</span> <b class="text-amber-300">${top.v}</b> <span class="text-slate-500">Σ${this.arcLevel(top.v)}</span>`;
-        } else if (reach) {
-            max = `<span class="text-slate-600 line-through" title="シンボルだけでは届かない">×1.5 ${top.v}</span>
-                <span class="text-slate-500">×${reach.m}</span> <b class="text-amber-300">${reach.v}</b> <span class="text-slate-500">Σ${this.arcLevel(reach.v)}</span>`;
-        } else {
-            const t = tiers[tiers.length - 1];
-            max = `<span class="text-slate-500">×1.1</span> <b class="text-amber-300">${t.v}</b>
-                <span class="text-rose-300" title="シンボルだけだと ${this.ARC_CAP} で止まる">+${t.v - this.ARC_CAP}</span>`;
-        }
-        return `<td class="px-1.5 py-1 align-top">
-            <div class="flex items-baseline gap-1"><b class="text-indigo-300 text-[13px]">${c.af}</b>
-                <span class="text-slate-500">Σ${lv}</span>
-                <span class="ml-auto text-slate-500">${c.chaos ? 'カオス ' : ''}Lv${c.lv}</span></div>
-            <div class="whitespace-nowrap">${max}</div>
-        </td>`;
+    TIER_COLOR: { 1.5: 'text-amber-300', 1.3: 'text-orange-400', 1.1: 'text-rose-300' },
+
+    // 1.5倍がシンボル上限（1320）を超えるときは、届く中で一番上の倍率を出す。
+    // どれも届かない（暗黒の魔法使い）ときは 1.1倍 を出す。倍率は色で見分ける。
+    arcaneMax(af) {
+        const tiers = this.ARC_TIERS.map(m => ({ m, v: Math.ceil(af * m - 1e-9) }));
+        return tiers.find(t => t.v <= this.ARC_CAP) || tiers[tiers.length - 1];
     },
 
-    sacredCell(c) {
-        if (!c) return '<td class="px-1.5 py-1 text-center text-slate-700">—</td>';
-        const max = c.sac + this.SACRED_MAX_OVER;
-        return `<td class="px-1.5 py-1 align-top">
-            <div class="flex items-baseline gap-1"><b class="text-cyan-300 text-[13px]">${c.sac}</b>
-                <span class="text-slate-500">Σ${this.autLevel(c.sac)}</span>
-                <span class="ml-auto text-slate-500 whitespace-nowrap">${c.chaos ? 'カオス ' : ''}Lv${c.lv}${c.note ? `<sup class="text-amber-300">※${c.note}</sup>` : ''}</span></div>
-            <div class="whitespace-nowrap"><span class="text-slate-500">最大</span> <b class="text-amber-300">${max}</b>
-                <span class="text-slate-500">Σ${this.autLevel(max)}</span>
-                ${c.sac1 ? `<span class="text-slate-500 text-[10px]" title="1段階目だけ要求 ${c.sac1}">1段目${c.sac1}</span>` : ''}</div>
-        </td>`;
+    arcaneCells(c) {
+        const max = this.arcaneMax(c.af);
+        return [
+            `<b class="text-indigo-300">${c.af}</b>`,
+            `<b class="${this.TIER_COLOR[max.m]}">${max.v}</b>`,
+            `<span class="text-slate-500">${c.lv}</span>`,
+        ];
     },
 
-    bossTable(list, cell) {
+    sacredCells(c) {
+        return [
+            `<b class="text-cyan-300">${c.sac}</b>`,
+            `<b class="text-amber-300">${c.sac + this.SACRED_MAX_OVER}</b>`,
+            `<span class="text-slate-500">${c.lv}</span>`,
+        ];
+    },
+
+    bossTable(list, cells) {
         const cols = this.COLS.filter(col => list.some(b => b[col.key]));
-        const head = `<tr><th class="text-left px-1.5 pb-1 font-bold">ボス</th>${cols.map(c => `<th class="text-left px-1.5 pb-1 font-bold">${c.label}</th>`).join('')}</tr>`;
+        const sub = ['必要', '最大', 'Lv'];
+        const head = `<tr>
+                <th rowspan="2" class="text-left px-1.5 font-bold align-bottom">ボス</th>
+                ${cols.map(c => `<th colspan="3" class="text-center px-1 font-bold text-slate-400 border-l border-slate-800">${c.label}</th>`).join('')}
+            </tr>
+            <tr>${cols.map(() => sub.map((s, i) =>
+                `<th class="text-right px-1.5 pb-1 font-normal ${i === 0 ? 'border-l border-slate-800' : ''}">${s}</th>`).join('')).join('')}</tr>`;
         const rows = list.map(b => `<tr class="border-t border-slate-800">
-            <td class="px-1.5 py-1 align-top whitespace-nowrap">
-                <div class="text-slate-100 font-bold text-[12px]">${b.boss}${b.note ? `<sup class="text-amber-300">※${b.note}</sup>` : ''}</div>
-                <div class="text-slate-500">入場 ${b.entry}</div>
+            <td class="px-1.5 py-1 whitespace-nowrap">
+                <span class="text-slate-100 font-bold text-[12px]">${b.boss}</span>${b.note ? `<sup class="text-amber-300">※${b.note}</sup>` : ''}
+                <span class="text-slate-500 ml-1">入場${b.entry}</span>${b.sub ? `<span class="text-slate-500 ml-1">・${b.sub}</span>` : ''}
             </td>
-            ${cols.map(c => cell.call(this, b[c.key])).join('')}
+            ${cols.map(col => {
+                const c = b[col.key];
+                if (!c) return `<td colspan="3" class="px-1.5 py-1 text-center text-slate-700 border-l border-slate-800">—</td>`;
+                return cells.call(this, c).map((v, i) =>
+                    `<td class="px-1.5 py-1 text-right ${i === 0 ? 'border-l border-slate-800' : ''}">${v}</td>`).join('');
+            }).join('')}
         </tr>`).join('');
-        return `<div class="overflow-x-auto"><table class="w-full text-[11px] tabular-nums">
+        return `<div class="overflow-x-auto"><table class="w-full text-[12px] tabular-nums">
             <thead class="text-[10px] text-slate-500 border-b border-slate-700">${head}</thead><tbody>${rows}</tbody>
         </table></div>`;
     },
 
     renderArcane() {
-        return this.card('アーケインボス', '必要AF・Σ シンボル合計Lv（6地域装備）・ボスLv / 下段は最大倍率に要るAF',
-            this.bossTable(this.ARCANE_BOSSES, this.arcaneCell)
-            + `<p class="text-[10px] text-slate-500 mt-1.5">ARC = 120 + 10 × Σ（上限 Σ120 = 1320）。1.5倍が上限を超えるボスは、届く中で一番上の倍率を出している。</p>`);
+        const legend = Object.entries(this.TIER_COLOR).sort((a, b) => b[0] - a[0])
+            .map(([m, cls]) => `<span class="${cls}">■</span>${m}倍`).join(' ');
+        return this.card('アーケインボス', `必要AF / 最大倍率に要るAF（${legend}）/ ボスLv`,
+            this.bossTable(this.ARCANE_BOSSES, this.arcaneCells)
+            + `<p class="text-[10px] text-slate-500 mt-1.5">シンボルだけのAF上限は1320。1.5倍が上限を超えるボスは、届く中で一番上の倍率を出している。暗黒の魔法使いの1.1倍（1452）はシンボル以外で +132 が要る。</p>`);
     },
 
     renderSacred() {
-        return this.card('オーセンティックボス', '必要AUT・Σ シンボル合計Lv・ボスLv / 下段は最大倍率（+50）に要るAUT',
-            this.bossTable(this.SACRED_BOSSES, this.sacredCell)
-            + `<p class="text-[10px] text-slate-500 mt-1.5">AUT = 10 × Σ。最大倍率は常に要求 +50（Σ で +5）。</p>`);
+        return this.card('オーセンティックボス', '必要AUT / 最大倍率（要求 +50）に要るAUT / ボスLv',
+            this.bossTable(this.SACRED_BOSSES, this.sacredCells));
     },
 
     // ---------------------------------------------------------
@@ -244,7 +238,7 @@ const cheatsheet = {
             ], { mark: 5 }));
     },
 
-    // シンボル1個のLvとフォース。ボス表の Σ（合計Lv）を読み替えるときの手がかり。
+    // シンボル1個のLvとフォースの対応。
     renderSymbols() {
         const row = (label, n, fn, cls) => `<div class="text-[10px] text-slate-400 self-center pr-1 whitespace-nowrap">${label}</div>`
             + Array.from({ length: 20 }, (_, i) => i < n
@@ -327,7 +321,7 @@ const cheatsheet = {
             </div>
             ${this.renderLevel()}
             <div class="text-[10px] text-slate-500 leading-relaxed">
-                <div>※1 最初の対敵者ハード/エクストリームのボスLvは Mapler House が 285/290、MapleStory Wiki が 270 で食い違っている。
+                <div>※1 最初の対敵者ハード/エクストリームのボスLv（285/290）は Mapler House が 285/290、MapleStory Wiki が 270 で食い違っている。
                     ※2 ベローナは KMS で 2026-08 に実装。GMS に来ているかは未確認。
                     レベル差の与ダメは JMS 公式ガイドの式による（MapleStory Wiki は −1 を 105.84%、−3 を 96.72% としている）。</div>
                 <div class="mt-1"><span class="text-slate-400">出典</span> ${sources}</div>
