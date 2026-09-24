@@ -581,6 +581,7 @@ const app = {
         },
         liberation: {
             view: 'view-liberation-calc',
+            nav: 'liberation-nav',
             // liberation_calc.js の createLiberationCalc を3つが読み込み時点で使うので、
             // 必ずこの順で読む。
             scripts: ['liberation_calc.js', 'genesis_calc.js', 'destiny_calc.js', 'astra_calc.js'],
@@ -798,8 +799,8 @@ const app = {
         ['genesis', 'destiny', 'astra'].forEach(t => {
             document.getElementById(`lib-content-${t}`).classList.toggle('hidden', t !== tab);
             const btn = document.getElementById(`lib-tab-btn-${t}`);
-            btn.classList.toggle('tab-active', t === tab);
-            btn.classList.toggle('tab-inactive', t !== tab);
+            btn.classList.toggle('nav-active', t === tab);
+            btn.classList.toggle('nav-inactive', t !== tab);
         });
     },
 

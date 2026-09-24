@@ -200,6 +200,15 @@
                     <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>推移
                 </button>
             </nav>
+            <!-- Weapon Liberation sub navigation (shown only for the liberation app) -->
+            <nav id="liberation-nav" class="hidden self-stretch mr-3 flex-shrink-0">
+                <button onclick="app.switchLiberationTab('genesis')" id="lib-tab-btn-genesis"
+                    class="htab nav-active flex items-center gap-1.5">Genesis Weapon</button>
+                <button onclick="app.switchLiberationTab('destiny')" id="lib-tab-btn-destiny"
+                    class="htab nav-inactive flex items-center gap-1.5">Destiny Weapon</button>
+                <button onclick="app.switchLiberationTab('astra')" id="lib-tab-btn-astra"
+                    class="htab nav-inactive flex items-center gap-1.5">Astra Weapon</button>
+            </nav>
             <!-- Community Members sub navigation (shown only for the community app) -->
             <nav id="community-nav" class="hidden self-stretch mr-3 flex-shrink-0">
                 <button onclick="community.setTab('roster')" id="cnav-roster"
@@ -414,16 +423,9 @@
 
                 <!-- ========== LIBERATION CALCULATORS APP (Genesis / Destiny / Astra) ========== -->
                 <div id="view-liberation-calc" class="hidden-page fade-in">
-                    <div class="max-w-[760px] mx-auto">
-                        <div class="flex border-b border-slate-800 bg-slate-900/50 rounded-t-xl overflow-hidden">
-                            <button onclick="app.switchLiberationTab('genesis')" id="lib-tab-btn-genesis"
-                                class="flex-1 py-3 text-xs font-bold transition-colors tab-active">Genesis Weapon</button>
-                            <button onclick="app.switchLiberationTab('destiny')" id="lib-tab-btn-destiny"
-                                class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive">Destiny Weapon</button>
-                            <button onclick="app.switchLiberationTab('astra')" id="lib-tab-btn-astra"
-                                class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive">Astra Weapon</button>
-                        </div>
-                        <div class="pt-5">
+                    <!-- 武器の切り替え（Genesis / Destiny / Astra）は上部バーの liberation-nav にある -->
+                    <div>
+                        <div>
                             <div id="lib-content-genesis"><div id="genesis-calc-root"></div></div>
                             <div id="lib-content-destiny" class="hidden"><div id="destiny-calc-root"></div></div>
                             <div id="lib-content-astra" class="hidden"><div id="astra-calc-root"></div></div>
