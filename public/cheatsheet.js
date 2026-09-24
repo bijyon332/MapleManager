@@ -304,9 +304,12 @@ const cheatsheet = {
     //  結晶石の価格
     // ---------------------------------------------------------
     // 値は Planner と同じボスマスタ（System で編集したものがあればそれ）を使う。
-    // PT人数を選ぶと、1人あたりの額（価格 ÷ 人数）に切り替わる。
-    party: 1,
+    // 各難易度にソロ価格と、最大人数で割った1人分（価格 ÷ 最大人数）を並べる。
+    // デミアンより安いボスは載せない（最大価格がデミアンの最大価格未満のもの）。
     CRYSTAL_COL: { EASY: 'E', NORMAL: 'N', HARD: 'H', CHAOS: 'H', EXTREME: 'X' },
+    CRYSTAL_FLOOR_BOSS: 'Damien',
+    // 最大人数。boss_data.js（Boss Scheduler）の maxMembers と同じ。ここに無いボスは6人。
+    MAX_PARTY: { 'First Adversary': 3, 'Malefic Star': 3, 'Limbo': 3, 'Bellona': 3, 'Baldrix': 3, 'Jupiter': 3 },
 
     crystalBosses() {
         const master = (window.app && app.data && app.data.masterBosses && app.data.masterBosses.length)
@@ -315,34 +318,37 @@ const cheatsheet = {
         master.filter(b => b.type !== 'DAILY' && b.meso > 0).forEach(b => {
             const col = this.CRYSTAL_COL[b.difficulty];
             if (!col) return;
-            if (!byName.has(b.name)) byName.set(b.name, { name: b.kana || b.name, monthly: false, max: 0 });
+            if (!byName.has(b.name)) byName.set(b.name, {
+                name: b.kana || b.name, party: this.MAX_PARTY[b.name] || 6, monthly: false, max: 0, key: b.name });
             const e = byName.get(b.name);
             e[col] = { meso: b.meso, chaos: b.difficulty === 'CHAOS' };
             e.monthly = e.monthly || b.type === 'MONTHLY';
             e.max = Math.max(e.max, b.meso);
         });
-        return [...byName.values()].sort((a, b) => b.max - a.max);
+        const all = [...byName.values()];
+        const floor = all.find(b => b.key === this.CRYSTAL_FLOOR_BOSS);
+        return all.filter(b => !floor || b.max >= floor.max).sort((a, b) => b.max - a.max);
     },
 
-    fmtMesoM(v) { return Math.round(v / this.party / 1e6).toLocaleString(); },
-
-    setParty(n) {
-        this.party = n;
-        const box = document.getElementById('cs-crystal');
-        if (box) box.outerHTML = this.renderCrystal();
-    },
+    fmtM(v) { return Math.round(v / 1e6).toLocaleString(); },
 
     crystalTable(list) {
         const cols = this.COLS;
-        const head = `<tr><th class="text-left px-1.5 pb-1 font-bold">ボス</th>${cols.map(c =>
-            `<th class="text-right px-1.5 pb-1 font-bold">${c.label}</th>`).join('')}</tr>`;
+        const head = `<tr>
+                <th rowspan="2" class="text-left px-1.5 font-bold align-bottom">ボス</th>
+                ${cols.map(c => `<th colspan="2" class="text-center px-1 font-bold text-slate-400 border-l border-slate-800">${c.label}</th>`).join('')}
+            </tr>
+            <tr>${cols.map(() => `<th class="text-right px-1.5 pb-1 font-normal border-l border-slate-800">ソロ</th>
+                <th class="text-right px-1.5 pb-1 font-normal">1人分</th>`).join('')}</tr>`;
         const rows = list.map(b => `<tr class="border-t border-slate-800">
-            <td class="px-1.5 py-0.5 whitespace-nowrap text-slate-100 font-bold">${b.name}${b.monthly ? '<span class="ml-1 text-[10px] text-rose-300 font-normal">月</span>' : ''}</td>
+            <td class="px-1.5 py-0.5 whitespace-nowrap"><span class="text-slate-100 font-bold">${b.name}</span>
+                <span class="text-[10px] text-slate-500 ml-1">${b.party}人</span>${b.monthly ? '<span class="ml-1 text-[10px] text-rose-300">月</span>' : ''}</td>
             ${cols.map(c => {
                 const x = b[c.key];
-                if (!x) return '<td class="px-1.5 py-0.5 text-right text-slate-700">—</td>';
-                return `<td class="px-1.5 py-0.5 text-right" title="${(x.meso / this.party).toLocaleString()}">
-                    ${x.chaos ? '<span class="text-[10px] text-slate-500 mr-1">C</span>' : ''}<b class="text-amber-300">${this.fmtMesoM(x.meso)}</b></td>`;
+                if (!x) return '<td colspan="2" class="px-1.5 py-0.5 text-center text-slate-700 border-l border-slate-800">—</td>';
+                return `<td class="px-1.5 py-0.5 text-right border-l border-slate-800" title="${x.meso.toLocaleString()}">
+                        ${x.chaos ? '<span class="text-[10px] text-slate-500 mr-1">C</span>' : ''}<b class="text-amber-300">${this.fmtM(x.meso)}</b></td>
+                    <td class="px-1.5 py-0.5 text-right text-slate-300" title="${Math.floor(x.meso / b.party).toLocaleString()}">${this.fmtM(x.meso / b.party)}</td>`;
             }).join('')}
         </tr>`).join('');
         return `<table class="w-full text-[12px] tabular-nums">
@@ -352,15 +358,12 @@ const cheatsheet = {
     renderCrystal() {
         const list = this.crystalBosses();
         const half = Math.ceil(list.length / 2);
-        const btns = [1, 2, 3, 4, 5, 6].map(n => `<button type="button" onclick="cheatsheet.setParty(${n})"
-            class="w-6 h-5 rounded text-[11px] font-bold ${n === this.party ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}">${n}</button>`).join('');
-        return `<div id="cs-crystal">${this.card('結晶石の価格',
-            `単位は百万メル（M）。${this.party === 1 ? 'ソロでの価格' : `${this.party}人PTの1人あたり（価格 ÷ ${this.party}）`}。C はカオス、月 は月ボス。マウスを載せると1メル単位`,
-            `<div class="flex items-center gap-1 mb-2"><span class="text-[10px] text-slate-400 mr-1">PT人数</span>${btns}</div>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-6 overflow-x-auto">
+        return this.card('結晶石の価格',
+            '単位は百万メル（M）。1人分は最大人数で割った額。C はカオス、月 は月ボス。マウスを載せると1メル単位',
+            `<div class="grid grid-cols-1 2xl:grid-cols-2 gap-x-6 gap-y-2 overflow-x-auto">
                 ${this.crystalTable(list.slice(0, half))}
                 ${this.crystalTable(list.slice(half))}
-            </div>`)}</div>`;
+            </div>`);
     },
 
     render() {
