@@ -295,105 +295,108 @@
     // The modal renders into its own host outside .gp so it can escape any
     // ancestor stacking context, so every shared rule has to name .gp-veil too.
     const CSS = `
-.gp,.gp-veil{--bg:#101220;--sf:#191c2e;--sf2:#20243a;--ln:#2e3450;--tx:#e9e8f2;--mu:#8990ad;
+.gp,.gp-veil{--bg:#020617;--sf:#0f172a;--sf2:#0b1324;--ln:#1e293b;--tx:#e2e8f0;--mu:#8b98ad;--acc:#6366f1;
 --gold:#f4b942;--cyan:#48d6c8;--red:#e8615f;--violet:#b18cf7;
 color:var(--tx);
-font-family:"Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;font-size:13px;line-height:1.6;}
-.gp{padding:4px 0 40px}
+font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;font-size:13px;line-height:1.5;}
+.gp{padding:0 0 24px}
 .gp *,.gp-veil *{box-sizing:border-box}
-.gp .wrap{max-width:1080px;margin:0 auto}
-.gp h1{font-family:"Orbitron",system-ui,sans-serif;font-size:26px;font-weight:700;
-letter-spacing:.06em;margin:0 0 4px;text-transform:uppercase}
-.gp .sub{color:var(--mu);margin:0 0 26px;font-size:12.5px}
-.gp .eyebrow{font-family:"Orbitron",monospace;font-size:10.5px;letter-spacing:.22em;
-color:var(--mu);text-transform:uppercase;margin:0 0 10px;display:flex;align-items:center;gap:10px}
+.gp .wrap{max-width:1480px}
+.gp .head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:0 0 10px}
+.gp .cols{display:grid;grid-template-columns:minmax(0,11fr) minmax(0,12fr);gap:12px;align-items:start}
+@media(max-width:1100px){.gp .cols{grid-template-columns:1fr}}
+.gp h1{font-size:18px;font-weight:700;margin:0;color:#fff}
+.gp .sub{color:var(--mu);margin:0;font-size:11.5px}
+.gp .eyebrow{font-size:11px;font-weight:600;letter-spacing:.06em;
+color:var(--mu);margin:0 0 4px;display:flex;align-items:center;gap:8px}
 .gp .eyebrow::after{content:"";flex:1;height:1px;background:var(--ln)}
-.gp section{margin-bottom:30px}
-.gp .card{background:var(--sf);border:1px solid var(--ln);border-radius:10px;padding:16px}
-.gp .grid6{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
-.gp label,.gp-veil label{display:block;font-size:10.5px;letter-spacing:.1em;color:var(--mu);margin-bottom:4px;text-transform:uppercase}
+.gp section{margin-bottom:12px}
+.gp .card{background:var(--sf);border:1px solid var(--ln);border-radius:0;padding:8px 10px}
+.gp .wcard{display:flex;flex-wrap:wrap;align-items:end;gap:6px 20px}
+.gp .grid6{display:grid;grid-template-columns:repeat(6,92px);gap:6px}
+.gp label,.gp-veil label{display:block;font-size:10.5px;color:var(--mu);margin-bottom:2px}
 .gp input,.gp select,.gp-veil input,.gp-veil select{width:100%;background:var(--bg);color:var(--tx);
-border:1px solid var(--ln);border-radius:6px;padding:7px 8px;font-size:13px;
-font-variant-numeric:tabular-nums;font-family:inherit;color-scheme:dark}
+border:1px solid #334155;border-radius:0;padding:3px 6px;font-size:13px;
+font-variant-numeric:tabular-nums;font-family:"IBM Plex Mono",ui-monospace,monospace;color-scheme:dark}
 .gp select option,.gp-veil select option{background:var(--sf);color:var(--tx)}
-.gp input:focus,.gp select:focus,.gp-veil input:focus,.gp-veil select:focus{outline:2px solid var(--gold);
-outline-offset:1px;border-color:transparent}
-.gp .opts{display:flex;flex-wrap:wrap;gap:16px;align-items:end;margin-top:14px;padding-top:14px;border-top:1px dashed var(--ln)}
+.gp input:focus,.gp select:focus,.gp-veil input:focus,.gp-veil select:focus{outline:1px solid var(--acc);
+outline-offset:0;border-color:var(--acc)}
+.gp .opts{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:end;padding-left:20px;border-left:1px solid var(--ln)}
 .gp .chk{display:flex;align-items:center;gap:7px;color:var(--tx);font-size:12.5px;cursor:pointer;
 letter-spacing:normal;text-transform:none;margin-bottom:0}
-.gp .chk input,.gp-veil .chk input{width:15px;height:15px;accent-color:var(--gold)}
+.gp .chk input,.gp-veil .chk input{width:14px;height:14px;accent-color:var(--acc)}
 .gp-veil .chk{display:flex;align-items:center;gap:7px;color:var(--tx);font-size:12.5px;cursor:pointer;
 letter-spacing:normal;text-transform:none}
 .gp-veil .chk.mb{margin-bottom:14px}
-.gp .btn,.gp-veil .btn{background:transparent;color:var(--mu);border:1px solid var(--ln);border-radius:6px;
-padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit}
-.gp .btn:hover,.gp-veil .btn:hover{border-color:var(--gold);color:var(--gold)}
-.gp .step{display:grid;grid-template-columns:34px 1fr 92px 78px;gap:12px;align-items:center;
-padding:9px 12px;border-bottom:1px solid var(--ln)}
+.gp .btn,.gp-veil .btn{background:transparent;color:var(--mu);border:1px solid #334155;border-radius:0;
+padding:2px 10px;font-size:11.5px;cursor:pointer;font-family:inherit}
+.gp .btn:hover,.gp-veil .btn:hover{border-color:var(--acc);color:#c7d2fe}
+.gp .step{display:grid;grid-template-columns:40px 1fr 84px 62px;gap:10px;align-items:center;
+padding:4px 10px 4px 6px;border-bottom:1px solid var(--ln)}
+.gp .step:nth-child(even){background:#0c1428}
 .gp .step:last-child{border-bottom:none}
-.gp .fold{background:transparent;color:var(--mu);border:1px solid var(--ln);border-radius:5px;
+.gp .fold{background:transparent;color:var(--mu);border:1px solid #334155;border-radius:0;
 padding:1px 6px;margin-left:6px;font-size:11px;font-family:ui-monospace,monospace;cursor:pointer;
 vertical-align:1px;white-space:nowrap}
-.gp .fold:hover{border-color:var(--gold);color:var(--gold)}
+.gp .fold:hover{border-color:var(--acc);color:#c7d2fe}
 .gp .step.grp .rk{font-size:12.5px}
 .gp .step.child{background:rgba(0,0,0,.18);border-bottom-style:dashed;padding-left:26px}
 .gp .step.child .rk,.gp .step.child .who,.gp .step.child .what{font-size:11.5px}
 .gp .step.child .num,.gp .step.child .eff{font-size:12px;color:var(--mu)}
 .gp .step.child .meter{display:none}
-.gp .rk{font-family:"Orbitron",monospace;font-size:15px;color:var(--mu);text-align:right}
-.gp .who{font-size:12px;color:var(--mu)}
-.gp .what{font-size:13.5px}
-.gp .what b{font-weight:500}
+.gp .rk{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:var(--mu);text-align:right;font-variant-numeric:tabular-nums}
+.gp .who{font-size:11px;color:var(--mu)}
+.gp .what{font-size:13.5px;line-height:1.35}
+.gp .what b{font-weight:600}
 .gp .star b{color:var(--gold)} .gp .pot b{color:var(--cyan)}
 .gp .step.big b{color:var(--violet)}
-.gp .num{font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums;text-align:right;font-size:13px}
-.gp .eff{font-family:ui-monospace,monospace;text-align:right;font-size:13px}
+.gp .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;text-align:right;font-size:14px;font-weight:600;color:#fff;line-height:1.25}
+.gp .eff{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;text-align:right;font-size:12px;color:#cbd5e1;line-height:1.25}
 .gp .sm{font-size:10.5px}
-.gp .meter{height:3px;border-radius:2px;margin-top:5px;background:var(--ln);overflow:hidden}
+.gp .meter{height:2px;margin-top:3px;background:var(--ln);overflow:hidden}
 .gp .meter i{display:block;height:100%}
 .gp .star .meter i{background:var(--gold)} .gp .pot .meter i{background:var(--cyan)}
 .gp .step.big .meter i{background:var(--violet)}
-.gp .legend{display:flex;gap:18px;font-size:11.5px;color:var(--mu);margin-bottom:10px;flex-wrap:wrap}
-.gp .dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
-.gp .empty{color:var(--mu);padding:22px 12px;text-align:center}
-.gp .rackbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
-color:var(--mu);font-size:11.5px;margin-bottom:12px}
+.gp .legend{display:flex;gap:4px 14px;font-size:11px;color:var(--mu);margin-bottom:4px;flex-wrap:wrap}
+.gp .dot{display:inline-block;width:8px;height:8px;margin-right:5px}
+.gp .empty{color:var(--mu);padding:14px 10px;text-align:center}
+.gp .rackbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;
+color:var(--mu);font-size:11px;margin-bottom:6px}
 .gp .rackbtns{display:flex;gap:6px}
 .gp .gridwrap{overflow-x:auto}
-.gp .slots{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;min-width:660px}
+.gp .slots{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;min-width:440px}
 .gp .slot{position:relative}
 .gp .slot-btn{width:100%;height:100%;display:flex;flex-direction:column;align-items:flex-start;gap:1px;
-background:var(--sf2);border:1px solid var(--ln);border-radius:8px;padding:8px 24px 8px 10px;
+background:var(--sf2);border:1px solid var(--ln);border-radius:0;padding:4px 18px 4px 6px;
 cursor:pointer;text-align:left;font-family:inherit;color:var(--tx)}
-.gp .slot-btn:hover{border-color:var(--gold)}
-.gp .slot-btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.gp .slot-btn:hover{border-color:var(--acc)}
+.gp .slot-btn:focus-visible{outline:1px solid var(--acc);outline-offset:1px}
 .gp .slot.off .slot-btn{opacity:.38}
 .gp .slot.inert .slot-btn{opacity:.38;border-style:dashed}
-.gp .slot .nm{font-size:12.5px}
-.gp .slot .st{font-family:ui-monospace,monospace;font-size:11px;color:var(--mu);
+.gp .slot .nm{font-size:12px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.gp .slot .st{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;line-height:1.35;color:var(--mu);
 font-variant-numeric:tabular-nums;white-space:nowrap}
 .gp .slot .st em{font-style:normal;color:var(--gold)}
 .gp .slot .st i{font-style:normal;color:var(--cyan)}
-.gp .slot .pin{font-weight:400;color:var(--bg);background:var(--mu);border-radius:3px;padding:0 3px;margin-left:2px}
-.gp .sw{position:absolute;top:6px;right:6px;margin:0;line-height:0}
-.gp .sw input{width:14px;height:14px;accent-color:var(--gold);cursor:pointer}
+.gp .slot .pin{font-weight:400;color:var(--bg);background:var(--mu);padding:0 3px;margin-left:2px}
+.gp .sw{position:absolute;top:5px;right:4px;margin:0;line-height:0}
+.gp .sw input{width:13px;height:13px;accent-color:var(--acc);cursor:pointer}
 .gp-veil{position:fixed;inset:0;background:rgba(8,9,16,.72);display:flex;align-items:center;
 justify-content:center;padding:20px;z-index:50}
-.gp-veil .modal{background:var(--sf);border:1px solid var(--ln);border-radius:12px;width:100%;
-max-width:420px;padding:20px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
-.gp-veil .modal h2{font-family:"Orbitron",system-ui,sans-serif;font-size:15px;letter-spacing:.14em;
-text-transform:uppercase;margin:0 0 16px;font-weight:700}
+.gp-veil .modal{background:var(--sf);border:1px solid #334155;border-top:2px solid var(--acc);border-radius:0;width:100%;
+max-width:420px;padding:14px 16px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.gp-veil .modal h2{font-size:15px;margin:0 0 10px;font-weight:700}
 .gp-veil .fld{margin-bottom:12px}
 .gp-veil .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .gp-veil .foot{display:flex;gap:8px;margin-top:18px}
 .gp-veil .foot .grow{flex:1}
-.gp .primary,.gp-veil .primary{background:var(--gold);color:#181405;border-color:var(--gold);font-weight:700}
-.gp .primary:hover,.gp-veil .primary:hover{opacity:.88;color:#181405;border-color:var(--gold)}
+.gp .primary,.gp-veil .primary{background:#4f46e5;color:#fff;border-color:#6366f1;font-weight:700}
+.gp .primary:hover,.gp-veil .primary:hover{background:#6366f1;color:#fff;border-color:#818cf8}
 .gp .danger:hover,.gp-veil .danger:hover{border-color:var(--red);color:var(--red)}
 .gp input:disabled,.gp select:disabled,.gp-veil input:disabled,.gp-veil select:disabled{opacity:.5;cursor:not-allowed}
 @media(prefers-reduced-motion:no-preference){.gp-veil .modal{animation:gp-pop .16s ease-out}}
 @keyframes gp-pop{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
-.gp .note,.gp-veil .note{color:var(--mu);font-size:11.5px;margin-top:12px}
+.gp .note,.gp-veil .note{color:#64748b;font-size:11px;margin-top:6px}
 @media(max-width:640px){.gp .step{grid-template-columns:26px 1fr;row-gap:2px}
 .gp .num,.gp .eff{text-align:left;grid-column:2}}
 `;
@@ -487,24 +490,24 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
 
             return `<style>${CSS}</style>
 <div class="gp"><div class="wrap">
-    <h1>Upgrade Priority</h1>
-    <p class="sub">いま持っている装備を入れると、次に伸ばすべき順番をメソ効率順に並べます。リブート／シャイニングスターフォース前提、潜在はレジェンダリー基準。</p>
+    <div class="head"><h1>Upgrade Priority</h1>
+    <p class="sub">いま持っている装備を入れると、次に伸ばすべき順番をメソ効率順に並べます。リブート／シャイニングスターフォース前提、潜在はレジェンダリー基準。</p></div>
 
     <section>
         <p class="eyebrow">スコア重み</p>
-        <div class="card">
+        <div class="card wcard">
             <div class="grid6">${weights}</div>
             <div class="opts">
                 <label class="chk"><input type="checkbox" data-gp="opt" data-key="ssf" ${o.ssf ? 'checked' : ''}>シャイニングスターフォース</label>
                 <label class="chk"><input type="checkbox" data-gp="opt" data-key="safeguard" ${o.safeguard ? 'checked' : ''}>15-17★で破壊防止</label>
                 <label class="chk"><input type="checkbox" data-gp="opt" data-key="starCatch" ${o.starCatch ? 'checked' : ''}>スターキャッチ</label>
-                <div style="width:180px">
+                <div style="width:170px">
                     <label for="gp-plan">18★以降のモード（既定）</label>
                     <select id="gp-plan" data-gp="planName">
                         ${Object.keys(PLANS).map((k) => `<option value="${k}" ${o.planName === k ? 'selected' : ''}>${esc(PLAN_LABEL[k])}</option>`).join('')}
                     </select>
                 </div>
-                <div style="width:110px">
+                <div style="width:70px">
                     <label for="gp-limit">読む手数</label>
                     <input id="gp-limit" type="number" min="1" max="80" value="${limit}" data-gp="limit">
                 </div>
@@ -512,6 +515,7 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
         </div>
     </section>
 
+    <div class="cols">
     <section>
         <p class="eyebrow">装備</p>
         <div class="card">
@@ -534,9 +538,10 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
             <span><i class="dot" style="background:#b18cf7"></i>武器・補助武器・エンブレムの潜在</span>
             <span>バーは1スコアあたりの単価（対数）。長いほど割高。</span>
         </div>
-        <div class="card" style="padding:6px 4px"><div id="gp-plan-list"></div></div>
+        <div class="card" style="padding:0"><div id="gp-plan-list"></div></div>
         <p class="note">スターフォースは破壊で★が戻るため、0→18・18→20・20→21・21→22、以降は1★ずつをひとまとまりとして扱い、その区切りまで到達する期待額を出しています（再登坂込み、予備装備は0メソ扱い）。潜在はキューブが毎回全ライン再抽選になるため、進捗によらず目標到達までの総額で、伸びは現在の段階との差分で見ています。</p>
     </section>
+    </div>
 </div></div>
 <div id="gp-modal-host"></div>`;
         },
