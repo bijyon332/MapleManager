@@ -401,7 +401,7 @@ font-family:"Hiragino Sans","Yu Gothic UI",system-ui,sans-serif}
         shell() {
             return '<style>' + CSS + '</style>' +
                 '<div class="cm"><div class="wrap">' +
-                '<h1>Community</h1>' +
+                '<h1>Community Members</h1>' +
                 '<p class="sub">Discord名にキャラクターを紐づけてコミュニティの名簿を作ります。1人が何体でも登録できます。' +
                 'キャラ名を入れると レベル・職・キャラ画像 をランキングAPIから取得します（所属ギルドは手入力）。</p>' +
                 '<div class="bar">' +

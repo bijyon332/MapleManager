@@ -625,6 +625,12 @@ const app = {
         if (first !== 'planner') this.switchApp(first, { fromUrl: true });
     },
 
+    // サイドバーの開閉。起動時の状態は index.html の </aside> 直後で当てている。
+    toggleSidebar() {
+        const collapsed = document.getElementById('sidebar').classList.toggle('collapsed');
+        try { localStorage.setItem('mm-sidebar-collapsed', collapsed ? '1' : '0'); } catch (e) {}
+    },
+
     switchApp(appName, { fromUrl = false } = {}) {
         const entry = this.APPS[appName];
         if (!entry) return;

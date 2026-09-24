@@ -68,6 +68,89 @@ body {
     color: #fff;
 }
 
+/* ---------- 左サイドバー ----------
+   #sidebar.collapsed でアイコンだけ（幅56px）、無ければアイコン + 名前（幅232px）。
+   開閉は app.toggleSidebar()。アイコンの位置は両状態で同じなので、畳んでも
+   アイコンが横に動かない。 */
+#sidebar {
+    width: 232px;
+    transition: width 0.15s ease;
+}
+#sidebar.collapsed {
+    width: 56px;
+}
+.sidebar-head {
+    padding: 0 14px;
+    gap: 10px;
+}
+.nav-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: calc(100% - 16px);
+    height: 40px;
+    margin: 0 8px;
+    padding: 0 10px;
+    border-radius: 0.75rem;
+    flex-shrink: 0;
+    transition: background-color 0.15s, color 0.15s, opacity 0.15s;
+}
+.nav-item > svg {
+    flex-shrink: 0;
+}
+.nav-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 13px;
+    font-weight: 600;
+}
+.nav-group {
+    margin: 10px 8px 2px;
+    padding: 0 10px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+}
+.nav-group:first-child {
+    margin-top: 0;
+}
+.nav-group-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #64748b;
+    white-space: nowrap;
+}
+.nav-group-dev .nav-group-label {
+    color: rgba(245, 158, 11, 0.7);
+}
+/* 開発中アプリの印。アイコンの右上に付ける（両状態で同じ位置）。 */
+.dev-dot {
+    position: absolute;
+    top: 6px;
+    left: 28px;
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: #f59e0b;
+}
+.sidebar-icon-open { display: none; }
+#sidebar.collapsed .sidebar-icon-open { display: block; }
+#sidebar.collapsed .sidebar-icon-close { display: none; }
+#sidebar.collapsed .nav-label { display: none; }
+/* 畳んだときのグループ見出しは細い区切り線だけ。 */
+#sidebar.collapsed .nav-group {
+    height: 1px;
+    margin: 8px 10px;
+    padding: 0;
+    background: rgba(51, 65, 85, 0.7);
+}
+#sidebar.collapsed .nav-group:first-child { display: none; }
+#sidebar.collapsed .nav-group-label { display: none; }
+
 /* In-development apps: dim only while NOT selected. switchApp() toggles
    nav-inactive on/off, so the selected dev app loses this class and no dim rule
    applies (defaults to full opacity) — avoids any specificity/cascade-layer

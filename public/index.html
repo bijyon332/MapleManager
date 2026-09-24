@@ -32,47 +32,27 @@
 
 <body class="h-screen flex font-sans text-sm bg-slate-950 overflow-hidden">
 
-    <aside class="w-14 bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0 z-20">
-        <div class="h-12 flex items-center justify-center border-b border-slate-800">
-            <div class="bg-indigo-600 p-1.5 rounded-lg shadow-lg shadow-indigo-500/20">
+    <!-- サイドバー。開くとアイコン + ツール名、畳むとアイコンだけ（名前はホバーで出る）。
+         開閉は下の Collapse ボタン。状態は localStorage の mm-sidebar-collapsed に端末ごとに残す。
+         ボタンの id は app-<APPSのキー>。キーはURLのハッシュなので、表示名を変えてもキーは変えない。 -->
+    <aside id="sidebar" class="bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0 z-20">
+        <div class="sidebar-head h-12 flex items-center border-b border-slate-800">
+            <div class="bg-indigo-600 p-1.5 rounded-lg shadow-lg shadow-indigo-500/20 flex-shrink-0">
                 <i data-lucide="leaf" class="text-white w-4 h-4"></i>
             </div>
+            <span class="nav-label font-bold text-white tracking-wide">MapleManager</span>
         </div>
-        <nav class="flex-1 py-4 flex flex-col items-center gap-1">
-            <!-- Ready apps -->
+        <nav class="flex-1 py-3 flex flex-col gap-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+            <div class="nav-group">
+                <span class="nav-group-label">Tools</span>
+            </div>
             <button onclick="app.switchApp('planner')" id="app-planner"
-                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-active"
-                title="GMS Planner">
-                <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
-            </button>
-            <button onclick="app.switchApp('cheatsheet')" id="app-cheatsheet"
-                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
-                title="Cheat Sheet（ボスの必要フォース・レベル差補正の早見表）">
-                <i data-lucide="book-open" class="w-5 h-5"></i>
-            </button>
-            <button onclick="app.switchApp('ranks')" id="app-ranks"
-                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
-                title="EXP Leaderboard & Progress">
-                <i data-lucide="line-chart" class="w-5 h-5"></i>
-            </button>
-            <button onclick="app.switchApp('scheduler')" id="app-scheduler"
-                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
-                title="Boss Scheduler">
-                <i data-lucide="swords" class="w-5 h-5"></i>
-            </button>
-            <button onclick="app.switchApp('gear')" id="app-gear"
-                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
-                title="Gear Priority">
-                <i data-lucide="list-ordered" class="w-5 h-5"></i>
-            </button>
-            <button onclick="app.switchApp('community')" id="app-community"
-                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
-                title="Community Roster">
-                <i data-lucide="users-round" class="w-5 h-5"></i>
+                class="nav-item nav-active" title="Character Manager（自分のキャラの管理）">
+                <i data-lucide="user-cog" class="w-5 h-5"></i>
+                <span class="nav-label">Character Manager</span>
             </button>
             <button onclick="app.switchApp('hexa')" id="app-hexa"
-                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
-                title="HEXA Matrix Tracker">
+                class="nav-item nav-inactive" title="HEXA Tracker">
                 <!-- HEXA core: a hexagon inside a hexagon. Hand-drawn in lucide's
                      stroke style since lucide has no nested-hexagon icon. -->
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -80,33 +60,78 @@
                     <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                     <path d="M12 7.5l4 2.25v4.5L12 16.5l-4-2.25v-4.5z" fill="currentColor" fill-opacity="0.35"/>
                 </svg>
+                <span class="nav-label">HEXA Tracker</span>
+            </button>
+            <button onclick="app.switchApp('gear')" id="app-gear"
+                class="nav-item nav-inactive" title="Upgrade Priority（スタフォ・潜在を上げる順番）">
+                <i data-lucide="arrow-up-wide-narrow" class="w-5 h-5"></i>
+                <span class="nav-label">Upgrade Priority</span>
+            </button>
+            <button onclick="app.switchApp('cheatsheet')" id="app-cheatsheet"
+                class="nav-item nav-inactive" title="Cheat Sheet（ボスの必要フォース・レベル差補正の早見表）">
+                <i data-lucide="table-2" class="w-5 h-5"></i>
+                <span class="nav-label">Cheat Sheet</span>
+            </button>
+
+            <div class="nav-group">
+                <span class="nav-group-label">Monitoring</span>
+            </div>
+            <button onclick="app.switchApp('ranks')" id="app-ranks"
+                class="nav-item nav-inactive" title="EXP Tracker（経験値の推移）">
+                <i data-lucide="trending-up" class="w-5 h-5"></i>
+                <span class="nav-label">EXP Tracker</span>
+            </button>
+
+            <div class="nav-group">
+                <span class="nav-group-label">Community</span>
+            </div>
+            <button onclick="app.switchApp('scheduler')" id="app-scheduler"
+                class="nav-item nav-inactive" title="Party Builder（週ボスのPT編成）">
+                <i data-lucide="swords" class="w-5 h-5"></i>
+                <span class="nav-label">Party Builder</span>
+            </button>
+            <button onclick="app.switchApp('community')" id="app-community"
+                class="nav-item nav-inactive" title="Community Members（Discord名とキャラの名簿）">
+                <i data-lucide="contact" class="w-5 h-5"></i>
+                <span class="nav-label">Community Members</span>
             </button>
 
             <!-- In-development apps -->
-            <div class="w-full flex flex-col items-center gap-1.5 mt-3 pt-3 border-t border-slate-700/70">
-                <span class="text-[8px] font-bold uppercase tracking-widest text-amber-500/70 leading-none"
-                    title="開発中 / In Development">DEV</span>
-                <button onclick="app.switchApp('exp')" id="app-exp"
-                    class="dev-app relative w-10 h-10 flex items-center justify-center rounded-xl transition-all nav-inactive"
-                    title="EXP Simulator(開発中)">
-                    <i data-lucide="activity" class="w-5 h-5"></i>
-                    <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                </button>
-                <button onclick="app.switchApp('cost')" id="app-cost"
-                    class="dev-app relative w-10 h-10 flex items-center justify-center rounded-xl transition-all nav-inactive"
-                    title="Cost Calculator(開発中)">
-                    <i data-lucide="calculator" class="w-5 h-5"></i>
-                    <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                </button>
-                <button onclick="app.switchApp('liberation')" id="app-liberation"
-                    class="dev-app relative w-10 h-10 flex items-center justify-center rounded-xl transition-all nav-inactive"
-                    title="Liberation Calculators (Genesis / Destiny / Astra)(開発中)">
-                    <i data-lucide="gem" class="w-5 h-5"></i>
-                    <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                </button>
+            <div class="nav-group nav-group-dev">
+                <span class="nav-group-label" title="開発中 / In Development">DEV</span>
             </div>
+            <button onclick="app.switchApp('exp')" id="app-exp"
+                class="nav-item dev-app nav-inactive" title="EXP Simulator(開発中)">
+                <i data-lucide="flask-conical" class="w-5 h-5"></i>
+                <span class="nav-label">EXP Simulator</span>
+                <span class="dev-dot"></span>
+            </button>
+            <button onclick="app.switchApp('cost')" id="app-cost"
+                class="nav-item dev-app nav-inactive" title="Gear Cost Calculator(開発中)">
+                <i data-lucide="coins" class="w-5 h-5"></i>
+                <span class="nav-label">Gear Cost Calculator</span>
+                <span class="dev-dot"></span>
+            </button>
+            <button onclick="app.switchApp('liberation')" id="app-liberation"
+                class="nav-item dev-app nav-inactive" title="Weapon Liberation (Genesis / Destiny / Astra)(開発中)">
+                <i data-lucide="sword" class="w-5 h-5"></i>
+                <span class="nav-label">Weapon Liberation</span>
+                <span class="dev-dot"></span>
+            </button>
         </nav>
+        <div class="border-t border-slate-800 py-2">
+            <button type="button" onclick="app.toggleSidebar()" id="sidebar-toggle"
+                class="nav-item nav-inactive" title="サイドバーを畳む / 開く">
+                <i data-lucide="panel-left-close" class="sidebar-icon-close w-5 h-5"></i>
+                <i data-lucide="panel-left-open" class="sidebar-icon-open w-5 h-5"></i>
+                <span class="nav-label">Collapse</span>
+            </button>
+        </div>
     </aside>
+    <script>
+        // 描画前に畳み状態を当てて、開いた状態が一瞬見えるのを防ぐ。
+        try { if (localStorage.getItem('mm-sidebar-collapsed') === '1') document.getElementById('sidebar').classList.add('collapsed'); } catch (e) {}
+    </script>
 
     <div class="flex-1 flex flex-col overflow-hidden min-w-0">
         <header class="h-12 bg-slate-900 border-b border-slate-800 flex items-center px-4 shrink-0 z-10 gap-1">

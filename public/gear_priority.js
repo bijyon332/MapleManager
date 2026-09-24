@@ -487,7 +487,7 @@ text-transform:uppercase;margin:0 0 16px;font-weight:700}
 
             return `<style>${CSS}</style>
 <div class="gp"><div class="wrap">
-    <h1>Gear Priority</h1>
+    <h1>Upgrade Priority</h1>
     <p class="sub">いま持っている装備を入れると、次に伸ばすべき順番をメソ効率順に並べます。リブート／シャイニングスターフォース前提、潜在はレジェンダリー基準。</p>
 
     <section>
