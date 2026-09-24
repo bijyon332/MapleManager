@@ -1073,12 +1073,19 @@ const app = {
                 </div>
                 <!-- 右: 名前の行 + ボス -->
                 <div class="flex-1 flex flex-col min-w-0">
-                    <div class="flex items-center gap-2 px-2 h-8 border-b border-slate-800 bg-slate-900/45">
-                        <h3 class="text-sm font-bold text-white truncate">${char.name}</h3>
-                        <span class="text-xs font-mono text-${sCol}-300 flex-shrink-0">Lv.${char.level || '?'}</span>
-                        <span class="text-xs text-indigo-300 truncate flex-1 min-w-0">${char.job || '—'}</span>
-                        <span class="mm-meso font-mono text-sm font-semibold text-emerald-300" title="週の収入（上位${charLimit}体）">${Math.floor(localMaxTotal).toLocaleString()}</span>
-                        <span class="mm-count font-mono text-[11px] text-slate-300 bg-slate-950/70 border border-slate-700 px-1.5">${countAll}/${wkSorted.length + mB.length}</span>
+                    <div class="flex items-center gap-2 px-2 py-1 border-b border-slate-800 bg-slate-900/45">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-baseline gap-2 text-[11px] leading-4">
+                                <span class="text-indigo-300 truncate min-w-0">${char.job || '—'}</span>
+                                <span class="font-mono text-${sCol}-300 flex-shrink-0">Lv.${char.level || '?'}</span>
+                            </div>
+                            <h3 class="text-base font-bold text-white truncate leading-5">${char.name}</h3>
+                        </div>
+                        <div class="flex-shrink-0 text-right" title="週の収入（上位${charLimit}体）">
+                            <div class="text-[10px] leading-4 text-slate-500">mesos</div>
+                            <div class="mm-meso font-mono text-base font-semibold text-emerald-300 leading-5">${Math.floor(localMaxTotal).toLocaleString()}</div>
+                        </div>
+                        <span class="mm-count font-mono text-[11px] text-slate-300 bg-slate-950/70 border border-slate-700 px-1.5 self-center">${countAll}/${wkSorted.length + mB.length}</span>
                     </div>
                     <div class="flex-1 px-2 pt-1 pb-2 space-y-1">
                         ${section('Monthly', 'mo', mB, isMonthlyDone, 1)}
