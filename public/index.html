@@ -45,6 +45,11 @@
                 title="GMS Planner">
                 <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
             </button>
+            <button onclick="app.switchApp('cheatsheet')" id="app-cheatsheet"
+                class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
+                title="Cheat Sheet（ボスの必要フォース・レベル差補正の早見表）">
+                <i data-lucide="book-open" class="w-5 h-5"></i>
+            </button>
             <button onclick="app.switchApp('ranks')" id="app-ranks"
                 class="w-10 h-10 flex items-center justify-center rounded-xl transition-colors nav-inactive"
                 title="EXP Leaderboard & Progress">
@@ -329,6 +334,10 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- ========== CHEAT SHEET APP ========== -->
+                <!-- 中身は cheatsheet.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
+                <div id="view-cheatsheet" class="hidden-page fade-in"></div>
 
                 <!-- ========== EXP SIMULATOR APP ========== -->
                 <!-- 中身は exp_sim.html。初回オープン時に読み込む（script.js の APPS）。 -->

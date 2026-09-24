@@ -527,6 +527,11 @@ const app = {
             chrome: 'planner',
             open() { this.navigate('dashboard'); }
         },
+        cheatsheet: {
+            view: 'view-cheatsheet',
+            scripts: ['cheatsheet.js'],
+            init() { cheatsheet.init('view-cheatsheet'); }
+        },
         ranks: {
             view: 'view-ranks',
             html: 'ranks.html',
