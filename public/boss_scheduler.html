@@ -10,13 +10,19 @@
     <script>
         tailwind.config = {
             theme: {
+                // 本体（index.html）と同じく角はほぼ四角、数字は等幅に。
+                borderRadius: { none: '0', sm: '1px', DEFAULT: '2px', md: '2px', lg: '2px', xl: '3px', '2xl': '3px', '3xl': '4px', full: '9999px' },
                 extend: {
-                    colors: { slate: { 850: '#151f32', 900: '#0f172a', 950: '#020617' } }
+                    colors: { slate: { 850: '#151f32', 900: '#0f172a', 950: '#020617' } },
+                    fontFamily: {
+                        sans: ['"IBM Plex Sans JP"', 'system-ui', 'sans-serif'],
+                        mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
+                    }
                 }
             }
         }
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="boss_scheduler.css">
     <script src="class_data.js" defer></script>
     <script src="boss_data.js" defer></script>
