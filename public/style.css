@@ -30,10 +30,14 @@ body {
 #view-scheduler {
     position: fixed;
     top: 3rem;      /* header height (h-12) */
-    left: 3.5rem;   /* sidebar width (w-14) */
+    left: 232px;    /* サイドバーの幅（#sidebar と揃える） */
     right: 0;
     bottom: 0;
     z-index: 5;
+    transition: left 0.15s ease;
+}
+#sidebar.collapsed ~ div #view-scheduler {
+    left: 56px;     /* 畳んだサイドバーの幅 */
 }
 #scheduler-frame {
     width: 100%;
