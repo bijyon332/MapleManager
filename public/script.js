@@ -1047,7 +1047,7 @@ const app = {
                         ${done ? `
                         <div onclick="app.toggleCharDone('${char.id}','${scope}')" title="クリックで消し込みを解除"
                             class="mm-stamp ${key === 'mo' ? 'border-yellow-400/90 text-yellow-300' : 'border-purple-400/90 text-purple-300'}">
-                            <i data-lucide="check-circle-2" class="w-4 h-4"></i><span>COMPLETE</span>
+                            <i data-lucide="check-circle-2" class="w-5 h-5"></i><span>COMPLETE</span>
                         </div>` : ''}
                     </div>
                 </div>`;
