@@ -1025,8 +1025,7 @@ const app = {
                 const cap = rows * 7;
                 const head = `
                     <div class="flex items-center gap-2 mb-0.5 h-4">
-                        <span class="mm-sec-label ${key === 'mo' ? 'bg-yellow-500 text-slate-950' : 'bg-purple-600 text-white'}">${label}</span>
-                        ${list.length ? `<span class="text-[10px] font-mono ${done ? 'text-emerald-400' : 'text-slate-500'}">${done ? '✓ 消し込み済み' : '未'}</span>` : ''}
+                        <span class="mm-sec-label ${key === 'mo' ? 'bg-yellow-500 text-slate-950' : 'bg-purple-600 text-white'}">${label}${done && list.length ? ' ✓' : ''}</span>
                     </div>`;
                 if (!list.length) {
                     return `<div>${head}<div class="mm-tiles-empty" style="--rows:${rows}">${key === 'mo' ? '月' : '週'}ボスなし</div></div>`;
