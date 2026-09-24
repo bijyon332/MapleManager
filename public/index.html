@@ -8,15 +8,25 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
+        // 表計算調のデザイン（2026-09-24）: 色は今までの slate / indigo のまま、
+        // 角丸をほぼ無くし、文字を IBM Plex に揃える。ここを変えると全アプリに効く。
         tailwind.config = {
             theme: {
+                borderRadius: {
+                    none: '0', sm: '1px', DEFAULT: '2px', md: '2px', lg: '2px',
+                    xl: '3px', '2xl': '3px', '3xl': '4px', full: '9999px'
+                },
                 extend: {
-                    colors: { slate: { 850: '#151f32', 900: '#0f172a', 950: '#020617' } }
+                    colors: { slate: { 850: '#151f32', 900: '#0f172a', 950: '#020617' } },
+                    fontFamily: {
+                        sans: ['"IBM Plex Sans JP"', '"Hiragino Sans"', '"Yu Gothic UI"', 'system-ui', 'sans-serif'],
+                        mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace']
+                    }
                 }
             }
         }
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans+JP:wght@400;500;600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <!-- ここで読むのは、どのアプリを開いても要るものだけ。
          各アプリのHTML断片とJS（exp_sim / ranks / cost_calc / gear_priority /
@@ -134,59 +144,59 @@
     </script>
 
     <div class="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header class="h-12 bg-slate-900 border-b border-slate-800 flex items-center px-4 shrink-0 z-10 gap-1">
+        <header class="h-12 bg-slate-900 border-b border-slate-800 flex items-center pl-2 pr-3 shrink-0 z-10 gap-1">
             <!-- Sub Navigation -->
-            <nav class="flex items-center gap-0.5 mr-4 flex-shrink-0">
+            <nav class="flex self-stretch mr-3 flex-shrink-0">
                 <button onclick="app.navigate('dashboard')" id="nav-dashboard"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all nav-active flex items-center gap-1.5">
+                    class="htab nav-active flex items-center gap-1.5">
                     <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>Dashboard
                 </button>
                 <button onclick="app.navigate('characters')" id="nav-characters"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all nav-inactive flex items-center gap-1.5">
+                    class="htab nav-inactive flex items-center gap-1.5">
                     <i data-lucide="users" class="w-3.5 h-3.5"></i>Characters
                 </button>
                 <!-- タスク機能は一旦停止中 (script.js の TASKS_ENABLED) -->
                 <button type="button" id="nav-tasks" disabled title="タスク機能は現在停止中です"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all nav-inactive feature-disabled flex items-center gap-1.5">
+                    class="htab nav-inactive feature-disabled flex items-center gap-1.5">
                     <i data-lucide="list-checks" class="w-3.5 h-3.5"></i>Tasks
                 </button>
                 <button onclick="app.navigate('system')" id="nav-system"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all nav-inactive flex items-center gap-1.5">
+                    class="htab nav-inactive flex items-center gap-1.5">
                     <i data-lucide="settings-2" class="w-3.5 h-3.5"></i>System
                 </button>
             </nav>
             <!-- Boss Scheduler sub navigation (shown only for the scheduler app) -->
-            <nav id="scheduler-nav" class="hidden items-center gap-0.5 mr-4 flex-shrink-0">
+            <nav id="scheduler-nav" class="hidden self-stretch mr-3 flex-shrink-0">
                 <button onclick="app.schedulerTab('members')" id="snav-members"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all nav-active flex items-center gap-1.5">
+                    class="htab nav-active flex items-center gap-1.5">
                     <i data-lucide="users" class="w-3.5 h-3.5"></i>Members
                 </button>
                 <button onclick="app.schedulerTab('builder')" id="snav-builder"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all nav-inactive flex items-center gap-1.5">
+                    class="htab nav-inactive flex items-center gap-1.5">
                     <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>Builder
                 </button>
                 <button onclick="app.schedulerTab('dashboard')" id="snav-dashboard"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all nav-inactive flex items-center gap-1.5">
+                    class="htab nav-inactive flex items-center gap-1.5">
                     <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>Dashboard
                 </button>
             </nav>
             <!-- HEXA sub navigation (shown only for the hexa app) -->
-            <nav id="hexa-nav" class="hidden items-center gap-0.5 mr-4 flex-shrink-0">
+            <nav id="hexa-nav" class="hidden self-stretch mr-3 flex-shrink-0">
                 <button onclick="hexaTracker.setPage('ranking')" id="hnav-ranking"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all nav-active flex items-center gap-1.5">
+                    class="htab nav-active flex items-center gap-1.5">
                     <i data-lucide="trophy" class="w-3.5 h-3.5"></i>効率ランキング
                 </button>
                 <button onclick="hexaTracker.setPage('tracker')" id="hnav-tracker"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all nav-inactive flex items-center gap-1.5">
+                    class="htab nav-inactive flex items-center gap-1.5">
                     <i data-lucide="hexagon" class="w-3.5 h-3.5"></i>トラッカー
                 </button>
             </nav>
             <!-- Dashboard Stats -->
             <div id="dashboard-stats-container"
-                class="flex items-center gap-4 flex-1 justify-end min-w-0 overflow-hidden"></div>
+                class="flex items-stretch self-stretch flex-1 justify-end min-w-0 overflow-hidden"></div>
             <!-- Server Toggle -->
-            <div class="flex items-center gap-2 ml-3 flex-shrink-0">
-                <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700 gap-1">
+            <div class="flex items-center ml-1 flex-shrink-0">
+                <div class="flex bg-slate-800 p-0.5 border border-slate-700 gap-0.5">
                     <button onclick="app.setServer('KRONOS')" id="btn-server-kronos"
                         class="px-2.5 py-1 rounded text-[10px] font-bold transition-all text-slate-400 border border-transparent hover:text-white">Kronos</button>
                     <button onclick="app.setServer('CHALLENGER')" id="btn-server-challenger"
@@ -195,11 +205,10 @@
             </div>
             <!-- Clock -->
             <div
-                class="flex items-center gap-3 text-[10px] font-mono bg-slate-800/50 px-2.5 py-1 rounded border border-slate-700/50 ml-4 flex-shrink-0">
+                class="flex items-center gap-2 text-[11px] font-mono ml-2 flex-shrink-0">
                 <div class="flex gap-1.5"><span class="text-slate-500">UTC</span><span id="clock-utc"
                         class="text-indigo-300 font-bold">--:--:--</span></div>
-                <div class="w-px h-3 bg-slate-600"></div>
-                <div class="flex gap-1.5"><span class="text-slate-500">JST</span><span id="clock-jst"
+                                <div class="flex gap-1.5"><span class="text-slate-500">JST</span><span id="clock-jst"
                         class="text-emerald-300 font-bold">--:--:--</span></div>
             </div>
         </header>
@@ -262,7 +271,7 @@
                             <span id="planner-community-note" class="text-[11px] text-slate-500"></span>
                         </div>
                     </div>
-                    <div id="char-list-container" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-3"></div>
+                    <div id="char-list-container"></div>
                 </div>
 
                 <div id="view-tasks" class="hidden-page fade-in flex flex-col h-[calc(100vh-7rem)]">

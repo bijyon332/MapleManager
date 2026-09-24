@@ -517,16 +517,16 @@ const hexaTracker = {
         rows.forEach((r, i) => {
             const medal = i === 0 ? '#fcd34d' : i === 1 ? '#cbd5e1' : i === 2 ? '#d97706' : null;
             list += `<button onclick="hexaTracker.openForClass('${r.id}')"
-                class="w-full flex items-center gap-3 px-2.5 py-1.5 rounded-lg text-left transition-colors hover:bg-slate-800/70 ${i % 2 ? 'bg-slate-900/40' : ''}">
+                class="w-full flex items-center gap-3 px-2.5 py-0.5 text-left transition-colors hover:bg-slate-800/70 ${i % 2 ? 'bg-slate-950/50' : ''}">
                 <span class="w-7 text-right text-xs font-bold tabular-nums shrink-0" style="color:${medal || '#64748b'}">${i + 1}</span>
-                <img src="${r.path}" class="w-8 h-8 object-contain shrink-0" loading="lazy" alt="">
-                <span class="w-40 shrink-0 min-w-0">
-                    <span class="block text-xs text-slate-200 truncate">${this.escHtml(r.name)}</span>
-                    <span class="block text-[9px] text-slate-500 truncate">${this.escHtml(r.group)}</span>
+                <img src="${r.path}" class="w-7 h-7 object-contain shrink-0" loading="lazy" alt="">
+                <span class="w-56 shrink-0 min-w-0 flex items-baseline gap-2">
+                    <span class="text-xs text-slate-200 truncate">${this.escHtml(r.name)}</span>
+                    <span class="text-[10px] text-slate-500 truncate">${this.escHtml(r.group)}</span>
                 </span>
                 <span class="flex-1 min-w-0 hidden sm:block">
-                    <span class="block h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                        <span class="block h-full rounded-full" style="width:${(r.frag / maxFrag * 100).toFixed(1)}%;background:linear-gradient(90deg,#7c3aed,#a78bfa)"></span>
+                    <span class="block h-1.5 bg-slate-800 overflow-hidden">
+                        <span class="block h-full" style="width:${(r.frag / maxFrag * 100).toFixed(1)}%;background:linear-gradient(90deg,#7c3aed,#a78bfa)"></span>
                     </span>
                 </span>
                 <span class="w-24 text-right text-xs font-bold tabular-nums text-violet-300 shrink-0">${Math.round(r.frag).toLocaleString()}</span>
@@ -561,11 +561,11 @@ const hexaTracker = {
                 <span class="text-slate-600">差 ${Math.round(slowest.frag - fastest.frag).toLocaleString()} 欠片（${(slowest.frag / Math.max(1, fastest.frag)).toFixed(1)}倍）</span>
             </div>
 
-            <div class="bg-slate-900 rounded-xl border border-slate-800 p-2">
+            <div class="bg-slate-900 border border-slate-800 py-1">
                 <div class="flex items-center gap-3 px-2.5 pb-1.5 mb-1 border-b border-slate-800 text-[9px] uppercase tracking-wider text-slate-500 font-bold">
                     <span class="w-7 text-right shrink-0">#</span>
-                    <span class="w-8 shrink-0"></span>
-                    <span class="w-40 shrink-0">職業</span>
+                    <span class="w-7 shrink-0"></span>
+                    <span class="w-56 shrink-0">職業</span>
                     <span class="flex-1 hidden sm:block"></span>
                     <span class="w-24 text-right shrink-0">必要欠片</span>
                     <span class="w-16 text-right shrink-0">エルダ</span>
