@@ -21,32 +21,32 @@ const cheatsheet = {
     // ---- アーケインボス ------------------------------------------------------
     // entry: 入場Lv / 各難易度: lv = ボスLv（レベル差補正はこちらで効く）、af = 必要AF
     ARCANE_BOSSES: [
-        { boss: 'ルシード', entry: 220, E: { lv: 230, af: 360 }, N: { lv: 230, af: 360 }, H: { lv: 230, af: 360 } },
-        { boss: 'ウィル', entry: 235, E: { lv: 235, af: 560 }, N: { lv: 250, af: 760 }, H: { lv: 250, af: 760 } },
-        { boss: 'ダスク', entry: 245, N: { lv: 255, af: 730 }, H: { lv: 255, af: 730 } },
-        { boss: '真・ヒルラ', entry: 250, N: { lv: 250, af: 820 }, H: { lv: 250, af: 900 } },
-        { boss: 'デュンケル', entry: 255, N: { lv: 265, af: 850 }, H: { lv: 265, af: 850 } },
-        { boss: '暗黒の魔法使い', entry: 255, H: { lv: 275, af: 1320 }, X: { lv: 280, af: 1320 } },
+        { boss: 'ルシード', en: 'Lucid', entry: 220, E: { lv: 230, af: 360 }, N: { lv: 230, af: 360 }, H: { lv: 230, af: 360 } },
+        { boss: 'ウィル', en: 'Will', entry: 235, E: { lv: 235, af: 560 }, N: { lv: 250, af: 760 }, H: { lv: 250, af: 760 } },
+        { boss: 'ダスク', en: 'Gloom', entry: 245, N: { lv: 255, af: 730 }, H: { lv: 255, af: 730 } },
+        { boss: '真・ヒルラ', en: 'Verus Hilla', entry: 250, N: { lv: 250, af: 820 }, H: { lv: 250, af: 900 } },
+        { boss: 'デュンケル', en: 'Darknell', entry: 255, N: { lv: 265, af: 850 }, H: { lv: 265, af: 850 } },
+        { boss: '暗黒の魔法使い', en: 'Black Mage', entry: 255, H: { lv: 275, af: 1320 }, X: { lv: 280, af: 1320 } },
     ],
     ARC_TIERS: [1.5, 1.3, 1.1],
 
     // ---- オーセンティックボス ------------------------------------------------
     // sub: ボス名の横に出す補足（1段階目だけ要求が低いなど）。note: 注記番号。
     SACRED_BOSSES: [
-        { boss: '選ばれし者セレン', entry: 260, sub: '1段階目は150',
+        { boss: '選ばれし者セレン', en: 'Chosen Seren', entry: 260, sub: '1段階目は150',
           N: { lv: 270, sac: 200 }, H: { lv: 275, sac: 200 }, X: { lv: 280, sac: 200 } },
-        { boss: 'カロス', entry: 265, sub: 'ノーマル1段階目は250',
+        { boss: 'カロス', en: 'Kalos the Guardian', entry: 265, sub: 'ノーマル1段階目は250',
           E: { lv: 270, sac: 200 }, N: { lv: 280, sac: 300 }, H: { lv: 285, sac: 330 }, X: { lv: 285, sac: 440 } },
-        { boss: '最初の対敵者', entry: 270, note: 1,
+        { boss: '最初の対敵者', en: 'First Adversary', entry: 270, note: 1,
           E: { lv: 270, sac: 220 }, N: { lv: 280, sac: 320 }, H: { lv: 285, sac: 340 }, X: { lv: 290, sac: 460 } },
-        { boss: 'カリーン', entry: 275,
+        { boss: 'カリーン', en: 'Kaling', entry: 275,
           E: { lv: 275, sac: 230 }, N: { lv: 285, sac: 330 }, H: { lv: 285, sac: 350 }, X: { lv: 285, sac: 480 } },
-        { boss: '凶星', entry: 280, N: { lv: 280, sac: 400 }, H: { lv: 280, sac: 550 } },
-        { boss: 'ベローナ', entry: 280, note: 2,
+        { boss: '凶星', en: 'Malefic Star', entry: 280, N: { lv: 280, sac: 400 }, H: { lv: 280, sac: 550 } },
+        { boss: 'ベローナ', en: 'Bellona', entry: 280, note: 2,
           E: { lv: 280, sac: 400 }, N: { lv: 280, sac: 450 }, H: { lv: 280, sac: 550 } },
-        { boss: 'リンボ', entry: 285, N: { lv: 285, sac: 500 }, H: { lv: 285, sac: 500 } },
-        { boss: 'バルドリクス', entry: 290, N: { lv: 290, sac: 700 }, H: { lv: 290, sac: 700 } },
-        { boss: 'ユピテル', entry: 295, N: { lv: 295, sac: 810 }, H: { lv: 295, sac: 810 } },
+        { boss: 'リンボ', en: 'Limbo', entry: 285, N: { lv: 285, sac: 500 }, H: { lv: 285, sac: 500 } },
+        { boss: 'バルドリクス', en: 'Baldrix', entry: 290, N: { lv: 290, sac: 700 }, H: { lv: 290, sac: 700 } },
+        { boss: 'ユピテル', en: 'Jupiter', entry: 295, N: { lv: 295, sac: 810 }, H: { lv: 295, sac: 810 } },
     ],
     SACRED_MAX_OVER: 50,   // 必要値 +50 で与ダメが最大（125%）
 
@@ -187,7 +187,16 @@ const cheatsheet = {
         ];
     },
 
+    // ボスの並びは、ハード（無ければカオス、それも無ければ一番上の難易度）の要求フォース順。
+    // アーケインのボスが先、オーセンティックのボスが後。
+    hardReq(b) {
+        const c = b.H || b.X || b.N || b.E;
+        return c.af != null ? c.af : 10000 + c.sac;
+    },
+    byHardReq(list) { return [...list].sort((a, b) => this.hardReq(a) - this.hardReq(b)); },
+
     bossTable(list, cells) {
+        list = this.byHardReq(list);
         const cols = this.COLS.filter(col => list.some(b => b[col.key]));
         const sub = ['Lv', '必要', '最大'];
         const head = `<tr>
@@ -327,7 +336,12 @@ const cheatsheet = {
         });
         const all = [...byName.values()];
         const floor = all.find(b => b.key === this.CRYSTAL_FLOOR_BOSS);
-        return all.filter(b => !floor || b.max >= floor.max).sort((a, b) => b.max - a.max);
+        // 並びは上のボスの表と同じ（ハードの要求フォース順）。要求フォースの無いボス
+        // （スウ・デミアン・Gスライム）は先頭に、ハード（カオス）の価格順で置く。
+        const req = {};
+        [...this.ARCANE_BOSSES, ...this.SACRED_BOSSES].forEach(b => { req[b.en] = this.hardReq(b); });
+        const rank = b => req[b.key] != null ? req[b.key] : (b.H ? b.H.meso : b.max) / 1e12;
+        return all.filter(b => !floor || b.max >= floor.max).sort((a, b) => rank(a) - rank(b));
     },
 
     fmtM(v) { return Math.round(v / 1e6).toLocaleString(); },
