@@ -31,18 +31,20 @@ const cheatsheet = {
     ARC_TIERS: [1.5, 1.3, 1.1],
 
     // ---- オーセンティックボス ------------------------------------------------
-    // sub: ボス名の横に出す補足（1段階目だけ要求が低いなど）。note: 注記番号。
+    // sub: ボス名の横に出す補足（1段階目だけ要求が低いなど）。
+    // 最初の対敵者ハード/エクストリームのボスLv（285/290）は Mapler House の値。MapleStory Wiki は 270。
+    // ベローナは KMS で 2026-08 実装。GMS に来ているかは未確認のまま載せている。
     SACRED_BOSSES: [
         { boss: '選ばれし者セレン', en: 'Chosen Seren', entry: 260, sub: '1段階目は150',
           N: { lv: 270, sac: 200 }, H: { lv: 275, sac: 200 }, X: { lv: 280, sac: 200 } },
         { boss: 'カロス', en: 'Kalos the Guardian', entry: 265, sub: 'ノーマル1段階目は250',
           E: { lv: 270, sac: 200 }, N: { lv: 280, sac: 300 }, H: { lv: 285, sac: 330 }, X: { lv: 285, sac: 440 } },
-        { boss: '最初の対敵者', en: 'First Adversary', entry: 270, note: 1,
+        { boss: '最初の対敵者', en: 'First Adversary', entry: 270,
           E: { lv: 270, sac: 220 }, N: { lv: 280, sac: 320 }, H: { lv: 285, sac: 340 }, X: { lv: 290, sac: 460 } },
         { boss: 'カリーン', en: 'Kaling', entry: 275,
           E: { lv: 275, sac: 230 }, N: { lv: 285, sac: 330 }, H: { lv: 285, sac: 350 }, X: { lv: 285, sac: 480 } },
         { boss: '凶星', en: 'Malefic Star', entry: 280, N: { lv: 280, sac: 400 }, H: { lv: 280, sac: 550 } },
-        { boss: 'ベローナ', en: 'Bellona', entry: 280, note: 2,
+        { boss: 'ベローナ', en: 'Bellona', entry: 280,
           E: { lv: 280, sac: 400 }, N: { lv: 280, sac: 450 }, H: { lv: 280, sac: 550 } },
         { boss: 'リンボ', en: 'Limbo', entry: 285, N: { lv: 285, sac: 500 }, H: { lv: 285, sac: 500 } },
         { boss: 'バルドリクス', en: 'Baldrix', entry: 290, N: { lv: 290, sac: 700 }, H: { lv: 290, sac: 700 } },
@@ -71,7 +73,6 @@ const cheatsheet = {
     sacredDealt(d) { return d >= 0 ? Math.min(125, 100 + d / 2) : Math.max(5, 100 + d); },
     sacredTaken(d) { return d >= 0 ? 100 : d <= -95 ? 200 : 100 - d; },
     SACRED_DIFFS: [-95, -90, -80, -70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50],
-    SACRED_TAKEN_KNOWN: [0, -50, -95],
 
     // ---- レベル差（自分Lv − 相手Lv）ごとの補正 ------------------------------
     // 与ダメ: (100 − 2.5 × 格上レベル差) × (1 + ボーナス)。ボーナスは差0で+10%、
@@ -153,7 +154,7 @@ const cheatsheet = {
             `<div class="text-center text-[10px] leading-4 ${mark === i ? 'text-white font-bold' : 'text-slate-500'} whitespace-nowrap overflow-hidden">${c}</div>`).join('');
         const body = rows.map(r => `<div class="text-[10px] text-slate-400 self-center pr-1 whitespace-nowrap">${r.label}</div>` +
             r.values.map((v, i) => `<div class="text-center text-[11px] leading-5 tabular-nums text-slate-100 ${mark === i ? 'font-bold ring-1 ring-inset ring-slate-400/60' : ''}"
-                style="${this.heat(v, r.opts)}" ${r.titles ? `title="${r.titles[i]}"` : ''}>${this.fmtNum(v)}${r.star && r.star(i) ? '<sup class="text-amber-300">※</sup>' : ''}</div>`).join('')).join('');
+                style="${this.heat(v, r.opts)}" ${r.titles ? `title="${r.titles[i]}"` : ''}>${this.fmtNum(v)}</div>`).join('')).join('');
         return `<div class="grid gap-px" style="${tmpl}">${head}${body}</div>`;
     },
 
@@ -204,17 +205,17 @@ const cheatsheet = {
                 ${cols.map(c => `<th colspan="3" class="text-center px-1 font-bold text-slate-400 border-l border-slate-800">${c.label}</th>`).join('')}
             </tr>
             <tr>${cols.map(() => sub.map((s, i) =>
-                `<th class="text-right px-1.5 pb-1 font-normal ${i === 0 ? 'border-l border-slate-800' : ''}">${s}</th>`).join('')).join('')}</tr>`;
+                `<th class="text-right px-1 pb-1 font-normal ${i === 0 ? 'border-l border-slate-800' : ''}">${s}</th>`).join('')).join('')}</tr>`;
         const rows = list.map(b => `<tr class="border-t border-slate-800">
             <td class="px-1.5 py-1 whitespace-nowrap">
-                <span class="text-slate-100 font-bold text-[12px]">${b.boss}</span>${b.note ? `<sup class="text-amber-300">※${b.note}</sup>` : ''}
-                <span class="text-slate-500 ml-1">入場${b.entry}</span>${b.sub ? `<span class="text-slate-500 ml-1">・${b.sub}</span>` : ''}
+                <span class="text-slate-100 font-bold text-[12px]">${b.boss}</span>
+                <span class="text-slate-500 ml-1">入場${b.entry}</span>${b.sub ? `<div class="text-[10px] text-slate-500 leading-3">${b.sub}</div>` : ''}
             </td>
             ${cols.map(col => {
                 const c = b[col.key];
                 if (!c) return `<td colspan="3" class="px-1.5 py-1 text-center text-slate-700 border-l border-slate-800">—</td>`;
                 return cells.call(this, c).map((v, i) =>
-                    `<td class="px-1.5 py-1 text-right ${i === 0 ? 'border-l border-slate-800' : ''}">${v}</td>`).join('');
+                    `<td class="px-1 py-1 text-right ${i === 0 ? 'border-l border-slate-800' : ''}">${v}</td>`).join('');
             }).join('')}
         </tr>`).join('');
         return `<div class="overflow-x-auto"><table class="w-full text-[12px] tabular-nums">
@@ -225,13 +226,12 @@ const cheatsheet = {
     renderArcane() {
         const legend = Object.entries(this.TIER_COLOR).sort((a, b) => b[0] - a[0])
             .map(([m, cls]) => `<span class="${cls}">■</span>${m}倍`).join(' ');
-        return this.card('アーケインボス', `ボスLv / 必要AF / 最大倍率に要るAF（${legend}）`,
-            this.bossTable(this.ARCANE_BOSSES, this.arcaneCells)
-            + `<p class="text-[10px] text-slate-500 mt-1.5">シンボルだけのAF上限は1320。1.5倍が上限を超えるボスは、届く中で一番上の倍率を出している。暗黒の魔法使いの1.1倍（1452）はシンボル以外で +132 が要る。</p>`);
+        return this.card('アーケインボス', `ボスLv / 必要AF / 最大（${legend}）`,
+            this.bossTable(this.ARCANE_BOSSES, this.arcaneCells));
     },
 
     renderSacred() {
-        return this.card('オーセンティックボス', 'ボスLv / 必要AUT / 最大倍率（要求 +50）に要るAUT',
+        return this.card('オーセンティックボス', 'ボスLv / 必要AUT / 最大（要求 +50）',
             this.bossTable(this.SACRED_BOSSES, this.sacredCells));
     },
 
@@ -255,7 +255,7 @@ const cheatsheet = {
                 : '<div></div>').join('');
         const head = `<div class="text-[10px] text-slate-500">Lv</div>` + Array.from({ length: 20 }, (_, i) =>
             `<div class="text-center text-[10px] leading-4 text-slate-500">${i + 1}</div>`).join('');
-        return this.card('シンボル1個のLvとフォース', 'アーケインは Lv20 で 220、オーセンティックは Lv11 で 110',
+        return this.card('シンボル1個のLvとフォース', '',
             `<div class="grid gap-px" style="grid-template-columns:3.5rem repeat(20,minmax(0,1fr))">
                 ${head}${row('アーケイン', 20, lv => 20 + 10 * lv, 'text-indigo-300')}${row('オーセン', 11, lv => 10 * lv, 'text-cyan-300')}
             </div>`);
@@ -266,10 +266,8 @@ const cheatsheet = {
         return this.card('オーセンティックフォース差', '自分AUT − 必要AUT',
             this.heatGrid(ds.map(d => d === -95 ? '≤−95' : d === 50 ? '+50≤' : this.fmtDiff(d)), [
                 { label: '与ダメ%', values: ds.map(d => this.sacredDealt(d)), opts: { up: 25 } },
-                { label: '被ダメ%', values: ds.map(d => this.sacredTaken(d)), opts: { invert: true },
-                  star: i => ds[i] < 0 && !this.SACRED_TAKEN_KNOWN.includes(ds[i]) },
-            ], { mark: ds.indexOf(0) })
-            + `<p class="text-[10px] text-slate-500 mt-1.5">不足は1につき −1%（最低5%）、超過は2につき +1%（最大125%）。※被ダメは公式が 0 / −50 / −95 の3点だけで、間は推定。</p>`);
+                { label: '被ダメ%', values: ds.map(d => this.sacredTaken(d)), opts: { invert: true } },
+            ], { mark: ds.indexOf(0) }));
     },
 
     renderLevel() {
@@ -298,15 +296,7 @@ const cheatsheet = {
             ? `<span class="absolute left-1/2 -translate-x-1/2 text-[10px] ${d === 0 ? 'text-white' : 'text-slate-500'} whitespace-nowrap">${this.fmtDiff(d)}</span>` : ''}</div>`).join('');
         const farGrid = `<div class="grid gap-y-px mt-2" style="${tmpl}">${bars}${ticks}</div>`;
 
-        const outside = [
-            ['与ダメ', '−5 以降は 1Lv ごとに −2.5%p（−10 で 75%、−20 で 50%）、−40 で 0%。+5 以上は 120% 固定'],
-            ['経験値', '+11〜+20 は 99→95%、+21〜+39 は 89→71%、+40 以上 70%。−11〜−20 は 99→90%、−21〜−35 は 70→14%、−36 以下 10%'],
-            ['メル', '+11〜+19 は 98→82%、+20〜+29 は 80→3%、+30 以上 0%。−11〜−20 は 97→70%、−21〜−33 は 65→5%、−34 以下 0%'],
-        ].map(([k, v]) => `<div><span class="text-slate-400">${k}</span> ${v}</div>`).join('');
-
-        return this.card('レベル差', '自分Lv − 相手Lv（左ほど相手が格上）。ボスはボスLvと比べる',
-            nearGrid + farGrid
-            + `<div class="text-[10px] text-slate-500 mt-2 space-y-0.5">${outside}</div>`);
+        return this.card('レベル差', '自分Lv − 相手Lv', nearGrid + farGrid);
     },
 
     // ---------------------------------------------------------
@@ -384,7 +374,7 @@ const cheatsheet = {
         const list = this.crystalBosses();
 
         return this.card('結晶石の価格',
-            '単位は百万メル（M）。1人分は最大人数で割った額。C はカオス、月 は月ボス。マウスを載せると1メル単位',
+            '単位は百万メル（M）。1人分は最大人数で割った額',
             `<div class="grid grid-cols-1 2xl:grid-cols-2 gap-x-6 gap-y-2 overflow-x-auto">
                 ${this.crystalTable(list.filter(b => b.sacred))}
                 ${this.crystalTable(list.filter(b => !b.sacred))}
@@ -397,7 +387,7 @@ const cheatsheet = {
         return `<div class="max-w-[1500px] mx-auto space-y-3">
             <div class="flex items-baseline gap-3 flex-wrap">
                 <h1 class="text-base font-bold text-white">Cheat Sheet</h1>
-                <span class="text-[11px] text-slate-500">GMS基準（2026-09-24 時点）。色は100%より良いほど緑、悪いほど赤。</span>
+                <span class="text-[11px] text-slate-500">GMS基準（2026-09-24 時点）</span>
             </div>
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 items-start">
                 <div class="space-y-3">
@@ -413,10 +403,7 @@ const cheatsheet = {
             ${this.renderLevel()}
             ${this.renderCrystal()}
             <div class="text-[10px] text-slate-500 leading-relaxed">
-                <div>※1 最初の対敵者ハード/エクストリームのボスLv（285/290）は Mapler House が 285/290、MapleStory Wiki が 270 で食い違っている。
-                    ※2 ベローナは KMS で 2026-08 に実装。GMS に来ているかは未確認。
-                    レベル差の与ダメは JMS 公式ガイドの式による（MapleStory Wiki は −1 を 105.84%、−3 を 96.72% としている）。</div>
-                <div class="mt-1"><span class="text-slate-400">出典</span> ${sources}</div>
+                <span class="text-slate-400">出典</span> ${sources}
             </div>
         </div>`;
     },
