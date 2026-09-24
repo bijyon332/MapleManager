@@ -674,10 +674,7 @@ const app = {
         const dashStats = document.getElementById('dashboard-stats-container');
         const clockEl = document.querySelector('header > div:last-child');
         if (headerNav) headerNav.style.display = display;
-        if (dashStats) {
-            dashStats.style.display = display;
-            if (dashStats.nextElementSibling) dashStats.nextElementSibling.style.display = display;
-        }
+        if (dashStats) dashStats.style.display = display;
         if (clockEl) clockEl.classList.toggle('ml-auto', !isPlanner);
     },
 
@@ -887,25 +884,27 @@ const app = {
         </div>`;
     },
 
-    // 上部バーの収入欄。全桁だと上部バーに収まらないので 44.41B のように縮め、
-    // 全桁はマウスを乗せたときに出す。幅を固定して、桁が変わっても横の並びを動かさない。
+    // 上部バーの収入欄。サーバーごとの収入は全桁、合計は 77.36B のように縮めて全桁はツールチップに出す。
+    // Kronos / Challenger の欄はそのままサーバーの切り替えボタンを兼ねる（別の切り替えボタンを置くと上部バーに収まらない）。
+    // 幅を固定して、桁が変わっても横の並びを動かさない。
     headerStatsHTML({ revMode, total, k, c, worldLimit, kOn, cOn }) {
         const short = n => n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : Math.floor(n).toLocaleString();
         const full = n => Math.floor(n).toLocaleString();
-        const srv = (name, color, s, on) => `
-            <div class="mm-hstat ${on ? '' : 'opacity-40'} transition-opacity">
+        const srv = (key, name, color, s, on) => `
+            <button type="button" onclick="app.setServer('${key}')" title="${name} に切り替え"
+                class="mm-hstat mm-hstat-srv ${on ? `border-b-${color}-400 bg-${color}-950/40` : 'opacity-45 hover:opacity-80'}">
                 <span class="text-[11px] font-semibold text-${color}-400">${name}</span>
-                <span class="mm-hstat-v font-mono text-sm font-semibold text-${color}-300" title="${full(s.rev)}">${short(s.rev)}</span>
+                <span class="mm-hstat-full font-mono text-[13px] font-semibold text-${color}-300">${full(s.rev)}</span>
                 <span class="font-mono text-[10px] ${s.count >= worldLimit ? 'text-red-400' : 'text-slate-500'}" title="結晶の数">${s.count}/${worldLimit}</span>
-            </div>`;
+            </button>`;
         return `
             <div class="flex items-stretch h-full">
                 <button type="button" class="mm-hstat group" onclick="app.toggleRevenueMode()" title="クリックで週 / 月を切り替え">
                     <span class="text-[11px] font-semibold text-slate-400 group-hover:text-slate-200">${revMode === 'monthly' ? '月計' : '週計'}</span>
                     <span class="mm-hstat-v font-mono text-sm font-semibold text-amber-300" title="${full(total)}">${short(total)}</span>
                 </button>
-                ${srv('Kronos', this.data.config.serverKColor || 'emerald', k, kOn)}
-                ${srv('Challenger', this.data.config.serverCColor || 'purple', c, cOn)}
+                ${srv('KRONOS', 'Kronos', this.data.config.serverKColor || 'emerald', k, kOn)}
+                ${srv('CHALLENGER', 'Challenger', this.data.config.serverCColor || 'purple', c, cOn)}
             </div>`;
     },
 

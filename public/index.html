@@ -194,15 +194,7 @@
             <!-- Dashboard Stats -->
             <div id="dashboard-stats-container"
                 class="flex items-stretch self-stretch flex-1 justify-end min-w-0 overflow-hidden"></div>
-            <!-- Server Toggle -->
-            <div class="flex items-center ml-1 flex-shrink-0">
-                <div class="flex bg-slate-800 p-0.5 border border-slate-700 gap-0.5">
-                    <button onclick="app.setServer('KRONOS')" id="btn-server-kronos"
-                        class="px-2.5 py-1 rounded text-[10px] font-bold transition-all text-slate-400 border border-transparent hover:text-white">Kronos</button>
-                    <button onclick="app.setServer('CHALLENGER')" id="btn-server-challenger"
-                        class="px-2.5 py-1 rounded text-[10px] font-bold transition-all text-slate-400 border border-transparent hover:text-white">Challenger</button>
-                </div>
-            </div>
+            <!-- サーバーの切り替えは、上の収入欄の Kronos / Challenger を押して行う（headerStatsHTML）。 -->
             <!-- Clock -->
             <div
                 class="flex items-center gap-2 text-[11px] font-mono ml-2 flex-shrink-0">
