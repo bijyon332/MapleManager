@@ -191,6 +191,25 @@
                     <i data-lucide="hexagon" class="w-3.5 h-3.5"></i>トラッカー
                 </button>
             </nav>
+            <!-- Community Members sub navigation (shown only for the community app) -->
+            <nav id="community-nav" class="hidden self-stretch mr-3 flex-shrink-0">
+                <button onclick="community.setTab('roster')" id="cnav-roster"
+                    class="htab nav-active flex items-center gap-1.5">
+                    <i data-lucide="contact" class="w-3.5 h-3.5"></i>名簿
+                </button>
+                <button onclick="community.setTab('list')" id="cnav-list"
+                    class="htab nav-inactive flex items-center gap-1.5">
+                    <i data-lucide="table" class="w-3.5 h-3.5"></i>キャラ一覧
+                </button>
+                <button onclick="community.setTab('guild')" id="cnav-guild"
+                    class="htab nav-inactive flex items-center gap-1.5">
+                    <i data-lucide="shield" class="w-3.5 h-3.5"></i>ギルド別
+                </button>
+                <button onclick="community.setTab('todo')" id="cnav-todo"
+                    class="htab nav-inactive flex items-center gap-1.5">
+                    <i data-lucide="inbox" class="w-3.5 h-3.5"></i>未割り当て<span id="cm-todo-badge" class="cm-nav-badge"></span>
+                </button>
+            </nav>
             <!-- Dashboard Stats -->
             <div id="dashboard-stats-container"
                 class="flex items-stretch self-stretch flex-1 justify-end min-w-0 overflow-hidden"></div>

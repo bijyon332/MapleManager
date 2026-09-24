@@ -515,3 +515,7 @@ header { box-shadow: inset 0 -1px 0 rgba(99, 102, 241, 0.25); }
 .mm-seg { padding: 1px 5px; font-size: 11px; font-weight: 600; color: #64748b; border: 1px solid #334155; }
 .mm-seg + .mm-seg { border-left: 0; }
 .mm-seg-on { color: #e2e8f0; background: #312e81; border-color: #4f46e5; }
+
+/* Community Members の「未割り当て」の件数 */
+.cm-nav-badge { background: #fbbf24; color: #241a00; font-size: 9.5px; font-weight: 700; font-family: "IBM Plex Mono", ui-monospace, monospace; padding: 0 4px; line-height: 14px; }
+.cm-nav-badge:empty { display: none; }

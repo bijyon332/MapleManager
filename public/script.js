@@ -555,6 +555,7 @@ const app = {
         },
         community: {
             view: 'view-community',
+            nav: 'community-nav',
             scripts: ['community.js', 'community_import.js'],
             init() { community.init('community-root'); lucide.createIcons(); }
         },
@@ -650,8 +651,8 @@ const app = {
         document.querySelectorAll('[id^="view-"]').forEach(e => e.classList.add('hidden-page'));
         this.applyChrome(entry.chrome === 'planner');
 
-        // アプリ専用サブナビ（Boss Scheduler / HEXA）は、そのアプリのときだけ出す。
-        ['scheduler-nav', 'hexa-nav'].forEach(id => {
+        // アプリ専用サブナビ（APPS の nav）は、そのアプリのときだけ出す。
+        Object.values(this.APPS).map(a => a.nav).filter(Boolean).forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             const on = (entry.nav === id);
