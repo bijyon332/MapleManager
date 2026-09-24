@@ -868,28 +868,27 @@ const app = {
         return 'badge-normal';
     },
 
-    getBossBtnHTML(charId, boss, isDone, partySize) {
+    // ボス1体ぶんのタイル。消し込みはボス単位ではなく、週ボス／月ボスの
+    // エリアごと（toggleCharDone）で行うので、ここは表示だけ。
+    getBossTileHTML(boss, partySize) {
         const typeStripe = boss.type === 'WEEKLY' ? 'bg-purple-500' : (boss.type === 'MONTHLY' ? 'bg-yellow-500' : 'bg-cyan-500');
-        const activeClass = boss.type === 'WEEKLY' ? "bg-purple-900/40 border-purple-500/50 hover:bg-purple-900/60" : (boss.type === 'MONTHLY' ? "bg-yellow-900/30 border-yellow-500/50 hover:bg-yellow-900/50" : "bg-cyan-900/40 border-cyan-500/50 hover:bg-cyan-900/60");
-        const containerClass = isDone ? "bg-slate-950 border-slate-800 opacity-40" : activeClass;
-        const badgeStyle = isDone ? "bg-slate-900/85 text-slate-600" : this.getBadgeClass(boss.difficulty);
+        const containerClass = boss.type === 'WEEKLY' ? "bg-purple-900/40 border-purple-500/50" : (boss.type === 'MONTHLY' ? "bg-yellow-900/30 border-yellow-500/50" : "bg-cyan-900/40 border-cyan-500/50");
+        const badgeStyle = this.getBadgeClass(boss.difficulty);
         const img = this.getBossImageUrl(boss.name);
         const diff = (boss.difficulty || '').toUpperCase();
         const typeChar = boss.type === 'WEEKLY' ? 'W' : (boss.type === 'MONTHLY' ? 'M' : 'D');
 
         return `
-        <button onclick="app.toggleTask('${charId}','boss','${boss.id}')"
-            title="[${typeChar}] ${boss.difficulty} ${boss.name}${partySize > 1 ? ` ×${partySize}` : ''}"
-            class="group relative aspect-square rounded border overflow-hidden transition-all duration-200 task-btn-compact ${containerClass}">
-            <span class="absolute inset-x-0 top-0 h-1 ${typeStripe} ${isDone ? 'opacity-40' : ''}"></span>
+        <div title="[${typeChar}] ${boss.difficulty} ${boss.name}${partySize > 1 ? ` ×${partySize}` : ''}"
+            class="relative aspect-square rounded border overflow-hidden task-btn-compact ${containerClass}">
+            <span class="absolute inset-x-0 top-0 h-1 ${typeStripe}"></span>
             ${img
-                ? `<img src="${img}" alt="${boss.name}" class="w-full h-full object-contain pt-1 pb-2 px-0.5 ${isDone ? 'grayscale opacity-50' : ''}" onerror="this.style.display='none'">`
+                ? `<img src="${img}" alt="${boss.name}" class="w-full h-full object-contain pt-1 pb-2 px-0.5" onerror="this.style.display='none'">`
                 : `<div class="w-full h-full flex items-center justify-center text-[7px] font-bold text-slate-300 px-0.5 text-center leading-tight pt-1">${boss.name}</div>`
             }
             <span class="absolute inset-x-0 bottom-0 ${badgeStyle} text-[9px] font-extrabold leading-none uppercase text-center px-0.5 py-0.5 tracking-wider backdrop-blur-sm">${diff}</span>
-            ${isDone ? '<span class="absolute top-1 right-0 bg-slate-950/80 rounded-bl p-px"><i data-lucide="check" class="w-2 h-2 text-emerald-400"></i></span>' : ''}
-            ${partySize > 1 ? `<span class="absolute top-1 left-0 bg-slate-950/80 text-[7px] font-mono font-bold ${isDone ? 'text-slate-500' : 'text-blue-300'} px-0.5 rounded-br">×${partySize}</span>` : ''}
-        </button>`;
+            ${partySize > 1 ? `<span class="absolute top-1 left-0 bg-slate-950/80 text-[7px] font-mono font-bold text-blue-300 px-0.5 rounded-br">×${partySize}</span>` : ''}
+        </div>`;
     },
 
     renderDashboard() {
@@ -1054,8 +1053,6 @@ const app = {
             const dB = cB.filter(b => b.type === 'DAILY'), wB = cB.filter(b => b.type === 'WEEKLY'), mB = cB.filter(b => b.type === 'MONTHLY');
             const localMaxTotal = wB.slice(0, charLimit).reduce((s, b) => s + b.effectiveMeso, 0);
             const countD = mD.filter(i => (p.daily || []).includes(i.id)).length, countW = mW.filter(i => (p.weekly || []).includes(i.id)).length;
-            const countBD = dB.filter(i => (p.boss || []).includes(i.id)).length, countBM = mB.filter(i => (p.boss || []).includes(i.id)).length;
-            const countBW = (p.boss || []).filter(id => wB.some(b => b.id === id)).length;
 
             const isKronos = char.server === 'KRONOS';
             const sCol = isKronos ? (this.data.config.serverKColor || 'emerald') : (this.data.config.serverCColor || 'purple');
@@ -1067,11 +1064,9 @@ const app = {
 
             // Sort each section
             const wkSorted = wB.sort((a, b) => b.effectiveMeso - a.effectiveMeso);
-            const dmSorted = [...dB.sort((a, b) => b.effectiveMeso - a.effectiveMeso), ...mB.sort((a, b) => b.effectiveMeso - a.effectiveMeso)];
-            const allB = [...wkSorted, ...dmSorted];
-            const countAll = (p.boss || []).filter(id => allB.some(b => b.id === id)).length;
             const isWeeklyDone = !!p.charDone;
             const isMonthlyDone = !!p.charMonthlyDone;
+            const countAll = (isWeeklyDone ? wkSorted.length : 0) + (isMonthlyDone ? mB.length : 0);
             const allDone = (wkSorted.length + mB.length > 0) && (!wkSorted.length || isWeeklyDone) && (!mB.length || isMonthlyDone);
 
             return `
@@ -1110,7 +1105,7 @@ const app = {
                             <div class="text-[9px] text-emerald-400 font-extrabold uppercase tracking-wider">Mesos</div>
                             <div class="text-lg font-extrabold text-emerald-300 font-mono leading-none mt-0.5">${Math.floor(localMaxTotal).toLocaleString()}</div>
                         </div>
-                        <span class="text-[10px] font-mono font-extrabold text-slate-300 bg-slate-950/70 border border-slate-700 px-2 py-1 rounded flex-shrink-0">${countAll}/${allB.length}</span>
+                        <span class="text-[10px] font-mono font-extrabold text-slate-300 bg-slate-950/70 border border-slate-700 px-2 py-1 rounded flex-shrink-0">${countAll}/${wkSorted.length + mB.length}</span>
                     </div>
                     <!-- Boss checklist (min height ≈ 4 boss rows total: Monthly + 3 Weekly, or 4 Weekly) -->
                     <div class="flex-1 p-1.5 bg-slate-950/20 space-y-1 min-h-[13.75rem]">
@@ -1124,7 +1119,7 @@ const app = {
                                 </button>
                             </div>
                             <div class="relative">
-                                <div class="grid grid-flow-col auto-cols-[3rem] gap-1 overflow-x-auto justify-start">${mB.sort((a, b) => b.effectiveMeso - a.effectiveMeso).map(b => this.getBossBtnHTML(char.id, b, (p.boss || []).includes(b.id), b.pSize)).join('')}</div>
+                                <div onclick="app.toggleCharDone('${char.id}','monthly')" title="クリックで月ボスをまとめて消し込む" class="grid grid-flow-col auto-cols-[3rem] gap-1 overflow-x-auto justify-start cursor-pointer rounded transition hover:brightness-125">${mB.sort((a, b) => b.effectiveMeso - a.effectiveMeso).map(b => this.getBossTileHTML(b, b.pSize)).join('')}</div>
                                 ${isMonthlyDone ? `
                                 <div onclick="app.toggleCharDone('${char.id}','monthly')" title="クリックで消し込みを解除" class="absolute inset-0 z-10 rounded bg-slate-950/75 backdrop-blur-[1px] flex items-center justify-center cursor-pointer hover:bg-slate-950/60 transition-colors">
                                     <div class="flex items-center gap-1.5 border-2 border-yellow-400/90 text-yellow-300 rounded-lg px-3 py-0.5 -rotate-3 bg-slate-950/70 shadow-lg shadow-yellow-950/60">
@@ -1144,8 +1139,8 @@ const app = {
                                 </button>
                             </div>
                             <div class="relative">
-                                <div class="grid grid-cols-[repeat(7,minmax(0,3rem))] gap-1">
-                                    ${wkSorted.map(b => this.getBossBtnHTML(char.id, b, (p.boss || []).includes(b.id), b.pSize)).join('')}
+                                <div onclick="app.toggleCharDone('${char.id}','weekly')" title="クリックで週ボスをまとめて消し込む" class="grid grid-cols-[repeat(7,minmax(0,3rem))] gap-1 cursor-pointer rounded transition hover:brightness-125">
+                                    ${wkSorted.map(b => this.getBossTileHTML(b, b.pSize)).join('')}
                                 </div>
                                 ${isWeeklyDone ? `
                                 <div onclick="app.toggleCharDone('${char.id}','weekly')" title="クリックで消し込みを解除" class="absolute inset-0 z-10 rounded bg-slate-950/75 backdrop-blur-[1px] flex items-center justify-center cursor-pointer hover:bg-slate-950/60 transition-colors">
