@@ -648,8 +648,10 @@ const hexaTracker = {
 
     // Tab strip inside the modal.
     buildTabs() {
+        // Same look as the app's top-bar tabs (.htab), since this row is the
+        // popup's own header.
         const tab = (id, label, icon) => `<button onclick="hexaTracker.setTab('${id}')"
-            class="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-t-lg border-b-2 -mb-px transition-colors ${this.modalTab === id ? 'border-violet-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}">
+            class="htab ${this.modalTab === id ? 'nav-active' : 'nav-inactive'}">
             <i data-lucide="${icon}" class="w-3.5 h-3.5"></i>${label}
         </button>`;
         return tab('progress', '進捗入力', 'sliders-horizontal')
@@ -676,7 +678,7 @@ const hexaTracker = {
             groups += this.buildSkillGroup(tier, cls, trackingId, classId);
         }
 
-        return `<div class="max-w-4xl mx-auto">
+        return `<div>
             ${this.buildResourceSummary(p)}
             <div class="grid grid-cols-2 gap-2.5">${groups}</div>
             ${this.buildExclusionNote(classId)}
@@ -884,7 +886,7 @@ const hexaTracker = {
         const header = this.buildPlanControls();
 
         if (!steps.length) {
-            return `<div class="max-w-4xl mx-auto">${header}
+            return `<div>${header}
                 <div class="flex items-center justify-center h-40 text-center text-slate-500">
                     <div><i data-lucide="check-circle-2" class="w-10 h-10 mx-auto mb-3 opacity-30"></i>
                     <p class="text-sm">${this.planCap === 'max' ? '全ノードLv.30に到達済みです' : '目標値に到達済みです'}</p>
@@ -936,7 +938,7 @@ const hexaTracker = {
             </div>`;
         });
 
-        return `<div class="max-w-4xl mx-auto">
+        return `<div>
             ${header}
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 mb-2 px-1">
                 <span>全${steps.length}ステップ</span>
@@ -972,7 +974,7 @@ const hexaTracker = {
         const now = this.getProgress(trackingId, classId);
         const header = this.buildPlanControls();
         if (!steps.length) {
-            return `<div class="max-w-4xl mx-auto">${header}
+            return `<div>${header}
                 <div class="flex items-center justify-center h-40 text-sm text-slate-500">
                     ${this.planCap === 'max' ? '全ノードLv.30に到達済みです' : '目標値に到達済みです（上限を「最大 Lv.30」にすると続きが出ます）'}
                 </div></div>`;
@@ -1008,7 +1010,7 @@ const hexaTracker = {
             return `<span class="inline-flex items-center gap-1"><span class="inline-block w-2.5 h-0.5" style="background:${c.badge}"></span>${c.title}</span>`;
         }).join('');
 
-        return `<div class="max-w-4xl mx-auto">
+        return `<div>
             ${header}
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 mb-2 px-1">
                 <span>全${steps.length}ステップ</span>
@@ -1075,7 +1077,7 @@ const hexaTracker = {
             </div>
         </div>`;
 
-        return `<div class="max-w-4xl mx-auto">
+        return `<div>
             ${summary}
             ${this.buildCurveChart(curve, now)}
             ${this.buildCurveTable(curve, now, per1k)}
@@ -1413,13 +1415,13 @@ const hexaTracker = {
         }
         const overlay = this.ensureOverlay();
         overlay.innerHTML = `
-            <div class="bg-slate-900 border border-violet-500/40 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
-                <div class="flex items-center justify-between gap-3 px-5 py-3 bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-700 shrink-0">
-                    <div class="min-w-0">
-                        <div class="text-white font-extrabold text-sm truncate flex items-center gap-2"><i data-lucide="hexagon" class="w-4 h-4 shrink-0"></i>${this.escHtml(char.name)} — HEXA職業を登録</div>
-                        <div class="text-[11px] text-violet-100 mt-0.5">進捗を管理する職業を選択してください${char.job ? `（現在の職業: ${this.escHtml(char.job)}${guess ? '' : ' — 自動判定できませんでした'}）` : ''}</div>
+            <div class="bg-slate-950 border border-slate-700 shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+                <div class="flex items-stretch justify-between shrink-0 bg-slate-900 border-b border-slate-800" style="box-shadow:inset 0 -1px 0 rgba(99,102,241,0.25)">
+                    <div class="min-w-0 px-3 py-2">
+                        <div class="text-white font-bold text-[15px] truncate">${this.escHtml(char.name)} — HEXA職業を登録</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">進捗を管理する職業を選択してください${char.job ? `（現在の職業: ${this.escHtml(char.job)}${guess ? '' : ' — 自動判定できませんでした'}）` : ''}</div>
                     </div>
-                    <button onclick="hexaTracker.closeModal()" title="閉じる" class="shrink-0 w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    <button onclick="hexaTracker.closeModal()" title="閉じる" class="shrink-0 w-11 border-l border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
                 </div>
                 <div class="overflow-y-auto custom-scrollbar p-4 flex-1">${groupsHtml || '<p class="text-slate-500 text-sm text-center py-8">職業データがありません</p>'}</div>
             </div>`;
@@ -1437,10 +1439,9 @@ const hexaTracker = {
 
     buildModalHeaderStat() {
         const p = this.getProgress(this.modalTrackingId, this.modalClassId);
-        return `<span title="いま出ている最終ダメージ">最終ダメージ <span class="font-bold tabular-nums">+${p.fdNow.toFixed(1)}%</span></span>
-            <span class="text-violet-200/60">/ 全取得 <span class="tabular-nums">+${p.fdMax.toFixed(1)}%</span></span>
-            <span class="text-violet-200/80">·</span>
-            <span class="text-violet-200/70 tabular-nums" title="投入済みフラグメント / 全取得に必要なフラグメント">${p.fragSpent.toLocaleString()} / ${p.fragMax.toLocaleString()} フラグメント</span>`;
+        return `<span title="いま出ている最終ダメージ / 全取得時">FD <span class="font-bold text-emerald-300">+${p.fdNow.toFixed(1)}%</span><span class="text-slate-600"> / +${p.fdMax.toFixed(1)}%</span></span>
+            <span title="投入済みフラグメント / 全取得に必要なフラグメント">欠片 <span class="font-bold text-violet-300">${p.fragSpent.toLocaleString()}</span><span class="text-slate-600"> / ${p.fragMax.toLocaleString()}</span></span>
+            <span class="font-bold text-slate-200 w-9 text-right">${p.pct}%</span>`;
     },
 
     buildModalContent() {
@@ -1455,10 +1456,10 @@ const hexaTracker = {
         const portrait = (char.image && char.image.startsWith('http')) ? char.image : (char.classImage || info.path || '');
         this.renderModalShell({
             portrait,
-            portraitClass: 'w-11 h-11 rounded-lg object-cover bg-slate-950/40',
+            portraitClass: 'w-8 h-8 object-cover bg-slate-950',
             title: this.escHtml(char.name),
-            badge: char.level ? `<span class="text-[11px] font-mono font-bold text-violet-100/90">Lv.${this.escHtml(char.level)}</span>` : '',
-            actions: `<button onclick="hexaTracker.openClassPicker('${this.modalCharId}')" title="HEXA職業を変更" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
+            badge: char.level ? `<span class="text-[11px] font-mono text-slate-400">Lv.${this.escHtml(char.level)}</span>` : '',
+            actions: `<button onclick="hexaTracker.openClassPicker('${this.modalCharId}')" title="HEXA職業を変更" class="w-11 border-l border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition-colors">
                 <i data-lucide="repeat" class="w-4 h-4"></i>
             </button>`,
         });
@@ -1475,42 +1476,34 @@ const hexaTracker = {
         this.modalTrackingId = classId;
         this.renderModalShell({
             portrait: info ? info.path : '',
-            portraitClass: 'w-11 h-11 object-contain shrink-0',
+            portraitClass: 'w-8 h-8 object-contain',
             title: this.escHtml(info ? info.name : classId),
-            badge: `<span class="text-[11px] font-bold text-violet-100/80">${this.escHtml(this.getClassGroup(classId))}</span>`,
+            badge: `<span class="text-[11px] text-slate-500">${this.escHtml(this.getClassGroup(classId))}</span>`,
             actions: '',
         });
     },
 
     renderModalShell({ portrait, portraitClass, title, badge, actions }) {
         const overlay = this.ensureOverlay();
+        // One header row, laid out like the site's own top bar: who, then the
+        // tabs, then the running totals, then close.
         overlay.innerHTML = `
-            <div class="bg-slate-900 border border-violet-500/40 rounded-2xl shadow-2xl w-full max-w-4xl h-[700px] max-h-[94vh] flex flex-col overflow-hidden">
-                <div class="flex items-center justify-between gap-3 px-5 py-3 bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-700 shrink-0">
-                    <div class="flex items-center gap-3 min-w-0">
+            <div class="bg-slate-950 border border-slate-700 shadow-2xl w-full max-w-5xl h-[720px] max-h-[94vh] flex flex-col overflow-hidden">
+                <div class="flex items-stretch h-11 shrink-0 bg-slate-900 border-b border-slate-800" style="box-shadow:inset 0 -1px 0 rgba(99,102,241,0.25)">
+                    <div class="flex items-center gap-2 pl-2 pr-3 min-w-0 max-w-[260px] border-r border-slate-800">
                         ${portrait ? `<img src="${portrait}" class="${portraitClass} shrink-0">` : ''}
-                        <div class="min-w-0">
-                            <div class="text-white font-extrabold text-sm truncate flex items-center gap-2">
-                                <i data-lucide="hexagon" class="w-4 h-4 shrink-0"></i>${title}
-                                ${badge}
-                            </div>
-                            <div id="hexa-modal-progress" class="text-[11px] text-violet-100 flex items-center gap-1.5 mt-0.5">${this.buildModalHeaderStat()}</div>
-                        </div>
+                        <span class="text-[15px] font-bold text-white truncate">${title}</span>
+                        ${badge}
                     </div>
-                    <div class="flex items-center gap-1.5 shrink-0">
-                        ${actions}
-                        <button onclick="hexaTracker.closeModal()" title="閉じる" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
-                            <i data-lucide="x" class="w-4 h-4"></i>
-                        </button>
-                    </div>
+                    <nav id="hexa-modal-tabs" class="flex self-stretch px-1">${this.buildTabs()}</nav>
+                    <div id="hexa-modal-progress" class="ml-auto flex items-center gap-4 px-3 text-[11px] text-slate-400 font-mono tabular-nums whitespace-nowrap">${this.buildModalHeaderStat()}</div>
+                    ${actions}
+                    <button onclick="hexaTracker.closeModal()" title="閉じる" class="w-11 border-l border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition-colors">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
                 </div>
-                <div id="hexa-modal-body" class="flex-1 flex flex-col min-h-0">
-                    <div id="hexa-modal-tabs" class="shrink-0 flex items-center gap-1 px-4 pt-3 border-b border-slate-800">
-                        ${this.buildTabs()}
-                    </div>
-                    <div id="hexa-modal-content" class="overflow-y-auto custom-scrollbar px-4 py-3 flex-1">
-                        ${this.buildModalContent()}
-                    </div>
+                <div id="hexa-modal-content" class="overflow-y-auto custom-scrollbar px-4 py-3 flex-1">
+                    ${this.buildModalContent()}
                 </div>
             </div>`;
         if (window.lucide) lucide.createIcons();
