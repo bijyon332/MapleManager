@@ -1032,8 +1032,8 @@ const app = {
                 const scope = key === 'mo' ? 'monthly' : 'weekly';
                 const cap = rows * 7;
                 const head = `
-                    <div class="flex items-center gap-2 mb-0.5 h-4">
-                        <span class="mm-sec-label ${key === 'mo' ? 'bg-yellow-500 text-slate-950' : 'bg-purple-600 text-white'}">${label}${done && list.length ? ' ✓' : ''}</span>
+                    <div class="mm-sec-head flex items-center gap-2 mb-0.5 h-4">
+                        <span class="mm-sec-label ${key === 'mo' ? 'text-yellow-400' : 'text-purple-400'}">${label}</span>
                     </div>`;
                 if (!list.length) {
                     return `<div>${head}<div class="mm-tiles-empty" style="--rows:${rows}">${key === 'mo' ? '月' : '週'}ボスなし</div></div>`;
