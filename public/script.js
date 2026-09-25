@@ -1032,8 +1032,8 @@ const app = {
                 const scope = key === 'mo' ? 'monthly' : 'weekly';
                 const cap = rows * 7;
                 const head = `
-                    <div class="flex items-center gap-2 mb-0.5 h-4">
-                        <span class="mm-sec-label ${key === 'mo' ? 'bg-yellow-500 text-slate-950' : 'bg-purple-600 text-white'}">${label}${done && list.length ? ' ✓' : ''}</span>
+                    <div class="mm-sec-head flex items-center gap-2 mb-0.5 h-4">
+                        <span class="mm-sec-label ${key === 'mo' ? 'text-yellow-400' : 'text-purple-400'}">${label}</span>
                     </div>`;
                 if (!list.length) {
                     return `<div>${head}<div class="mm-tiles-empty" style="--rows:${rows}">${key === 'mo' ? '月' : '週'}ボスなし</div></div>`;
@@ -1070,12 +1070,13 @@ const app = {
                     <span class="absolute top-1 left-1 px-1 text-[10px] font-mono font-bold border ${char.role === 'MAIN' ? 'border-yellow-500/50 text-yellow-300 bg-yellow-950/80' : (char.role === 'SUB' ? 'border-cyan-500/50 text-cyan-300 bg-cyan-950/80' : 'border-slate-600 text-slate-400 bg-slate-900/90')}">${char.role}</span>
                     ${hexaReady ? (hexaClassId ? `
                     <button onclick="event.stopPropagation(); hexaTracker.openForCharacter('${char.id}')" title="HEXA Matrix 進捗を開く"
-                        class="absolute bottom-0 left-0 right-0 z-10 py-0.5 bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:from-violet-600 hover:via-indigo-500 hover:to-blue-500 text-white flex items-center justify-center gap-1 border-t border-violet-300/50 text-[11px] font-mono font-bold">
-                        <i data-lucide="hexagon" class="w-3 h-3 shrink-0"></i>HEXA${hexaPct > 0 ? `<span class="text-blue-100">${hexaPct}%</span>` : ''}
+                        class="absolute bottom-0 left-0 right-0 z-10 h-5 flex items-center gap-1 px-1.5 bg-slate-950/95 hover:bg-slate-800 border-t border-slate-700 text-violet-300 text-[11px] font-mono leading-none">
+                        <span class="absolute left-0 top-0 h-0.5 bg-violet-500" style="width:${hexaPct}%"></span>
+                        <i data-lucide="hexagon" class="w-3 h-3 shrink-0 block"></i><span class="mm-captrim">HEXA</span><span class="mm-captrim ml-auto text-slate-200">${hexaPct}%</span>
                     </button>` : `
                     <button onclick="event.stopPropagation(); hexaTracker.openForCharacter('${char.id}')" title="HEXA職業を登録"
-                        class="absolute bottom-0 left-0 right-0 z-10 py-0.5 bg-violet-950/90 hover:bg-violet-800/80 text-violet-200 border-t border-dashed border-violet-400/70 flex items-center justify-center gap-1 text-[11px] font-mono font-bold">
-                        <i data-lucide="plus" class="w-3 h-3 shrink-0"></i>HEXA
+                        class="absolute bottom-0 left-0 right-0 z-10 h-5 flex items-center gap-1 px-1.5 bg-slate-950/95 hover:bg-slate-800 border-t border-slate-700 text-slate-500 hover:text-violet-300 text-[11px] font-mono leading-none">
+                        <i data-lucide="plus" class="w-3 h-3 shrink-0 block"></i><span class="mm-captrim">HEXA登録</span>
                     </button>`) : ''}
                 </div>
                 <!-- 右: 名前の行 + ボス -->

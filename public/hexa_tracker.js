@@ -38,6 +38,7 @@ const hexaTracker = {
 
     page: 'ranking',        // 'ranking' | 'tracker'
     prioritySort: 'frag',   // 'frag' | 'erda'
+    planCap: 'target',      // 'target' | 'max' — where the 効率順 chain stops
     data: {},
     _loaded: false,
 
@@ -206,6 +207,7 @@ const hexaTracker = {
 
     // trackingId selects which saved data set to use; classId selects the board.
     getProgress(trackingId, classId) {
+        this.ensureLoaded();
         if (classId === undefined) classId = trackingId;
         const empty = {
             pct: 0, pctToTarget: 0,
@@ -246,6 +248,11 @@ const hexaTracker = {
 
     setPrioritySort(kind) {
         this.prioritySort = kind;
+        this.refreshAll();
+    },
+
+    setPlanCap(cap) {
+        this.planCap = cap;
         this.refreshAll();
     },
 
@@ -310,10 +317,12 @@ const hexaTracker = {
         return { skills, floor, current, target, max };
     },
 
-    // The chain from where you are now to your targets, merged for display.
+    // The chain from where you are now to your targets (or to Lv.30 everywhere,
+    // when planCap is 'max'), merged for display.
     buildPlan(trackingId, classId) {
-        const { skills, current, target } = this.planScope(trackingId, classId);
-        return this.mergeSteps(this.planSingles(skills, current, target, this.prioritySort === 'erda'));
+        const { skills, current, target, max } = this.planScope(trackingId, classId);
+        const upTo = this.planCap === 'max' ? max : target;
+        return this.mergeSteps(this.planSingles(skills, current, upTo, this.prioritySort === 'erda'));
     },
 
     // ========== Efficiency curve ==========
@@ -640,12 +649,15 @@ const hexaTracker = {
 
     // Tab strip inside the modal.
     buildTabs() {
+        // Same look as the app's top-bar tabs (.htab), since this row is the
+        // popup's own header.
         const tab = (id, label, icon) => `<button onclick="hexaTracker.setTab('${id}')"
-            class="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-t-lg border-b-2 -mb-px transition-colors ${this.modalTab === id ? 'border-violet-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}">
+            class="htab ${this.modalTab === id ? 'nav-active' : 'nav-inactive'}">
             <i data-lucide="${icon}" class="w-3.5 h-3.5"></i>${label}
         </button>`;
         return tab('progress', '進捗入力', 'sliders-horizontal')
             + tab('priority', '効率順', 'trending-up')
+            + tab('map', '強化順マップ', 'layout-grid')
             + tab('curve', '効率カーブ', 'activity');
     },
 
@@ -667,7 +679,7 @@ const hexaTracker = {
             groups += this.buildSkillGroup(tier, cls, trackingId, classId);
         }
 
-        return `<div class="max-w-4xl mx-auto">
+        return `<div>
             ${this.buildResourceSummary(p)}
             <div class="grid grid-cols-2 gap-2.5">${groups}</div>
             ${this.buildExclusionNote(classId)}
@@ -842,6 +854,25 @@ const hexaTracker = {
         return html;
     },
 
+    // Sort key and upper bound for the plan. Shared by 効率順 and 強化順マップ, so
+    // flipping either one keeps both tabs describing the same chain.
+    buildPlanControls() {
+        const seg = (active, onclick, label, hint) => `<button onclick="${onclick}" title="${hint}"
+            class="px-2.5 py-1 text-[11px] font-bold transition-colors ${active ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'}">${label}</button>`;
+        const group = (title, buttons) => `<div class="flex items-center gap-2">
+            <span class="text-[10px] text-slate-500">${title}</span>
+            <div class="inline-flex border border-slate-700 bg-slate-950 divide-x divide-slate-700">${buttons}</div>
+        </div>`;
+        return `<div class="flex flex-wrap items-center gap-x-5 gap-y-2 border border-slate-800 bg-slate-900 px-2.5 py-2 mb-2">
+            ${group('並べ替え',
+                seg(this.prioritySort === 'frag', "hexaTracker.setPrioritySort('frag')", 'フラグメント効率', '最終ダメージ / ソルエルダフラグメント で並べ替え')
+                + seg(this.prioritySort === 'erda', "hexaTracker.setPrioritySort('erda')", 'エルダ効率', '最終ダメージ / ソルエルダ で並べ替え'))}
+            ${group('上限',
+                seg(this.planCap === 'target', "hexaTracker.setPlanCap('target')", '目標値まで', '進捗入力で決めた目標値で止める')
+                + seg(this.planCap === 'max', "hexaTracker.setPlanCap('max')", '最大 Lv.30 まで', '目標値を無視して全ノードLv.30まで並べる'))}
+        </div>`;
+    },
+
     // Ranked "what to level next", by Final Damage gained per Sol Erda Fragment
     // (or per Sol Erda). Runs from the entered current levels up to the targets.
     buildPriority(classId, trackingId) {
@@ -853,28 +884,20 @@ const hexaTracker = {
         const now = this.getProgress(trackingId, classId);
         const perErda = this.prioritySort === 'erda';
 
-        const sortBtn = (kind, label, hint) => `<button onclick="hexaTracker.setPrioritySort('${kind}')" title="${hint}"
-            class="px-3 py-1 text-[11px] font-bold rounded-md transition-colors ${this.prioritySort === kind ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'}">${label}</button>`;
-
-        const header = `<div class="bg-slate-900 rounded-xl border border-slate-800 p-2.5 mb-3">
-            <div class="inline-flex rounded-lg bg-slate-800 p-0.5 border border-slate-700">
-                ${sortBtn('frag', 'フラグメント効率', '最終ダメージ / ソルエルダフラグメント で並べ替え')}
-                ${sortBtn('erda', 'エルダ効率', '最終ダメージ / ソルエルダ で並べ替え')}
-            </div>
-        </div>`;
+        const header = this.buildPlanControls();
 
         if (!steps.length) {
-            return `<div class="max-w-4xl mx-auto">${header}
+            return `<div>${header}
                 <div class="flex items-center justify-center h-40 text-center text-slate-500">
                     <div><i data-lucide="check-circle-2" class="w-10 h-10 mx-auto mb-3 opacity-30"></i>
-                    <p class="text-sm">目標値に到達済みです</p>
+                    <p class="text-sm">${this.planCap === 'max' ? '全ノードLv.30に到達済みです' : '目標値に到達済みです'}</p>
                     <p class="text-xs mt-1">
                         最終ダメージ <span class="font-bold text-emerald-300">+${now.fdNow.toFixed(1)}%</span>
                         ${now.fdMax - now.fdNow > 0.05
                             ? ` — 全取得まで残り <span class="font-bold text-amber-300">+${(now.fdMax - now.fdNow).toFixed(1)}%</span>`
                             : '（全取得済み）'}
                     </p>
-                    <p class="text-xs mt-1 opacity-70">進捗入力タブで目標値を上げると、ここに次の一手が並びます。</p></div>
+                    ${this.planCap === 'max' ? '' : '<p class="text-xs mt-1 opacity-70">進捗入力タブで目標値を上げるか、上限を「最大 Lv.30」に切り替えると、ここに次の一手が並びます。</p>'}</div>
                 </div></div>`;
         }
 
@@ -916,7 +939,7 @@ const hexaTracker = {
             </div>`;
         });
 
-        return `<div class="max-w-4xl mx-auto">
+        return `<div>
             ${header}
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 mb-2 px-1">
                 <span>全${steps.length}ステップ</span>
@@ -931,8 +954,76 @@ const hexaTracker = {
             </div>
             <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-2 divide-y divide-slate-800/40">${rows}</div>
             <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
-                現在地から目標値まで、1レベルずつ「最終ダメージ / 消費リソース」が最大の一手を選び続けた順序です。
+                現在地から${this.planCap === 'max' ? '全ノードLv.30' : '目標値'}まで、1レベルずつ「最終ダメージ / 消費リソース」が最大の一手を選び続けた順序です。
                 同じスキルの連続レベルは1ステップにまとめています。リソース消費量は正確な値、最終ダメージ量はノード係数からの推定値です。
+            </p>
+        </div>`;
+    },
+
+    // ========== Plan map: the whole 効率順 chain at a glance ==========
+
+    // The same steps as 効率順, drawn as a wall of icon tiles read left to right,
+    // like the build-order images people pass around. The tile that crosses each
+    // 10% of the class's maximum Final Damage is flagged, so you can see where
+    // the chain slows down.
+    buildPlanMap(classId, trackingId) {
+        const cls = this.getClassSkills(classId);
+        const info = this.getClassInfo(classId);
+        if (!cls || !info) return this.buildEmptyState();
+
+        const steps = this.buildPlan(trackingId, classId);
+        const now = this.getProgress(trackingId, classId);
+        const header = this.buildPlanControls();
+        if (!steps.length) {
+            return `<div>${header}
+                <div class="flex items-center justify-center h-40 text-sm text-slate-500">
+                    ${this.planCap === 'max' ? '全ノードLv.30に到達済みです' : '目標値に到達済みです（上限を「最大 Lv.30」にすると続きが出ます）'}
+                </div></div>`;
+        }
+
+        const fdMax = now.fdMax;
+        const pctOf = fd => fdMax > 0 ? fd / fdMax * 100 : 0;
+        let nextMark = Math.floor(pctOf(now.fdNow) / 10) * 10 + 10;
+        let cumFrag = 0, cumErda = 0, fd = now.fdNow;
+        let tiles = '';
+        steps.forEach((step, i) => {
+            cumFrag += step.frag; cumErda += step.erda; fd += step.fd;
+            const s = step.skill;
+            const sCfg = this.SKILL_TYPE_CONFIG[s.type] || this.SKILL_TYPE_CONFIG.mastery;
+            const iconUrl = this.getSkillIcon(s);
+            const icon = iconUrl
+                ? `<img src="${iconUrl}" class="w-8 h-8 object-contain" loading="lazy" alt="">`
+                : `<div class="w-8 h-8 flex items-center justify-center text-[11px] font-bold text-white" style="background:${sCfg.badge}">${sCfg.label}</div>`;
+            const hint = `${i + 1}. ${s.name}\nLv.${step.from} → ${step.to}\nフラグメント ${step.frag.toLocaleString()}（計 ${cumFrag.toLocaleString()}）\nエルダ ${step.erda.toLocaleString()}\n最終ダメージ +${step.fd.toFixed(2)}%（計 +${fd.toFixed(1)}%）`;
+            // Mark the tile that carries you past each 10% of max Final Damage.
+            let crossed = null;
+            while (nextMark <= 100 && pctOf(fd) >= nextMark - 1e-9) { crossed = nextMark; nextMark += 10; }
+            tiles += `<div class="relative flex flex-col items-center pt-3 pb-1 bg-slate-900 border border-slate-800 ${crossed !== null ? 'ring-1 ring-inset ring-emerald-500/60' : ''}" style="border-top:2px solid ${sCfg.badge}" title="${this.escHtml(hint)}">
+                <span class="absolute top-0.5 left-1 text-[9px] text-slate-500 tabular-nums">${i + 1}</span>
+                ${crossed !== null ? `<span class="absolute top-0.5 right-1 text-[9px] font-bold text-emerald-300 tabular-nums">${crossed}%</span>` : ''}
+                ${icon}
+                <span class="mt-1 text-[10px] tabular-nums text-slate-500 leading-none">${step.from}→<span class="text-[12px] font-bold text-slate-100">${step.to}</span></span>
+            </div>`;
+        });
+
+        const legend = ['origin', 'ascent', 'mastery', 'enhance', 'common'].map(t => {
+            const c = this.SKILL_TYPE_CONFIG[t];
+            return `<span class="inline-flex items-center gap-1"><span class="inline-block w-2.5 h-0.5" style="background:${c.badge}"></span>${c.title}</span>`;
+        }).join('');
+
+        return `<div>
+            ${header}
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 mb-2 px-1">
+                <span>全${steps.length}ステップ</span>
+                <span class="text-violet-300">フラグメント計 <span class="font-bold tabular-nums">${cumFrag.toLocaleString()}</span></span>
+                <span class="text-amber-300">エルダ計 <span class="font-bold tabular-nums">${cumErda.toLocaleString()}</span></span>
+                <span class="text-emerald-300">最終ダメージ <span class="font-bold tabular-nums">+${now.fdNow.toFixed(1)}%</span> <span class="text-slate-500">→</span> <span class="font-bold tabular-nums">+${fd.toFixed(1)}%</span></span>
+                <span class="ml-auto flex items-center gap-3 text-[10px] text-slate-500">${legend}</span>
+            </div>
+            <div class="grid gap-1" style="grid-template-columns:repeat(auto-fill,minmax(58px,1fr))">${tiles}</div>
+            <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
+                効率順タブと同じ順番を、左上から右へ並べたものです。数字は「今のLv→上げた後のLv」。マスにマウスを乗せると消費量が出ます。
+                緑の枠と%は、そのマスで全取得時の最終ダメージの何%に届くかの目印です。
             </p>
         </div>`;
     },
@@ -987,7 +1078,7 @@ const hexaTracker = {
             </div>
         </div>`;
 
-        return `<div class="max-w-4xl mx-auto">
+        return `<div>
             ${summary}
             ${this.buildCurveChart(curve, now)}
             ${this.buildCurveTable(curve, now, per1k)}
@@ -1256,6 +1347,7 @@ const hexaTracker = {
     // Resolve the HEXA classId for a character: manual assignment first, then auto-match by job name.
     getCharClassId(char) {
         if (!char) return null;
+        this.ensureLoaded();
         const saved = this.data['char:' + char.id];
         if (saved && saved.classId && this.getClassSkills(saved.classId)) return saved.classId;
         return this.resolveClassId(char.job);
@@ -1325,13 +1417,13 @@ const hexaTracker = {
         }
         const overlay = this.ensureOverlay();
         overlay.innerHTML = `
-            <div class="bg-slate-900 border border-violet-500/40 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
-                <div class="flex items-center justify-between gap-3 px-5 py-3 bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-700 shrink-0">
-                    <div class="min-w-0">
-                        <div class="text-white font-extrabold text-sm truncate flex items-center gap-2"><i data-lucide="hexagon" class="w-4 h-4 shrink-0"></i>${this.escHtml(char.name)} — HEXA職業を登録</div>
-                        <div class="text-[11px] text-violet-100 mt-0.5">進捗を管理する職業を選択してください${char.job ? `（現在の職業: ${this.escHtml(char.job)}${guess ? '' : ' — 自動判定できませんでした'}）` : ''}</div>
+            <div class="bg-slate-950 border border-slate-700 shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+                <div class="flex items-stretch justify-between shrink-0 bg-slate-900 border-b border-slate-800" style="box-shadow:inset 0 -1px 0 rgba(99,102,241,0.25)">
+                    <div class="min-w-0 px-3 py-2">
+                        <div class="text-white font-bold text-[15px] truncate">${this.escHtml(char.name)} — HEXA職業を登録</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">進捗を管理する職業を選択してください${char.job ? `（現在の職業: ${this.escHtml(char.job)}${guess ? '' : ' — 自動判定できませんでした'}）` : ''}</div>
                     </div>
-                    <button onclick="hexaTracker.closeModal()" title="閉じる" class="shrink-0 w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    <button onclick="hexaTracker.closeModal()" title="閉じる" class="shrink-0 w-11 border-l border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
                 </div>
                 <div class="overflow-y-auto custom-scrollbar p-4 flex-1">${groupsHtml || '<p class="text-slate-500 text-sm text-center py-8">職業データがありません</p>'}</div>
             </div>`;
@@ -1349,14 +1441,14 @@ const hexaTracker = {
 
     buildModalHeaderStat() {
         const p = this.getProgress(this.modalTrackingId, this.modalClassId);
-        return `<span title="いま出ている最終ダメージ">最終ダメージ <span class="font-bold tabular-nums">+${p.fdNow.toFixed(1)}%</span></span>
-            <span class="text-violet-200/60">/ 全取得 <span class="tabular-nums">+${p.fdMax.toFixed(1)}%</span></span>
-            <span class="text-violet-200/80">·</span>
-            <span class="text-violet-200/70 tabular-nums" title="投入済みフラグメント / 全取得に必要なフラグメント">${p.fragSpent.toLocaleString()} / ${p.fragMax.toLocaleString()} フラグメント</span>`;
+        return `<span title="いま出ている最終ダメージ / 全取得時">FD <span class="font-bold text-emerald-300">+${p.fdNow.toFixed(1)}%</span><span class="text-slate-600"> / +${p.fdMax.toFixed(1)}%</span></span>
+            <span title="投入済みフラグメント / 全取得に必要なフラグメント">欠片 <span class="font-bold text-violet-300">${p.fragSpent.toLocaleString()}</span><span class="text-slate-600"> / ${p.fragMax.toLocaleString()}</span></span>
+            <span class="font-bold text-slate-200 w-9 text-right">${p.pct}%</span>`;
     },
 
     buildModalContent() {
         if (this.modalTab === 'priority') return this.buildPriority(this.modalClassId, this.modalTrackingId);
+        if (this.modalTab === 'map') return this.buildPlanMap(this.modalClassId, this.modalTrackingId);
         if (this.modalTab === 'curve') return this.buildCurveTab(this.modalClassId, this.modalTrackingId);
         return this.buildSkillPanel(this.modalClassId, this.modalTrackingId);
     },
@@ -1366,10 +1458,10 @@ const hexaTracker = {
         const portrait = (char.image && char.image.startsWith('http')) ? char.image : (char.classImage || info.path || '');
         this.renderModalShell({
             portrait,
-            portraitClass: 'w-11 h-11 rounded-lg object-cover bg-slate-950/40',
+            portraitClass: 'w-8 h-8 object-cover bg-slate-950',
             title: this.escHtml(char.name),
-            badge: char.level ? `<span class="text-[11px] font-mono font-bold text-violet-100/90">Lv.${this.escHtml(char.level)}</span>` : '',
-            actions: `<button onclick="hexaTracker.openClassPicker('${this.modalCharId}')" title="HEXA職業を変更" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
+            badge: char.level ? `<span class="text-[11px] font-mono text-slate-400">Lv.${this.escHtml(char.level)}</span>` : '',
+            actions: `<button onclick="hexaTracker.openClassPicker('${this.modalCharId}')" title="HEXA職業を変更" class="w-11 border-l border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition-colors">
                 <i data-lucide="repeat" class="w-4 h-4"></i>
             </button>`,
         });
@@ -1386,42 +1478,34 @@ const hexaTracker = {
         this.modalTrackingId = classId;
         this.renderModalShell({
             portrait: info ? info.path : '',
-            portraitClass: 'w-11 h-11 object-contain shrink-0',
+            portraitClass: 'w-8 h-8 object-contain',
             title: this.escHtml(info ? info.name : classId),
-            badge: `<span class="text-[11px] font-bold text-violet-100/80">${this.escHtml(this.getClassGroup(classId))}</span>`,
+            badge: `<span class="text-[11px] text-slate-500">${this.escHtml(this.getClassGroup(classId))}</span>`,
             actions: '',
         });
     },
 
     renderModalShell({ portrait, portraitClass, title, badge, actions }) {
         const overlay = this.ensureOverlay();
+        // One header row, laid out like the site's own top bar: who, then the
+        // tabs, then the running totals, then close.
         overlay.innerHTML = `
-            <div class="bg-slate-900 border border-violet-500/40 rounded-2xl shadow-2xl w-full max-w-4xl h-[700px] max-h-[94vh] flex flex-col overflow-hidden">
-                <div class="flex items-center justify-between gap-3 px-5 py-3 bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-700 shrink-0">
-                    <div class="flex items-center gap-3 min-w-0">
+            <div class="bg-slate-950 border border-slate-700 shadow-2xl w-full max-w-5xl h-[720px] max-h-[94vh] flex flex-col overflow-hidden">
+                <div class="flex items-stretch h-11 shrink-0 bg-slate-900 border-b border-slate-800" style="box-shadow:inset 0 -1px 0 rgba(99,102,241,0.25)">
+                    <div class="flex items-center gap-2 pl-2 pr-3 min-w-0 max-w-[260px] border-r border-slate-800">
                         ${portrait ? `<img src="${portrait}" class="${portraitClass} shrink-0">` : ''}
-                        <div class="min-w-0">
-                            <div class="text-white font-extrabold text-sm truncate flex items-center gap-2">
-                                <i data-lucide="hexagon" class="w-4 h-4 shrink-0"></i>${title}
-                                ${badge}
-                            </div>
-                            <div id="hexa-modal-progress" class="text-[11px] text-violet-100 flex items-center gap-1.5 mt-0.5">${this.buildModalHeaderStat()}</div>
-                        </div>
+                        <span class="text-[15px] font-bold text-white truncate">${title}</span>
+                        ${badge}
                     </div>
-                    <div class="flex items-center gap-1.5 shrink-0">
-                        ${actions}
-                        <button onclick="hexaTracker.closeModal()" title="閉じる" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
-                            <i data-lucide="x" class="w-4 h-4"></i>
-                        </button>
-                    </div>
+                    <nav id="hexa-modal-tabs" class="flex self-stretch px-1">${this.buildTabs()}</nav>
+                    <div id="hexa-modal-progress" class="ml-auto flex items-center gap-4 px-3 text-[11px] text-slate-400 font-mono tabular-nums whitespace-nowrap">${this.buildModalHeaderStat()}</div>
+                    ${actions}
+                    <button onclick="hexaTracker.closeModal()" title="閉じる" class="w-11 border-l border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition-colors">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
                 </div>
-                <div id="hexa-modal-body" class="flex-1 flex flex-col min-h-0">
-                    <div id="hexa-modal-tabs" class="shrink-0 flex items-center gap-1 px-4 pt-3 border-b border-slate-800">
-                        ${this.buildTabs()}
-                    </div>
-                    <div id="hexa-modal-content" class="overflow-y-auto custom-scrollbar px-4 py-3 flex-1">
-                        ${this.buildModalContent()}
-                    </div>
+                <div id="hexa-modal-content" class="overflow-y-auto custom-scrollbar px-4 py-3 flex-1">
+                    ${this.buildModalContent()}
                 </div>
             </div>`;
         if (window.lucide) lucide.createIcons();
