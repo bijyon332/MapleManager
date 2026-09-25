@@ -207,6 +207,7 @@ const hexaTracker = {
 
     // trackingId selects which saved data set to use; classId selects the board.
     getProgress(trackingId, classId) {
+        this.ensureLoaded();
         if (classId === undefined) classId = trackingId;
         const empty = {
             pct: 0, pctToTarget: 0,
@@ -1346,6 +1347,7 @@ const hexaTracker = {
     // Resolve the HEXA classId for a character: manual assignment first, then auto-match by job name.
     getCharClassId(char) {
         if (!char) return null;
+        this.ensureLoaded();
         const saved = this.data['char:' + char.id];
         if (saved && saved.classId && this.getClassSkills(saved.classId)) return saved.classId;
         return this.resolveClassId(char.job);
