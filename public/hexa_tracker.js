@@ -39,6 +39,8 @@ const hexaTracker = {
     page: 'ranking',        // 'ranking' | 'tracker'
     prioritySort: 'frag',   // 'frag' | 'erda'
     planCap: 'target',      // 'target' | 'max' — where the 効率順 chain stops
+    mapView: 'list',        // 'list' | 'tiles' | 'timeline' — how 強化順マップ draws the chain
+    mapCursor: 0,           // timeline position, in levels taken from where you are now
     data: {},
     _loaded: false,
 
@@ -253,6 +255,11 @@ const hexaTracker = {
 
     setPlanCap(cap) {
         this.planCap = cap;
+        this.refreshAll();
+    },
+
+    setMapView(view) {
+        this.mapView = view;
         this.refreshAll();
     },
 
@@ -656,7 +663,6 @@ const hexaTracker = {
             <i data-lucide="${icon}" class="w-3.5 h-3.5"></i>${label}
         </button>`;
         return tab('progress', '進捗入力', 'sliders-horizontal')
-            + tab('priority', '効率順', 'trending-up')
             + tab('map', '強化順マップ', 'layout-grid')
             + tab('curve', '効率カーブ', 'activity');
     },
@@ -854,8 +860,8 @@ const hexaTracker = {
         return html;
     },
 
-    // Sort key and upper bound for the plan. Shared by 効率順 and 強化順マップ, so
-    // flipping either one keeps both tabs describing the same chain.
+    // Sort key and upper bound for the plan. Shared by every 強化順マップ view, so
+    // flipping either one keeps all views describing the same chain.
     buildPlanControls() {
         const seg = (active, onclick, label, hint) => `<button onclick="${onclick}" title="${hint}"
             class="px-2.5 py-1 text-[11px] font-bold transition-colors ${active ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'}">${label}</button>`;
@@ -863,7 +869,12 @@ const hexaTracker = {
             <span class="text-[10px] text-slate-500">${title}</span>
             <div class="inline-flex border border-slate-700 bg-slate-950 divide-x divide-slate-700">${buttons}</div>
         </div>`;
+        const view = this.modalTab === 'map' ? group('表示',
+            seg(this.mapView === 'list', "hexaTracker.setMapView('list')", '効率順', '次に上げるものを1行ずつ並べる')
+            + seg(this.mapView === 'tiles', "hexaTracker.setMapView('tiles')", 'マス', '同じ順番を左上から右へアイコンで並べる')
+            + seg(this.mapView === 'timeline', "hexaTracker.setMapView('timeline')", 'タイムライン', 'ノードごとの行に、上げる時期を横に並べる')) : '';
         return `<div class="flex flex-wrap items-center gap-x-5 gap-y-2 border border-slate-800 bg-slate-900 px-2.5 py-2 mb-2">
+            ${view}
             ${group('並べ替え',
                 seg(this.prioritySort === 'frag', "hexaTracker.setPrioritySort('frag')", 'フラグメント効率', '最終ダメージ / ソルエルダフラグメント で並べ替え')
                 + seg(this.prioritySort === 'erda', "hexaTracker.setPrioritySort('erda')", 'エルダ効率', '最終ダメージ / ソルエルダ で並べ替え'))}
@@ -967,6 +978,7 @@ const hexaTracker = {
     // 10% of the class's maximum Final Damage is flagged, so you can see where
     // the chain slows down.
     buildPlanMap(classId, trackingId) {
+        if (this.mapView === 'list') return this.buildPriority(classId, trackingId);
         const cls = this.getClassSkills(classId);
         const info = this.getClassInfo(classId);
         if (!cls || !info) return this.buildEmptyState();
@@ -980,6 +992,7 @@ const hexaTracker = {
                     ${this.planCap === 'max' ? '全ノードLv.30に到達済みです' : '目標値に到達済みです（上限を「最大 Lv.30」にすると続きが出ます）'}
                 </div></div>`;
         }
+        if (this.mapView === 'timeline') return this.buildPlanTimeline(classId, trackingId, steps, now);
 
         const fdMax = now.fdMax;
         const pctOf = fd => fdMax > 0 ? fd / fdMax * 100 : 0;
@@ -1006,25 +1019,265 @@ const hexaTracker = {
             </div>`;
         });
 
+        return `<div>
+            ${header}
+            ${this.buildPlanSummary(steps.length, cumFrag, cumErda, now.fdNow, fd)}
+            <div class="grid gap-1" style="grid-template-columns:repeat(auto-fill,minmax(58px,1fr))">${tiles}</div>
+            <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
+                効率順と同じ順番を、左上から右へ並べたものです。数字は「今のLv→上げた後のLv」。マスにマウスを乗せると消費量が出ます。
+                緑の枠と%は、そのマスで全取得時の最終ダメージの何%に届くかの目印です。
+            </p>
+        </div>`;
+    },
+
+    // One line of totals over every 強化順マップ view, with the node-type legend.
+    buildPlanSummary(count, frag, erda, fdFrom, fdTo) {
         const legend = ['origin', 'ascent', 'mastery', 'enhance', 'common'].map(t => {
             const c = this.SKILL_TYPE_CONFIG[t];
             return `<span class="inline-flex items-center gap-1"><span class="inline-block w-2.5 h-0.5" style="background:${c.badge}"></span>${c.title}</span>`;
         }).join('');
+        return `<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 mb-2 px-1">
+            <span>全${count}ステップ</span>
+            <span class="text-violet-300">フラグメント計 <span class="font-bold tabular-nums">${frag.toLocaleString()}</span></span>
+            <span class="text-amber-300">エルダ計 <span class="font-bold tabular-nums">${erda.toLocaleString()}</span></span>
+            <span class="text-emerald-300">最終ダメージ <span class="font-bold tabular-nums">+${fdFrom.toFixed(1)}%</span> <span class="text-slate-500">→</span> <span class="font-bold tabular-nums">+${fdTo.toFixed(1)}%</span></span>
+            <span class="ml-auto flex items-center gap-3 text-[10px] text-slate-500">${legend}</span>
+        </div>`;
+    },
 
-        return `<div>
-            ${header}
-            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 mb-2 px-1">
-                <span>全${steps.length}ステップ</span>
-                <span class="text-violet-300">フラグメント計 <span class="font-bold tabular-nums">${cumFrag.toLocaleString()}</span></span>
-                <span class="text-amber-300">エルダ計 <span class="font-bold tabular-nums">${cumErda.toLocaleString()}</span></span>
-                <span class="text-emerald-300">最終ダメージ <span class="font-bold tabular-nums">+${now.fdNow.toFixed(1)}%</span> <span class="text-slate-500">→</span> <span class="font-bold tabular-nums">+${fd.toFixed(1)}%</span></span>
-                <span class="ml-auto flex items-center gap-3 text-[10px] text-slate-500">${legend}</span>
+    // Board order for the timeline rows: Skill Node, Mastery, Boost, Common.
+    boardOrder(skills) {
+        const tierIdx = t => { const i = this.TIERS.findIndex(x => x.id === t); return i < 0 ? 99 : i; };
+        return [...skills].sort((a, b) => tierIdx(a.tier) - tierIdx(b.tier) || (a.slot || 0) - (b.slot || 0));
+    },
+
+    // ----- Timeline: one row per node, x = total levels taken -----
+
+    // The plan unrolled into single levels, with running totals at every
+    // position, so dragging the line only has to look numbers up.
+    buildTimelineData(classId, trackingId, steps, now) {
+        const skills = this.boardOrder(this.damageSkills(trackingId, classId));
+        const byKey = {};
+        const current = {}, final = {};
+        for (const s of skills) {
+            byKey[s.key] = s;
+            current[s.key] = final[s.key] = this.levelOf(trackingId, s);
+        }
+        const singles = [];
+        const frag = [0], erda = [0], fd = [0];
+        const segs = [];
+        for (const st of steps) {
+            const s = st.skill;
+            segs.push({ key: s.key, start: singles.length, from: st.from, to: st.to });
+            for (let lv = st.from + 1; lv <= st.to; lv++) {
+                singles.push({ key: s.key, lv });
+                const k = singles.length;
+                frag[k] = frag[k - 1] + this.fragAt(s, lv) - this.fragAt(s, lv - 1);
+                erda[k] = erda[k - 1] + this.erdaAt(s, lv) - this.erdaAt(s, lv - 1);
+                fd[k] = fd[k - 1] + this.fdAt(s, lv) - this.fdAt(s, lv - 1);
+            }
+            final[s.key] = st.to;
+        }
+        // Where the line crosses each 10% of the class's maximum Final Damage.
+        const marks = [];
+        const pctOf = v => now.fdMax > 0 ? v / now.fdMax * 100 : 0;
+        let next = Math.floor(pctOf(now.fdNow) / 10) * 10 + 10;
+        for (let k = 1; k <= singles.length; k++) {
+            while (next <= 100 && pctOf(now.fdNow + fd[k]) >= next - 1e-9) { marks.push({ k, pct: next }); next += 10; }
+        }
+        // The x axis is fragments spent: axis[k] is the running total after k levels.
+        const axis = frag;
+        return { skills, byKey, current, final, singles, segs, frag, erda, fd, marks, now, total: singles.length, axis, axisMax: axis[singles.length] || 0 };
+    },
+
+    buildPlanTimeline(classId, trackingId, steps, now) {
+        const tl = this.buildTimelineData(classId, trackingId, steps, now);
+        this._tl = tl;
+        const L = tl.total;
+        this.mapCursor = Math.max(0, Math.min(L, this.mapCursor | 0));
+        const pos = k => tl.axisMax > 0 ? tl.axis[k] / tl.axisMax : 0;
+        const x = k => (pos(k) * 100).toFixed(3) + '%';
+        const LABEL_W = 236;
+
+        // Lines for every mark, but a label only where it has room.
+        let lastLabel = -1;
+        const seekMarks = tl.marks.filter(m => { if (pos(m.k) - lastLabel < 0.035) return false; lastLabel = pos(m.k); return true; }).map(m => `<button onclick="hexaTracker.setMapCursor(${m.k})" title="全取得時FDの${m.pct}%に届く位置へ"
+            class="absolute top-0 ${pos(m.k) > 0.97 ? '-translate-x-full' : pos(m.k) < 0.03 ? '' : '-translate-x-1/2'} text-[9px] font-bold text-emerald-300 tabular-nums hover:text-emerald-100" style="left:${x(m.k)}">${m.pct}%</button>`).join('');
+        const markLines = tl.marks.map(m => `<div class="absolute top-0 bottom-0 border-l border-dashed border-emerald-500/40 pointer-events-none" style="left:${x(m.k)}"></div>`).join('');
+
+        const rows = tl.skills.map(s => {
+            const c = this.SKILL_TYPE_CONFIG[s.type] || this.SKILL_TYPE_CONFIG.mastery;
+            const segs = tl.segs.filter(g => g.key === s.key).map(g => {
+                const n = g.to - g.from;
+                const w = (pos(g.start + n) - pos(g.start)) * 100;
+                return `<div data-tl-seg="${g.start}" data-tl-end="${g.start + n}" class="absolute top-[4px] bottom-[4px] border flex items-center justify-center overflow-hidden"
+                    title="${this.escHtml(s.name)}\nLv.${g.from} → ${g.to}（${g.start + 1}〜${g.start + n}レベル目）"
+                    style="left:${x(g.start)};width:${w.toFixed(3)}%;border-color:${c.badge}">
+                    ${w > 2.2 ? `<span class="text-[9px] font-bold tabular-nums" style="color:${c.color}">${g.to}</span>` : ''}</div>`;
+            }).join('');
+            return `<div class="flex items-stretch border-t border-slate-800 h-7">
+                <div class="shrink-0 flex items-center gap-1.5 px-1.5 border-r border-slate-800" style="width:${LABEL_W}px;box-shadow:inset 2px 0 0 ${c.badge}">
+                    ${this.mapIcon(s, 20)}
+                    <span class="text-[11px] text-slate-300 truncate flex-1" title="${this.escHtml(s.name)}">${this.escHtml(s.name)}</span>
+                    <span id="tl-lv-${s.key}" class="font-mono text-[10px] text-slate-500 whitespace-pre shrink-0"></span>
+                </div>
+                <div class="relative flex-1">${segs}</div>
+            </div>`;
+        }).join('');
+
+        // Ticks at even steps of fragments, labelled as the running total
+        // including what is already spent.
+        const tickLabel = v => (now.fragSpent + Math.round(v)).toLocaleString();
+        let ticks = '';
+        for (let q = 0; q <= 4; q++) {
+            ticks += `<span class="absolute text-[9px] text-slate-500 tabular-nums ${q === 0 ? '' : q === 4 ? '-translate-x-full' : '-translate-x-1/2'}" style="left:${q * 25}%">${tickLabel(tl.axisMax * q / 4)}</span>`;
+        }
+
+        const total = { frag: tl.frag[L], erda: tl.erda[L], fd: now.fdNow + tl.fd[L] };
+        const html = `<div>
+            ${this.buildPlanControls()}
+            ${this.buildPlanSummary(steps.length, total.frag, total.erda, now.fdNow, total.fd)}
+            <div class="border border-slate-800 bg-slate-900 select-none">
+                <div class="flex border-b border-slate-800">
+                    <div class="shrink-0 border-r border-slate-800 px-1.5 flex items-center justify-between text-[9px] text-slate-500" style="width:${LABEL_W}px">
+                        <span>ノード</span><span class="font-mono whitespace-pre">線の位置 / 最終</span>
+                    </div>
+                    <div class="relative flex-1 h-9 mx-0">
+                        <div class="absolute inset-x-0 top-0 h-3">${seekMarks}</div>
+                        <div id="tl-seek" class="absolute inset-x-0 bottom-1 h-4 cursor-pointer" tabindex="0"
+                            onpointerdown="hexaTracker.tlPointer(event)" onpointermove="hexaTracker.tlPointer(event)" onkeydown="hexaTracker.tlKey(event)">
+                            <div class="absolute inset-x-0 top-1/2 h-px bg-slate-700"></div>
+                            <div id="tl-seek-fill" class="absolute left-0 top-1/2 -mt-px h-[3px] bg-violet-500"></div>
+                            <div id="tl-seek-knob" class="absolute top-0 bottom-0 w-2.5 -ml-[5px] bg-slate-100 border border-violet-500"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="relative">
+                    <div class="absolute inset-y-0 right-0 pointer-events-none" style="left:${LABEL_W}px">
+                        ${markLines}
+                        <div id="tl-line" class="absolute top-0 bottom-0 w-px bg-violet-400"></div>
+                    </div>
+                    <div class="cursor-col-resize" onpointerdown="hexaTracker.tlPointer(event)" onpointermove="hexaTracker.tlPointer(event)">${rows}</div>
+                </div>
+                <div class="flex h-5 border-t border-slate-800">
+                    <div class="shrink-0 border-r border-slate-800 px-1.5 text-[9px] text-slate-500 flex items-center" style="width:${LABEL_W}px">フラグメント（投入済み含む）</div>
+                    <div class="relative flex-1 pt-1">${ticks}</div>
+                </div>
             </div>
-            <div class="grid gap-1" style="grid-template-columns:repeat(auto-fill,minmax(58px,1fr))">${tiles}</div>
+            <div id="tl-readout" class="mt-2"></div>
             <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
-                効率順タブと同じ順番を、左上から右へ並べたものです。数字は「今のLv→上げた後のLv」。マスにマウスを乗せると消費量が出ます。
-                緑の枠と%は、そのマスで全取得時の最終ダメージの何%に届くかの目印です。
+                効率順と同じ順番を、ノードごとの行に分けて並べました。横軸は使ったフラグメントで、帯の幅がその一手の消費量です。帯の数字は上げた後のLvです。
+                上のバーか図の上をドラッグすると線が動き、その時点の各ノードのLv（白は今から上がるもの）と、そこまでの消費量・最終ダメージが下に出ます。緑の%を押すと、全取得時FDのその割合に届く位置へ線が飛びます。
             </p>
+        </div>`;
+        // Fill in the line-dependent parts once the markup is in the page.
+        setTimeout(() => this.tlUpdate(), 0);
+        return html;
+    },
+
+    mapIcon(s, size) {
+        const c = this.SKILL_TYPE_CONFIG[s.type] || this.SKILL_TYPE_CONFIG.mastery;
+        const url = this.getSkillIcon(s);
+        return url
+            ? `<img src="${url}" class="object-contain shrink-0" style="width:${size}px;height:${size}px" loading="lazy" alt="">`
+            : `<div class="flex items-center justify-center text-[10px] font-bold text-white shrink-0" style="width:${size}px;height:${size}px;background:${c.badge}">${c.label}</div>`;
+    },
+
+    // Drag on the seek bar or anywhere over the rows. Only the line-dependent
+    // bits are rewritten, so the drag is never interrupted by a re-render.
+    tlPointer(ev) {
+        if (ev.type === 'pointermove' && !(ev.buttons & 1)) return;
+        const tl = this._tl;
+        if (!tl || !tl.total) return;
+        if (ev.type === 'pointerdown') ev.currentTarget.setPointerCapture(ev.pointerId);
+        const plot = document.getElementById('tl-seek');
+        if (!plot) return;
+        const r = plot.getBoundingClientRect();
+        // A press on the node names is not a seek.
+        if (ev.type === 'pointerdown' && ev.clientX < r.left - 4) return;
+        const target = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)) * tl.axisMax;
+        // axis is non-decreasing: find the first k at or past the pointer, then
+        // take whichever neighbour is closer.
+        let lo = 0, hi = tl.total;
+        while (lo < hi) { const mid = (lo + hi) >> 1; if (tl.axis[mid] < target) lo = mid + 1; else hi = mid; }
+        const k = lo > 0 && target - tl.axis[lo - 1] < tl.axis[lo] - target ? lo - 1 : lo;
+        this.setMapCursor(k);
+    },
+
+    tlKey(ev) {
+        const step = ev.shiftKey ? 10 : 1;
+        if (ev.key === 'ArrowLeft') this.setMapCursor(this.mapCursor - step);
+        else if (ev.key === 'ArrowRight') this.setMapCursor(this.mapCursor + step);
+        else return;
+        ev.preventDefault();
+    },
+
+    setMapCursor(k) {
+        const tl = this._tl;
+        if (!tl) return;
+        this.mapCursor = Math.max(0, Math.min(tl.total, k));
+        this.tlUpdate();
+    },
+
+    // Levels of every node after the first k levels of the plan.
+    tlLevelsAt(k) {
+        const tl = this._tl;
+        const lv = { ...tl.current };
+        for (let i = 0; i < k; i++) lv[tl.singles[i].key] = tl.singles[i].lv;
+        return lv;
+    },
+
+    tlUpdate() {
+        const tl = this._tl;
+        if (!tl || !document.getElementById('tl-line')) return;
+        const k = this.mapCursor;
+        const pos = ((tl.axisMax > 0 ? tl.axis[k] / tl.axisMax : 0) * 100).toFixed(3) + '%';
+        document.getElementById('tl-line').style.left = pos;
+        document.getElementById('tl-seek-knob').style.left = pos;
+        document.getElementById('tl-seek-fill').style.width = pos;
+
+        const lv = this.tlLevelsAt(k);
+        const pad = n => String(n).padStart(2, ' ');
+        for (const s of tl.skills) {
+            const el = document.getElementById('tl-lv-' + s.key);
+            if (!el) continue;
+            const moved = lv[s.key] !== tl.current[s.key];
+            el.innerHTML = `<b class="${moved ? 'text-slate-100' : 'text-slate-500'}">${pad(lv[s.key])}</b><span class="text-slate-600">/${pad(tl.final[s.key])}</span>`;
+        }
+        // Segments already taken at the line read solid; the rest stay faint.
+        document.querySelectorAll('[data-tl-seg]').forEach(el => {
+            const start = +el.dataset.tlSeg, end = +el.dataset.tlEnd;
+            el.style.opacity = start >= k ? '0.45' : '1';
+            el.style.background = end <= k ? 'rgba(148,163,184,0.10)' : 'transparent';
+            el.style.borderStyle = start < k && end > k ? 'dashed' : 'solid';
+        });
+
+        const now = tl.now;
+        const frag = tl.frag[k], erda = tl.erda[k], fd = now.fdNow + tl.fd[k];
+        const fragAll = now.fragSpent + frag, erdaAll = now.erdaSpent + erda;
+        const pct = now.fragMax > 0 ? fragAll / now.fragMax * 100 : 0;
+        const fdPct = now.fdMax > 0 ? fd / now.fdMax * 100 : 0;
+        // The totals at the line, then every node's level in board order.
+        const nodes = tl.skills.map(s => {
+            const c = this.SKILL_TYPE_CONFIG[s.type] || this.SKILL_TYPE_CONFIG.mastery;
+            const moved = lv[s.key] !== tl.current[s.key];
+            return `<div class="flex items-center gap-1.5 px-1.5 py-1 border-b border-r border-slate-800" style="box-shadow:inset 0 2px 0 ${c.badge}" title="${this.escHtml(s.name)}">
+                ${this.mapIcon(s, 22)}
+                <div class="min-w-0 flex-1">
+                    <div class="text-[10px] text-slate-400 truncate leading-tight">${this.escHtml(s.name)}</div>
+                    <div class="font-mono whitespace-pre text-[10px] text-slate-500 leading-tight"><span class="text-slate-600">Lv.</span><b class="text-[13px] ${moved ? 'text-slate-100' : 'text-slate-500'}">${pad(lv[s.key])}</b></div>
+                </div>
+            </div>`;
+        }).join('');
+        const stat = (label, value, sub, color) => `<span class="whitespace-nowrap">${label} <b class="tabular-nums" style="color:${color}">${value}</b>${sub ? ` <span class="text-slate-600 tabular-nums">${sub}</span>` : ''}</span>`;
+        document.getElementById('tl-readout').innerHTML = `<div class="border border-slate-800 bg-slate-900">
+            <div class="flex flex-wrap gap-x-4 gap-y-0.5 px-2 py-1 border-b border-slate-800 text-[10px] text-slate-500">
+                ${stat('フラグメント', fragAll.toLocaleString(), `(+${frag.toLocaleString()} / ${now.fragMax.toLocaleString()})`, '#c4b5fd')}
+                ${stat('ソルエルダ', erdaAll.toLocaleString(), `(+${erda.toLocaleString()} / ${now.erdaMax.toLocaleString()})`, '#fcd34d')}
+                ${stat('最終ダメージ', `+${fd.toFixed(1)}%`, `(全取得時の ${fdPct.toFixed(1)}%)`, '#6ee7b7')}
+                ${stat('進捗', `${pct.toFixed(1)}%`, '(フラグメント換算)', '#a5b4fc')}
+            </div>
+            <div class="grid border-l border-slate-800 -ml-px" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${nodes}</div>
         </div>`;
     },
 
@@ -1330,7 +1583,7 @@ const hexaTracker = {
     modalCharId: null,
     modalClassId: null,
     modalTrackingId: null,
-    modalTab: 'progress',   // 'progress' | 'priority'
+    modalTab: 'progress',   // 'progress' | 'map' | 'curve'
 
     // Resolve a dashboard character's job name to a HEXA classId (or null if no HEXA data).
     resolveClassId(jobName) {
@@ -1441,13 +1694,12 @@ const hexaTracker = {
 
     buildModalHeaderStat() {
         const p = this.getProgress(this.modalTrackingId, this.modalClassId);
-        return `<span title="いま出ている最終ダメージ / 全取得時">FD <span class="font-bold text-emerald-300">+${p.fdNow.toFixed(1)}%</span><span class="text-slate-600"> / +${p.fdMax.toFixed(1)}%</span></span>
-            <span title="投入済みフラグメント / 全取得に必要なフラグメント">欠片 <span class="font-bold text-violet-300">${p.fragSpent.toLocaleString()}</span><span class="text-slate-600"> / ${p.fragMax.toLocaleString()}</span></span>
-            <span class="font-bold text-slate-200 w-9 text-right">${p.pct}%</span>`;
+        return `<span title="いま出ている最終ダメージ / 全取得時">FD <span class="text-[15px] font-bold text-emerald-300">+${p.fdNow.toFixed(1)}%</span><span class="text-slate-600"> / +${p.fdMax.toFixed(1)}%</span></span>
+            <span title="投入済みフラグメント / 全取得に必要なフラグメント">欠片 <span class="text-[15px] font-bold text-violet-300">${p.fragSpent.toLocaleString()}</span><span class="text-slate-600"> / ${p.fragMax.toLocaleString()}</span></span>
+            <span class="text-[15px] font-bold text-slate-200 w-11 text-right">${p.pct}%</span>`;
     },
 
     buildModalContent() {
-        if (this.modalTab === 'priority') return this.buildPriority(this.modalClassId, this.modalTrackingId);
         if (this.modalTab === 'map') return this.buildPlanMap(this.modalClassId, this.modalTrackingId);
         if (this.modalTab === 'curve') return this.buildCurveTab(this.modalClassId, this.modalTrackingId);
         return this.buildSkillPanel(this.modalClassId, this.modalTrackingId);
