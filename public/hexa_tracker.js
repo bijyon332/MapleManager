@@ -1085,11 +1085,9 @@ const hexaTracker = {
         for (let k = 1; k <= singles.length; k++) {
             while (next <= 100 && pctOf(now.fdNow + fd[k]) >= next - 1e-9) { marks.push({ k, pct: next }); next += 10; }
         }
-        let levelSum = 0;
-        for (const s of skills) levelSum += current[s.key];
         // The x axis is fragments spent: axis[k] is the running total after k levels.
         const axis = frag;
-        return { skills, byKey, current, final, singles, segs, frag, erda, fd, marks, now, levelSum, total: singles.length, axis, axisMax: axis[singles.length] || 0 };
+        return { skills, byKey, current, final, singles, segs, frag, erda, fd, marks, now, total: singles.length, axis, axisMax: axis[singles.length] || 0 };
     },
 
     buildPlanTimeline(classId, trackingId, steps, now) {
@@ -1273,10 +1271,6 @@ const hexaTracker = {
         }).join('');
         const stat = (label, value, sub, color) => `<span class="whitespace-nowrap">${label} <b class="tabular-nums" style="color:${color}">${value}</b>${sub ? ` <span class="text-slate-600 tabular-nums">${sub}</span>` : ''}</span>`;
         document.getElementById('tl-readout').innerHTML = `<div class="border border-slate-800 bg-slate-900">
-            <div class="flex items-center gap-2 px-2 py-1 border-b border-slate-800 text-[10px] text-slate-500">
-                線の位置 <b class="text-[13px] text-slate-100 tabular-nums">総レベル ${tl.levelSum + k}</b>
-                <span class="tabular-nums">今から +${k} / 残り ${tl.total - k}</span>
-            </div>
             <div class="grid border-l border-slate-800 -ml-px" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${nodes}</div>
             <div class="flex flex-wrap gap-x-4 gap-y-0.5 px-2 py-1 text-[10px] text-slate-500">
                 ${stat('フラグメント', fragAll.toLocaleString(), `(+${frag.toLocaleString()} / ${now.fragMax.toLocaleString()})`, '#c4b5fd')}
@@ -1701,9 +1695,9 @@ const hexaTracker = {
 
     buildModalHeaderStat() {
         const p = this.getProgress(this.modalTrackingId, this.modalClassId);
-        return `<span title="いま出ている最終ダメージ / 全取得時">FD <span class="font-bold text-emerald-300">+${p.fdNow.toFixed(1)}%</span><span class="text-slate-600"> / +${p.fdMax.toFixed(1)}%</span></span>
-            <span title="投入済みフラグメント / 全取得に必要なフラグメント">欠片 <span class="font-bold text-violet-300">${p.fragSpent.toLocaleString()}</span><span class="text-slate-600"> / ${p.fragMax.toLocaleString()}</span></span>
-            <span class="font-bold text-slate-200 w-9 text-right">${p.pct}%</span>`;
+        return `<span title="いま出ている最終ダメージ / 全取得時">FD <span class="text-[15px] font-bold text-emerald-300">+${p.fdNow.toFixed(1)}%</span><span class="text-slate-600"> / +${p.fdMax.toFixed(1)}%</span></span>
+            <span title="投入済みフラグメント / 全取得に必要なフラグメント">欠片 <span class="text-[15px] font-bold text-violet-300">${p.fragSpent.toLocaleString()}</span><span class="text-slate-600"> / ${p.fragMax.toLocaleString()}</span></span>
+            <span class="text-[15px] font-bold text-slate-200 w-11 text-right">${p.pct}%</span>`;
     },
 
     buildModalContent() {
