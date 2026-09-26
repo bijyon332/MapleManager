@@ -1257,7 +1257,7 @@ const hexaTracker = {
         const fragAll = now.fragSpent + frag, erdaAll = now.erdaSpent + erda;
         const pct = now.fragMax > 0 ? fragAll / now.fragMax * 100 : 0;
         const fdPct = now.fdMax > 0 ? fd / now.fdMax * 100 : 0;
-        // Every node's level at the line, in board order, then the totals.
+        // The totals at the line, then every node's level in board order.
         const nodes = tl.skills.map(s => {
             const c = this.SKILL_TYPE_CONFIG[s.type] || this.SKILL_TYPE_CONFIG.mastery;
             const moved = lv[s.key] !== tl.current[s.key];
@@ -1271,16 +1271,15 @@ const hexaTracker = {
         }).join('');
         const stat = (label, value, sub, color) => `<span class="whitespace-nowrap">${label} <b class="tabular-nums" style="color:${color}">${value}</b>${sub ? ` <span class="text-slate-600 tabular-nums">${sub}</span>` : ''}</span>`;
         document.getElementById('tl-readout').innerHTML = `<div class="border border-slate-800 bg-slate-900">
-            <div class="grid border-l border-slate-800 -ml-px" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${nodes}</div>
-            <div class="flex flex-wrap gap-x-4 gap-y-0.5 px-2 py-1 text-[10px] text-slate-500">
+            <div class="flex flex-wrap gap-x-4 gap-y-0.5 px-2 py-1 border-b border-slate-800 text-[10px] text-slate-500">
                 ${stat('フラグメント', fragAll.toLocaleString(), `(+${frag.toLocaleString()} / ${now.fragMax.toLocaleString()})`, '#c4b5fd')}
                 ${stat('ソルエルダ', erdaAll.toLocaleString(), `(+${erda.toLocaleString()} / ${now.erdaMax.toLocaleString()})`, '#fcd34d')}
                 ${stat('最終ダメージ', `+${fd.toFixed(1)}%`, `(全取得時の ${fdPct.toFixed(1)}%)`, '#6ee7b7')}
                 ${stat('進捗', `${pct.toFixed(1)}%`, '(フラグメント換算)', '#a5b4fc')}
             </div>
+            <div class="grid border-l border-slate-800 -ml-px" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${nodes}</div>
         </div>`;
     },
-
 
     // ========== Efficiency curve tab ==========
 
