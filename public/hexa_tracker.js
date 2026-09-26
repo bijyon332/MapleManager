@@ -40,7 +40,6 @@ const hexaTracker = {
     prioritySort: 'frag',   // 'frag' | 'erda'
     planCap: 'target',      // 'target' | 'max' — where the 効率順 chain stops
     mapView: 'list',        // 'list' | 'tiles' | 'timeline' — how 強化順マップ draws the chain
-    mapAxis: 'level',       // 'level' | 'frag' | 'fd' — what the timeline spaces evenly
     mapCursor: 0,           // timeline position, in levels taken from where you are now
     data: {},
     _loaded: false,
@@ -261,11 +260,6 @@ const hexaTracker = {
 
     setMapView(view) {
         this.mapView = view;
-        this.refreshAll();
-    },
-
-    setMapAxis(axis) {
-        this.mapAxis = axis;
         this.refreshAll();
     },
 
@@ -879,13 +873,8 @@ const hexaTracker = {
             seg(this.mapView === 'list', "hexaTracker.setMapView('list')", '効率順', '次に上げるものを1行ずつ並べる')
             + seg(this.mapView === 'tiles', "hexaTracker.setMapView('tiles')", 'マス', '同じ順番を左上から右へアイコンで並べる')
             + seg(this.mapView === 'timeline', "hexaTracker.setMapView('timeline')", 'タイムライン', 'ノードごとの行に、上げる時期を横に並べる')) : '';
-        const axis = this.modalTab === 'map' && this.mapView === 'timeline' ? group('横軸',
-            seg(this.mapAxis === 'level', "hexaTracker.setMapAxis('level')", '総レベル', '1レベル上げるごとに同じ幅だけ進む')
-            + seg(this.mapAxis === 'frag', "hexaTracker.setMapAxis('frag')", '欠片', '使ったフラグメントに比例して進む')
-            + seg(this.mapAxis === 'fd', "hexaTracker.setMapAxis('fd')", '最終ダメージ', '増えた最終ダメージに比例して進む')) : '';
         return `<div class="flex flex-wrap items-center gap-x-5 gap-y-2 border border-slate-800 bg-slate-900 px-2.5 py-2 mb-2">
             ${view}
-            ${axis}
             ${group('並べ替え',
                 seg(this.prioritySort === 'frag', "hexaTracker.setPrioritySort('frag')", 'フラグメント効率', '最終ダメージ / ソルエルダフラグメント で並べ替え')
                 + seg(this.prioritySort === 'erda', "hexaTracker.setPrioritySort('erda')", 'エルダ効率', '最終ダメージ / ソルエルダ で並べ替え'))}
@@ -1098,11 +1087,8 @@ const hexaTracker = {
         }
         let levelSum = 0;
         for (const s of skills) levelSum += current[s.key];
-        // What the x axis spaces evenly: levels taken, fragments spent or Final
-        // Damage gained. axis[k] is the running amount after k levels.
-        const axis = this.mapAxis === 'frag' ? frag
-            : this.mapAxis === 'fd' ? fd
-            : Array.from({ length: singles.length + 1 }, (_, i) => i);
+        // The x axis is fragments spent: axis[k] is the running total after k levels.
+        const axis = frag;
         return { skills, byKey, current, final, singles, segs, frag, erda, fd, marks, now, levelSum, total: singles.length, axis, axisMax: axis[singles.length] || 0 };
     },
 
@@ -1141,12 +1127,9 @@ const hexaTracker = {
             </div>`;
         }).join('');
 
-        // Ticks at even steps of whatever the axis measures, labelled as the
-        // running total including what is already spent.
-        const tickLabel = v => this.mapAxis === 'frag' ? (now.fragSpent + Math.round(v)).toLocaleString()
-            : this.mapAxis === 'fd' ? `+${(now.fdNow + v).toFixed(1)}%`
-            : String(tl.levelSum + Math.round(v));
-        const axisName = { level: '総レベル数（全ノードの合計Lv）', frag: 'フラグメント（投入済み含む）', fd: '最終ダメージ' }[this.mapAxis] || '';
+        // Ticks at even steps of fragments, labelled as the running total
+        // including what is already spent.
+        const tickLabel = v => (now.fragSpent + Math.round(v)).toLocaleString();
         let ticks = '';
         for (let q = 0; q <= 4; q++) {
             ticks += `<span class="absolute text-[9px] text-slate-500 tabular-nums ${q === 0 ? '' : q === 4 ? '-translate-x-full' : '-translate-x-1/2'}" style="left:${q * 25}%">${tickLabel(tl.axisMax * q / 4)}</span>`;
@@ -1179,13 +1162,13 @@ const hexaTracker = {
                     <div class="cursor-col-resize" onpointerdown="hexaTracker.tlPointer(event)" onpointermove="hexaTracker.tlPointer(event)">${rows}</div>
                 </div>
                 <div class="flex h-5 border-t border-slate-800">
-                    <div class="shrink-0 border-r border-slate-800 px-1.5 text-[9px] text-slate-500 flex items-center" style="width:${LABEL_W}px">${axisName}</div>
+                    <div class="shrink-0 border-r border-slate-800 px-1.5 text-[9px] text-slate-500 flex items-center" style="width:${LABEL_W}px">フラグメント（投入済み含む）</div>
                     <div class="relative flex-1 pt-1">${ticks}</div>
                 </div>
             </div>
             <div id="tl-readout" class="mt-2"></div>
             <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
-                効率順と同じ順番を、ノードごとの行に分けて並べました。横軸は「総レベル」なら1レベルごと、「欠片」なら使ったフラグメント、「最終ダメージ」なら増えたFDに比例して進みます。帯の数字は上げた後のLvです。
+                効率順と同じ順番を、ノードごとの行に分けて並べました。横軸は使ったフラグメントで、帯の幅がその一手の消費量です。帯の数字は上げた後のLvです。
                 上のバーか図の上をドラッグすると線が動き、その時点の各ノードのLvと、そこまでの消費量・最終ダメージが下に出ます。緑の%を押すと、全取得時FDのその割合に届く位置へ線が飛びます。
             </p>
         </div>`;
