@@ -1142,7 +1142,7 @@ const hexaTracker = {
             <div class="border border-slate-800 bg-slate-900 select-none">
                 <div class="flex border-b border-slate-800">
                     <div class="shrink-0 border-r border-slate-800 px-1.5 flex items-center justify-between text-[9px] text-slate-500" style="width:${LABEL_W}px">
-                        <span>ノード</span><span class="font-mono whitespace-pre">今 → 線の位置</span>
+                        <span>ノード</span><span class="font-mono whitespace-pre">線の位置 / 最終</span>
                     </div>
                     <div class="relative flex-1 h-9 mx-0">
                         <div class="absolute inset-x-0 top-0 h-3">${seekMarks}</div>
@@ -1169,7 +1169,7 @@ const hexaTracker = {
             <div id="tl-readout" class="mt-2"></div>
             <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
                 効率順と同じ順番を、ノードごとの行に分けて並べました。横軸は使ったフラグメントで、帯の幅がその一手の消費量です。帯の数字は上げた後のLvです。
-                上のバーか図の上をドラッグすると線が動き、その時点の各ノードのLvと、そこまでの消費量・最終ダメージが下に出ます。緑の%を押すと、全取得時FDのその割合に届く位置へ線が飛びます。
+                上のバーか図の上をドラッグすると線が動き、その時点の各ノードのLv（白は今から上がるもの）と、そこまでの消費量・最終ダメージが下に出ます。緑の%を押すと、全取得時FDのその割合に届く位置へ線が飛びます。
             </p>
         </div>`;
         // Fill in the line-dependent parts once the markup is in the page.
@@ -1244,7 +1244,7 @@ const hexaTracker = {
             const el = document.getElementById('tl-lv-' + s.key);
             if (!el) continue;
             const moved = lv[s.key] !== tl.current[s.key];
-            el.innerHTML = `${pad(tl.current[s.key])} → <b class="${moved ? 'text-slate-100' : 'text-slate-500'}">${pad(lv[s.key])}</b><span class="text-slate-600">/${pad(tl.final[s.key])}</span>`;
+            el.innerHTML = `<b class="${moved ? 'text-slate-100' : 'text-slate-500'}">${pad(lv[s.key])}</b><span class="text-slate-600">/${pad(tl.final[s.key])}</span>`;
         }
         // Segments already taken at the line read solid; the rest stay faint.
         document.querySelectorAll('[data-tl-seg]').forEach(el => {
@@ -1267,7 +1267,7 @@ const hexaTracker = {
                 ${this.mapIcon(s, 22)}
                 <div class="min-w-0 flex-1">
                     <div class="text-[10px] text-slate-400 truncate leading-tight">${this.escHtml(s.name)}</div>
-                    <div class="font-mono whitespace-pre text-[10px] text-slate-500 leading-tight">${pad(tl.current[s.key])} → <b class="text-[13px] ${moved ? 'text-slate-100' : 'text-slate-500'}">${pad(lv[s.key])}</b></div>
+                    <div class="font-mono whitespace-pre text-[10px] text-slate-500 leading-tight"><span class="text-slate-600">Lv.</span><b class="text-[13px] ${moved ? 'text-slate-100' : 'text-slate-500'}">${pad(lv[s.key])}</b></div>
                 </div>
             </div>`;
         }).join('');
