@@ -260,6 +260,7 @@ const hexaTracker = {
 
     setMapView(view) {
         this.mapView = view;
+        this._tlKey = null;   // the timeline opens on where you are now
         this.refreshAll();
     },
 
@@ -1057,16 +1058,23 @@ const hexaTracker = {
     // position, so dragging the line only has to look numbers up.
     buildTimelineData(classId, trackingId, steps, now) {
         const skills = this.boardOrder(this.damageSkills(trackingId, classId));
-        const byKey = {};
-        const current = {}, final = {};
+        const start = {}, current = {}, final = {};
+        let fragBase = 0, erdaBase = 0, fdBase = 0;
         for (const s of skills) {
-            byKey[s.key] = s;
+            start[s.key] = this.minLevel(s);
             current[s.key] = final[s.key] = this.levelOf(trackingId, s);
+            fragBase += this.fragAt(s, start[s.key]);
+            erdaBase += this.erdaAt(s, start[s.key]);
+            fdBase += this.fdAt(s, start[s.key]);
         }
+        // The timeline starts from an untouched board. The levels you already
+        // have come first, in the order the same greedy rule would have taken
+        // them, so where you are now is an exact point on the line.
+        const past = this.mergeSteps(this.planSingles(skills, start, current, this.prioritySort === 'erda'));
         const singles = [];
-        const frag = [0], erda = [0], fd = [0];
+        const frag = [fragBase], erda = [erdaBase], fd = [fdBase];
         const segs = [];
-        for (const st of steps) {
+        for (const st of past.concat(steps)) {
             const s = st.skill;
             segs.push({ key: s.key, start: singles.length, from: st.from, to: st.to });
             for (let lv = st.from + 1; lv <= st.to; lv++) {
@@ -1076,24 +1084,29 @@ const hexaTracker = {
                 erda[k] = erda[k - 1] + this.erdaAt(s, lv) - this.erdaAt(s, lv - 1);
                 fd[k] = fd[k - 1] + this.fdAt(s, lv) - this.fdAt(s, lv - 1);
             }
-            final[s.key] = st.to;
+            if (st.to > final[s.key]) final[s.key] = st.to;
         }
+        const nowK = past.reduce((n, st) => n + st.to - st.from, 0);
         // Where the line crosses each 10% of the class's maximum Final Damage.
         const marks = [];
         const pctOf = v => now.fdMax > 0 ? v / now.fdMax * 100 : 0;
-        let next = Math.floor(pctOf(now.fdNow) / 10) * 10 + 10;
+        let next = Math.floor(pctOf(fdBase) / 10) * 10 + 10;
         for (let k = 1; k <= singles.length; k++) {
-            while (next <= 100 && pctOf(now.fdNow + fd[k]) >= next - 1e-9) { marks.push({ k, pct: next }); next += 10; }
+            while (next <= 100 && pctOf(fd[k]) >= next - 1e-9) { marks.push({ k, pct: next }); next += 10; }
         }
-        // The x axis is fragments spent: axis[k] is the running total after k levels.
-        const axis = frag;
-        return { skills, byKey, current, final, singles, segs, frag, erda, fd, marks, now, total: singles.length, axis, axisMax: axis[singles.length] || 0 };
+        // The x axis is fragments spent from an untouched board.
+        const axis = frag.map(v => v - fragBase);
+        return { skills, start, current, final, singles, segs, frag, erda, fd, marks, now, nowK, total: singles.length, axis, axisMax: axis[singles.length] || 0 };
     },
 
     buildPlanTimeline(classId, trackingId, steps, now) {
         const tl = this.buildTimelineData(classId, trackingId, steps, now);
         this._tl = tl;
         const L = tl.total;
+        // The line starts where you are now; it stays where you left it until
+        // the chain itself changes (another character, sort or cap).
+        const key = [trackingId, classId, this.planCap, this.prioritySort].join('|');
+        if (this._tlKey !== key) { this._tlKey = key; this.mapCursor = tl.nowK; }
         this.mapCursor = Math.max(0, Math.min(L, this.mapCursor | 0));
         const pos = k => tl.axisMax > 0 ? tl.axis[k] / tl.axisMax : 0;
         const x = k => (pos(k) * 100).toFixed(3) + '%';
@@ -1101,7 +1114,7 @@ const hexaTracker = {
 
         // Lines for every mark, but a label only where it has room.
         let lastLabel = -1;
-        const seekMarks = tl.marks.filter(m => { if (pos(m.k) - lastLabel < 0.035) return false; lastLabel = pos(m.k); return true; }).map(m => `<button onclick="hexaTracker.setMapCursor(${m.k})" title="全取得時FDの${m.pct}%に届く位置へ"
+        const seekMarks = tl.marks.filter(m => { if (pos(m.k) - lastLabel < 0.05) return false; lastLabel = pos(m.k); return true; }).map(m => `<button onclick="hexaTracker.setMapCursor(${m.k})" title="全取得時FDの${m.pct}%に届く位置へ"
             class="absolute top-0 ${pos(m.k) > 0.97 ? '-translate-x-full' : pos(m.k) < 0.03 ? '' : '-translate-x-1/2'} text-[9px] font-bold text-emerald-300 tabular-nums hover:text-emerald-100" style="left:${x(m.k)}">${m.pct}%</button>`).join('');
         const markLines = tl.marks.map(m => `<div class="absolute top-0 bottom-0 border-l border-dashed border-emerald-500/40 pointer-events-none" style="left:${x(m.k)}"></div>`).join('');
 
@@ -1125,15 +1138,14 @@ const hexaTracker = {
             </div>`;
         }).join('');
 
-        // Ticks at even steps of fragments, labelled as the running total
-        // including what is already spent.
-        const tickLabel = v => (now.fragSpent + Math.round(v)).toLocaleString();
+        // Ticks at even steps of fragments spent from an untouched board.
+        const tickLabel = v => (tl.frag[0] + Math.round(v)).toLocaleString();
         let ticks = '';
         for (let q = 0; q <= 4; q++) {
             ticks += `<span class="absolute text-[9px] text-slate-500 tabular-nums ${q === 0 ? '' : q === 4 ? '-translate-x-full' : '-translate-x-1/2'}" style="left:${q * 25}%">${tickLabel(tl.axisMax * q / 4)}</span>`;
         }
 
-        const total = { frag: tl.frag[L], erda: tl.erda[L], fd: now.fdNow + tl.fd[L] };
+        const total = { frag: tl.frag[L] - tl.frag[tl.nowK], erda: tl.erda[L] - tl.erda[tl.nowK], fd: tl.fd[L] };
         const html = `<div>
             ${this.buildPlanControls()}
             ${this.buildPlanSummary(steps.length, total.frag, total.erda, now.fdNow, total.fd)}
@@ -1148,6 +1160,8 @@ const hexaTracker = {
                             onpointerdown="hexaTracker.tlPointer(event)" onpointermove="hexaTracker.tlPointer(event)" onkeydown="hexaTracker.tlKey(event)">
                             <div class="absolute inset-x-0 top-1/2 h-px bg-slate-700"></div>
                             <div id="tl-seek-fill" class="absolute left-0 top-1/2 -mt-px h-[3px] bg-violet-500"></div>
+                            <button onpointerdown="event.stopPropagation()" onclick="hexaTracker.setMapCursor(${tl.nowK})" title="今の進捗に戻す"
+                                class="absolute -top-0.5 -bottom-0.5 w-[3px] -ml-px bg-slate-300 hover:bg-white" style="left:${x(tl.nowK)}"></button>
                             <div id="tl-seek-knob" class="absolute top-0 bottom-0 w-2.5 -ml-[5px] bg-slate-100 border border-violet-500"></div>
                         </div>
                     </div>
@@ -1155,19 +1169,20 @@ const hexaTracker = {
                 <div class="relative">
                     <div class="absolute inset-y-0 right-0 pointer-events-none" style="left:${LABEL_W}px">
                         ${markLines}
+                        <div class="absolute top-0 bottom-0 border-l border-dotted border-slate-400/60" style="left:${x(tl.nowK)}"></div>
                         <div id="tl-line" class="absolute top-0 bottom-0 w-px bg-violet-400"></div>
                     </div>
                     <div class="cursor-col-resize" onpointerdown="hexaTracker.tlPointer(event)" onpointermove="hexaTracker.tlPointer(event)">${rows}</div>
                 </div>
                 <div class="flex h-5 border-t border-slate-800">
-                    <div class="shrink-0 border-r border-slate-800 px-1.5 text-[9px] text-slate-500 flex items-center" style="width:${LABEL_W}px">フラグメント（投入済み含む）</div>
+                    <div class="shrink-0 border-r border-slate-800 px-1.5 text-[9px] text-slate-500 flex items-center" style="width:${LABEL_W}px">フラグメント（未強化から）</div>
                     <div class="relative flex-1 pt-1">${ticks}</div>
                 </div>
             </div>
             <div id="tl-readout" class="mt-2"></div>
             <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
-                効率順と同じ順番を、ノードごとの行に分けて並べました。横軸は使ったフラグメントで、帯の幅がその一手の消費量です。帯の数字は上げた後のLvです。
-                上のバーか図の上をドラッグすると線が動き、その時点の各ノードのLv（白は今から上がるもの）と、そこまでの消費量・最終ダメージが下に出ます。緑の%を押すと、全取得時FDのその割合に届く位置へ線が飛びます。
+                未強化の盤面からの強化順を、ノードごとの行に分けて並べました。今までに上げた分も同じ効率の順に並べ、その先は効率順と同じ順番です。横軸は使ったフラグメントで、帯の幅がその一手の消費量、帯の数字は上げた後のLvです。
+                線は最初、今の進捗（点線）の位置にあります。上のバーか図の上をドラッグすると線が動き、その時点の各ノードのLv（白は今より上、暗いのは今より下）と、そこまでの消費量・最終ダメージが下に出ます。バーの白い目印を押すと今の進捗に戻り、緑の%を押すと全取得時FDのその割合に届く位置へ飛びます。
             </p>
         </div>`;
         // Fill in the line-dependent parts once the markup is in the page.
@@ -1222,9 +1237,14 @@ const hexaTracker = {
     // Levels of every node after the first k levels of the plan.
     tlLevelsAt(k) {
         const tl = this._tl;
-        const lv = { ...tl.current };
+        const lv = { ...tl.start };
         for (let i = 0; i < k; i++) lv[tl.singles[i].key] = tl.singles[i].lv;
         return lv;
+    },
+
+    // White above where you are now, the usual grey at it, darker below it.
+    tlLvTone(lv, current) {
+        return lv > current ? 'text-slate-100' : lv < current ? 'text-slate-600' : 'text-slate-500';
     },
 
     tlUpdate() {
@@ -1241,8 +1261,7 @@ const hexaTracker = {
         for (const s of tl.skills) {
             const el = document.getElementById('tl-lv-' + s.key);
             if (!el) continue;
-            const moved = lv[s.key] !== tl.current[s.key];
-            el.innerHTML = `<b class="${moved ? 'text-slate-100' : 'text-slate-500'}">${pad(lv[s.key])}</b><span class="text-slate-600">/${pad(tl.final[s.key])}</span>`;
+            el.innerHTML = `<b class="${this.tlLvTone(lv[s.key], tl.current[s.key])}">${pad(lv[s.key])}</b><span class="text-slate-600">/${pad(tl.final[s.key])}</span>`;
         }
         // Segments already taken at the line read solid; the rest stay faint.
         document.querySelectorAll('[data-tl-seg]').forEach(el => {
@@ -1253,27 +1272,26 @@ const hexaTracker = {
         });
 
         const now = tl.now;
-        const frag = tl.frag[k], erda = tl.erda[k], fd = now.fdNow + tl.fd[k];
-        const fragAll = now.fragSpent + frag, erdaAll = now.erdaSpent + erda;
+        const fragAll = tl.frag[k], erdaAll = tl.erda[k], fd = tl.fd[k];
+        const diff = v => `今から ${v < 0 ? '−' : '+'}${Math.abs(v).toLocaleString()}`;
         const pct = now.fragMax > 0 ? fragAll / now.fragMax * 100 : 0;
         const fdPct = now.fdMax > 0 ? fd / now.fdMax * 100 : 0;
         // The totals at the line, then every node's level in board order.
         const nodes = tl.skills.map(s => {
             const c = this.SKILL_TYPE_CONFIG[s.type] || this.SKILL_TYPE_CONFIG.mastery;
-            const moved = lv[s.key] !== tl.current[s.key];
             return `<div class="flex items-center gap-1.5 px-1.5 py-1 border-b border-r border-slate-800" style="box-shadow:inset 0 2px 0 ${c.badge}" title="${this.escHtml(s.name)}">
                 ${this.mapIcon(s, 22)}
                 <div class="min-w-0 flex-1">
                     <div class="text-[10px] text-slate-400 truncate leading-tight">${this.escHtml(s.name)}</div>
-                    <div class="font-mono whitespace-pre text-[10px] text-slate-500 leading-tight"><span class="text-slate-600">Lv.</span><b class="text-[13px] ${moved ? 'text-slate-100' : 'text-slate-500'}">${pad(lv[s.key])}</b></div>
+                    <div class="font-mono whitespace-pre text-[10px] text-slate-500 leading-tight"><span class="text-slate-600">Lv.</span><b class="text-[13px] ${this.tlLvTone(lv[s.key], tl.current[s.key])}">${pad(lv[s.key])}</b></div>
                 </div>
             </div>`;
         }).join('');
         const stat = (label, value, sub, color) => `<span class="whitespace-nowrap">${label} <b class="tabular-nums" style="color:${color}">${value}</b>${sub ? ` <span class="text-slate-600 tabular-nums">${sub}</span>` : ''}</span>`;
         document.getElementById('tl-readout').innerHTML = `<div class="border border-slate-800 bg-slate-900">
             <div class="flex flex-wrap gap-x-4 gap-y-0.5 px-2 py-1 border-b border-slate-800 text-[10px] text-slate-500">
-                ${stat('フラグメント', fragAll.toLocaleString(), `(+${frag.toLocaleString()} / ${now.fragMax.toLocaleString()})`, '#c4b5fd')}
-                ${stat('ソルエルダ', erdaAll.toLocaleString(), `(+${erda.toLocaleString()} / ${now.erdaMax.toLocaleString()})`, '#fcd34d')}
+                ${stat('フラグメント', fragAll.toLocaleString(), `(${diff(fragAll - now.fragSpent)} / ${now.fragMax.toLocaleString()})`, '#c4b5fd')}
+                ${stat('ソルエルダ', erdaAll.toLocaleString(), `(${diff(erdaAll - now.erdaSpent)} / ${now.erdaMax.toLocaleString()})`, '#fcd34d')}
                 ${stat('最終ダメージ', `+${fd.toFixed(1)}%`, `(全取得時の ${fdPct.toFixed(1)}%)`, '#6ee7b7')}
                 ${stat('進捗', `${pct.toFixed(1)}%`, '(フラグメント換算)', '#a5b4fc')}
             </div>
@@ -1769,6 +1787,7 @@ const hexaTracker = {
         if (this._escHandler) { document.removeEventListener('keydown', this._escHandler); this._escHandler = null; }
         this.modalCharId = null;
         this.modalClassId = null;
+        this._tlKey = null;
         this.modalTrackingId = null;
         const page = document.getElementById('hexa-page');
         if (page && this.page === 'tracker') {
