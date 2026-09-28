@@ -396,8 +396,7 @@
                 }
                 const { cost, booms } = starRunCached(item.star, target, L, so);
                 if (sc > 0) acts.push({
-                    kind: 'star', label: `${item.star}★ → ${target}★`,
-                    detail: booms >= 0.01 ? `期待破壊 ${booms.toFixed(2)}回` : '破壊なし',
+                    kind: 'star', from: item.star, to: target, booms, unit: planName,
                     cost, score: sc, next: { star: target }
                 });
             }
@@ -409,8 +408,7 @@
             if (hit) {
                 const rolls = 1 / hit.p;
                 acts.push({
-                    kind: 'flame', label: `転生 ${Math.round(cur)} → ${Math.round(hit.mean)}`,
-                    detail: `黒転生 期待${rolls < 10 ? rolls.toFixed(1) : Math.round(rolls).toLocaleString()}回`,
+                    kind: 'flame', from: cur, to: hit.mean, rolls, unit: 'flame',
                     cost: (o.flamePrice || FLAME_PRICE) * rolls, score: hit.mean - cur,
                     next: { flameCur: hit.mean },
                 });
@@ -429,8 +427,7 @@
                 if (!best || eff < best.eff) best = { eff, cost, rolls, cube, hit };
             }
             if (best) acts.push({
-                kind: 'pot', label: `潜在 ${Math.round(cur)} → ${Math.round(best.hit.mean)}`,
-                detail: `${CUBE_JP[best.cube]} 期待${best.rolls < 10 ? best.rolls.toFixed(1) : Math.round(best.rolls).toLocaleString()}個`,
+                kind: 'pot', from: cur, to: best.hit.mean, rolls: best.rolls, unit: best.cube,
                 cost: best.cost, score: best.hit.mean - cur, next: { potCur: best.hit.mean },
             });
         }
@@ -451,14 +448,41 @@
             });
             if (!pick) break;
             total += pick.act.cost;
-            out.push({
-                ...pick.act, eff: pick.eff, name: pick.item.name,
-                big: pick.act.kind === 'pot' && BIG_TICKET.has(pick.item.part),
-                level: FIXED_LV[pick.item.part] || pick.item.level, cum: total
-            });
             Object.assign(state[pick.idx], pick.act.next);
+            // The same part picked again for the same kind of step reads as one
+            // run: "keep rolling until here", with the costs and counts added up.
+            const last = out[out.length - 1], a = pick.act;
+            if (last && last.idx === pick.idx && last.kind === a.kind && last.unit === a.unit) {
+                last.to = a.to; last.cost += a.cost; last.score += a.score;
+                last.rolls = (last.rolls || 0) + (a.rolls || 0);
+                last.booms = (last.booms || 0) + (a.booms || 0);
+                last.steps += 1; last.eff = last.cost / last.score; last.cum = total;
+                Object.assign(last, labelOf(last));
+                continue;
+            }
+            const row = {
+                ...a, idx: pick.idx, steps: 1, eff: pick.eff, name: pick.item.name,
+                big: a.kind === 'pot' && BIG_TICKET.has(pick.item.part),
+                level: FIXED_LV[pick.item.part] || pick.item.level, cum: total
+            };
+            out.push(Object.assign(row, labelOf(row)));
         }
         return out;
+    }
+    const countText = (n) => (n < 10 ? n.toFixed(1) : Math.round(n).toLocaleString());
+    function labelOf(a) {
+        if (a.kind === 'star') return {
+            label: `${a.from}★ → ${a.to}★`,
+            detail: a.booms >= 0.01 ? `期待破壊 ${a.booms.toFixed(2)}回` : '破壊なし',
+        };
+        if (a.kind === 'flame') return {
+            label: `転生 ${Math.round(a.from)} → ${Math.round(a.to)}`,
+            detail: `黒転生 期待${countText(a.rolls)}回`,
+        };
+        return {
+            label: `潜在 ${Math.round(a.from)} → ${Math.round(a.to)}`,
+            detail: `${CUBE_JP[a.unit]} 期待${countText(a.rolls)}個`,
+        };
     }
 
     /* ---------- ui ---------- */
