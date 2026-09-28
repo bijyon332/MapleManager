@@ -367,7 +367,7 @@
     const singleStat = (L, t) => Math.min(12, Math.floor(L / 20) + 1) * t;
     const dualStat = (L, t) => Math.min(7, Math.floor(L / 40) + 1) * t;
     // Weapon attack is a share of the weapon's own attack, 10% steeper per tier.
-    // Fitted to the kiiten / kawaii-sushi tables (boss tiers 3-7); only used for weapons they don't list.
+    // Fitted to the kiiten table (boss tiers 3-7); only used for weapons it doesn't list.
     const weaponAtt = (base, L, t) => Math.ceil(base * (Math.floor(L / 40) + 1) / 100 * t * Math.pow(1.1, t - 3));
     // `base` is either the weapon's base attack or its table row [tier3..tier7].
     const weaponAttOf = (base, L, t) => Array.isArray(base)
@@ -796,7 +796,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
     // Weapon flame attack by class: class -> weapon type -> the picked weapon's tier.
     const WEAPON_FLAME = window.WEAPON_FLAME || {};
     const CLASS_WEAPON = window.CLASS_WEAPON || {};
-    const WEAPON_TIER_JP = { fafnir: 'ファフニール', absolab: 'アブソラブ', arcane: 'アーケインシェード', genesis: 'ジェネシス', destiny: 'デスティニー' };
+    const WEAPON_TIER_JP = { absolab: 'アブソラブ', arcane: 'アーケインシェード', genesis: 'ジェネシス', destiny: 'デスティニー' };
     const WTYPE_JP = { '杖': 'ワンド', '棒': 'スタッフ' };
     const weaponTypeOf = (v) => v.wtype || (CLASS_WEAPON[v.job] || [])[0] || '';
     function weaponRow(v) {
@@ -807,7 +807,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
     const itemsFor = (slotId) => ITEMS.filter((it) => (SLOT_KINDS[slotId] || []).includes(it.slot));
     const SET_JP = {
         genesis: 'ジェネシス', eternal: 'エターナル', arcane: 'アーケインシェード', absolab: 'アブソラブ',
-        cra: 'ルートアビス', fafnir: 'ファフニール', pitched: '漆黒のボス', dawn: '黎明のボス',
+        cra: 'ルートアビス', pitched: '漆黒のボス', dawn: '黎明のボス',
         boss_acc: 'ボスアクセサリー', meister: 'マイスター', gollux: 'ゴルロックス', other: 'その他',
     };
     const iconUrl = (id) => `https://maplestory.io/api/GMS/${(ITEM_BY_ID.get(id) || {}).ver || 255}/item/${id}/icon`;
