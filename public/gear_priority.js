@@ -288,6 +288,59 @@
         }
         return [...out.entries()].map(([s, p]) => [Number(s), p / kept]).sort((x, y) => x[0] - y[0]);
     }
+    // The same rolls, but kept as line combinations (order ignored) so a plan row
+    // can name what to stop on. Lines the weights ignore all read as "その他".
+    function potCombos(key, cube, L, w) {
+        const lines = CUBE_RATES[key][cube].map((rows) => {
+            const b = new Map();
+            let rest = 1;
+            const put = (label, s, boss, p) => {
+                const e = b.get(label);
+                if (e) e.p += p; else b.set(label, { label, s, boss, p });
+            };
+            for (const [k, v, p] of rows) {
+                rest -= p;
+                const o = POT_OPTS[k];
+                const val = v + (L >= 160 && HI_UP.has(k) ? 1 : 0);
+                const s = o && o.w ? val * (w[o.w] || 0) : 0;
+                put(s > 0 ? `${o.jp}${val}%` : 'その他', s, k === 'boss' ? 1 : 0, p);
+            }
+            if (rest > 1e-9) put('その他', 0, 0, rest);
+            return [...b.values()];
+        });
+        const out = new Map();
+        let kept = 0;
+        for (const a of lines[0]) for (const b of lines[1]) for (const c of lines[2]) {
+            if (a.boss + b.boss + c.boss > 2) continue;
+            const p = a.p * b.p * c.p;
+            kept += p;
+            // Best line first, so "攻撃力12%・攻撃力9%・その他" reads top-down.
+            const three = [a, b, c].sort((x, y) => y.s - x.s);
+            const k = three.map((x) => x.label).join('・');
+            const e = out.get(k);
+            if (e) e.p += p; else out.set(k, { label: k, s: a.s + b.s + c.s, p });
+        }
+        return [...out.values()].map((e) => ({ ...e, p: e.p / kept }));
+    }
+    // What to stop on when rolling to beat `thr`: the weakest combination that
+    // still beats it, plus the likeliest others that also would.
+    function potTarget(key, cube, L, w, thr) {
+        const ck = `${key}|${cube}|${L >= 160 ? 1 : 0}|${w.statPct}|${w.allStat}|${w.attPct}|${w.dmg}|${w.boss}|${w.crit}`;
+        let all = potComboCache.get(ck);
+        if (!all) {
+            if (potComboCache.size > 200) potComboCache.clear();
+            all = potCombos(key, cube, L, w);
+            potComboCache.set(ck, all);
+        }
+        const hits = all.filter((e) => e.s > thr + 1e-9);
+        if (!hits.length) return null;
+        const pHit = hits.reduce((a, e) => a + e.p, 0);
+        const min = hits.reduce((m, e) => (e.s < m.s - 1e-9 || (Math.abs(e.s - m.s) < 1e-9 && e.p > m.p) ? e : m));
+        const others = hits.filter((e) => e !== min).sort((a, b) => b.p - a.p).slice(0, 2)
+            .map((e) => ({ label: e.label, share: e.p / pHit }));
+        return { min: min.label, others, count: hits.length - 1 };
+    }
+    let potComboCache = new Map();
     let potCache = new Map();
     function potDistCached(key, cube, L, w) {
         const k = `${key}|${cube}|${L >= 160 ? 1 : 0}|${w.statPct}|${w.allStat}|${w.attPct}|${w.dmg}|${w.boss}|${w.crit}`;
@@ -314,11 +367,11 @@
     const singleStat = (L, t) => Math.min(12, Math.floor(L / 20) + 1) * t;
     const dualStat = (L, t) => Math.min(7, Math.floor(L / 40) + 1) * t;
     // Weapon attack is a share of the weapon's own attack, 10% steeper per tier.
-    // Fitted to the kawaii-sushi table (boss tiers 3-7); only used for weapons it doesn't list.
+    // Fitted to the kiiten / kawaii-sushi tables (boss tiers 3-7); only used for weapons they don't list.
     const weaponAtt = (base, L, t) => Math.ceil(base * (Math.floor(L / 40) + 1) / 100 * t * Math.pow(1.1, t - 3));
-    // `base` is either the weapon's base attack or its table row [base, tier3..tier7].
+    // `base` is either the weapon's base attack or its table row [tier3..tier7].
     const weaponAttOf = (base, L, t) => Array.isArray(base)
-        ? (t >= 3 && t <= 7 ? base[t - 2] : weaponAtt(base[0], L, t))
+        ? base[Math.max(0, Math.min(4, t - 3))]
         : weaponAtt(base || 0, L, t);
     const choose = (n, k) => {
         if (k < 0 || k > n) return 0;
@@ -442,6 +495,7 @@
             if (best) acts.push({
                 kind: 'pot', from: cur, to: best.hit.mean, rolls: best.rolls, unit: best.cube,
                 cost: best.cost, score: best.hit.mean - cur, next: { potCur: best.hit.mean },
+                pot: { key, L, thr: cur },
             });
         }
         return acts;
@@ -467,6 +521,7 @@
             const last = out[out.length - 1], a = pick.act;
             if (last && last.idx === pick.idx && last.kind === a.kind && last.unit === a.unit) {
                 last.to = a.to; last.cost += a.cost; last.score += a.score;
+                if (a.pot) last.pot = a.pot;
                 last.rolls = (last.rolls || 0) + (a.rolls || 0);
                 last.booms = (last.booms || 0) + (a.booms || 0);
                 last.steps += 1; last.eff = last.cost / last.score; last.cum = total;
@@ -500,6 +555,7 @@
 
     /* ---------- ui ---------- */
     const fmtB = (v) => (v >= 1e12 ? (v / 1e12).toFixed(2) + 'T' : v >= 1e9 ? (v / 1e9).toFixed(2) + 'B' : (v / 1e6).toFixed(0) + 'M');
+    const pctText = (p) => (p >= 0.1 ? Math.round(p * 100) : (p * 100).toFixed(p >= 0.01 ? 1 : 2)) + '%';
     const fmtM = (v) => (v >= 1e9 ? (v / 1e9).toFixed(1) + 'B' : (v / 1e6).toFixed(1) + 'M');
     const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -565,6 +621,10 @@ vertical-align:1px;white-space:nowrap}
 .gp .who{font-size:11px;color:var(--mu)}
 .gp .what{font-size:13.5px;line-height:1.35}
 .gp .what b{font-weight:600}
+.gp .tgt{font-size:12px;line-height:1.4;margin-top:2px}
+.gp .tgt .tl{font-size:10.5px;color:var(--mu);border:1px solid var(--ln);padding:0 4px;margin-right:6px}
+.gp .tgt b{font-weight:600}
+.gp .tgt.alt{font-size:11px;color:var(--mu);margin-top:0}
 .gp .star b{color:var(--gold)} .gp .pot b{color:var(--cyan)} .gp .flame b{color:#4ade80}
 .gp .step.big b{color:var(--violet)}
 .gp .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;text-align:right;font-size:14px;font-weight:600;color:#fff;line-height:1.25}
@@ -656,7 +716,7 @@ column-gap:2px;padding:1px 0}
 .gp-veil .srow .ssf{text-align:right;color:var(--gold)}
 .gp-veil .srow .sflh{text-align:right;color:#4ade80}
 .gp-veil .srow input.sfl{padding:1px 4px;text-align:right;color:#4ade80;border-color:#166534;font-size:12.5px}
-.gp-veil .srow.base{grid-template-columns:92px 64px 1fr;column-gap:8px;margin-top:4px}
+.gp-veil .srow.base{grid-template-columns:92px 72px 1fr;column-gap:8px;margin-top:4px}
 .gp-veil .srow.base input{padding:1px 4px;text-align:right;font-size:12.5px}
 .gp-veil .srow.wjob{grid-template-columns:92px 1fr}
 .gp-veil .srow .wsel{display:flex;gap:6px}
@@ -736,7 +796,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
     // Weapon flame attack by class: class -> weapon type -> the picked weapon's tier.
     const WEAPON_FLAME = window.WEAPON_FLAME || {};
     const CLASS_WEAPON = window.CLASS_WEAPON || {};
-    const WEAPON_TIER_JP = { fafnir: 'ファフニール', absolab: 'アブソラブ', arcane: 'アーケインシェード', genesis: 'ジェネシス' };
+    const WEAPON_TIER_JP = { fafnir: 'ファフニール', absolab: 'アブソラブ', arcane: 'アーケインシェード', genesis: 'ジェネシス', destiny: 'デスティニー' };
     const WTYPE_JP = { '杖': 'ワンド', '棒': 'スタッフ' };
     const weaponTypeOf = (v) => v.wtype || (CLASS_WEAPON[v.job] || [])[0] || '';
     function weaponRow(v) {
@@ -1020,6 +1080,15 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
             }).join('')).join('');
         },
 
+        // Potential rows name the lines to stop on, since a score alone doesn't say.
+        targetHTML(s) {
+            if (s.kind !== 'pot' || !s.pot) return '';
+            const t = potTarget(s.pot.key, s.unit, s.pot.L, this.state.w, s.pot.thr);
+            if (!t) return '';
+            const alt = t.count ? `<div class="tgt alt">ほか${t.count}通りでも可${t.others.length ? '。多いのは ' + t.others.map((o) => `${esc(o.label)} ${pctText(o.share)}`).join('、') : ''}</div>` : '';
+            return `<div class="tgt"><span class="tl">目標</span><b>${esc(t.min)}</b> 以上</div>${alt}`;
+        },
+
         renderPlan() {
             const el = this.root.querySelector('#gp-plan-list');
             const plan = buildPlan(this.entries(), this.state.w, this.opts(), this.state.limit);
@@ -1049,6 +1118,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                 <div>
                     <div class="who">${esc(s.name)}・Lv${s.level}</div>
                     <div class="what"><b>${esc(s.label)}</b> <span class="who">${esc(s.detail)}</span>${extra || ''}</div>
+                    ${this.targetHTML(s)}
                     <div class="meter"><i style="width:${(8 + frac(s) * 92).toFixed(1)}%"></i></div>
                 </div>
                 <div class="num">${cost}<div class="who sm">累計 ${cum}</div></div>
@@ -1157,10 +1227,10 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                 ${types.length > 1 ? `<select data-gp="m-wtype" aria-label="武器種">${types.map((x) => `<option value="${esc(x)}" ${x === wt ? 'selected' : ''}>${esc(WTYPE_JP[x] || x)}</option>`).join('')}</select>` : ''}`;
             const tier = it && WEAPON_TIER_JP[it.set];
             const body = row
-                ? `<span class="sbase ro">${row[0]}</span><span class="bnote">${esc(tier)}・${esc(WTYPE_JP[wt] || wt)}の転生の攻撃力（4段階 +${row[2]} 〜 7段階 +${row[5]}）で計算します</span>`
+                ? `<span class="sbase ro">+${row[1]}〜${row[4]}</span><span class="bnote">${esc(tier)}・${esc(WTYPE_JP[wt] || wt)}の表の値（4段階〜7段階）で計算します</span>`
                 : `<input class="sbase" type="number" min="0" max="9999" step="1" value="${d.baseAtt || ''}" placeholder="0" data-gp="m-base" aria-label="武器の基本攻撃力"><span class="bnote">${!d.job ? '職業を選ぶと基本攻撃力が自動で入ります。' : !tier ? 'この武器は表に無いので、' : ''}基本攻撃力を入れると転生の攻撃力を割合で出します</span>`;
             return `<div class="srow base wjob"><span class="sk">職業</span><span class="wsel">${pick}</span></div>
-                <div class="srow base"><span class="sk">基本攻撃力</span>${body}</div>`;
+                <div class="srow base"><span class="sk">${row ? '転生の攻撃力' : '基本攻撃力'}</span>${body}</div>`;
         },
 
         detailHTML(d) {
