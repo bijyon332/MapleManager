@@ -716,12 +716,12 @@ column-gap:2px;padding:1px 0}
 .gp-veil .srow .ssf{text-align:right;color:var(--gold)}
 .gp-veil .srow .sflh{text-align:right;color:#4ade80}
 .gp-veil .srow input.sfl{padding:1px 4px;text-align:right;color:#4ade80;border-color:#166534;font-size:12.5px}
-.gp-veil .srow.base{grid-template-columns:92px 72px 1fr;column-gap:8px;margin-top:4px}
+.gp-veil .srow.base{grid-template-columns:92px 88px 1fr;column-gap:8px;margin-top:4px}
 .gp-veil .srow.base input{padding:1px 4px;text-align:right;font-size:12.5px}
 .gp-veil .srow.wjob{grid-template-columns:92px 1fr}
 .gp-veil .srow .wsel{display:flex;gap:6px}
 .gp-veil .srow .wsel select{max-width:180px}
-.gp-veil .srow .sbase.ro{text-align:right;font-size:12.5px;padding:1px 4px}
+.gp-veil .srow .sbase.ro{white-space:nowrap;text-align:right;font-size:12.5px;padding:1px 4px}
 .gp-veil .srow .bnote{font-family:"IBM Plex Sans JP",sans-serif;font-size:10.5px;color:var(--mu);line-height:1.35}
 .gp-veil .eq-score{margin:4px 0 0;font-size:11px;color:var(--mu);text-align:right}
 .gp-veil .eq-score b{font-family:"IBM Plex Mono",monospace;color:#fff;font-variant-numeric:tabular-nums;display:inline-block;min-width:48px}
@@ -806,7 +806,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
     }
     const itemsFor = (slotId) => ITEMS.filter((it) => (SLOT_KINDS[slotId] || []).includes(it.slot));
     const SET_JP = {
-        genesis: 'ジェネシス', eternal: 'エターナル', arcane: 'アーケインシェード', absolab: 'アブソラブ',
+        genesis: 'ジェネシス', destiny: 'デスティニー', eternal: 'エターナル', arcane: 'アーケインシェード', absolab: 'アブソラブ',
         cra: 'ルートアビス', pitched: '漆黒のボス', dawn: '黎明のボス',
         boss_acc: 'ボスアクセサリー', meister: 'マイスター', gollux: 'ゴルロックス', other: 'その他',
     };

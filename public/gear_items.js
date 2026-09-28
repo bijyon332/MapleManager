@@ -29,6 +29,7 @@ window.GEAR_ITEMS = [
     {"id": 1103433, "name": "Eternal Knight Cape", "set": "eternal", "slot": "cape", "level": 250, "bossReward": true},
     {"id": 1152212, "name": "Eternal Knight Shoulder", "set": "eternal", "slot": "shoulder", "level": 250, "bossReward": true, "noFlame": true},
     {"id": 1402268, "name": "Genesis Two-handed Sword", "set": "genesis", "slot": "weapon", "level": 200, "bossReward": true},
+    {"id": 1402290, "name": "Destiny Two-handed Sword", "set": "destiny", "slot": "weapon", "level": 250, "bossReward": true, "ver": 270},
     {"id": 1022277, "name": "Papulatus Mark", "set": "boss_acc", "slot": "eye", "level": 145, "bossReward": true},
     {"id": 1113313, "name": "Guardian Angel Ring", "set": "boss_acc", "slot": "ring", "level": 160, "bossReward": true, "noFlame": true},
     {"id": 1122150, "name": "Dominator Pendant", "set": "boss_acc", "slot": "pendant", "level": 140, "bossReward": true},
