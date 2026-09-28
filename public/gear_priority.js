@@ -324,8 +324,12 @@
         const tiers = Object.entries(FLAME_TIERS[boss ? 'boss' : 'normal']).map(([t, p]) => [Number(t), p]);
         const types = [];
         const add = (f) => types.push(tiers.map(([t, p]) => [f(t), p]));
+        const sub = w.sub || 0;
         add((t) => singleStat(L, t) * w.main);                       // main stat
-        for (let i = 0; i < 3; i++) add((t) => dualStat(L, t) * w.main); // the three pairs holding the main stat
+        add((t) => singleStat(L, t) * sub);                          // sub stat
+        add((t) => dualStat(L, t) * (w.main + sub));                 // main + sub pair
+        for (let i = 0; i < 2; i++) add((t) => dualStat(L, t) * w.main); // main with one of the other two
+        for (let i = 0; i < 2; i++) add((t) => dualStat(L, t) * sub);    // sub with one of the other two
         add((t) => (weapon ? weaponAtt(baseAtt || 0, L, t) : t) * w.att);
         add((t) => t * (w.allStat || 0));
         if (weapon) {
@@ -362,7 +366,7 @@
     }
     let flameCache = new Map();
     function flameDistCached(L, boss, weapon, baseAtt, w) {
-        const k = `${L}|${boss}|${weapon}|${baseAtt}|${w.main}|${w.att}|${w.allStat}|${w.boss}|${w.dmg}`;
+        const k = `${L}|${boss}|${weapon}|${baseAtt}|${w.main}|${w.sub}|${w.att}|${w.allStat}|${w.boss}|${w.dmg}`;
         let v = flameCache.get(k);
         if (!v) {
             if (flameCache.size > 500) flameCache.clear();
@@ -491,7 +495,7 @@
     const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
     const WEIGHT_FIELDS = [
-        ['main', 'メインステ 1'], ['att', '攻撃力(実数) 1'], ['statPct', 'ステータス% 1%'],
+        ['main', 'メインステ 1'], ['sub', 'サブステ 1'], ['att', '攻撃力(実数) 1'], ['statPct', 'ステータス% 1%'],
         ['allStat', 'オールステ% 1%'], ['crit', 'クリダメ% 1%'], ['attPct', '攻撃力% 1%'],
         ['boss', 'ボスダメ% 1%'], ['dmg', 'ダメージ% 1%'],
     ];
@@ -517,7 +521,7 @@ color:var(--mu);margin:0 0 4px;display:flex;align-items:center;gap:8px}
 .gp section{margin-bottom:12px}
 .gp .card{background:var(--sf);border:1px solid var(--ln);border-radius:0;padding:8px 10px}
 .gp .wcard{display:flex;flex-wrap:wrap;align-items:end;gap:6px 20px}
-.gp .grid6{display:grid;grid-template-columns:repeat(8,92px);gap:6px}
+.gp .grid6{display:grid;grid-template-columns:repeat(9,92px);gap:6px}
 .gp label,.gp-veil label{display:block;font-size:10.5px;color:var(--mu);margin-bottom:2px}
 .gp input,.gp select,.gp-veil input,.gp-veil select{width:100%;background:var(--bg);color:var(--tx);
 border:1px solid #334155;border-radius:0;padding:3px 6px;font-size:13px;
@@ -669,10 +673,10 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
 
     const STORAGE_KEY = 'gms-gear-priority';
     const FLAME_FIELDS = [
-        ['main', 'メインステ', ''], ['att', '攻撃力', ''], ['boss', 'ボスダメ', '%'],
+        ['main', 'メインステ', ''], ['sub', 'サブステ', ''], ['att', '攻撃力', ''], ['boss', 'ボスダメ', '%'],
         ['dmg', 'ダメージ', '%'], ['allStat', 'オールステ', '%'],
     ];
-    const blankFlame = () => ({ main: 0, att: 0, boss: 0, dmg: 0, allStat: 0 });
+    const blankFlame = () => ({ main: 0, sub: 0, att: 0, boss: 0, dmg: 0, allStat: 0 });
     // Line 1 carries the item's grade, lines 2-3 default to one grade below.
     const defaultLineGrade = (grade, i) => lineGrades(grade, i)[i === 0 ? 0 : lineGrades(grade, i).length - 1] || '';
     const blankLines = (grade = 'L') => [0, 1, 2].map((i) => ({ k: '', g: defaultLineGrade(grade, i), v: 0 }));
@@ -681,7 +685,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
         item: null, grade: 'L', lines: blankLines(), flame: blankFlame(), baseAtt: 0,
     });
     // Flame score on the same weights as everything else.
-    const flameScore = (f, w) => (f.main || 0) * w.main + (f.att || 0) * w.att + (f.boss || 0) * w.boss
+    const flameScore = (f, w) => (f.main || 0) * w.main + (f.sub || 0) * (w.sub || 0) + (f.att || 0) * w.att + (f.boss || 0) * w.boss
         + (f.dmg || 0) * (w.dmg || 0) + (f.allStat || 0) * (w.allStat || 0);
     function cleanSlot(v) {
         const d = blankSlot(!!v.on);
@@ -732,7 +736,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
         return out;
     };
     const DEFAULT_STATE = () => ({
-        w: { main: 1, att: 4, statPct: 10, allStat: 12, crit: 30, attPct: 44, boss: 11, dmg: 11 },
+        w: { main: 1, sub: 0.25, att: 4, statPct: 10, allStat: 12, crit: 30, attPct: 44, boss: 11, dmg: 11 },
         o: { ssf: true, safeguard: true, starCatch: true, planName: '1144', flamePrice: 3e6 },
         slots: defaultSlots(),
         limit: 40,
@@ -810,7 +814,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
             const weights = WEIGHT_FIELDS.map(([k, lb]) => `
                 <div>
                     <label for="gp-w-${k}">${esc(lb)}</label>
-                    <input id="gp-w-${k}" type="number" min="0" step="1" value="${w[k]}" data-gp="weight" data-key="${k}">
+                    <input id="gp-w-${k}" type="number" min="0" step="any" value="${w[k]}" data-gp="weight" data-key="${k}">
                 </div>`).join('');
 
             return `<style>${CSS}</style>
@@ -1124,7 +1128,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
             }).join('') : '';
 
             const [sfMain, sfAtt] = this.sfStats(d.id, L, d.star);
-            const sfOf = { main: sfMain, att: sfAtt };
+            const sfOf = { main: sfMain, sub: sfMain, att: sfAtt };
             const noFlame = !!(it && it.noFlame);
             const rows = FLAME_FIELDS.map(([k, jp, unit]) => {
                 const sf = sfOf[k] || 0, fl = noFlame ? 0 : d.flame[k] || 0;
@@ -1248,7 +1252,7 @@ ${grades}
                 d.flame[k] = Math.max(0, Math.min(9999, Math.floor(Number(t.value) || 0)));
                 const L = FIXED_LV[SLOTS[d.id].part] || d.level;
                 const [sfMain, sfAtt] = this.sfStats(d.id, L, d.star);
-                const sf = ({ main: sfMain, att: sfAtt })[k] || 0;
+                const sf = ({ main: sfMain, sub: sfMain, att: sfAtt })[k] || 0;
                 const tot = host.querySelector(`[data-tot="${k}"]`);
                 if (tot) tot.textContent = '+' + (sf + d.flame[k]);
                 const fs = host.querySelector('[data-flame-score]');
