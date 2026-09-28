@@ -1,7 +1,8 @@
 // Upgrade Priority の装備選択用の一覧（画像と名前・Lvだけ）。
 // 装備本体のステータスはスコア重みで吸収するので持たない。職業で分かれる装備は戦士版を代表にしている。
 // id は GMS のアイテムID（maplestory.io の画像に使う）。bossReward はボス装備（転生が常に4行）。
-// noFlame は転生が付かない部位。出典: maplestorywiki.net の各セットページ、maplestory.io GMS v255 の検索。
+// noFlame は転生が付かない部位。ver は画像を読む maplestory.io のGMSバージョン（省略時 255）。
+// Lv140 以上だけ載せる（心臓のプラズマハート・フェアリーハートは例外）。出典: maplestorywiki.net の各セットページ、maplestory.io GMS v255 の検索。
 window.GEAR_ITEMS = [
     {"id": 1003797, "name": "Royal Warrior Helm", "set": "cra", "slot": "hat", "level": 150, "bossReward": true},
     {"id": 1042254, "name": "Eagle Eye Warrior Armor", "set": "cra", "slot": "top", "level": 150, "bossReward": true},
@@ -29,25 +30,12 @@ window.GEAR_ITEMS = [
     {"id": 1103433, "name": "Eternal Knight Cape", "set": "eternal", "slot": "cape", "level": 250, "bossReward": true},
     {"id": 1152212, "name": "Eternal Knight Shoulder", "set": "eternal", "slot": "shoulder", "level": 250, "bossReward": true, "noFlame": true},
     {"id": 1402268, "name": "Genesis Two-handed Sword", "set": "genesis", "slot": "weapon", "level": 200, "bossReward": true},
-    {"id": 1012478, "name": "Condensed Power Crystal", "set": "boss_acc", "slot": "face", "level": 110, "bossReward": true},
-    {"id": 1022231, "name": "Aquatic Letter Eye Accessory", "set": "boss_acc", "slot": "eye", "level": 100, "bossReward": true},
-    {"id": 1022232, "name": "Black Bean Mark", "set": "boss_acc", "slot": "eye", "level": 135, "bossReward": true},
     {"id": 1022277, "name": "Papulatus Mark", "set": "boss_acc", "slot": "eye", "level": 145, "bossReward": true},
-    {"id": 1032241, "name": "Dea Sidus Earring", "set": "boss_acc", "slot": "ear", "level": 130, "bossReward": true},
-    {"id": 1032136, "name": "Will o' the Wisps", "set": "boss_acc", "slot": "ear", "level": 130, "bossReward": true},
-    {"id": 1113149, "name": "Silver Blossom Ring", "set": "boss_acc", "slot": "ring", "level": 110, "bossReward": true, "noFlame": true},
-    {"id": 1113282, "name": "Noble Ifia's Ring", "set": "boss_acc", "slot": "ring", "level": 120, "bossReward": true, "noFlame": true},
     {"id": 1113313, "name": "Guardian Angel Ring", "set": "boss_acc", "slot": "ring", "level": 160, "bossReward": true, "noFlame": true},
-    {"id": 1122000, "name": "Horntail Necklace", "set": "boss_acc", "slot": "pendant", "level": 120, "bossReward": true},
-    {"id": 1122076, "name": "Chaos Horntail Necklace", "set": "boss_acc", "slot": "pendant", "level": 120, "bossReward": true},
-    {"id": 1122254, "name": "Mechanator Pendant", "set": "boss_acc", "slot": "pendant", "level": 120, "bossReward": true},
     {"id": 1122150, "name": "Dominator Pendant", "set": "boss_acc", "slot": "pendant", "level": 140, "bossReward": true},
     {"id": 1132272, "name": "Golden Clover Belt", "set": "boss_acc", "slot": "belt", "level": 140, "bossReward": true},
     {"id": 1132296, "name": "Enraged Zakum Belt", "set": "boss_acc", "slot": "belt", "level": 150, "bossReward": true},
-    {"id": 1152170, "name": "Royal Black Metal Shoulder", "set": "boss_acc", "slot": "shoulder", "level": 120, "bossReward": true, "noFlame": true},
     {"id": 1162025, "name": "Pink Holy Cup", "set": "boss_acc", "slot": "pocket", "level": 140, "bossReward": true},
-    {"id": 1182087, "name": "Crystal Ventus Badge", "set": "boss_acc", "slot": "badge", "level": 130, "bossReward": true, "noFlame": true},
-    {"id": 1162009, "name": "Stone of Eternal Life", "set": "boss_acc", "slot": "pocket", "level": 0, "bossReward": false},
     {"id": 1012632, "name": "Berserked", "set": "pitched", "slot": "face", "level": 160, "bossReward": true},
     {"id": 1022278, "name": "Magic Eyepatch", "set": "pitched", "slot": "eye", "level": 160, "bossReward": true},
     {"id": 1122430, "name": "Source of Suffering", "set": "pitched", "slot": "pendant", "level": 160, "bossReward": true},
@@ -75,5 +63,6 @@ window.GEAR_ITEMS = [
     {"id": 1032223, "name": "Superior Gollux Earrings", "set": "gollux", "slot": "ear", "level": 150, "bossReward": true},
     {"id": 1122267, "name": "Superior Engraved Gollux Pendant", "set": "gollux", "slot": "pendant", "level": 150, "bossReward": true},
     {"id": 1132246, "name": "Superior Engraved Gollux Belt", "set": "gollux", "slot": "belt", "level": 150, "bossReward": true},
-    {"id": 1672076, "name": "Black Heart", "set": "other", "slot": "heart", "level": 120, "bossReward": true, "noFlame": true},
+    {"id": 1672099, "name": "Plasma Heart", "set": "other", "slot": "heart", "level": 130, "bossReward": false, "noFlame": true, "ver": 270},
+    {"id": 1672073, "name": "Fairy Heart", "set": "other", "slot": "heart", "level": 100, "bossReward": false, "noFlame": true},
 ];

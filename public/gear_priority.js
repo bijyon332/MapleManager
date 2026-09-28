@@ -515,10 +515,12 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
         ['dmg', 'ダメージ', '%'], ['allStat', 'オールステ', '%'],
     ];
     const blankFlame = () => ({ main: 0, att: 0, boss: 0, dmg: 0, allStat: 0 });
-    const blankLines = () => [0, 1, 2].map(() => ({ k: '', g: '', v: 0 }));
+    // Line 1 carries the item's grade, lines 2-3 default to one grade below.
+    const defaultLineGrade = (grade, i) => lineGrades(grade, i)[i === 0 ? 0 : lineGrades(grade, i).length - 1] || '';
+    const blankLines = (grade = 'L') => [0, 1, 2].map((i) => ({ k: '', g: defaultLineGrade(grade, i), v: 0 }));
     const blankSlot = (on) => ({
         on, level: 160, star: 0, stage: 0, mode: '',
-        item: null, grade: '', lines: blankLines(), flame: blankFlame(),
+        item: null, grade: 'L', lines: blankLines(), flame: blankFlame(),
     });
     // Flame score on the same weights as everything else.
     const flameScore = (f, w) => (f.main || 0) * w.main + (f.att || 0) * w.att + (f.boss || 0) * w.boss
@@ -531,10 +533,10 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
         d.stage = Number(v.stage) || 0;
         d.mode = PLANS[v.mode] ? v.mode : '';
         d.item = Number(v.item) || null;
-        d.grade = GRADES.includes(v.grade) ? v.grade : '';
+        d.grade = GRADES.includes(v.grade) ? v.grade : 'L';
         if (Array.isArray(v.lines)) d.lines = d.lines.map((_, i) => {
             const ln = v.lines[i] || {};
-            return { k: POT_OPTS[ln.k] || ln.k === 'etc' ? ln.k : '', g: GRADES.includes(ln.g) ? ln.g : '', v: Number(ln.v) || 0 };
+            return { k: POT_OPTS[ln.k] || ln.k === 'etc' ? ln.k : '', g: GRADES.includes(ln.g) ? ln.g : defaultLineGrade(d.grade, i), v: Number(ln.v) || 0 };
         });
         if (v.flame) for (const [k] of FLAME_FIELDS) d.flame[k] = num(v.flame[k], 0, 9999);
         return d;
@@ -560,7 +562,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
         cra: 'ルートアビス', fafnir: 'ファフニール', pitched: '漆黒のボス', dawn: '黎明のボス',
         boss_acc: 'ボスアクセサリー', meister: 'マイスター', gollux: 'ゴルロックス', other: 'その他',
     };
-    const iconUrl = (id) => `https://maplestory.io/api/GMS/255/item/${id}/icon`;
+    const iconUrl = (id) => `https://maplestory.io/api/GMS/${(ITEM_BY_ID.get(id) || {}).ver || 255}/item/${id}/icon`;
     const iconImg = (id, size) => id
         ? `<img class="ico" src="${iconUrl(id)}" alt="" width="${size}" height="${size}" loading="lazy" onerror="this.style.visibility='hidden'">`
         : `<span class="ico none" style="width:${size}px;height:${size}px"></span>`;
@@ -786,8 +788,8 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                 const it = ITEM_BY_ID.get(v.item);
                 const L = FIXED_LV[s.part] || v.level;
                 const scored = v.grade ? v.lines.filter((ln) => POT_OPTS[ln.k]).length : 0;
-                const stage = !v.grade && s.part ? stagesFor(s.part).find((x) => x.o === v.stage) : null;
-                const pot = v.grade
+                const stage = !scored && s.part ? stagesFor(s.part).find((x) => x.o === v.stage) : null;
+                const pot = v.grade && scored
                     ? `<i style="color:${GRADE_COLOR[v.grade]}" title="${GRADE_EN[v.grade]} ${scored}行">潜在${v.grade}</i>`
                     : `<i>${esc(stage ? '潜在' + stage.t.trim().charAt(0) : '潜在なし')}</i>`;
                 const flame = flameScore(v.flame, this.state.w) > 0 ? ' <u>転生</u>' : '';
@@ -876,6 +878,8 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
             const { id, picking, ...v } = this.draft;
             const L = FIXED_LV[SLOTS[id].part] || v.level;
             const clean = cleanSlot(v);
+            const it = ITEM_BY_ID.get(clean.item);
+            if (it && it.noFlame) clean.flame = blankFlame();
             clean.star = hasStar(id) ? Math.min(maxStarOf(L), clean.star) : 0;
             if (!hasPot(id)) { clean.grade = ''; clean.lines = blankLines(); }
             if (!hasStar(id)) clean.mode = '';
@@ -946,15 +950,16 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
 
             const [sfMain, sfAtt] = this.sfStats(d.id, L, d.star);
             const sfOf = { main: sfMain, att: sfAtt };
+            const noFlame = !!(it && it.noFlame);
             const rows = FLAME_FIELDS.map(([k, jp, unit]) => {
-                const sf = sfOf[k] || 0, fl = d.flame[k] || 0;
+                const sf = sfOf[k] || 0, fl = noFlame ? 0 : d.flame[k] || 0;
                 return `<div class="srow">
                     <span class="sk">${esc(jp)}${unit}</span>
                     <span class="stot" data-tot="${k}">+${sf + fl}</span>
                     <span class="sp">(</span>
                     <span class="ssf">${sf ? '+' + sf : ''}</span>
                     <span class="sp">+</span>
-                    <input class="sfl" type="number" min="0" max="9999" step="1" value="${fl || ''}" placeholder="0" data-gp="m-flame" data-key="${k}" aria-label="${esc(jp)}の転生">
+                    <input class="sfl" type="number" min="0" max="9999" step="1" value="${fl || ''}" placeholder="${noFlame ? '—' : '0'}" ${noFlame ? 'disabled' : ''} data-gp="m-flame" data-key="${k}" aria-label="${esc(jp)}の転生">
                     <span class="sp">)</span>
                 </div>`;
             }).join('');
@@ -994,13 +999,13 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                 </div>
                 ${star ? `<div class="stars"><div class="srun">${stars}</div><div class="sside"><span class="snum">${d.star}★</span><button type="button" class="st0" data-gp="m-star" data-star="0" title="0★に戻す">0★に戻す</button></div></div>` : ''}
 
-                <p class="eq-sec"><b>ステータス</b><span>スタフォは★から自動、<em>転生</em>だけ入力します</span></p>
+                <p class="eq-sec"><b>ステータス</b><span>${noFlame ? 'この装備は転生が付きません' : 'スタフォは★から自動、<em>転生</em>だけ入力します'}</span></p>
                 <div class="srows"><div class="srow hd"><span></span><span>合計</span><span></span><span class="ssf">スタフォ</span><span></span><span class="sflh">転生</span><span></span></div>${rows}</div>
                 <p class="eq-score">転生スコア <b data-flame-score>${Math.round(flameScore(d.flame, w)).toLocaleString()}</b></p>
 
                 ${pot ? `<p class="eq-sec"><b>潜在能力</b>
                     <select class="grade" data-gp="m-grade" aria-label="潜在の等級">
-                        <option value="" ${d.grade ? '' : 'selected'}>なし</option>${grades}
+${grades}
                     </select></p>
                 <div class="plines">${lines || '<p class="note" style="margin:0">等級を選ぶと3行を入力できます。</p>'}</div>
                 ${d.grade ? `<p class="eq-score">潜在スコア <b>${Math.round(potScoreNow).toLocaleString()}</b></p>` : ''}` : ''}
@@ -1033,7 +1038,11 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                     d.star = Math.min(d.star, maxStarOf(d.level));
                 } else if (kind === 'm-grade') {
                     d.grade = t.value;
-                    d.lines.forEach((ln, i) => { if (!lineGrades(d.grade, i).includes(ln.g)) ln.g = lineGrades(d.grade, i)[0] || ''; });
+                    d.lines.forEach((ln, i) => {
+                        ln.g = defaultLineGrade(d.grade, i);
+                        const vs = POT_OPTS[ln.k] ? potValues(ln.k, ln.g, FIXED_LV[SLOTS[d.id].part] || d.level) : [];
+                        if (!vs.length) { ln.k = 'etc'; ln.v = 0; } else if (!vs.includes(ln.v)) ln.v = vs[0];
+                    });
                 } else if (kind === 'm-line') {
                     const ln = d.lines[Number(t.dataset.i)];
                     const [k, v] = t.value.split(':');
