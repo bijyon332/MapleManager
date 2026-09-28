@@ -314,7 +314,12 @@
     const singleStat = (L, t) => Math.min(12, Math.floor(L / 20) + 1) * t;
     const dualStat = (L, t) => Math.min(7, Math.floor(L / 40) + 1) * t;
     // Weapon attack is a share of the weapon's own attack, 10% steeper per tier.
-    const weaponAtt = (base, L, t) => Math.ceil(base * (Math.floor(L / 40) + 1) / 100 * t * Math.pow(1.1, t - 1));
+    // Fitted to the kawaii-sushi table (boss tiers 3-7); only used for weapons it doesn't list.
+    const weaponAtt = (base, L, t) => Math.ceil(base * (Math.floor(L / 40) + 1) / 100 * t * Math.pow(1.1, t - 3));
+    // `base` is either the weapon's base attack or its table row [base, tier3..tier7].
+    const weaponAttOf = (base, L, t) => Array.isArray(base)
+        ? (t >= 3 && t <= 7 ? base[t - 2] : weaponAtt(base[0], L, t))
+        : weaponAtt(base || 0, L, t);
     const choose = (n, k) => {
         if (k < 0 || k > n) return 0;
         let r = 1;
@@ -334,7 +339,7 @@
         add((t) => dualStat(L, t) * (w.main + sub));                 // main + sub pair
         for (let i = 0; i < 2; i++) add((t) => dualStat(L, t) * w.main); // main with one of the other two
         for (let i = 0; i < 2; i++) add((t) => dualStat(L, t) * sub);    // sub with one of the other two
-        add((t) => (weapon ? weaponAtt(baseAtt || 0, L, t) : t) * w.att);
+        add((t) => (weapon ? weaponAttOf(baseAtt, L, t) : t) * w.att);
         add((t) => t * (w.allStat || 0));
         if (weapon) {
             add((t) => 2 * t * w.boss);
@@ -411,7 +416,7 @@
         }
         if (item.flameOk) {
             const cur = item.flameCur != null ? item.flameCur : flameScore(item.flame || {}, w);
-            const dist = flameDistCached(L, !!item.boss, item.part === '武器', item.baseAtt || 0, w);
+            const dist = flameDistCached(L, !!item.boss, item.part === '武器', item.wRow || item.baseAtt || 0, w);
             const hit = flameBeat(dist, cur);
             if (hit) {
                 const rolls = 1 / hit.p;
@@ -653,6 +658,10 @@ column-gap:2px;padding:1px 0}
 .gp-veil .srow input.sfl{padding:1px 4px;text-align:right;color:#4ade80;border-color:#166534;font-size:12.5px}
 .gp-veil .srow.base{grid-template-columns:92px 64px 1fr;column-gap:8px;margin-top:4px}
 .gp-veil .srow.base input{padding:1px 4px;text-align:right;font-size:12.5px}
+.gp-veil .srow.wjob{grid-template-columns:92px 1fr}
+.gp-veil .srow .wsel{display:flex;gap:6px}
+.gp-veil .srow .wsel select{max-width:180px}
+.gp-veil .srow .sbase.ro{text-align:right;font-size:12.5px;padding:1px 4px}
 .gp-veil .srow .bnote{font-family:"IBM Plex Sans JP",sans-serif;font-size:10.5px;color:var(--mu);line-height:1.35}
 .gp-veil .eq-score{margin:4px 0 0;font-size:11px;color:var(--mu);text-align:right}
 .gp-veil .eq-score b{font-family:"IBM Plex Mono",monospace;color:#fff;font-variant-numeric:tabular-nums;display:inline-block;min-width:48px}
@@ -686,7 +695,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
     const blankLines = (grade = 'L') => [0, 1, 2].map((i) => ({ k: '', g: defaultLineGrade(grade, i), v: 0 }));
     const blankSlot = (on) => ({
         on, level: 160, star: 0, mode: '',
-        item: null, grade: 'L', lines: blankLines(), flame: blankFlame(), baseAtt: 0,
+        item: null, grade: 'L', lines: blankLines(), flame: blankFlame(), baseAtt: 0, job: '', wtype: '',
     });
     // Flame score on the same weights as everything else.
     const flameScore = (f, w) => (f.main || 0) * w.main + (f.sub || 0) * (w.sub || 0) + (f.att || 0) * w.att + (f.boss || 0) * w.boss
@@ -705,6 +714,8 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
         });
         if (v.flame) for (const [k] of FLAME_FIELDS) d.flame[k] = num(v.flame[k], 0, 9999);
         d.baseAtt = num(v.baseAtt, 0, 9999);
+        d.job = CLASS_WEAPON[v.job] ? v.job : '';
+        d.wtype = d.job && CLASS_WEAPON[d.job].includes(v.wtype) ? v.wtype : '';
         return d;
     }
 
@@ -722,6 +733,17 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
         pocket: ['pocket'], cape: ['cape'], glove: ['glove'], shoe: ['shoe'],
         heart: ['heart'], badge: ['badge'], title: [],
     };
+    // Weapon flame attack by class: class -> weapon type -> the picked weapon's tier.
+    const WEAPON_FLAME = window.WEAPON_FLAME || {};
+    const CLASS_WEAPON = window.CLASS_WEAPON || {};
+    const WEAPON_TIER_JP = { fafnir: 'ファフニール', absolab: 'アブソラブ', arcane: 'アーケインシェード', genesis: 'ジェネシス' };
+    const WTYPE_JP = { '杖': 'ワンド', '棒': 'スタッフ' };
+    const weaponTypeOf = (v) => v.wtype || (CLASS_WEAPON[v.job] || [])[0] || '';
+    function weaponRow(v) {
+        const it = ITEM_BY_ID.get(v.item);
+        const row = it && WEAPON_FLAME[weaponTypeOf(v)];
+        return row && row[it.set] ? row[it.set] : null;
+    }
     const itemsFor = (slotId) => ITEMS.filter((it) => (SLOT_KINDS[slotId] || []).includes(it.slot));
     const SET_JP = {
         genesis: 'ジェネシス', eternal: 'エターナル', arcane: 'アーケインシェード', absolab: 'アブソラブ',
@@ -802,6 +824,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                         lines: v.lines, overall: id === 'top' && this.bottomTaken(),
                         noStar: !hasStar(id),
                         flame: v.flame, flameOk: this.flameOk(id, v), baseAtt: v.baseAtt || 0,
+                        wRow: id === 'weapon' ? weaponRow(v) : null,
                         boss: !!(ITEM_BY_ID.get(v.item) || {}).bossReward || !!SLOTS[id].bossFlame,
                     };
                 });
@@ -1117,6 +1140,29 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                 ${list.length ? '' : '<p class="note">この部位の一覧はまだありません。</p>'}`;
         },
 
+        // Class and weapon type pick the weapon's flame attack from the table;
+        // anything the table doesn't cover falls back to a typed base attack.
+        weaponHTML(d) {
+            const groups = typeof CLASS_DATA !== 'undefined' ? CLASS_DATA : {};
+            const jobs = Object.entries(groups).map(([g, list]) => {
+                const opts = list.filter((c) => CLASS_WEAPON[c.id])
+                    .map((c) => `<option value="${c.id}" ${d.job === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+                return opts ? `<optgroup label="${esc(g)}">${opts}</optgroup>` : '';
+            }).join('');
+            const types = CLASS_WEAPON[d.job] || [];
+            const wt = weaponTypeOf(d);
+            const it = ITEM_BY_ID.get(d.item);
+            const row = weaponRow(d);
+            const pick = `<select data-gp="m-job" aria-label="職業"><option value="">職業を選ぶ</option>${jobs}</select>
+                ${types.length > 1 ? `<select data-gp="m-wtype" aria-label="武器種">${types.map((x) => `<option value="${esc(x)}" ${x === wt ? 'selected' : ''}>${esc(WTYPE_JP[x] || x)}</option>`).join('')}</select>` : ''}`;
+            const tier = it && WEAPON_TIER_JP[it.set];
+            const body = row
+                ? `<span class="sbase ro">${row[0]}</span><span class="bnote">${esc(tier)}・${esc(WTYPE_JP[wt] || wt)}の転生の攻撃力（4段階 +${row[2]} 〜 7段階 +${row[5]}）で計算します</span>`
+                : `<input class="sbase" type="number" min="0" max="9999" step="1" value="${d.baseAtt || ''}" placeholder="0" data-gp="m-base" aria-label="武器の基本攻撃力"><span class="bnote">${!d.job ? '職業を選ぶと基本攻撃力が自動で入ります。' : !tier ? 'この武器は表に無いので、' : ''}基本攻撃力を入れると転生の攻撃力を割合で出します</span>`;
+            return `<div class="srow base wjob"><span class="sk">職業</span><span class="wsel">${pick}</span></div>
+                <div class="srow base"><span class="sk">基本攻撃力</span>${body}</div>`;
+        },
+
         detailHTML(d) {
             const s = SLOTS[d.id];
             const it = ITEM_BY_ID.get(d.item);
@@ -1185,7 +1231,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
 
                 <p class="eq-sec"><b>ステータス</b><span>${noFlame ? 'この装備は転生が付きません' : star ? 'スタフォは★から自動、<em>転生</em>だけ入力します' : '<em>転生</em>を入力します'}</span></p>
                 <div class="srows"><div class="srow hd"><span></span><span>合計</span><span></span><span class="ssf">スタフォ</span><span></span><span class="sflh">転生</span><span></span></div>${rows}</div>
-                ${s.part === '武器' && !noFlame ? `<div class="srow base"><span class="sk">基本攻撃力</span><input class="sbase" type="number" min="0" max="9999" step="1" value="${d.baseAtt || ''}" placeholder="0" data-gp="m-base" aria-label="武器の基本攻撃力"><span class="bnote">武器の転生の攻撃力は基本攻撃力の割合で出るので、転生の計算にだけ使います</span></div>` : ''}
+                ${s.part === '武器' && !noFlame ? this.weaponHTML(d) : ''}
                 <p class="eq-score">転生スコア <b data-flame-score>${Math.round(flameScore(d.flame, w)).toLocaleString()}</b></p>
 
                 ${pot ? `<p class="eq-sec"><b>潜在能力</b>
@@ -1239,6 +1285,10 @@ ${grades}
                     // Keep the option if the new grade has a value for it, else the nearest.
                     const vs = POT_OPTS[ln.k] ? potValues(ln.k, ln.g, FIXED_LV[SLOTS[d.id].part] || d.level) : [];
                     if (!vs.length) { ln.k = 'etc'; ln.v = 0; } else if (!vs.includes(ln.v)) ln.v = vs[0];
+                } else if (kind === 'm-job') {
+                    d.job = t.value; d.wtype = '';
+                } else if (kind === 'm-wtype') {
+                    d.wtype = t.value;
                 } else if (kind === 'm-mode') {
                     d.mode = t.value; return;
                 } else if (kind === 'm-on') {
