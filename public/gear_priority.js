@@ -551,7 +551,7 @@
         };
         return {
             label: `潜在 ${Math.round(a.from)} → ${Math.round(a.to)}`,
-            detail: `${CUBE_JP[a.unit]} 期待${countText(a.rolls)}個`,
+            detail: `期待${countText(a.rolls)}個`,
         };
     }
 
@@ -623,6 +623,9 @@ vertical-align:1px;white-space:nowrap}
 .gp .who{font-size:11px;color:var(--mu)}
 .gp .what{font-size:13.5px;line-height:1.35}
 .gp .what b{font-weight:600}
+.gp .cube{font-size:12px;font-weight:600}
+.gp .cube.red{color:#7dd3fc}
+.gp .cube.black{color:#c4b5fd}
 .gp .sale .salerow{display:flex;align-items:center;gap:6px;height:30px}
 .gp .sale .salerow input[type=number]{width:52px}
 .gp .sale .pct{font-size:12px;color:var(--mu)}
@@ -1133,7 +1136,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
             plan.forEach((s, i) => {
                 // Same cost is not enough: two parts can price alike but score
                 // differently, and the folded row shows only one efficiency.
-                const sig = `${s.kind}|${s.big}|${s.label}|${s.detail}|${s.level}|${Math.round(s.cost)}|${Math.round(s.eff)}`;
+                const sig = `${s.kind}|${s.unit}|${s.big}|${s.label}|${s.detail}|${s.level}|${Math.round(s.cost)}|${Math.round(s.eff)}`;
                 const last = groups[groups.length - 1];
                 if (last && last.sig === sig) last.steps.push({ ...s, rank: i + 1 });
                 else groups.push({ sig, steps: [{ ...s, rank: i + 1 }] });
@@ -1143,7 +1146,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                 <div class="rk">${rank}</div>
                 <div>
                     <div class="who">${esc(s.name)}・Lv${s.level}</div>
-                    <div class="what"><b>${esc(s.label)}</b> <span class="who">${esc(s.detail)}</span>${extra || ''}</div>
+                    <div class="what"><b>${esc(s.label)}</b> ${s.kind === 'pot' ? `<span class="cube ${s.unit}">${esc(CUBE_JP[s.unit])}</span> ` : ''}<span class="who">${esc(s.detail)}</span>${extra || ''}</div>
                     ${this.targetHTML(s)}
                     <div class="meter"><i style="width:${(8 + frac(s) * 92).toFixed(1)}%"></i></div>
                 </div>
