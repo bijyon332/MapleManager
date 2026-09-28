@@ -551,7 +551,7 @@ const app = {
         },
         gear: {
             view: 'view-gear-priority',
-            scripts: ['gear_items.js', 'gear_priority.js'],
+            scripts: ['gear_items.js', 'cube_rates.js', 'gear_priority.js'],
             init() { gearPriority.init('gear-priority-root'); }
         },
         community: {
