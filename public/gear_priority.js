@@ -322,8 +322,9 @@
         }
         return [...out.values()].map((e) => ({ ...e, p: e.p / kept }));
     }
-    // What to stop on when rolling to beat `thr`: the weakest combination that
-    // still beats it, plus the likeliest others that also would.
+    // What to stop on when rolling to beat `thr`: of the combinations that beat
+    // it, the cheapest one to aim for (cube price / its chance, so the likeliest),
+    // plus the next likeliest others that would also do.
     function potTarget(key, cube, L, w, thr) {
         const ck = `${key}|${cube}|${L >= 160 ? 1 : 0}|${w.statPct}|${w.allStat}|${w.attPct}|${w.dmg}|${w.boss}|${w.crit}`;
         let all = potComboCache.get(ck);
@@ -335,10 +336,9 @@
         const hits = all.filter((e) => e.s > thr + 1e-9);
         if (!hits.length) return null;
         const pHit = hits.reduce((a, e) => a + e.p, 0);
-        const min = hits.reduce((m, e) => (e.s < m.s - 1e-9 || (Math.abs(e.s - m.s) < 1e-9 && e.p > m.p) ? e : m));
-        const others = hits.filter((e) => e !== min).sort((a, b) => b.p - a.p).slice(0, 2)
-            .map((e) => ({ label: e.label, share: e.p / pHit }));
-        return { min: min.label, others, count: hits.length - 1 };
+        const byP = [...hits].sort((a, b) => b.p - a.p || a.s - b.s);
+        const others = byP.slice(1, 3).map((e) => ({ label: e.label, share: e.p / pHit }));
+        return { min: byP[0].label, rolls: 1 / byP[0].p, others, count: hits.length - 1 };
     }
     let potComboCache = new Map();
     let potCache = new Map();
@@ -1086,7 +1086,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
             const t = potTarget(s.pot.key, s.unit, s.pot.L, this.state.w, s.pot.thr);
             if (!t) return '';
             const alt = t.count ? `<div class="tgt alt">ほか${t.count}通りでも可${t.others.length ? '。多いのは ' + t.others.map((o) => `${esc(o.label)} ${pctText(o.share)}`).join('、') : ''}</div>` : '';
-            return `<div class="tgt"><span class="tl">目標</span><b>${esc(t.min)}</b> 以上</div>${alt}`;
+            return `<div class="tgt"><span class="tl">目標</span><b>${esc(t.min)}</b> <span class="who">狙うと期待${countText(t.rolls)}個</span></div>${alt}`;
         },
 
         renderPlan() {
