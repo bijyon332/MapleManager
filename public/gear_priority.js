@@ -209,6 +209,50 @@
     }
     const potScore = (r, w) => r.vs * w.statPct + r.vc * w.crit + r.va * w.attPct + r.vb * w.boss;
 
+    /* ---------- potential lines (entered per line) ---------- */
+    // Grades a line can carry, best first. Line 1 always matches the item's
+    // grade; lines 2-3 can be the same grade or one below.
+    const GRADES = ['L', 'U', 'E', 'R'];
+    const GRADE_EN = { L: 'Legendary', U: 'Unique', E: 'Epic', R: 'Rare' };
+    const GRADE_COLOR = { L: '#a3e635', U: '#f4b942', E: '#b18cf7', R: '#48d6c8' };
+    const lineGrades = (grade, i) => {
+        const g = GRADES.indexOf(grade);
+        if (g < 0) return [];
+        return i === 0 || g === GRADES.length - 1 ? [grade] : [grade, GRADES[g + 1]];
+    };
+    // Damage-relevant options and their values per grade, [below Lv160, Lv160+].
+    // Values follow the KMS tables; anything else is entered as "その他".
+    const POT_OPTS = {
+        main: { jp: 'メインステ', unit: '%', w: 'statPct', v: { L: [[12], [13]], U: [[9], [10]], E: [[6], [7]], R: [[3], [4]] } },
+        all: { jp: 'オールステ', unit: '%', w: 'allStat', v: { L: [[9], [10]], U: [[6], [7]], E: [[3], [4]] } },
+        att: { jp: '攻撃力', unit: '%', w: 'attPct', v: { L: [[12], [13]], U: [[9], [10]], E: [[6], [7]], R: [[3], [4]] } },
+        dmg: { jp: 'ダメージ', unit: '%', w: 'dmg', v: { L: [[12], [13]], U: [[9], [10]], E: [[6], [7]], R: [[3], [4]] } },
+        boss: { jp: 'ボスダメ', unit: '%', w: 'boss', v: { L: [[40, 35, 30], [40, 35, 30]], U: [[30], [30]] } },
+        ied: { jp: '防御無視', unit: '%', w: null, v: { L: [[40, 35], [40, 35]], U: [[30], [30]], E: [[15], [15]] } },
+        crit: { jp: 'クリダメ', unit: '%', w: 'crit', v: { L: [[8], [8]] } },
+    };
+    // Which options each part can roll.
+    const POT_KEYS = (part) => {
+        if (part === '武器' || part === '補助武器') return ['att', 'boss', 'ied', 'dmg', 'main', 'all'];
+        if (part === 'エンブレム') return ['att', 'ied', 'dmg', 'main', 'all'];
+        if (part === '手袋') return ['crit', 'main', 'all'];
+        return ['main', 'all'];
+    };
+    const potValues = (key, grade, L) => {
+        const t = POT_OPTS[key].v[grade];
+        return t ? t[L >= 160 ? 1 : 0] : [];
+    };
+    // One line: { k: option key or 'etc', g: grade, v: value }.
+    const lineScore = (ln, w) => {
+        const o = POT_OPTS[ln.k];
+        return o && o.w ? (Number(ln.v) || 0) * (w[o.w] || 0) : 0;
+    };
+    const linesScore = (lines, w) => (lines || []).reduce((a, ln) => a + lineScore(ln, w), 0);
+    const lineText = (ln) => {
+        const o = POT_OPTS[ln.k];
+        return o ? `${o.jp} +${ln.v}${o.unit}` : 'その他';
+    };
+
     /* ---------- planner ---------- */
     function nextActions(item, w, o) {
         const acts = [];
@@ -234,10 +278,14 @@
         }
         if (!item.part) return acts;
         const curRows = item.stage ? potRow(item.part, item.stage, L) : null;
-        const curScore = curRows && curRows.length ? Math.max(...curRows.map((r) => potScore(r, w))) : 0;
+        // Lines entered by hand win over the old stage pick; once the plan rolls
+        // a stage, that stage's score takes over.
+        const byLines = item.lines && item.lines.some((ln) => POT_OPTS[ln.k]) ? linesScore(item.lines, w) : null;
+        const curScore = byLines !== null ? byLines
+            : curRows && curRows.length ? Math.max(...curRows.map((r) => potScore(r, w))) : 0;
         let best = null;
         for (const st of stagesFor(item.part)) {
-            if (st.o === item.stage) continue;
+            if (byLines === null && st.o === item.stage) continue;
             const rows = potRow(item.part, st.o, L);
             if (!rows.length) continue;
             let cand = null;
@@ -253,7 +301,7 @@
         if (best) acts.push({
             kind: 'pot', label: best.st.t,
             detail: `${CUBE_JP[best.cube]} 期待${Math.round(1 / best.row.pr).toLocaleString()}個`,
-            cost: best.cost, score: best.score, next: { stage: best.st.o }
+            cost: best.cost, score: best.score, next: { stage: best.st.o, lines: null }
         });
         return acts;
     }
@@ -289,7 +337,8 @@
 
     const WEIGHT_FIELDS = [
         ['main', 'メインステ 1'], ['att', '攻撃力(実数) 1'], ['statPct', 'ステータス% 1%'],
-        ['crit', 'クリダメ% 1%'], ['attPct', '攻撃力% 1%'], ['boss', 'ボスダメ% 1%'],
+        ['allStat', 'オールステ% 1%'], ['crit', 'クリダメ% 1%'], ['attPct', '攻撃力% 1%'],
+        ['boss', 'ボスダメ% 1%'], ['dmg', 'ダメージ% 1%'],
     ];
 
     // The modal renders into its own host outside .gp so it can escape any
@@ -313,7 +362,7 @@ color:var(--mu);margin:0 0 4px;display:flex;align-items:center;gap:8px}
 .gp section{margin-bottom:12px}
 .gp .card{background:var(--sf);border:1px solid var(--ln);border-radius:0;padding:8px 10px}
 .gp .wcard{display:flex;flex-wrap:wrap;align-items:end;gap:6px 20px}
-.gp .grid6{display:grid;grid-template-columns:repeat(6,92px);gap:6px}
+.gp .grid6{display:grid;grid-template-columns:repeat(8,92px);gap:6px}
 .gp label,.gp-veil label{display:block;font-size:10.5px;color:var(--mu);margin-bottom:2px}
 .gp input,.gp select,.gp-veil input,.gp-veil select{width:100%;background:var(--bg);color:var(--tx);
 border:1px solid #334155;border-radius:0;padding:3px 6px;font-size:13px;
@@ -397,20 +446,133 @@ max-width:420px;padding:14px 16px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
 @media(prefers-reduced-motion:no-preference){.gp-veil .modal{animation:gp-pop .16s ease-out}}
 @keyframes gp-pop{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
 .gp .note,.gp-veil .note{color:#64748b;font-size:11px;margin-top:6px}
+.gp .slot-btn{flex-direction:row;align-items:center;gap:5px;padding-left:4px}
+.gp .tile-ico{flex:0 0 26px;height:26px;display:flex;align-items:center;justify-content:center}
+.gp .tile-body{display:flex;flex-direction:column;min-width:0;gap:1px}
+.gp .slot .st u{text-decoration:none;color:#4ade80}
+.gp .ico,.gp-veil .ico{image-rendering:pixelated;object-fit:contain;display:block}
+.gp .ico.none,.gp-veil .ico.none{display:block;border:1px dashed #334155;background:transparent}
+.gp-veil .modal.eq{max-width:440px;padding:12px 14px;max-height:calc(100vh - 40px);overflow:auto}
+.gp-veil .eq-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.gp-veil .eq-head h2{margin:0;font-size:15px}
+.gp-veil .eq-head > h2{flex:1}
+.gp-veil .eq-ico{flex:0 0 52px;height:52px;display:flex;align-items:center;justify-content:center;
+background:var(--bg);border:1px solid #334155;cursor:pointer;padding:0}
+.gp-veil .eq-ico:hover{border-color:var(--acc)}
+.gp-veil .eq-name{flex:1;min-width:0}
+.gp-veil .eq-name p{margin:2px 0 0;color:var(--mu);font-size:11.5px}
+.gp-veil .eq-name select.lv{width:auto;padding:0 4px;font-size:11.5px}
+.gp-veil .stars{display:flex;align-items:center;gap:8px;padding:6px 0 8px;border-bottom:1px solid var(--ln)}
+.gp-veil .srun{display:flex;flex-wrap:wrap;align-items:center;flex:1}
+.gp-veil .srun .brk{flex-basis:100%;height:0}
+.gp-veil .sside{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.gp-veil .stars .st{background:none;border:0;padding:0 1px;font-size:15px;line-height:1.1;color:#334155;cursor:pointer}
+.gp-veil .stars .st.on{color:var(--gold)}
+.gp-veil .stars .st:hover{color:#fde68a}
+.gp-veil .stars .gap{width:6px}
+.gp-veil .stars .st0{background:none;border:1px solid #334155;color:var(--mu);font-size:10.5px;
+padding:0 5px;cursor:pointer;font-family:"IBM Plex Mono",monospace}
+.gp-veil .stars .snum{font-family:"IBM Plex Mono",monospace;color:var(--gold);font-size:12px;
+width:40px;text-align:right;font-variant-numeric:tabular-nums;font-size:14px;font-weight:600}
+.gp-veil .eq-sec{display:flex;align-items:center;gap:8px;margin:10px 0 4px;font-size:11.5px;color:var(--mu)}
+.gp-veil .eq-sec b{color:var(--gold);font-size:12.5px}
+.gp-veil .eq-sec em{font-style:normal;color:#4ade80}
+.gp-veil .eq-sec select.grade{width:auto;padding:1px 6px;font-size:12px}
+.gp-veil .srows{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;font-size:12.5px}
+.gp-veil .srow{display:grid;grid-template-columns:92px 56px 10px 48px 12px 64px 10px;align-items:center;
+column-gap:2px;padding:1px 0}
+.gp-veil .srow.hd{font-size:10px;color:var(--mu);font-family:inherit}
+.gp-veil .srow .sk{font-family:"IBM Plex Sans JP",sans-serif;color:var(--tx);font-size:12px}
+.gp-veil .srow .stot{text-align:right;color:#fff;font-weight:600}
+.gp-veil .srow .sp{color:var(--mu);text-align:center}
+.gp-veil .srow .ssf{text-align:right;color:var(--gold)}
+.gp-veil .srow .sflh{text-align:right;color:#4ade80}
+.gp-veil .srow input.sfl{padding:1px 4px;text-align:right;color:#4ade80;border-color:#166534;font-size:12.5px}
+.gp-veil .eq-score{margin:4px 0 0;font-size:11px;color:var(--mu);text-align:right}
+.gp-veil .eq-score b{font-family:"IBM Plex Mono",monospace;color:#fff;font-variant-numeric:tabular-nums;display:inline-block;min-width:48px}
+.gp-veil .plines{display:flex;flex-direction:column;gap:3px}
+.gp-veil .pline{display:grid;grid-template-columns:8px 1fr 112px;gap:6px;align-items:center}
+.gp-veil .gdot{width:8px;height:8px;display:block}
+.gp-veil .eq-opts{display:flex;align-items:center;gap:12px;margin-top:12px;padding-top:8px;border-top:1px solid var(--ln)}
+.gp-veil .eq-opts select{width:auto;flex:1;font-size:12px}
+.gp-veil .foot{margin-top:10px}
+.gp-veil .picks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px}
+.gp-veil .pset{grid-column:1/-1;margin:8px 0 0;font-size:11px;color:var(--mu);border-bottom:1px solid var(--ln)}
+.gp-veil .pick{display:grid;grid-template-columns:32px 1fr;grid-template-rows:auto auto;column-gap:6px;align-items:center;
+text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px;cursor:pointer;color:var(--tx);font-family:inherit}
+.gp-veil .pick .ico{grid-row:1/3}
+.gp-veil .pick:hover{border-color:var(--acc)}
+.gp-veil .pick.on{border-color:var(--acc);background:#1e1b4b}
+.gp-veil .pick .pn{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gp-veil .pick .pl{font-size:10.5px;color:var(--mu);font-family:"IBM Plex Mono",monospace}
 @media(max-width:640px){.gp .step{grid-template-columns:26px 1fr;row-gap:2px}
 .gp .num,.gp .eff{text-align:left;grid-column:2}}
 `;
 
     const STORAGE_KEY = 'gms-gear-priority';
+    const FLAME_FIELDS = [
+        ['main', 'メインステ', ''], ['att', '攻撃力', ''], ['boss', 'ボスダメ', '%'],
+        ['dmg', 'ダメージ', '%'], ['allStat', 'オールステ', '%'],
+    ];
+    const blankFlame = () => ({ main: 0, att: 0, boss: 0, dmg: 0, allStat: 0 });
+    const blankLines = () => [0, 1, 2].map(() => ({ k: '', g: '', v: 0 }));
+    const blankSlot = (on) => ({
+        on, level: 160, star: 0, stage: 0, mode: '',
+        item: null, grade: '', lines: blankLines(), flame: blankFlame(),
+    });
+    // Flame score on the same weights as everything else.
+    const flameScore = (f, w) => (f.main || 0) * w.main + (f.att || 0) * w.att + (f.boss || 0) * w.boss
+        + (f.dmg || 0) * (w.dmg || 0) + (f.allStat || 0) * (w.allStat || 0);
+    function cleanSlot(v) {
+        const d = blankSlot(!!v.on);
+        const num = (x, lo, hi) => Math.max(lo, Math.min(hi, Number(x) || 0));
+        d.level = Number(v.level) || 160;
+        d.star = num(v.star, 0, 30);
+        d.stage = Number(v.stage) || 0;
+        d.mode = PLANS[v.mode] ? v.mode : '';
+        d.item = Number(v.item) || null;
+        d.grade = GRADES.includes(v.grade) ? v.grade : '';
+        if (Array.isArray(v.lines)) d.lines = d.lines.map((_, i) => {
+            const ln = v.lines[i] || {};
+            return { k: POT_OPTS[ln.k] || ln.k === 'etc' ? ln.k : '', g: GRADES.includes(ln.g) ? ln.g : '', v: Number(ln.v) || 0 };
+        });
+        if (v.flame) for (const [k] of FLAME_FIELDS) d.flame[k] = num(v.flame[k], 0, 9999);
+        return d;
+    }
+
+    /* ---------- equipment catalog (gear_items.js) ---------- */
+    // Only name, level and icon matter here: the item's own stats are left to
+    // the score weights, so the catalog is just a picker.
+    const ITEMS = Array.isArray(window.GEAR_ITEMS) ? window.GEAR_ITEMS : [];
+    const ITEM_BY_ID = new Map(ITEMS.map((it) => [it.id, it]));
+    const SLOT_KINDS = {
+        weapon: ['weapon'], sub: ['sub'], emblem: ['emblem'],
+        ring1: ['ring'], ring2: ['ring'], ring3: ['ring'], ring4: ['ring'],
+        belt: ['belt'], face: ['face'], eye: ['eye'], ear: ['ear'],
+        pendant1: ['pendant'], pendant2: ['pendant'],
+        hat: ['hat'], top: ['top', 'overall'], bottom: ['bottom'], shoulder: ['shoulder'],
+        pocket: ['pocket'], cape: ['cape'], glove: ['glove'], shoe: ['shoe'],
+        heart: ['heart'], badge: ['badge'],
+    };
+    const itemsFor = (slotId) => ITEMS.filter((it) => (SLOT_KINDS[slotId] || []).includes(it.slot));
+    const SET_JP = {
+        genesis: 'ジェネシス', eternal: 'エターナル', arcane: 'アーケインシェード', absolab: 'アブソラブ',
+        cra: 'ルートアビス', fafnir: 'ファフニール', pitched: '漆黒のボス', dawn: '黎明のボス',
+        boss_acc: 'ボスアクセサリー', meister: 'マイスター', gollux: 'ゴルロックス', other: 'その他',
+    };
+    const iconUrl = (id) => `https://maplestory.io/api/GMS/255/item/${id}/icon`;
+    const iconImg = (id, size) => id
+        ? `<img class="ico" src="${iconUrl(id)}" alt="" width="${size}" height="${size}" loading="lazy" onerror="this.style.visibility='hidden'">`
+        : `<span class="ico none" style="width:${size}px;height:${size}px"></span>`;
     const defaultSlots = () => {
         const out = {};
         for (const id of Object.keys(SLOTS)) {
-            out[id] = { on: hasPot(id), level: 160, star: 0, stage: 0, mode: '' };
+            out[id] = blankSlot(hasPot(id));
         }
         return out;
     };
     const DEFAULT_STATE = () => ({
-        w: { main: 1, att: 4, statPct: 10, crit: 30, attPct: 44, boss: 11 },
+        w: { main: 1, att: 4, statPct: 10, allStat: 12, crit: 30, attPct: 44, boss: 11, dmg: 11 },
         o: { ssf: true, safeguard: true, starCatch: true, planName: '1144' },
         slots: defaultSlots(),
         limit: 40,
@@ -443,10 +605,7 @@ max-width:420px;padding:14px 16px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
                 if (s.slots) {
                     for (const id of Object.keys(slots)) {
                         const v = s.slots[id];
-                        if (v) slots[id] = {
-                            on: !!v.on, level: Number(v.level) || 160, star: Number(v.star) || 0,
-                            stage: Number(v.stage) || 0, mode: PLANS[v.mode] ? v.mode : '',
-                        };
+                        if (v) slots[id] = cleanSlot(v);
                         // A slot can lose its tables between versions; don't leave it checked.
                         if (!hasPot(id) && !hasStar(id)) slots[id].on = false;
                     }
@@ -464,11 +623,13 @@ max-width:420px;padding:14px 16px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
         entries() {
             return Object.keys(SLOTS)
                 .filter((id) => this.state.slots[id].on && (hasPot(id) || hasStar(id)))
+                .filter((id) => !(id === 'bottom' && this.bottomTaken()))
                 .map((id) => {
                     const v = this.state.slots[id];
                     return {
                         id, name: SLOTS[id].label, part: SLOTS[id].part,
                         level: v.level, star: v.star, stage: v.stage, mode: v.mode,
+                        lines: v.grade ? v.lines : null,
                         noStar: !hasStar(id),
                     };
                 });
@@ -583,7 +744,7 @@ max-width:420px;padding:14px 16px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
                 const kind = t.dataset.gp;
                 if (kind === 'edit') {
                     const id = t.dataset.id;
-                    this.openDraft({ id, ...this.state.slots[id] });
+                    this.openDraft(id);
                 } else if (kind === 'fold') {
                     const sig = t.dataset.sig;
                     if (this.expanded.has(sig)) this.expanded.delete(sig);
@@ -608,25 +769,43 @@ max-width:420px;padding:14px 16px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
             this.bindModal(root.querySelector('#gp-modal-host'));
         },
 
+        // The top slot holding a one-piece overall leaves the bottom slot empty.
+        bottomTaken() {
+            const it = ITEM_BY_ID.get(this.state.slots.top.item);
+            return !!(it && it.slot === 'overall');
+        },
+
         renderRack() {
             const el = this.root.querySelector('#gp-rack');
+            const taken = this.bottomTaken();
             el.innerHTML = GRID.map((row) => row.map((id) => {
                 if (!id) return '<div></div>';
                 const s = SLOTS[id], v = this.state.slots[id];
-                const inert = !hasPot(id) && !hasStar(id);
+                const covered = id === 'bottom' && taken;
+                const inert = (!hasPot(id) && !hasStar(id)) || covered;
+                const it = ITEM_BY_ID.get(v.item);
                 const L = FIXED_LV[s.part] || v.level;
-                const stage = s.part ? stagesFor(s.part).find((x) => x.o === v.stage) : null;
+                const scored = v.grade ? v.lines.filter((ln) => POT_OPTS[ln.k]).length : 0;
+                const stage = !v.grade && s.part ? stagesFor(s.part).find((x) => x.o === v.stage) : null;
+                const pot = v.grade
+                    ? `<i style="color:${GRADE_COLOR[v.grade]}" title="${GRADE_EN[v.grade]} ${scored}行">潜在${v.grade}</i>`
+                    : `<i>${esc(stage ? '潜在' + stage.t.trim().charAt(0) : '潜在なし')}</i>`;
+                const flame = flameScore(v.flame, this.state.w) > 0 ? ' <u>転生</u>' : '';
                 const line1 = `Lv${L}` + (hasStar(id) ? ` · <em>${v.star}★</em>` : '');
-                const line2 = `<i>${esc(stage ? '潜在' + stage.t.trim().charAt(0) : '潜在なし')}</i>`
-                    + (hasStar(id) && v.mode ? ` <b class="pin">${esc(v.mode)}</b>` : '');
-                return `<div class="slot ${v.on ? '' : 'off'} ${inert ? 'inert' : ''}">
-                    <button type="button" class="slot-btn" data-gp="edit" data-id="${id}">
-                        <span class="nm">${esc(s.label)}</span>
-                        ${inert ? '<span class="st">計算対象外</span>'
-                        : `<span class="st">${line1}</span><span class="st">${line2}</span>`}
+                const line2 = pot + flame + (hasStar(id) && v.mode ? ` <b class="pin">${esc(v.mode)}</b>` : '');
+                const name = it ? it.name : s.label;
+                return `<div class="slot ${v.on && !covered ? '' : 'off'} ${inert ? 'inert' : ''}">
+                    <button type="button" class="slot-btn" data-gp="edit" data-id="${id}" title="${esc(name)}" ${covered ? 'disabled' : ''}>
+                        <span class="tile-ico">${iconImg(v.item, 26)}</span>
+                        <span class="tile-body">
+                            <span class="nm">${esc(s.label)}</span>
+                            ${covered ? '<span class="st">上が一体型</span>'
+                            : inert ? '<span class="st">計算対象外</span>'
+                            : `<span class="st">${line1}</span><span class="st">${line2}</span>`}
+                        </span>
                     </button>
                     <label class="sw" title="${esc(s.label)}を計算に含める">
-                        <input type="checkbox" data-gp="toggle" data-id="${id}" ${v.on ? 'checked' : ''} ${inert ? 'disabled' : ''}>
+                        <input type="checkbox" data-gp="toggle" data-id="${id}" ${v.on && !covered ? 'checked' : ''} ${inert ? 'disabled' : ''}>
                     </label>
                 </div>`;
             }).join('')).join('');
@@ -685,19 +864,22 @@ max-width:420px;padding:14px 16px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
         },
 
         /* ---------- equip modal ---------- */
-        openDraft(draft) { this.draft = draft; this.renderModal(); },
+        // The draft is a deep copy so cancelling leaves the saved slot alone.
+        openDraft(id) {
+            const v = this.state.slots[id];
+            this.draft = { id, ...v, lines: v.lines.map((ln) => ({ ...ln })), flame: { ...v.flame }, picking: false };
+            this.renderModal();
+        },
         closeDraft() { this.draft = null; this.renderModal(); },
 
         saveDraft() {
-            const { id, ...v } = this.draft;
+            const { id, picking, ...v } = this.draft;
             const L = FIXED_LV[SLOTS[id].part] || v.level;
-            this.state.slots[id] = {
-                on: !!v.on,
-                level: v.level,
-                star: hasStar(id) ? Math.max(0, Math.min(maxStarOf(L), v.star || 0)) : 0,
-                stage: hasPot(id) ? v.stage : 0,
-                mode: hasStar(id) && PLANS[v.mode] ? v.mode : '',
-            };
+            const clean = cleanSlot(v);
+            clean.star = hasStar(id) ? Math.min(maxStarOf(L), clean.star) : 0;
+            if (!hasPot(id)) { clean.grade = ''; clean.lines = blankLines(); }
+            if (!hasStar(id)) clean.mode = '';
+            this.state.slots[id] = clean;
             this.draft = null;
             this.save();
             this.renderModal();
@@ -705,69 +887,136 @@ max-width:420px;padding:14px 16px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
             this.renderPlan();
         },
 
+        // Star force stats up to the current star: [main stat, attack].
+        sfStats(id, L, star) {
+            let st = 0, at = 0;
+            if (!hasStar(id)) return [0, 0];
+            for (let k = 1; k <= star; k++) {
+                const g = starGain(k, L, SLOTS[id].part);
+                if (g) { st += g[0]; at += g[1]; }
+            }
+            return [st, at];
+        },
+
         renderModal() {
             const host = this.root.querySelector('#gp-modal-host');
             const d = this.draft;
             if (!d) { host.innerHTML = ''; return; }
-            const s = SLOTS[d.id];
-            const lvFixed = !!FIXED_LV[s.part];
-            const L = FIXED_LV[s.part] || d.level;
-            const star = hasStar(d.id), pot = hasPot(d.id);
-
-            const levels = (lvFixed ? [L] : LEVELS)
-                .map((v) => `<option value="${v}" ${v === L ? 'selected' : ''}>Lv${v}</option>`).join('');
-            const stars = starChoices(L)
-                .map((v) => `<option value="${v}" ${v === d.star ? 'selected' : ''}>${v}★</option>`).join('');
-            const stages = pot ? stagesFor(s.part)
-                .map((st) => `<option value="${st.o}" ${st.o === d.stage ? 'selected' : ''}>${esc(st.t)}</option>`).join('') : '';
-
             host.innerHTML = `<div class="gp-veil" data-gp="veil">
-                <div class="modal" role="dialog" aria-modal="true" aria-label="装備の詳細">
-                    <h2>${esc(s.label)}</h2>
-                    <label class="chk mb"><input type="checkbox" data-gp="m-on" ${d.on ? 'checked' : ''} ${(star || pot) ? '' : 'disabled'}>この部位を計算に含める</label>
-                    <div class="pair">
-                        <div class="fld">
-                            <label for="gp-m-level">装備Lv</label>
-                            <select id="gp-m-level" ${lvFixed ? 'disabled' : ''} data-gp="m-level">${levels}</select>
-                        </div>
-                        <div class="fld">
-                            <label for="gp-m-star">★の数</label>
-                            <select id="gp-m-star" ${star ? '' : 'disabled'} data-gp="m-star">${star ? stars : '<option>—</option>'}</select>
-                        </div>
-                    </div>
-                    ${pot ? `<div class="fld">
-                        <label for="gp-m-stage">潜在の進捗</label>
-                        <select id="gp-m-stage" data-gp="m-stage">
-                            <option value="0" ${!d.stage ? 'selected' : ''}>まだ何もない</option>
-                            ${stages}
-                        </select>
-                    </div>` : ''}
-                    ${star ? `<div class="fld">
-                        <label for="gp-m-mode">18★以降のモード</label>
-                        <select id="gp-m-mode" data-gp="m-mode">
-                            <option value="" ${d.mode ? '' : 'selected'}>既定に従う（${esc(PLAN_LABEL[this.state.o.planName])}）</option>
-                            ${Object.keys(PLANS).map((k) => `<option value="${k}" ${d.mode === k ? 'selected' : ''}>${esc(PLAN_LABEL[k])}</option>`).join('')}
-                        </select>
-                    </div>` : ''}
-                    ${this.modalNote(d.id, lvFixed, star, pot)}
-                    <div class="foot">
-                        <span class="grow"></span>
-                        <button type="button" class="btn" data-gp="m-cancel">キャンセル</button>
-                        <button type="button" class="btn primary" data-gp="m-save">保存</button>
-                    </div>
+                <div class="modal eq" role="dialog" aria-modal="true" aria-label="装備の詳細">
+                    ${d.picking ? this.pickerHTML(d) : this.detailHTML(d)}
                 </div>
             </div>`;
-
-            const first = host.querySelector('#gp-m-level:not([disabled])') || host.querySelector('[data-gp="m-on"]');
-            if (first) first.focus();
         },
 
-        modalNote(id, lvFixed, star, pot) {
-            const bits = [];
-            if (!star && pot) bits.push('この部位はスターフォースを計算対象外にしています');
-            if (!pot) bits.push('この部位は潜在もスターフォースも計算対象がありません');
-            if (lvFixed) bits.push(`Lvは${FIXED_LV[SLOTS[id].part]}固定です`);
-            return bits.length ? `<p class="note" style="margin-top:0">${esc(bits.join('。'))}。</p>` : '';
+        pickerHTML(d) {
+            const list = itemsFor(d.id);
+            const bySet = new Map();
+            list.forEach((it) => {
+                const k = it.set || 'other';
+                if (!bySet.has(k)) bySet.set(k, []);
+                bySet.get(k).push(it);
+            });
+            const cell = (it) => `<button type="button" class="pick ${d.item === it.id ? 'on' : ''}" data-gp="m-pick" data-item="${it.id}" title="${esc(it.name)}">
+                ${iconImg(it.id, 32)}<span class="pn">${esc(it.name)}</span><span class="pl">Lv${it.level}</span></button>`;
+            return `<div class="eq-head"><h2>${esc(SLOTS[d.id].label)}の装備を選ぶ</h2>
+                    <button type="button" class="btn" data-gp="m-unpick">戻る</button></div>
+                <div class="picks">
+                    <button type="button" class="pick ${d.item ? '' : 'on'}" data-gp="m-pick" data-item="">
+                        ${iconImg(null, 32)}<span class="pn">指定なし</span><span class="pl">Lvは手で選ぶ</span></button>
+                    ${[...bySet.entries()].map(([set, items]) => `<p class="pset">${esc(SET_JP[set] || set)}</p>${items.map(cell).join('')}`).join('')}
+                </div>
+                ${list.length ? '' : '<p class="note">この部位の一覧はまだありません。</p>'}`;
+        },
+
+        detailHTML(d) {
+            const s = SLOTS[d.id];
+            const it = ITEM_BY_ID.get(d.item);
+            const lvFixed = !!FIXED_LV[s.part] || !!it;
+            const L = FIXED_LV[s.part] || d.level;
+            const star = hasStar(d.id), pot = hasPot(d.id);
+            const max = maxStarOf(L);
+            const w = this.state.w;
+
+            const stars = star ? Array.from({ length: max }, (_, i) => {
+                const k = i + 1;
+                const brk = k % 15 === 0 && k < max ? '<span class="brk"></span>' : k % 5 === 0 && k < max ? '<span class="gap"></span>' : '';
+                return `<button type="button" class="st ${k <= d.star ? 'on' : ''}" data-gp="m-star" data-star="${k}" aria-label="${k}★">★</button>${brk}`;
+            }).join('') : '';
+
+            const [sfMain, sfAtt] = this.sfStats(d.id, L, d.star);
+            const sfOf = { main: sfMain, att: sfAtt };
+            const rows = FLAME_FIELDS.map(([k, jp, unit]) => {
+                const sf = sfOf[k] || 0, fl = d.flame[k] || 0;
+                return `<div class="srow">
+                    <span class="sk">${esc(jp)}${unit}</span>
+                    <span class="stot" data-tot="${k}">+${sf + fl}</span>
+                    <span class="sp">(</span>
+                    <span class="ssf">${sf ? '+' + sf : ''}</span>
+                    <span class="sp">+</span>
+                    <input class="sfl" type="number" min="0" max="9999" step="1" value="${fl || ''}" placeholder="0" data-gp="m-flame" data-key="${k}" aria-label="${esc(jp)}の転生">
+                    <span class="sp">)</span>
+                </div>`;
+            }).join('');
+
+            const grades = GRADES.map((g) => `<option value="${g}" ${d.grade === g ? 'selected' : ''}>${GRADE_EN[g]}</option>`).join('');
+            const keys = pot ? POT_KEYS(s.part) : [];
+            const lines = d.grade ? d.lines.map((ln, i) => {
+                const gs = lineGrades(d.grade, i);
+                const g = gs.includes(ln.g) ? ln.g : gs[0];
+                const opts = [];
+                keys.forEach((k) => potValues(k, g, L).forEach((v) => {
+                    const on = ln.k === k && Number(ln.v) === v;
+                    opts.push(`<option value="${k}:${v}" ${on ? 'selected' : ''}>${esc(lineText({ k, v }))}</option>`);
+                }));
+                const etc = !POT_OPTS[ln.k] || !potValues(ln.k, g, L).includes(Number(ln.v));
+                return `<div class="pline">
+                    <i class="gdot" style="background:${GRADE_COLOR[g]}"></i>
+                    <select data-gp="m-line" data-i="${i}" aria-label="${i + 1}行目">
+                        <option value="etc" ${etc ? 'selected' : ''}>その他</option>${opts.join('')}
+                    </select>
+                    <select data-gp="m-lgrade" data-i="${i}" aria-label="${i + 1}行目の等級" ${gs.length > 1 ? '' : 'disabled'}>
+                        ${gs.map((x) => `<option value="${x}" ${x === g ? 'selected' : ''}>${GRADE_EN[x]}</option>`).join('')}
+                    </select>
+                </div>`;
+            }).join('') : '';
+            const potScoreNow = d.grade ? linesScore(d.lines.map((ln, i) => ({ ...ln, g: lineGrades(d.grade, i).includes(ln.g) ? ln.g : lineGrades(d.grade, i)[0] })), w) : 0;
+
+            const levels = LEVELS.map((v) => `<option value="${v}" ${v === L ? 'selected' : ''}>Lv${v}</option>`).join('');
+
+            return `<div class="eq-head">
+                    <button type="button" class="eq-ico" data-gp="m-picker" title="装備を選ぶ">${iconImg(d.item, 40)}</button>
+                    <div class="eq-name">
+                        <h2>${esc(it ? it.name : s.label)}</h2>
+                        <p>${esc(s.label)} · ${lvFixed ? `Lv${L}` : `<select class="lv" data-gp="m-level" aria-label="装備Lv">${levels}</select>`}${star ? '' : ' · スタフォ不可'}</p>
+                    </div>
+                    <button type="button" class="btn" data-gp="m-picker">装備を選ぶ</button>
+                </div>
+                ${star ? `<div class="stars"><div class="srun">${stars}</div><div class="sside"><span class="snum">${d.star}★</span><button type="button" class="st0" data-gp="m-star" data-star="0" title="0★に戻す">0★に戻す</button></div></div>` : ''}
+
+                <p class="eq-sec"><b>ステータス</b><span>スタフォは★から自動、<em>転生</em>だけ入力します</span></p>
+                <div class="srows"><div class="srow hd"><span></span><span>合計</span><span></span><span class="ssf">スタフォ</span><span></span><span class="sflh">転生</span><span></span></div>${rows}</div>
+                <p class="eq-score">転生スコア <b data-flame-score>${Math.round(flameScore(d.flame, w)).toLocaleString()}</b></p>
+
+                ${pot ? `<p class="eq-sec"><b>潜在能力</b>
+                    <select class="grade" data-gp="m-grade" aria-label="潜在の等級">
+                        <option value="" ${d.grade ? '' : 'selected'}>なし</option>${grades}
+                    </select></p>
+                <div class="plines">${lines || '<p class="note" style="margin:0">等級を選ぶと3行を入力できます。</p>'}</div>
+                ${d.grade ? `<p class="eq-score">潜在スコア <b>${Math.round(potScoreNow).toLocaleString()}</b></p>` : ''}` : ''}
+
+                <div class="eq-opts">
+                    <label class="chk"><input type="checkbox" data-gp="m-on" ${d.on ? 'checked' : ''} ${(star || pot) ? '' : 'disabled'}>計算に含める</label>
+                    ${star ? `<select data-gp="m-mode" aria-label="18★以降のモード">
+                        <option value="" ${d.mode ? '' : 'selected'}>18★以降: 既定（${esc(PLAN_LABEL[this.state.o.planName])}）</option>
+                        ${Object.keys(PLANS).map((k) => `<option value="${k}" ${d.mode === k ? 'selected' : ''}>18★以降: ${esc(PLAN_LABEL[k])}</option>`).join('')}
+                    </select>` : ''}
+                </div>
+                <div class="foot">
+                    <span class="grow"></span>
+                    <button type="button" class="btn" data-gp="m-cancel">キャンセル</button>
+                    <button type="button" class="btn primary" data-gp="m-save">保存</button>
+                </div>`;
         },
 
         bindModal(host) {
@@ -776,28 +1025,73 @@ max-width:420px;padding:14px 16px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
             });
             host.addEventListener('change', (e) => {
                 const t = e.target.closest('[data-gp]');
-                if (!t || t.dataset.gp !== 'm-level') return;
-                // A lower level can cap the star ceiling, so redraw the star list.
-                this.draft.level = Number(t.value) || 160;
-                this.draft.star = Math.min(this.draft.star, maxStarOf(this.draft.level));
+                if (!t || !this.draft) return;
+                const d = this.draft, kind = t.dataset.gp;
+                if (kind === 'm-level') {
+                    // A lower level can cap the star ceiling.
+                    d.level = Number(t.value) || 160;
+                    d.star = Math.min(d.star, maxStarOf(d.level));
+                } else if (kind === 'm-grade') {
+                    d.grade = t.value;
+                    d.lines.forEach((ln, i) => { if (!lineGrades(d.grade, i).includes(ln.g)) ln.g = lineGrades(d.grade, i)[0] || ''; });
+                } else if (kind === 'm-line') {
+                    const ln = d.lines[Number(t.dataset.i)];
+                    const [k, v] = t.value.split(':');
+                    ln.k = k; ln.v = Number(v) || 0;
+                    ln.g = lineGrades(d.grade, Number(t.dataset.i)).includes(ln.g) ? ln.g : lineGrades(d.grade, Number(t.dataset.i))[0];
+                } else if (kind === 'm-lgrade') {
+                    const ln = d.lines[Number(t.dataset.i)];
+                    ln.g = t.value;
+                    // Keep the option if the new grade has a value for it, else the nearest.
+                    const vs = POT_OPTS[ln.k] ? potValues(ln.k, ln.g, FIXED_LV[SLOTS[d.id].part] || d.level) : [];
+                    if (!vs.length) { ln.k = 'etc'; ln.v = 0; } else if (!vs.includes(ln.v)) ln.v = vs[0];
+                } else if (kind === 'm-mode') {
+                    d.mode = t.value; return;
+                } else if (kind === 'm-on') {
+                    d.on = t.checked; return;
+                } else return;
                 this.renderModal();
             });
             host.addEventListener('input', (e) => {
-                const t = e.target.closest('[data-gp]');
-                if (!t) return;
-                if (t.dataset.gp === 'm-star') this.draft.star = Number(t.value) || 0;
-                else if (t.dataset.gp === 'm-stage') this.draft.stage = Number(t.value) || 0;
-                else if (t.dataset.gp === 'm-mode') this.draft.mode = t.value;
-                else if (t.dataset.gp === 'm-on') this.draft.on = t.checked;
+                const t = e.target.closest('[data-gp="m-flame"]');
+                if (!t || !this.draft) return;
+                // Typing must not rebuild the modal (it would drop focus), so only
+                // the totals next to the field are patched.
+                const d = this.draft, k = t.dataset.key;
+                d.flame[k] = Math.max(0, Math.min(9999, Math.floor(Number(t.value) || 0)));
+                const L = FIXED_LV[SLOTS[d.id].part] || d.level;
+                const [sfMain, sfAtt] = this.sfStats(d.id, L, d.star);
+                const sf = ({ main: sfMain, att: sfAtt })[k] || 0;
+                const tot = host.querySelector(`[data-tot="${k}"]`);
+                if (tot) tot.textContent = '+' + (sf + d.flame[k]);
+                const fs = host.querySelector('[data-flame-score]');
+                if (fs) fs.textContent = Math.round(flameScore(d.flame, this.state.w)).toLocaleString();
             });
             host.addEventListener('click', (e) => {
                 const t = e.target.closest('[data-gp]');
-                if (!t) return;
-                if (t.dataset.gp === 'm-save') this.saveDraft();
-                else if (t.dataset.gp === 'm-cancel') this.closeDraft();
+                if (!t || !this.draft) return;
+                const d = this.draft, kind = t.dataset.gp;
+                if (kind === 'm-save') this.saveDraft();
+                else if (kind === 'm-cancel') this.closeDraft();
+                else if (kind === 'm-picker') { d.picking = true; this.renderModal(); }
+                else if (kind === 'm-unpick') { d.picking = false; this.renderModal(); }
+                else if (kind === 'm-pick') {
+                    const it = ITEM_BY_ID.get(Number(t.dataset.item));
+                    d.item = it ? it.id : null;
+                    if (it) {
+                        d.level = it.level;
+                        d.star = Math.min(d.star, maxStarOf(it.level));
+                    }
+                    d.picking = false;
+                    this.renderModal();
+                } else if (kind === 'm-star') {
+                    const k = Number(t.dataset.star) || 0;
+                    // Clicking the top lit star again clears it, as a toggle.
+                    d.star = k === d.star && k > 0 ? k - 1 : k;
+                    this.renderModal();
+                }
             });
         },
     };
-
     window.gearPriority = gearPriority;
 })();
