@@ -133,7 +133,9 @@
     const CUBE_PRICE = { red: 12e6, black: 22e6 };
     const CUBE_JP = { red: 'グローイング', black: 'ブライト' };
     const revealConst = (L) => (L < 30 ? 0 : L <= 70 ? .5 : L <= 120 ? 2.5 : 20);
-    const cubeUnit = (cube, L) => CUBE_PRICE[cube] + revealConst(L) * L * L;
+    // The Black Friday sale takes a share off the cube itself, not the reveal fee.
+    const cubeOff = (o) => (o && o.cubeSale ? Math.max(0, Math.min(100, Number(o.cubeSalePct) || 0)) / 100 : 0);
+    const cubeUnit = (cube, L, o) => CUBE_PRICE[cube] * (1 - cubeOff(o)) + revealConst(L) * L * L;
 
     // Parts whose potential table exists but that take no star force.
     const NO_STAR = new Set(['武器', '補助武器', 'エンブレム']);
@@ -489,7 +491,7 @@
             for (const cube of ['red', 'black']) {
                 const hit = flameBeat(potDistCached(key, cube, L, w), cur);
                 if (!hit) continue;
-                const rolls = 1 / hit.p, cost = cubeUnit(cube, L) * rolls, eff = cost / (hit.mean - cur);
+                const rolls = 1 / hit.p, cost = cubeUnit(cube, L, o) * rolls, eff = cost / (hit.mean - cur);
                 if (!best || eff < best.eff) best = { eff, cost, rolls, cube, hit };
             }
             if (best) acts.push({
@@ -621,6 +623,9 @@ vertical-align:1px;white-space:nowrap}
 .gp .who{font-size:11px;color:var(--mu)}
 .gp .what{font-size:13.5px;line-height:1.35}
 .gp .what b{font-weight:600}
+.gp .sale .salerow{display:flex;align-items:center;gap:6px;height:30px}
+.gp .sale .salerow input[type=number]{width:52px}
+.gp .sale .pct{font-size:12px;color:var(--mu)}
 .gp .tgt{font-size:12px;line-height:1.4;margin-top:2px}
 .gp .tgt .tl{font-size:10.5px;color:var(--mu);border:1px solid var(--ln);padding:0 4px;margin-right:6px}
 .gp .tgt b{font-weight:600}
@@ -829,7 +834,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
     };
     const DEFAULT_STATE = () => ({
         w: { main: 1, sub: 0.25, att: 4, statPct: 10, allStat: 12, crit: 30, attPct: 44, boss: 11, dmg: 11 },
-        o: { ssf: true, safeguard: true, starCatch: true, planName: '1144', flamePrice: 3e6 },
+        o: { ssf: true, safeguard: true, starCatch: true, planName: '1144', flamePrice: 3e6, cubeSale: false, cubeSalePct: 25 },
         slots: defaultSlots(),
         limit: 40,
     });
@@ -933,6 +938,13 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                     <label for="gp-flame-price">黒転生 1回（M）</label>
                     <input id="gp-flame-price" type="number" min="0" step="0.1" value="${(o.flamePrice || 3e6) / 1e6}" data-gp="flamePrice">
                 </div>
+                <div class="sale">
+                    <label for="gp-sale-pct">キューブの割引</label>
+                    <span class="salerow">
+                        <label class="chk"><input type="checkbox" data-gp="opt" data-key="cubeSale" ${o.cubeSale ? 'checked' : ''}>ブラックフライデー</label>
+                        <input id="gp-sale-pct" type="number" min="0" max="100" step="1" value="${o.cubeSalePct ?? 25}" data-gp="cubeSalePct" aria-label="割引率（%）" ${o.cubeSale ? '' : 'disabled'}><span class="pct">%引き</span>
+                    </span>
+                </div>
                 <div style="width:70px">
                     <label for="gp-limit">読む手数</label>
                     <input id="gp-limit" type="number" min="1" max="80" value="${limit}" data-gp="limit">
@@ -988,6 +1000,9 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                 } else if (kind === 'flamePrice') {
                     this.state.o.flamePrice = Math.max(0, Number(t.value) || 0) * 1e6;
                     this.save(); this.renderPlan();
+                } else if (kind === 'cubeSalePct') {
+                    this.state.o.cubeSalePct = Math.max(0, Math.min(100, Number(t.value) || 0));
+                    this.save(); this.renderPlan();
                 }
             });
             root.addEventListener('change', (e) => {
@@ -996,6 +1011,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                 const kind = t.dataset.gp;
                 if (kind === 'opt') {
                     this.state.o[t.dataset.key] = t.checked;
+                    if (t.dataset.key === 'cubeSale') this.root.querySelector('#gp-sale-pct').disabled = !t.checked;
                     this.save(); this.renderPlan();
                 } else if (kind === 'planName') {
                     this.state.o.planName = t.value;
