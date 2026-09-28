@@ -143,7 +143,11 @@
     // Cheap per point of score, but each step runs into the tens of billions,
     // so the plan flags them in their own colour rather than burying them.
     const BIG_TICKET = new Set(['武器', '補助武器', 'エンブレム']);
-    const FIXED_LV = { 'エンブレム': 100 };
+    // Parts whose level never varies. Emblems now come in Lv100 and Lv200.
+    const FIXED_LV = {};
+    // Levels offered when no item is picked; emblems only come in two.
+    const levelsFor = (id) => (id === 'emblem' ? [100, 200] : LEVELS);
+    const defaultLevel = (id) => (id === 'emblem' ? 100 : 160);
 
     // The equip rack, laid out the way the slots sit in the game window.
     // `part` picks the potential/star tables; null means nothing to enhance.
@@ -253,6 +257,89 @@
         return o ? `${o.jp} +${ln.v}${o.unit}` : 'その他';
     };
 
+    /* ---------- bonus stats (rebirth flame) ---------- */
+    // Black Rebirth Flame: every item, 3M mesos a roll, and the old stats can be
+    // kept, so a roll only needs to beat what the item already has.
+    // Tables from StrategyWiki "MapleStory/Bonus_Stats".
+    const FLAME_TIERS = { normal: { 2: .29, 3: .45, 4: .25, 5: .01 }, boss: { 4: .29, 5: .45, 6: .25, 7: .01 } };
+    const FLAME_LINES = { normal: { 1: .4, 2: .4, 3: .16, 4: .04 }, boss: { 4: 1 } };
+    // Stat types a roll draws from, without repeats and all equally likely.
+    const FLAME_POOL = 19;
+    const FLAME_PRICE = 3e6;
+    // Parts that never carry bonus stats (the catalog's noFlame covers picked items).
+    const NO_FLAME_SLOT = new Set(['ring1', 'ring2', 'ring3', 'ring4', 'shoulder', 'heart', 'badge', 'emblem', 'sub', 'pocket']);
+    const singleStat = (L, t) => Math.min(12, Math.floor(L / 20) + 1) * t;
+    const dualStat = (L, t) => Math.min(7, Math.floor(L / 40) + 1) * t;
+    // Weapon attack is a share of the weapon's own attack, 10% steeper per tier.
+    const weaponAtt = (base, L, t) => Math.ceil(base * (Math.floor(L / 40) + 1) / 100 * t * Math.pow(1.1, t - 1));
+    const choose = (n, k) => {
+        if (k < 0 || k > n) return 0;
+        let r = 1;
+        for (let i = 1; i <= k; i++) r = r * (n - k + i) / i;
+        return r;
+    };
+
+    // Score distribution of one full reroll: [[score, prob], ...] sorted by score.
+    // Only lines the weights can see are tracked; the rest just take up slots.
+    function flameDist(L, boss, weapon, baseAtt, w) {
+        const tiers = Object.entries(FLAME_TIERS[boss ? 'boss' : 'normal']).map(([t, p]) => [Number(t), p]);
+        const types = [];
+        const add = (f) => types.push(tiers.map(([t, p]) => [f(t), p]));
+        add((t) => singleStat(L, t) * w.main);                       // main stat
+        for (let i = 0; i < 3; i++) add((t) => dualStat(L, t) * w.main); // the three pairs holding the main stat
+        add((t) => (weapon ? weaponAtt(baseAtt || 0, L, t) : t) * w.att);
+        add((t) => t * (w.allStat || 0));
+        if (weapon) {
+            add((t) => 2 * t * w.boss);
+            add((t) => t * (w.dmg || 0));
+        }
+        const idle = FLAME_POOL - types.length;
+        // DP over the tracked types: (lines used, score) -> weight.
+        let st = new Map([['0|0', { c: 0, s: 0, p: 1 }]]);
+        for (const opts of types) {
+            const nx = new Map();
+            const put = (c, s, p) => {
+                const k = `${c}|${s.toFixed(4)}`;
+                const e = nx.get(k);
+                if (e) e.p += p; else nx.set(k, { c, s, p });
+            };
+            for (const e of st.values()) {
+                put(e.c, e.s, e.p);
+                for (const [v, p] of opts) put(e.c + 1, e.s + v, e.p * p);
+            }
+            st = nx;
+        }
+        const out = new Map();
+        for (const [n, pn] of Object.entries(FLAME_LINES[boss ? 'boss' : 'normal'])) {
+            const all = choose(FLAME_POOL, Number(n));
+            for (const e of st.values()) {
+                const ways = choose(idle, Number(n) - e.c);
+                if (!ways) continue;
+                const k = e.s.toFixed(4);
+                out.set(k, (out.get(k) || 0) + pn * e.p * ways / all);
+            }
+        }
+        return [...out.entries()].map(([s, p]) => [Number(s), p]).sort((a, b) => a[0] - b[0]);
+    }
+    let flameCache = new Map();
+    function flameDistCached(L, boss, weapon, baseAtt, w) {
+        const k = `${L}|${boss}|${weapon}|${baseAtt}|${w.main}|${w.att}|${w.allStat}|${w.boss}|${w.dmg}`;
+        let v = flameCache.get(k);
+        if (!v) {
+            if (flameCache.size > 500) flameCache.clear();
+            v = flameDist(L, boss, weapon, baseAtt, w);
+            flameCache.set(k, v);
+        }
+        return v;
+    }
+    // Rolling until something beats `cur`: chance per roll, and the average
+    // score once it does.
+    function flameBeat(dist, cur) {
+        let p = 0, m = 0;
+        for (const [s, q] of dist) if (s > cur + 1e-9) { p += q; m += s * q; }
+        return p > 0 ? { p, mean: m / p } : null;
+    }
+
     /* ---------- planner ---------- */
     function nextActions(item, w, o) {
         const acts = [];
@@ -273,6 +360,20 @@
                     kind: 'star', label: `${item.star}★ → ${target}★`,
                     detail: booms >= 0.01 ? `期待破壊 ${booms.toFixed(2)}回` : '破壊なし',
                     cost, score: sc, next: { star: target }
+                });
+            }
+        }
+        if (item.flameOk) {
+            const cur = item.flameCur != null ? item.flameCur : flameScore(item.flame || {}, w);
+            const dist = flameDistCached(L, !!item.boss, item.part === '武器', item.baseAtt || 0, w);
+            const hit = flameBeat(dist, cur);
+            if (hit) {
+                const rolls = 1 / hit.p;
+                acts.push({
+                    kind: 'flame', label: `転生 ${Math.round(cur)} → ${Math.round(hit.mean)}`,
+                    detail: `黒転生 期待${rolls < 10 ? rolls.toFixed(1) : Math.round(rolls).toLocaleString()}回`,
+                    cost: (o.flamePrice || FLAME_PRICE) * rolls, score: hit.mean - cur,
+                    next: { flameCur: hit.mean },
                 });
             }
         }
@@ -322,7 +423,7 @@
             total += pick.act.cost;
             out.push({
                 ...pick.act, eff: pick.eff, name: pick.item.name,
-                big: BIG_TICKET.has(pick.item.part),
+                big: pick.act.kind === 'pot' && BIG_TICKET.has(pick.item.part),
                 level: FIXED_LV[pick.item.part] || pick.item.level, cum: total
             });
             Object.assign(state[pick.idx], pick.act.next);
@@ -397,14 +498,14 @@ vertical-align:1px;white-space:nowrap}
 .gp .who{font-size:11px;color:var(--mu)}
 .gp .what{font-size:13.5px;line-height:1.35}
 .gp .what b{font-weight:600}
-.gp .star b{color:var(--gold)} .gp .pot b{color:var(--cyan)}
+.gp .star b{color:var(--gold)} .gp .pot b{color:var(--cyan)} .gp .flame b{color:#4ade80}
 .gp .step.big b{color:var(--violet)}
 .gp .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;text-align:right;font-size:14px;font-weight:600;color:#fff;line-height:1.25}
 .gp .eff{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;text-align:right;font-size:12px;color:#cbd5e1;line-height:1.25}
 .gp .sm{font-size:10.5px}
 .gp .meter{height:2px;margin-top:3px;background:var(--ln);overflow:hidden}
 .gp .meter i{display:block;height:100%}
-.gp .star .meter i{background:var(--gold)} .gp .pot .meter i{background:var(--cyan)}
+.gp .star .meter i{background:var(--gold)} .gp .pot .meter i{background:var(--cyan)} .gp .flame .meter i{background:#4ade80}
 .gp .step.big .meter i{background:var(--violet)}
 .gp .legend{display:flex;gap:4px 14px;font-size:11px;color:var(--mu);margin-bottom:4px;flex-wrap:wrap}
 .gp .dot{display:inline-block;width:8px;height:8px;margin-right:5px}
@@ -488,6 +589,9 @@ column-gap:2px;padding:1px 0}
 .gp-veil .srow .ssf{text-align:right;color:var(--gold)}
 .gp-veil .srow .sflh{text-align:right;color:#4ade80}
 .gp-veil .srow input.sfl{padding:1px 4px;text-align:right;color:#4ade80;border-color:#166534;font-size:12.5px}
+.gp-veil .srow.base{grid-template-columns:92px 64px 1fr;column-gap:8px;margin-top:4px}
+.gp-veil .srow.base input{padding:1px 4px;text-align:right;font-size:12.5px}
+.gp-veil .srow .bnote{font-family:"IBM Plex Sans JP",sans-serif;font-size:10.5px;color:var(--mu);line-height:1.35}
 .gp-veil .eq-score{margin:4px 0 0;font-size:11px;color:var(--mu);text-align:right}
 .gp-veil .eq-score b{font-family:"IBM Plex Mono",monospace;color:#fff;font-variant-numeric:tabular-nums;display:inline-block;min-width:48px}
 .gp-veil .plines{display:flex;flex-direction:column;gap:3px}
@@ -520,7 +624,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
     const blankLines = (grade = 'L') => [0, 1, 2].map((i) => ({ k: '', g: defaultLineGrade(grade, i), v: 0 }));
     const blankSlot = (on) => ({
         on, level: 160, star: 0, stage: 0, mode: '',
-        item: null, grade: 'L', lines: blankLines(), flame: blankFlame(),
+        item: null, grade: 'L', lines: blankLines(), flame: blankFlame(), baseAtt: 0,
     });
     // Flame score on the same weights as everything else.
     const flameScore = (f, w) => (f.main || 0) * w.main + (f.att || 0) * w.att + (f.boss || 0) * w.boss
@@ -539,6 +643,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
             return { k: POT_OPTS[ln.k] || ln.k === 'etc' ? ln.k : '', g: GRADES.includes(ln.g) ? ln.g : defaultLineGrade(d.grade, i), v: Number(ln.v) || 0 };
         });
         if (v.flame) for (const [k] of FLAME_FIELDS) d.flame[k] = num(v.flame[k], 0, 9999);
+        d.baseAtt = num(v.baseAtt, 0, 9999);
         return d;
     }
 
@@ -569,13 +674,13 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
     const defaultSlots = () => {
         const out = {};
         for (const id of Object.keys(SLOTS)) {
-            out[id] = blankSlot(hasPot(id));
+            out[id] = { ...blankSlot(hasPot(id)), level: defaultLevel(id) };
         }
         return out;
     };
     const DEFAULT_STATE = () => ({
         w: { main: 1, att: 4, statPct: 10, allStat: 12, crit: 30, attPct: 44, boss: 11, dmg: 11 },
-        o: { ssf: true, safeguard: true, starCatch: true, planName: '1144' },
+        o: { ssf: true, safeguard: true, starCatch: true, planName: '1144', flamePrice: 3e6 },
         slots: defaultSlots(),
         limit: 40,
     });
@@ -610,6 +715,8 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                         if (v) slots[id] = cleanSlot(v);
                         // A slot can lose its tables between versions; don't leave it checked.
                         if (!hasPot(id) && !hasStar(id)) slots[id].on = false;
+                        // Saves from when the emblem was pinned to Lv100 carry a stray level.
+                        if (v && !slots[id].item && !levelsFor(id).includes(slots[id].level)) slots[id].level = defaultLevel(id);
                     }
                 }
                 this.state = {
@@ -633,6 +740,8 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                         level: v.level, star: v.star, stage: v.stage, mode: v.mode,
                         lines: v.grade ? v.lines : null,
                         noStar: !hasStar(id),
+                        flame: v.flame, flameOk: this.flameOk(id, v), baseAtt: v.baseAtt || 0,
+                        boss: !!(ITEM_BY_ID.get(v.item) || {}).bossReward,
                     };
                 });
         },
@@ -670,6 +779,10 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                         ${Object.keys(PLANS).map((k) => `<option value="${k}" ${o.planName === k ? 'selected' : ''}>${esc(PLAN_LABEL[k])}</option>`).join('')}
                     </select>
                 </div>
+                <div style="width:96px">
+                    <label for="gp-flame-price">黒転生 1回（M）</label>
+                    <input id="gp-flame-price" type="number" min="0" step="0.1" value="${(o.flamePrice || 3e6) / 1e6}" data-gp="flamePrice">
+                </div>
                 <div style="width:70px">
                     <label for="gp-limit">読む手数</label>
                     <input id="gp-limit" type="number" min="1" max="80" value="${limit}" data-gp="limit">
@@ -698,6 +811,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
         <div class="legend">
             <span><i class="dot" style="background:#f4b942"></i>スターフォース</span>
             <span><i class="dot" style="background:#48d6c8"></i>潜在</span>
+            <span><i class="dot" style="background:#4ade80"></i>転生</span>
             <span><i class="dot" style="background:#b18cf7"></i>武器・補助武器・エンブレムの潜在</span>
             <span>バーは1スコアあたりの単価（対数）。長いほど割高。</span>
         </div>
@@ -720,6 +834,9 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                     this.save(); this.renderPlan();
                 } else if (kind === 'limit') {
                     this.state.limit = Math.max(1, Math.min(80, Number(t.value) || 1));
+                    this.save(); this.renderPlan();
+                } else if (kind === 'flamePrice') {
+                    this.state.o.flamePrice = Math.max(0, Number(t.value) || 0) * 1e6;
                     this.save(); this.renderPlan();
                 }
             });
@@ -769,6 +886,12 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
             window.addEventListener('keydown', this.onKey);
             // The modal host outlives every modal, so delegate from it once.
             this.bindModal(root.querySelector('#gp-modal-host'));
+        },
+
+        // Bonus stats: off for parts that never roll them and for picked items marked noFlame.
+        flameOk(id, v) {
+            const it = ITEM_BY_ID.get(v.item);
+            return !NO_FLAME_SLOT.has(id) && !(it && it.noFlame);
         },
 
         // The top slot holding a one-piece overall leaves the bottom slot empty.
@@ -987,7 +1110,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
             }).join('') : '';
             const potScoreNow = d.grade ? linesScore(d.lines.map((ln, i) => ({ ...ln, g: lineGrades(d.grade, i).includes(ln.g) ? ln.g : lineGrades(d.grade, i)[0] })), w) : 0;
 
-            const levels = LEVELS.map((v) => `<option value="${v}" ${v === L ? 'selected' : ''}>Lv${v}</option>`).join('');
+            const levels = levelsFor(d.id).map((v) => `<option value="${v}" ${v === L ? 'selected' : ''}>Lv${v}</option>`).join('');
 
             return `<div class="eq-head">
                     <button type="button" class="eq-ico" data-gp="m-picker" title="装備を選ぶ">${iconImg(d.item, 40)}</button>
@@ -1001,6 +1124,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
 
                 <p class="eq-sec"><b>ステータス</b><span>${noFlame ? 'この装備は転生が付きません' : 'スタフォは★から自動、<em>転生</em>だけ入力します'}</span></p>
                 <div class="srows"><div class="srow hd"><span></span><span>合計</span><span></span><span class="ssf">スタフォ</span><span></span><span class="sflh">転生</span><span></span></div>${rows}</div>
+                ${s.part === '武器' && !noFlame ? `<div class="srow base"><span class="sk">基本攻撃力</span><input class="sbase" type="number" min="0" max="9999" step="1" value="${d.baseAtt || ''}" placeholder="0" data-gp="m-base" aria-label="武器の基本攻撃力"><span class="bnote">武器の転生の攻撃力は基本攻撃力の割合で出るので、転生の計算にだけ使います</span></div>` : ''}
                 <p class="eq-score">転生スコア <b data-flame-score>${Math.round(flameScore(d.flame, w)).toLocaleString()}</b></p>
 
                 ${pot ? `<p class="eq-sec"><b>潜在能力</b>
@@ -1062,6 +1186,8 @@ ${grades}
                 this.renderModal();
             });
             host.addEventListener('input', (e) => {
+                const b = e.target.closest('[data-gp="m-base"]');
+                if (b && this.draft) { this.draft.baseAtt = Math.max(0, Math.min(9999, Math.floor(Number(b.value) || 0))); return; }
                 const t = e.target.closest('[data-gp="m-flame"]');
                 if (!t || !this.draft) return;
                 // Typing must not rebuild the modal (it would drop focus), so only
