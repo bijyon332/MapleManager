@@ -143,7 +143,11 @@
     // Cheap per point of score, but each step runs into the tens of billions,
     // so the plan flags them in their own colour rather than burying them.
     const BIG_TICKET = new Set(['武器', '補助武器', 'エンブレム']);
-    const FIXED_LV = { 'エンブレム': 100 };
+    // Parts whose level never varies. Emblems now come in Lv100 and Lv200.
+    const FIXED_LV = {};
+    // Levels offered when no item is picked; emblems only come in two.
+    const levelsFor = (id) => (id === 'emblem' ? [100, 200] : LEVELS);
+    const defaultLevel = (id) => (id === 'emblem' ? 100 : 160);
 
     // The equip rack, laid out the way the slots sit in the game window.
     // `part` picks the potential/star tables; null means nothing to enhance.
@@ -670,7 +674,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
     const defaultSlots = () => {
         const out = {};
         for (const id of Object.keys(SLOTS)) {
-            out[id] = blankSlot(hasPot(id));
+            out[id] = { ...blankSlot(hasPot(id)), level: defaultLevel(id) };
         }
         return out;
     };
@@ -711,6 +715,8 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                         if (v) slots[id] = cleanSlot(v);
                         // A slot can lose its tables between versions; don't leave it checked.
                         if (!hasPot(id) && !hasStar(id)) slots[id].on = false;
+                        // Saves from when the emblem was pinned to Lv100 carry a stray level.
+                        if (v && !slots[id].item && !levelsFor(id).includes(slots[id].level)) slots[id].level = defaultLevel(id);
                     }
                 }
                 this.state = {
@@ -1104,7 +1110,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
             }).join('') : '';
             const potScoreNow = d.grade ? linesScore(d.lines.map((ln, i) => ({ ...ln, g: lineGrades(d.grade, i).includes(ln.g) ? ln.g : lineGrades(d.grade, i)[0] })), w) : 0;
 
-            const levels = LEVELS.map((v) => `<option value="${v}" ${v === L ? 'selected' : ''}>Lv${v}</option>`).join('');
+            const levels = levelsFor(d.id).map((v) => `<option value="${v}" ${v === L ? 'selected' : ''}>Lv${v}</option>`).join('');
 
             return `<div class="eq-head">
                     <button type="button" class="eq-ico" data-gp="m-picker" title="装備を選ぶ">${iconImg(d.item, 40)}</button>

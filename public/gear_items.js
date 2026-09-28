@@ -2,7 +2,7 @@
 // 装備本体のステータスはスコア重みで吸収するので持たない。職業で分かれる装備は戦士版を代表にしている。
 // id は GMS のアイテムID（maplestory.io の画像に使う）。bossReward はボス装備（転生が常に4行）。
 // noFlame は転生が付かない部位。ver は画像を読む maplestory.io のGMSバージョン（省略時 255）。
-// Lv140 以上だけ載せる（心臓のプラズマハート・フェアリーハートは例外）。出典: maplestorywiki.net の各セットページ、maplestory.io GMS v255 の検索。
+// Lv140 以上だけ載せる（心臓のプラズマハート・フェアリーハートと、エンブレムのゴールドエンブレムは例外）。出典: maplestorywiki.net の各セットページ、maplestory.io GMS v255 の検索。
 window.GEAR_ITEMS = [
     {"id": 1003797, "name": "Royal Warrior Helm", "set": "cra", "slot": "hat", "level": 150, "bossReward": true},
     {"id": 1042254, "name": "Eagle Eye Warrior Armor", "set": "cra", "slot": "top", "level": 150, "bossReward": true},
@@ -65,4 +65,6 @@ window.GEAR_ITEMS = [
     {"id": 1132246, "name": "Superior Engraved Gollux Belt", "set": "gollux", "slot": "belt", "level": 150, "bossReward": true},
     {"id": 1672099, "name": "Plasma Heart", "set": "other", "slot": "heart", "level": 130, "bossReward": false, "noFlame": true, "ver": 270},
     {"id": 1672073, "name": "Fairy Heart", "set": "other", "slot": "heart", "level": 100, "bossReward": false, "noFlame": true},
+    {"id": 1190555, "name": "Mitra's Rage: Warrior", "set": "pitched", "slot": "emblem", "level": 200, "bossReward": true, "noFlame": true, "ver": 270},
+    {"id": 1190301, "name": "Gold Maple Leaf Emblem", "set": "other", "slot": "emblem", "level": 100, "bossReward": false, "noFlame": true, "ver": 270},
 ];
