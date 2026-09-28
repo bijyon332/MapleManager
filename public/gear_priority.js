@@ -624,7 +624,13 @@ vertical-align:1px;white-space:nowrap}
 .gp .tgt{font-size:12px;line-height:1.4;margin-top:2px}
 .gp .tgt .tl{font-size:10.5px;color:var(--mu);border:1px solid var(--ln);padding:0 4px;margin-right:6px}
 .gp .tgt b{font-weight:600}
-.gp .tgt.alt{font-size:11px;color:var(--mu);margin-top:0}
+.gp .tgt summary{list-style:none;cursor:pointer}
+.gp .tgt summary::-webkit-details-marker{display:none}
+.gp .tgt .more{font-size:11px;color:var(--mu);margin-left:8px;text-decoration:underline dotted}
+.gp .tgt .more::after{content:" ▾"}
+.gp .tgt[open] .more::after{content:" ▴"}
+.gp .tgt summary:focus-visible{outline:1px solid var(--ln)}
+.gp .tgt .alt{font-size:11px;color:var(--mu)}
 .gp .star b{color:var(--gold)} .gp .pot b{color:var(--cyan)} .gp .flame b{color:#4ade80}
 .gp .step.big b{color:var(--violet)}
 .gp .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;text-align:right;font-size:14px;font-weight:600;color:#fff;line-height:1.25}
@@ -1085,8 +1091,12 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
             if (s.kind !== 'pot' || !s.pot) return '';
             const t = potTarget(s.pot.key, s.unit, s.pot.L, this.state.w, s.pot.thr);
             if (!t) return '';
-            const alt = t.count ? `<div class="tgt alt">ほか${t.count}通りでも可${t.others.length ? '。多いのは ' + t.others.map((o) => `${esc(o.label)} ${pctText(o.share)}`).join('、') : ''}</div>` : '';
-            return `<div class="tgt"><span class="tl">目標</span><b>${esc(t.min)}</b> <span class="who">狙うと期待${countText(t.rolls)}個</span></div>${alt}`;
+            const head = `<span class="tl">目標</span><b>${esc(t.min)}</b> <span class="who">狙うと期待${countText(t.rolls)}個</span>`;
+            if (!t.count) return `<div class="tgt">${head}</div>`;
+            // The other combinations stay folded until asked for.
+            const list = t.others.map((o) => `${esc(o.label)} ${pctText(o.share)}`).join('、');
+            return `<details class="tgt"><summary>${head}<span class="more">ほか${t.count}通り</span></summary>
+                <div class="alt">ほか${t.count}通りでも可。${list ? '多いのは ' + list + '（止まったときの割合）' : ''}</div></details>`;
         },
 
         renderPlan() {
