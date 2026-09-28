@@ -143,8 +143,8 @@
     // Parts whose level never varies. Emblems now come in Lv100 and Lv200.
     const FIXED_LV = {};
     // Levels offered when no item is picked; emblems only come in two.
-    const levelsFor = (id) => (id === 'emblem' ? [100, 200] : LEVELS);
-    const defaultLevel = (id) => (id === 'emblem' ? 100 : 160);
+    const levelsFor = (id) => (id === 'emblem' ? [100, 200] : SLOTS[id].lv ? [SLOTS[id].lv] : LEVELS);
+    const defaultLevel = (id) => (id === 'emblem' ? 100 : SLOTS[id].lv || 160);
 
     // The equip rack, laid out the way the slots sit in the game window.
     // `part` picks the potential/star tables; null means nothing to enhance.
@@ -166,22 +166,26 @@
         top: { label: '上', part: '上衣' },
         bottom: { label: '下', part: '下衣' },
         shoulder: { label: '肩', part: '肩装飾' },
-        pocket: { label: 'ポケットスロット', part: null, noStar: true },
+        // Pocket items and the title only take bonus stats, always boss-grade.
+        pocket: { label: 'ポケットスロット', part: null, noStar: true, bossFlame: true },
         cape: { label: 'マント', part: 'マント' },
         glove: { label: '手', part: '手袋' },
         shoe: { label: '足', part: '靴' },
         heart: { label: '心臓', part: 'ハート' },
         badge: { label: 'バッジ', part: null, noStar: true },
+        title: { label: '称号', part: null, noStar: true, bossFlame: true, lv: 250 },
     };
     const GRID = [
         ['weapon', 'ring1', 'face', 'hat', 'cape'],
         ['sub', 'ring2', 'eye', 'top', 'glove'],
         ['emblem', 'ring3', 'ear', 'bottom', 'shoe'],
         [null, 'ring4', 'pendant1', 'shoulder', 'heart'],
-        [null, 'belt', 'pendant2', 'pocket', 'badge'],
+        ['title', 'belt', 'pendant2', 'pocket', 'badge'],
     ];
     const hasStar = (id) => !SLOTS[id].noStar && !NO_STAR.has(SLOTS[id].part);
     const hasPot = (id) => !!SLOTS[id].part;
+    // Something to plan for: stars, potential, or bonus stats.
+    const hasWork = (id) => hasPot(id) || hasStar(id) || !NO_FLAME_SLOT.has(id);
 
     // 18*+ mode: which MODE row each star uses. 1144 runs 18/19 cheap and
     // safeguards 20/21; 4444 safeguards all four.
@@ -284,6 +288,59 @@
         }
         return [...out.entries()].map(([s, p]) => [Number(s), p / kept]).sort((x, y) => x[0] - y[0]);
     }
+    // The same rolls, but kept as line combinations (order ignored) so a plan row
+    // can name what to stop on. Lines the weights ignore all read as "その他".
+    function potCombos(key, cube, L, w) {
+        const lines = CUBE_RATES[key][cube].map((rows) => {
+            const b = new Map();
+            let rest = 1;
+            const put = (label, s, boss, p) => {
+                const e = b.get(label);
+                if (e) e.p += p; else b.set(label, { label, s, boss, p });
+            };
+            for (const [k, v, p] of rows) {
+                rest -= p;
+                const o = POT_OPTS[k];
+                const val = v + (L >= 160 && HI_UP.has(k) ? 1 : 0);
+                const s = o && o.w ? val * (w[o.w] || 0) : 0;
+                put(s > 0 ? `${o.jp}${val}%` : 'その他', s, k === 'boss' ? 1 : 0, p);
+            }
+            if (rest > 1e-9) put('その他', 0, 0, rest);
+            return [...b.values()];
+        });
+        const out = new Map();
+        let kept = 0;
+        for (const a of lines[0]) for (const b of lines[1]) for (const c of lines[2]) {
+            if (a.boss + b.boss + c.boss > 2) continue;
+            const p = a.p * b.p * c.p;
+            kept += p;
+            // Best line first, so "攻撃力12%・攻撃力9%・その他" reads top-down.
+            const three = [a, b, c].sort((x, y) => y.s - x.s);
+            const k = three.map((x) => x.label).join('・');
+            const e = out.get(k);
+            if (e) e.p += p; else out.set(k, { label: k, s: a.s + b.s + c.s, p });
+        }
+        return [...out.values()].map((e) => ({ ...e, p: e.p / kept }));
+    }
+    // What to stop on when rolling to beat `thr`: of the combinations that beat
+    // it, the cheapest one to aim for (cube price / its chance, so the likeliest),
+    // plus the next likeliest others that would also do.
+    function potTarget(key, cube, L, w, thr) {
+        const ck = `${key}|${cube}|${L >= 160 ? 1 : 0}|${w.statPct}|${w.allStat}|${w.attPct}|${w.dmg}|${w.boss}|${w.crit}`;
+        let all = potComboCache.get(ck);
+        if (!all) {
+            if (potComboCache.size > 200) potComboCache.clear();
+            all = potCombos(key, cube, L, w);
+            potComboCache.set(ck, all);
+        }
+        const hits = all.filter((e) => e.s > thr + 1e-9);
+        if (!hits.length) return null;
+        const pHit = hits.reduce((a, e) => a + e.p, 0);
+        const byP = [...hits].sort((a, b) => b.p - a.p || a.s - b.s);
+        const others = byP.slice(1, 3).map((e) => ({ label: e.label, share: e.p / pHit }));
+        return { min: byP[0].label, rolls: 1 / byP[0].p, others, count: hits.length - 1 };
+    }
+    let potComboCache = new Map();
     let potCache = new Map();
     function potDistCached(key, cube, L, w) {
         const k = `${key}|${cube}|${L >= 160 ? 1 : 0}|${w.statPct}|${w.allStat}|${w.attPct}|${w.dmg}|${w.boss}|${w.crit}`;
@@ -306,11 +363,16 @@
     const FLAME_POOL = 19;
     const FLAME_PRICE = 3e6;
     // Parts that never carry bonus stats (the catalog's noFlame covers picked items).
-    const NO_FLAME_SLOT = new Set(['ring1', 'ring2', 'ring3', 'ring4', 'shoulder', 'heart', 'badge', 'emblem', 'sub', 'pocket']);
+    const NO_FLAME_SLOT = new Set(['ring1', 'ring2', 'ring3', 'ring4', 'shoulder', 'heart', 'badge', 'emblem', 'sub']);
     const singleStat = (L, t) => Math.min(12, Math.floor(L / 20) + 1) * t;
     const dualStat = (L, t) => Math.min(7, Math.floor(L / 40) + 1) * t;
     // Weapon attack is a share of the weapon's own attack, 10% steeper per tier.
-    const weaponAtt = (base, L, t) => Math.ceil(base * (Math.floor(L / 40) + 1) / 100 * t * Math.pow(1.1, t - 1));
+    // Fitted to the kiiten table (boss tiers 3-7); only used for weapons it doesn't list.
+    const weaponAtt = (base, L, t) => Math.ceil(base * (Math.floor(L / 40) + 1) / 100 * t * Math.pow(1.1, t - 3));
+    // `base` is either the weapon's base attack or its table row [tier3..tier7].
+    const weaponAttOf = (base, L, t) => Array.isArray(base)
+        ? base[Math.max(0, Math.min(4, t - 3))]
+        : weaponAtt(base || 0, L, t);
     const choose = (n, k) => {
         if (k < 0 || k > n) return 0;
         let r = 1;
@@ -330,7 +392,7 @@
         add((t) => dualStat(L, t) * (w.main + sub));                 // main + sub pair
         for (let i = 0; i < 2; i++) add((t) => dualStat(L, t) * w.main); // main with one of the other two
         for (let i = 0; i < 2; i++) add((t) => dualStat(L, t) * sub);    // sub with one of the other two
-        add((t) => (weapon ? weaponAtt(baseAtt || 0, L, t) : t) * w.att);
+        add((t) => (weapon ? weaponAttOf(baseAtt, L, t) : t) * w.att);
         add((t) => t * (w.allStat || 0));
         if (weapon) {
             add((t) => 2 * t * w.boss);
@@ -407,7 +469,7 @@
         }
         if (item.flameOk) {
             const cur = item.flameCur != null ? item.flameCur : flameScore(item.flame || {}, w);
-            const dist = flameDistCached(L, !!item.boss, item.part === '武器', item.baseAtt || 0, w);
+            const dist = flameDistCached(L, !!item.boss, item.part === '武器', item.wRow || item.baseAtt || 0, w);
             const hit = flameBeat(dist, cur);
             if (hit) {
                 const rolls = 1 / hit.p;
@@ -433,6 +495,7 @@
             if (best) acts.push({
                 kind: 'pot', from: cur, to: best.hit.mean, rolls: best.rolls, unit: best.cube,
                 cost: best.cost, score: best.hit.mean - cur, next: { potCur: best.hit.mean },
+                pot: { key, L, thr: cur },
             });
         }
         return acts;
@@ -458,6 +521,7 @@
             const last = out[out.length - 1], a = pick.act;
             if (last && last.idx === pick.idx && last.kind === a.kind && last.unit === a.unit) {
                 last.to = a.to; last.cost += a.cost; last.score += a.score;
+                if (a.pot) last.pot = a.pot;
                 last.rolls = (last.rolls || 0) + (a.rolls || 0);
                 last.booms = (last.booms || 0) + (a.booms || 0);
                 last.steps += 1; last.eff = last.cost / last.score; last.cum = total;
@@ -491,6 +555,7 @@
 
     /* ---------- ui ---------- */
     const fmtB = (v) => (v >= 1e12 ? (v / 1e12).toFixed(2) + 'T' : v >= 1e9 ? (v / 1e9).toFixed(2) + 'B' : (v / 1e6).toFixed(0) + 'M');
+    const pctText = (p) => (p >= 0.1 ? Math.round(p * 100) : (p * 100).toFixed(p >= 0.01 ? 1 : 2)) + '%';
     const fmtM = (v) => (v >= 1e9 ? (v / 1e9).toFixed(1) + 'B' : (v / 1e6).toFixed(1) + 'M');
     const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -556,6 +621,16 @@ vertical-align:1px;white-space:nowrap}
 .gp .who{font-size:11px;color:var(--mu)}
 .gp .what{font-size:13.5px;line-height:1.35}
 .gp .what b{font-weight:600}
+.gp .tgt{font-size:12px;line-height:1.4;margin-top:2px}
+.gp .tgt .tl{font-size:10.5px;color:var(--mu);border:1px solid var(--ln);padding:0 4px;margin-right:6px}
+.gp .tgt b{font-weight:600}
+.gp .tgt summary{list-style:none;cursor:pointer}
+.gp .tgt summary::-webkit-details-marker{display:none}
+.gp .tgt .more{font-size:11px;color:var(--mu);margin-left:8px;text-decoration:underline dotted}
+.gp .tgt .more::after{content:" ▾"}
+.gp .tgt[open] .more::after{content:" ▴"}
+.gp .tgt summary:focus-visible{outline:1px solid var(--ln)}
+.gp .tgt .alt{font-size:11px;color:var(--mu)}
 .gp .star b{color:var(--gold)} .gp .pot b{color:var(--cyan)} .gp .flame b{color:#4ade80}
 .gp .step.big b{color:var(--violet)}
 .gp .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;text-align:right;font-size:14px;font-weight:600;color:#fff;line-height:1.25}
@@ -647,8 +722,12 @@ column-gap:2px;padding:1px 0}
 .gp-veil .srow .ssf{text-align:right;color:var(--gold)}
 .gp-veil .srow .sflh{text-align:right;color:#4ade80}
 .gp-veil .srow input.sfl{padding:1px 4px;text-align:right;color:#4ade80;border-color:#166534;font-size:12.5px}
-.gp-veil .srow.base{grid-template-columns:92px 64px 1fr;column-gap:8px;margin-top:4px}
+.gp-veil .srow.base{grid-template-columns:92px 88px 1fr;column-gap:8px;margin-top:4px}
 .gp-veil .srow.base input{padding:1px 4px;text-align:right;font-size:12.5px}
+.gp-veil .srow.wjob{grid-template-columns:92px 1fr}
+.gp-veil .srow .wsel{display:flex;gap:6px}
+.gp-veil .srow .wsel select{max-width:180px}
+.gp-veil .srow .sbase.ro{white-space:nowrap;text-align:right;font-size:12.5px;padding:1px 4px}
 .gp-veil .srow .bnote{font-family:"IBM Plex Sans JP",sans-serif;font-size:10.5px;color:var(--mu);line-height:1.35}
 .gp-veil .eq-score{margin:4px 0 0;font-size:11px;color:var(--mu);text-align:right}
 .gp-veil .eq-score b{font-family:"IBM Plex Mono",monospace;color:#fff;font-variant-numeric:tabular-nums;display:inline-block;min-width:48px}
@@ -682,7 +761,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
     const blankLines = (grade = 'L') => [0, 1, 2].map((i) => ({ k: '', g: defaultLineGrade(grade, i), v: 0 }));
     const blankSlot = (on) => ({
         on, level: 160, star: 0, mode: '',
-        item: null, grade: 'L', lines: blankLines(), flame: blankFlame(), baseAtt: 0,
+        item: null, grade: 'L', lines: blankLines(), flame: blankFlame(), baseAtt: 0, job: '', wtype: '',
     });
     // Flame score on the same weights as everything else.
     const flameScore = (f, w) => (f.main || 0) * w.main + (f.sub || 0) * (w.sub || 0) + (f.att || 0) * w.att + (f.boss || 0) * w.boss
@@ -701,6 +780,8 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
         });
         if (v.flame) for (const [k] of FLAME_FIELDS) d.flame[k] = num(v.flame[k], 0, 9999);
         d.baseAtt = num(v.baseAtt, 0, 9999);
+        d.job = CLASS_WEAPON[v.job] ? v.job : '';
+        d.wtype = d.job && CLASS_WEAPON[d.job].includes(v.wtype) ? v.wtype : '';
         return d;
     }
 
@@ -716,12 +797,23 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
         pendant1: ['pendant'], pendant2: ['pendant'],
         hat: ['hat'], top: ['top', 'overall'], bottom: ['bottom'], shoulder: ['shoulder'],
         pocket: ['pocket'], cape: ['cape'], glove: ['glove'], shoe: ['shoe'],
-        heart: ['heart'], badge: ['badge'],
+        heart: ['heart'], badge: ['badge'], title: [],
     };
+    // Weapon flame attack by class: class -> weapon type -> the picked weapon's tier.
+    const WEAPON_FLAME = window.WEAPON_FLAME || {};
+    const CLASS_WEAPON = window.CLASS_WEAPON || {};
+    const WEAPON_TIER_JP = { absolab: 'アブソラブ', arcane: 'アーケインシェード', genesis: 'ジェネシス', destiny: 'デスティニー' };
+    const WTYPE_JP = { '杖': 'ワンド', '棒': 'スタッフ' };
+    const weaponTypeOf = (v) => v.wtype || (CLASS_WEAPON[v.job] || [])[0] || '';
+    function weaponRow(v) {
+        const it = ITEM_BY_ID.get(v.item);
+        const row = it && WEAPON_FLAME[weaponTypeOf(v)];
+        return row && row[it.set] ? row[it.set] : null;
+    }
     const itemsFor = (slotId) => ITEMS.filter((it) => (SLOT_KINDS[slotId] || []).includes(it.slot));
     const SET_JP = {
-        genesis: 'ジェネシス', eternal: 'エターナル', arcane: 'アーケインシェード', absolab: 'アブソラブ',
-        cra: 'ルートアビス', fafnir: 'ファフニール', pitched: '漆黒のボス', dawn: '黎明のボス',
+        genesis: 'ジェネシス', destiny: 'デスティニー', eternal: 'エターナル', arcane: 'アーケインシェード', absolab: 'アブソラブ',
+        cra: 'ルートアビス', pitched: '漆黒のボス', dawn: '黎明のボス',
         boss_acc: 'ボスアクセサリー', meister: 'マイスター', gollux: 'ゴルロックス', other: 'その他',
     };
     const iconUrl = (id) => `https://maplestory.io/api/GMS/${(ITEM_BY_ID.get(id) || {}).ver || 255}/item/${id}/icon`;
@@ -731,7 +823,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
     const defaultSlots = () => {
         const out = {};
         for (const id of Object.keys(SLOTS)) {
-            out[id] = { ...blankSlot(hasPot(id)), level: defaultLevel(id) };
+            out[id] = { ...blankSlot(hasWork(id)), level: defaultLevel(id) };
         }
         return out;
     };
@@ -771,7 +863,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                         const v = s.slots[id];
                         if (v) slots[id] = cleanSlot(v);
                         // A slot can lose its tables between versions; don't leave it checked.
-                        if (!hasPot(id) && !hasStar(id)) slots[id].on = false;
+                        if (!hasWork(id)) slots[id].on = false;
                         // Saves from when the emblem was pinned to Lv100 carry a stray level.
                         if (v && !slots[id].item && !levelsFor(id).includes(slots[id].level)) slots[id].level = defaultLevel(id);
                     }
@@ -788,7 +880,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
         // Enabled slots, shaped the way the planner wants them.
         entries() {
             return Object.keys(SLOTS)
-                .filter((id) => this.state.slots[id].on && (hasPot(id) || hasStar(id)))
+                .filter((id) => this.state.slots[id].on && hasWork(id))
                 .filter((id) => !(id === 'bottom' && this.bottomTaken()))
                 .map((id) => {
                     const v = this.state.slots[id];
@@ -798,7 +890,8 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                         lines: v.lines, overall: id === 'top' && this.bottomTaken(),
                         noStar: !hasStar(id),
                         flame: v.flame, flameOk: this.flameOk(id, v), baseAtt: v.baseAtt || 0,
-                        boss: !!(ITEM_BY_ID.get(v.item) || {}).bossReward,
+                        wRow: id === 'weapon' ? weaponRow(v) : null,
+                        boss: !!(ITEM_BY_ID.get(v.item) || {}).bossReward || !!SLOTS[id].bossFlame,
                     };
                 });
         },
@@ -934,7 +1027,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                 } else if (kind === 'all-on' || kind === 'all-off') {
                     const on = kind === 'all-on';
                     for (const id of Object.keys(SLOTS)) {
-                        if (hasPot(id) || hasStar(id)) this.state.slots[id].on = on;
+                        if (hasWork(id)) this.state.slots[id].on = on;
                     }
                     this.save(); this.renderRack(); this.renderPlan();
                 }
@@ -964,16 +1057,17 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                 if (!id) return '<div></div>';
                 const s = SLOTS[id], v = this.state.slots[id];
                 const covered = id === 'bottom' && taken;
-                const inert = (!hasPot(id) && !hasStar(id)) || covered;
+                const inert = !hasWork(id) || covered;
                 const it = ITEM_BY_ID.get(v.item);
                 const L = FIXED_LV[s.part] || v.level;
                 const scored = v.grade ? v.lines.filter((ln) => POT_OPTS[ln.k]).length : 0;
                 const pot = v.grade && scored
                     ? `<i style="color:${GRADE_COLOR[v.grade]}" title="${GRADE_EN[v.grade]} ${scored}行">潜在${v.grade}</i>`
                     : '<i>潜在なし</i>';
-                const flame = flameScore(v.flame, this.state.w) > 0 ? ' <u>転生</u>' : '';
+                const lit = flameScore(v.flame, this.state.w) > 0;
+                const flame = hasPot(id) ? (lit ? ' <u>転生</u>' : '') : (lit ? '<u>転生</u>' : '<i>転生なし</i>');
                 const line1 = `Lv${L}` + (hasStar(id) ? ` · <em>${v.star}★</em>` : '');
-                const line2 = pot + flame + (hasStar(id) && v.mode ? ` <b class="pin">${esc(v.mode)}</b>` : '');
+                const line2 = (hasPot(id) ? pot : '') + flame + (hasStar(id) && v.mode ? ` <b class="pin">${esc(v.mode)}</b>` : '');
                 const name = it ? it.name : s.label;
                 return `<div class="slot ${v.on && !covered ? '' : 'off'} ${inert ? 'inert' : ''}">
                     <button type="button" class="slot-btn" data-gp="edit" data-id="${id}" title="${esc(name)}" ${covered ? 'disabled' : ''}>
@@ -990,6 +1084,19 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                     </label>
                 </div>`;
             }).join('')).join('');
+        },
+
+        // Potential rows name the lines to stop on, since a score alone doesn't say.
+        targetHTML(s) {
+            if (s.kind !== 'pot' || !s.pot) return '';
+            const t = potTarget(s.pot.key, s.unit, s.pot.L, this.state.w, s.pot.thr);
+            if (!t) return '';
+            const head = `<span class="tl">目標</span><b>${esc(t.min)}</b> <span class="who">狙うと期待${countText(t.rolls)}個</span>`;
+            if (!t.count) return `<div class="tgt">${head}</div>`;
+            // The other combinations stay folded until asked for.
+            const list = t.others.map((o) => `${esc(o.label)} ${pctText(o.share)}`).join('、');
+            return `<details class="tgt"><summary>${head}<span class="more">ほか${t.count}通り</span></summary>
+                <div class="alt">ほか${t.count}通りでも可。${list ? '多いのは ' + list + '（止まったときの割合）' : ''}</div></details>`;
         },
 
         renderPlan() {
@@ -1021,6 +1128,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                 <div>
                     <div class="who">${esc(s.name)}・Lv${s.level}</div>
                     <div class="what"><b>${esc(s.label)}</b> <span class="who">${esc(s.detail)}</span>${extra || ''}</div>
+                    ${this.targetHTML(s)}
                     <div class="meter"><i style="width:${(8 + frac(s) * 92).toFixed(1)}%"></i></div>
                 </div>
                 <div class="num">${cost}<div class="who sm">累計 ${cum}</div></div>
@@ -1112,12 +1220,35 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                 ${list.length ? '' : '<p class="note">この部位の一覧はまだありません。</p>'}`;
         },
 
+        // Class and weapon type pick the weapon's flame attack from the table;
+        // anything the table doesn't cover falls back to a typed base attack.
+        weaponHTML(d) {
+            const groups = typeof CLASS_DATA !== 'undefined' ? CLASS_DATA : {};
+            const jobs = Object.entries(groups).map(([g, list]) => {
+                const opts = list.filter((c) => CLASS_WEAPON[c.id])
+                    .map((c) => `<option value="${c.id}" ${d.job === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+                return opts ? `<optgroup label="${esc(g)}">${opts}</optgroup>` : '';
+            }).join('');
+            const types = CLASS_WEAPON[d.job] || [];
+            const wt = weaponTypeOf(d);
+            const it = ITEM_BY_ID.get(d.item);
+            const row = weaponRow(d);
+            const pick = `<select data-gp="m-job" aria-label="職業"><option value="">職業を選ぶ</option>${jobs}</select>
+                ${types.length > 1 ? `<select data-gp="m-wtype" aria-label="武器種">${types.map((x) => `<option value="${esc(x)}" ${x === wt ? 'selected' : ''}>${esc(WTYPE_JP[x] || x)}</option>`).join('')}</select>` : ''}`;
+            const tier = it && WEAPON_TIER_JP[it.set];
+            const body = row
+                ? `<span class="sbase ro">+${row[1]}〜${row[4]}</span><span class="bnote">${esc(tier)}・${esc(WTYPE_JP[wt] || wt)}の表の値（4段階〜7段階）で計算します</span>`
+                : `<input class="sbase" type="number" min="0" max="9999" step="1" value="${d.baseAtt || ''}" placeholder="0" data-gp="m-base" aria-label="武器の基本攻撃力"><span class="bnote">${!d.job ? '職業を選ぶと基本攻撃力が自動で入ります。' : !tier ? 'この武器は表に無いので、' : ''}基本攻撃力を入れると転生の攻撃力を割合で出します</span>`;
+            return `<div class="srow base wjob"><span class="sk">職業</span><span class="wsel">${pick}</span></div>
+                <div class="srow base"><span class="sk">${row ? '転生の攻撃力' : '基本攻撃力'}</span>${body}</div>`;
+        },
+
         detailHTML(d) {
             const s = SLOTS[d.id];
             const it = ITEM_BY_ID.get(d.item);
-            const lvFixed = !!FIXED_LV[s.part] || !!it;
+            const lvFixed = !!FIXED_LV[s.part] || !!it || levelsFor(d.id).length === 1;
             const L = FIXED_LV[s.part] || d.level;
-            const star = hasStar(d.id), pot = hasPot(d.id);
+            const star = hasStar(d.id), pot = hasPot(d.id), pickable = itemsFor(d.id).length > 0;
             const max = maxStarOf(L);
             const w = this.state.w;
 
@@ -1169,18 +1300,18 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
             const levels = levelsFor(d.id).map((v) => `<option value="${v}" ${v === L ? 'selected' : ''}>Lv${v}</option>`).join('');
 
             return `<div class="eq-head">
-                    <button type="button" class="eq-ico" data-gp="m-picker" title="装備を選ぶ">${iconImg(d.item, 40)}</button>
+                    ${pickable ? `<button type="button" class="eq-ico" data-gp="m-picker" title="装備を選ぶ">${iconImg(d.item, 40)}</button>` : `<span class="eq-ico">${iconImg(null, 40)}</span>`}
                     <div class="eq-name">
                         <h2>${esc(it ? it.name : s.label)}</h2>
                         <p>${esc(s.label)} · ${lvFixed ? `Lv${L}` : `<select class="lv" data-gp="m-level" aria-label="装備Lv">${levels}</select>`}${star ? '' : ' · スタフォ不可'}</p>
                     </div>
-                    <button type="button" class="btn" data-gp="m-picker">装備を選ぶ</button>
+                    ${pickable ? '<button type="button" class="btn" data-gp="m-picker">装備を選ぶ</button>' : ''}
                 </div>
                 ${star ? `<div class="stars"><div class="srun">${stars}</div><div class="sside"><span class="snum">${d.star}★</span><button type="button" class="st0" data-gp="m-star" data-star="0" title="0★に戻す">0★に戻す</button></div></div>` : ''}
 
-                <p class="eq-sec"><b>ステータス</b><span>${noFlame ? 'この装備は転生が付きません' : 'スタフォは★から自動、<em>転生</em>だけ入力します'}</span></p>
+                <p class="eq-sec"><b>ステータス</b><span>${noFlame ? 'この装備は転生が付きません' : star ? 'スタフォは★から自動、<em>転生</em>だけ入力します' : '<em>転生</em>を入力します'}</span></p>
                 <div class="srows"><div class="srow hd"><span></span><span>合計</span><span></span><span class="ssf">スタフォ</span><span></span><span class="sflh">転生</span><span></span></div>${rows}</div>
-                ${s.part === '武器' && !noFlame ? `<div class="srow base"><span class="sk">基本攻撃力</span><input class="sbase" type="number" min="0" max="9999" step="1" value="${d.baseAtt || ''}" placeholder="0" data-gp="m-base" aria-label="武器の基本攻撃力"><span class="bnote">武器の転生の攻撃力は基本攻撃力の割合で出るので、転生の計算にだけ使います</span></div>` : ''}
+                ${s.part === '武器' && !noFlame ? this.weaponHTML(d) : ''}
                 <p class="eq-score">転生スコア <b data-flame-score>${Math.round(flameScore(d.flame, w)).toLocaleString()}</b></p>
 
                 ${pot ? `<p class="eq-sec"><b>潜在能力</b>
@@ -1191,7 +1322,7 @@ ${grades}
                 ${d.grade ? `<p class="eq-score">潜在スコア <b>${Math.round(potScoreNow).toLocaleString()}</b></p>` : ''}` : ''}
 
                 <div class="eq-opts">
-                    <label class="chk"><input type="checkbox" data-gp="m-on" ${d.on ? 'checked' : ''} ${(star || pot) ? '' : 'disabled'}>計算に含める</label>
+                    <label class="chk"><input type="checkbox" data-gp="m-on" ${d.on ? 'checked' : ''} ${hasWork(d.id) ? '' : 'disabled'}>計算に含める</label>
                     ${star ? `<select data-gp="m-mode" aria-label="18★以降のモード">
                         <option value="" ${d.mode ? '' : 'selected'}>18★以降: 既定（${esc(PLAN_LABEL[this.state.o.planName])}）</option>
                         ${Object.keys(PLANS).map((k) => `<option value="${k}" ${d.mode === k ? 'selected' : ''}>18★以降: ${esc(PLAN_LABEL[k])}</option>`).join('')}
@@ -1234,6 +1365,10 @@ ${grades}
                     // Keep the option if the new grade has a value for it, else the nearest.
                     const vs = POT_OPTS[ln.k] ? potValues(ln.k, ln.g, FIXED_LV[SLOTS[d.id].part] || d.level) : [];
                     if (!vs.length) { ln.k = 'etc'; ln.v = 0; } else if (!vs.includes(ln.v)) ln.v = vs[0];
+                } else if (kind === 'm-job') {
+                    d.job = t.value; d.wtype = '';
+                } else if (kind === 'm-wtype') {
+                    d.wtype = t.value;
                 } else if (kind === 'm-mode') {
                     d.mode = t.value; return;
                 } else if (kind === 'm-on') {
