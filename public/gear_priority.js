@@ -143,8 +143,8 @@
     // Parts whose level never varies. Emblems now come in Lv100 and Lv200.
     const FIXED_LV = {};
     // Levels offered when no item is picked; emblems only come in two.
-    const levelsFor = (id) => (id === 'emblem' ? [100, 200] : LEVELS);
-    const defaultLevel = (id) => (id === 'emblem' ? 100 : 160);
+    const levelsFor = (id) => (id === 'emblem' ? [100, 200] : SLOTS[id].lv ? [SLOTS[id].lv] : LEVELS);
+    const defaultLevel = (id) => (id === 'emblem' ? 100 : SLOTS[id].lv || 160);
 
     // The equip rack, laid out the way the slots sit in the game window.
     // `part` picks the potential/star tables; null means nothing to enhance.
@@ -166,22 +166,26 @@
         top: { label: '上', part: '上衣' },
         bottom: { label: '下', part: '下衣' },
         shoulder: { label: '肩', part: '肩装飾' },
-        pocket: { label: 'ポケットスロット', part: null, noStar: true },
+        // Pocket items and the title only take bonus stats, always boss-grade.
+        pocket: { label: 'ポケットスロット', part: null, noStar: true, bossFlame: true },
         cape: { label: 'マント', part: 'マント' },
         glove: { label: '手', part: '手袋' },
         shoe: { label: '足', part: '靴' },
         heart: { label: '心臓', part: 'ハート' },
         badge: { label: 'バッジ', part: null, noStar: true },
+        title: { label: '称号', part: null, noStar: true, bossFlame: true, lv: 250 },
     };
     const GRID = [
         ['weapon', 'ring1', 'face', 'hat', 'cape'],
         ['sub', 'ring2', 'eye', 'top', 'glove'],
         ['emblem', 'ring3', 'ear', 'bottom', 'shoe'],
         [null, 'ring4', 'pendant1', 'shoulder', 'heart'],
-        [null, 'belt', 'pendant2', 'pocket', 'badge'],
+        ['title', 'belt', 'pendant2', 'pocket', 'badge'],
     ];
     const hasStar = (id) => !SLOTS[id].noStar && !NO_STAR.has(SLOTS[id].part);
     const hasPot = (id) => !!SLOTS[id].part;
+    // Something to plan for: stars, potential, or bonus stats.
+    const hasWork = (id) => hasPot(id) || hasStar(id) || !NO_FLAME_SLOT.has(id);
 
     // 18*+ mode: which MODE row each star uses. 1144 runs 18/19 cheap and
     // safeguards 20/21; 4444 safeguards all four.
@@ -306,7 +310,7 @@
     const FLAME_POOL = 19;
     const FLAME_PRICE = 3e6;
     // Parts that never carry bonus stats (the catalog's noFlame covers picked items).
-    const NO_FLAME_SLOT = new Set(['ring1', 'ring2', 'ring3', 'ring4', 'shoulder', 'heart', 'badge', 'emblem', 'sub', 'pocket']);
+    const NO_FLAME_SLOT = new Set(['ring1', 'ring2', 'ring3', 'ring4', 'shoulder', 'heart', 'badge', 'emblem', 'sub']);
     const singleStat = (L, t) => Math.min(12, Math.floor(L / 20) + 1) * t;
     const dualStat = (L, t) => Math.min(7, Math.floor(L / 40) + 1) * t;
     // Weapon attack is a share of the weapon's own attack, 10% steeper per tier.
@@ -716,7 +720,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
         pendant1: ['pendant'], pendant2: ['pendant'],
         hat: ['hat'], top: ['top', 'overall'], bottom: ['bottom'], shoulder: ['shoulder'],
         pocket: ['pocket'], cape: ['cape'], glove: ['glove'], shoe: ['shoe'],
-        heart: ['heart'], badge: ['badge'],
+        heart: ['heart'], badge: ['badge'], title: [],
     };
     const itemsFor = (slotId) => ITEMS.filter((it) => (SLOT_KINDS[slotId] || []).includes(it.slot));
     const SET_JP = {
@@ -731,7 +735,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
     const defaultSlots = () => {
         const out = {};
         for (const id of Object.keys(SLOTS)) {
-            out[id] = { ...blankSlot(hasPot(id)), level: defaultLevel(id) };
+            out[id] = { ...blankSlot(hasWork(id)), level: defaultLevel(id) };
         }
         return out;
     };
@@ -771,7 +775,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                         const v = s.slots[id];
                         if (v) slots[id] = cleanSlot(v);
                         // A slot can lose its tables between versions; don't leave it checked.
-                        if (!hasPot(id) && !hasStar(id)) slots[id].on = false;
+                        if (!hasWork(id)) slots[id].on = false;
                         // Saves from when the emblem was pinned to Lv100 carry a stray level.
                         if (v && !slots[id].item && !levelsFor(id).includes(slots[id].level)) slots[id].level = defaultLevel(id);
                     }
@@ -788,7 +792,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
         // Enabled slots, shaped the way the planner wants them.
         entries() {
             return Object.keys(SLOTS)
-                .filter((id) => this.state.slots[id].on && (hasPot(id) || hasStar(id)))
+                .filter((id) => this.state.slots[id].on && hasWork(id))
                 .filter((id) => !(id === 'bottom' && this.bottomTaken()))
                 .map((id) => {
                     const v = this.state.slots[id];
@@ -798,7 +802,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                         lines: v.lines, overall: id === 'top' && this.bottomTaken(),
                         noStar: !hasStar(id),
                         flame: v.flame, flameOk: this.flameOk(id, v), baseAtt: v.baseAtt || 0,
-                        boss: !!(ITEM_BY_ID.get(v.item) || {}).bossReward,
+                        boss: !!(ITEM_BY_ID.get(v.item) || {}).bossReward || !!SLOTS[id].bossFlame,
                     };
                 });
         },
@@ -934,7 +938,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                 } else if (kind === 'all-on' || kind === 'all-off') {
                     const on = kind === 'all-on';
                     for (const id of Object.keys(SLOTS)) {
-                        if (hasPot(id) || hasStar(id)) this.state.slots[id].on = on;
+                        if (hasWork(id)) this.state.slots[id].on = on;
                     }
                     this.save(); this.renderRack(); this.renderPlan();
                 }
@@ -964,16 +968,17 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                 if (!id) return '<div></div>';
                 const s = SLOTS[id], v = this.state.slots[id];
                 const covered = id === 'bottom' && taken;
-                const inert = (!hasPot(id) && !hasStar(id)) || covered;
+                const inert = !hasWork(id) || covered;
                 const it = ITEM_BY_ID.get(v.item);
                 const L = FIXED_LV[s.part] || v.level;
                 const scored = v.grade ? v.lines.filter((ln) => POT_OPTS[ln.k]).length : 0;
                 const pot = v.grade && scored
                     ? `<i style="color:${GRADE_COLOR[v.grade]}" title="${GRADE_EN[v.grade]} ${scored}行">潜在${v.grade}</i>`
                     : '<i>潜在なし</i>';
-                const flame = flameScore(v.flame, this.state.w) > 0 ? ' <u>転生</u>' : '';
+                const lit = flameScore(v.flame, this.state.w) > 0;
+                const flame = hasPot(id) ? (lit ? ' <u>転生</u>' : '') : (lit ? '<u>転生</u>' : '<i>転生なし</i>');
                 const line1 = `Lv${L}` + (hasStar(id) ? ` · <em>${v.star}★</em>` : '');
-                const line2 = pot + flame + (hasStar(id) && v.mode ? ` <b class="pin">${esc(v.mode)}</b>` : '');
+                const line2 = (hasPot(id) ? pot : '') + flame + (hasStar(id) && v.mode ? ` <b class="pin">${esc(v.mode)}</b>` : '');
                 const name = it ? it.name : s.label;
                 return `<div class="slot ${v.on && !covered ? '' : 'off'} ${inert ? 'inert' : ''}">
                     <button type="button" class="slot-btn" data-gp="edit" data-id="${id}" title="${esc(name)}" ${covered ? 'disabled' : ''}>
@@ -1115,9 +1120,9 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
         detailHTML(d) {
             const s = SLOTS[d.id];
             const it = ITEM_BY_ID.get(d.item);
-            const lvFixed = !!FIXED_LV[s.part] || !!it;
+            const lvFixed = !!FIXED_LV[s.part] || !!it || levelsFor(d.id).length === 1;
             const L = FIXED_LV[s.part] || d.level;
-            const star = hasStar(d.id), pot = hasPot(d.id);
+            const star = hasStar(d.id), pot = hasPot(d.id), pickable = itemsFor(d.id).length > 0;
             const max = maxStarOf(L);
             const w = this.state.w;
 
@@ -1169,16 +1174,16 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
             const levels = levelsFor(d.id).map((v) => `<option value="${v}" ${v === L ? 'selected' : ''}>Lv${v}</option>`).join('');
 
             return `<div class="eq-head">
-                    <button type="button" class="eq-ico" data-gp="m-picker" title="装備を選ぶ">${iconImg(d.item, 40)}</button>
+                    ${pickable ? `<button type="button" class="eq-ico" data-gp="m-picker" title="装備を選ぶ">${iconImg(d.item, 40)}</button>` : `<span class="eq-ico">${iconImg(null, 40)}</span>`}
                     <div class="eq-name">
                         <h2>${esc(it ? it.name : s.label)}</h2>
                         <p>${esc(s.label)} · ${lvFixed ? `Lv${L}` : `<select class="lv" data-gp="m-level" aria-label="装備Lv">${levels}</select>`}${star ? '' : ' · スタフォ不可'}</p>
                     </div>
-                    <button type="button" class="btn" data-gp="m-picker">装備を選ぶ</button>
+                    ${pickable ? '<button type="button" class="btn" data-gp="m-picker">装備を選ぶ</button>' : ''}
                 </div>
                 ${star ? `<div class="stars"><div class="srun">${stars}</div><div class="sside"><span class="snum">${d.star}★</span><button type="button" class="st0" data-gp="m-star" data-star="0" title="0★に戻す">0★に戻す</button></div></div>` : ''}
 
-                <p class="eq-sec"><b>ステータス</b><span>${noFlame ? 'この装備は転生が付きません' : 'スタフォは★から自動、<em>転生</em>だけ入力します'}</span></p>
+                <p class="eq-sec"><b>ステータス</b><span>${noFlame ? 'この装備は転生が付きません' : star ? 'スタフォは★から自動、<em>転生</em>だけ入力します' : '<em>転生</em>を入力します'}</span></p>
                 <div class="srows"><div class="srow hd"><span></span><span>合計</span><span></span><span class="ssf">スタフォ</span><span></span><span class="sflh">転生</span><span></span></div>${rows}</div>
                 ${s.part === '武器' && !noFlame ? `<div class="srow base"><span class="sk">基本攻撃力</span><input class="sbase" type="number" min="0" max="9999" step="1" value="${d.baseAtt || ''}" placeholder="0" data-gp="m-base" aria-label="武器の基本攻撃力"><span class="bnote">武器の転生の攻撃力は基本攻撃力の割合で出るので、転生の計算にだけ使います</span></div>` : ''}
                 <p class="eq-score">転生スコア <b data-flame-score>${Math.round(flameScore(d.flame, w)).toLocaleString()}</b></p>
@@ -1191,7 +1196,7 @@ ${grades}
                 ${d.grade ? `<p class="eq-score">潜在スコア <b>${Math.round(potScoreNow).toLocaleString()}</b></p>` : ''}` : ''}
 
                 <div class="eq-opts">
-                    <label class="chk"><input type="checkbox" data-gp="m-on" ${d.on ? 'checked' : ''} ${(star || pot) ? '' : 'disabled'}>計算に含める</label>
+                    <label class="chk"><input type="checkbox" data-gp="m-on" ${d.on ? 'checked' : ''} ${hasWork(d.id) ? '' : 'disabled'}>計算に含める</label>
                     ${star ? `<select data-gp="m-mode" aria-label="18★以降のモード">
                         <option value="" ${d.mode ? '' : 'selected'}>18★以降: 既定（${esc(PLAN_LABEL[this.state.o.planName])}）</option>
                         ${Object.keys(PLANS).map((k) => `<option value="${k}" ${d.mode === k ? 'selected' : ''}>18★以降: ${esc(PLAN_LABEL[k])}</option>`).join('')}
