@@ -27,12 +27,16 @@ Cloudflare Worker + 静的アセットとして配信している。ビルド工
 ### アプリの読み込み
 
 全アプリの定義は `public/script.js` の `APPS` テーブルにある（HTML断片・JS・CDN・初期化処理）。
-起動時に読むのは `config.js` / `community_store.js` / `class_data.js` / `script.js` だけで、
+起動時に読むのは `boss_master.js` / `config.js` / `community_store.js` / `class_data.js` / `script.js` だけで、
 各アプリのHTML断片（`exp_sim.html`、`ranks.html`）とJSは、そのアプリを初めて開いたときに読む。
 HEXA だけは Character Manager の進捗バッジに要るので、起動直後に裏で先読みする。
 
 新しいアプリを足すときは `APPS` に1エントリ足す。HTMLは断片ファイルにして `html:`、JSは `scripts:` に書き、
 `index.html` にはナビのボタンと空の `#view-*` だけを置く。
+
+ボスの定義（名前の日英韓表記・結晶価格・最大人数・画像・入場Lv・必要フォース）は `public/boss_master.js` の1か所にある。
+Character Manager・Party Builder・Cheat Sheet はここから必要な列だけを読むので、新ボスや価格の変更はこのファイルだけ直せばよい。
+各難易度の `id` と Party Builder 用の `party.id` は保存データのキーなので変えないこと。
 
 コミュニティ名簿（Discord名 → キャラの対応）は `public/community_store.js` が一手に持っていて、
 Community Members / Party Builder / Character Manager / EXP Tracker の4つが同じものを見る。

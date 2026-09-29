@@ -836,7 +836,7 @@ const app = {
             class="mm-tile mm-diff-${diff.toLowerCase()} ${boss.type === 'MONTHLY' ? 'mm-tile-mo' : ''}">
             <div class="mm-tile-body">
                 ${img ? `<img src="${img}" alt="${boss.name}" onerror="this.nextElementSibling.style.display='block';this.remove()">` : ''}
-                <span class="mm-tile-name" ${img ? 'style="display:none"' : ''}>${this.BOSS_SHORT_NAMES[boss.name] || boss.name}</span>
+                <span class="mm-tile-name" ${img ? 'style="display:none"' : ''}>${(bossByEn(boss.name) || {}).shortEn || boss.name}</span>
             </div>
             <span class="${this.getBadgeClass(boss.difficulty)} mm-tile-diff">${diff}</span>
             ${partySize > 1 ? `<span class="absolute top-0 left-0 bg-slate-950/80 text-[9px] font-mono font-bold text-blue-300 px-0.5">×${partySize}</span>` : ''}
@@ -1573,47 +1573,10 @@ const app = {
 
     // MapleHub CDN boss image slug mapping (key: boss.name)
     // マスが狭いので、長いボス名は画像が読めないときの表示用に縮める。
-    BOSS_SHORT_NAMES: {
-        'Kalos the Guardian': 'Kalos', 'First Adversary': 'First Adv.', 'Chosen Seren': 'Seren',
-        'Verus Hilla': 'V.Hilla', 'Guardian Angel Slime': 'Slime', 'Malefic Star': 'Malefic',
-        'Crimson Queen': 'Queen', 'Princess No': 'P.No', 'Papulatus': 'Papulatus'
-    },
-    BOSS_SLUG_MAP: {
-        'Black Mage': 'black-mage',
-        'Kaling': 'kaling',
-        'First Adversary': 'the-first-adversary',
-        'Kalos the Guardian': 'kalos-the-guardian',
-        'Chosen Seren': 'chosen-seren',
-        'Baldrix': 'baldrix',
-        'Jupiter': 'jupiter',
-        'Malefic Star': 'malefic-star',
-        'Limbo': 'limbo',
-        'Lotus': 'lotus',
-        'Verus Hilla': 'verus-hilla',
-        'Darknell': 'darknell',
-        'Will': 'will',
-        'Guardian Angel Slime': 'guardian-angel-slime',
-        'Gloom': 'gloom',
-        'Lucid': 'lucid',
-        'Damien': 'damien',
-        'Mitsuhide': 'akechi-mitsuhide',
-        'Papulatus': 'papulatus',
-        'Vellum': 'vellum',
-        'Magnus': 'magnus',
-        'Princess No': 'princess-no',
-        'Zakum': 'zakum',
-        'Pierre': 'pierre',
-        'Von Bon': 'von-bon',
-        'Crimson Queen': 'crimson-queen',
-        'Cygnus': 'cygnus',
-        'Pink Bean': 'pink-bean',
-        'Hilla': 'hilla',
-        'Arkarium': 'arkarium',
-        'Gollux': 'gollux'
-    },
-
+    // ボスの画像は boss_master.js の image（MapleHub のスラグ）。無ければ英語名から作る。
     getBossImageUrl(bossName) {
-        const slug = this.BOSS_SLUG_MAP[bossName] || (bossName || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        const m = bossByEn(bossName);
+        const slug = (m && m.image) || (bossName || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
         return slug ? `https://cdn.maplehub.app/bosses/${slug}.webp` : '';
     },
 

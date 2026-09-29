@@ -32,6 +32,8 @@
          各アプリのHTML断片とJS（exp_sim / ranks / cost_calc / gear_priority /
          community / hexa_tracker / liberation 一式と Chart.js）は、そのアプリを
          初めて開いたときに読み込む。script.js の APPS テーブルを参照。 -->
+    <!-- ボスの定義（全アプリ共通）。config.js が使うので先に読む。 -->
+    <script src="boss_master.js" defer></script>
     <script src="config.js" defer></script>
     <!-- コミュニティ名簿の共有ストア。Community / Planner / Leaderboard が参照するので、
          それらより先に読み込む。 -->

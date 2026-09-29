@@ -20,36 +20,13 @@ const cheatsheet = {
 
     // ---- アーケインボス ------------------------------------------------------
     // entry: 入場Lv / 各難易度: lv = ボスLv（レベル差補正はこちらで効く）、af = 必要AF
-    ARCANE_BOSSES: [
-        { boss: 'ルシード', en: 'Lucid', entry: 220, E: { lv: 230, af: 360 }, N: { lv: 230, af: 360 }, H: { lv: 230, af: 360 } },
-        { boss: 'ウィル', en: 'Will', entry: 235, E: { lv: 235, af: 560 }, N: { lv: 250, af: 760 }, H: { lv: 250, af: 760 } },
-        { boss: 'ダスク', en: 'Gloom', entry: 245, N: { lv: 255, af: 730 }, H: { lv: 255, af: 730 } },
-        { boss: '真・ヒルラ', en: 'Verus Hilla', entry: 250, N: { lv: 250, af: 820 }, H: { lv: 250, af: 900 } },
-        { boss: 'デュンケル', en: 'Darknell', entry: 255, N: { lv: 265, af: 850 }, H: { lv: 265, af: 850 } },
-        { boss: '暗黒の魔法使い', en: 'Black Mage', entry: 255, H: { lv: 275, af: 1320 }, X: { lv: 280, af: 1320 } },
-    ],
+    // 値は boss_master.js（全アプリ共通のボス定義）から作る。
+    get ARCANE_BOSSES() { return bossForceTable('arc'); },
     ARC_TIERS: [1.5, 1.3, 1.1],
 
     // ---- オーセンティックボス ------------------------------------------------
-    // sub: ボス名の横に出す補足（1段階目だけ要求が低いなど）。
-    // 最初の対敵者ハード/エクストリームのボスLv（285/290）は Mapler House の値。MapleStory Wiki は 270。
-    // ベローナは KMS で 2026-08 実装。GMS に来ているかは未確認のまま載せている。
-    SACRED_BOSSES: [
-        { boss: '選ばれし者セレン', en: 'Chosen Seren', entry: 260, sub: '1段階目は150',
-          N: { lv: 270, sac: 200 }, H: { lv: 275, sac: 200 }, X: { lv: 280, sac: 200 } },
-        { boss: 'カロス', en: 'Kalos the Guardian', entry: 265, sub: 'ノーマル1段階目は250',
-          E: { lv: 270, sac: 200 }, N: { lv: 280, sac: 300 }, H: { lv: 285, sac: 330 }, X: { lv: 285, sac: 440 } },
-        { boss: '最初の対敵者', en: 'First Adversary', entry: 270,
-          E: { lv: 270, sac: 220 }, N: { lv: 280, sac: 320 }, H: { lv: 285, sac: 340 }, X: { lv: 290, sac: 460 } },
-        { boss: 'カリーン', en: 'Kaling', entry: 275,
-          E: { lv: 275, sac: 230 }, N: { lv: 285, sac: 330 }, H: { lv: 285, sac: 350 }, X: { lv: 285, sac: 480 } },
-        { boss: '凶星', en: 'Malefic Star', entry: 280, N: { lv: 280, sac: 400 }, H: { lv: 280, sac: 550 } },
-        { boss: 'ベローナ', en: 'Bellona', entry: 280,
-          E: { lv: 280, sac: 400 }, N: { lv: 280, sac: 450 }, H: { lv: 280, sac: 550 } },
-        { boss: 'リンボ', en: 'Limbo', entry: 285, N: { lv: 285, sac: 500 }, H: { lv: 285, sac: 500 } },
-        { boss: 'バルドリクス', en: 'Baldrix', entry: 290, N: { lv: 290, sac: 700 }, H: { lv: 290, sac: 700 } },
-        { boss: 'ユピテル', en: 'Jupiter', entry: 295, N: { lv: 295, sac: 810 }, H: { lv: 295, sac: 810 } },
-    ],
+    // sub: ボス名の横に出す補足（1段階目だけ要求が低いなど）。値は boss_master.js から作る。
+    get SACRED_BOSSES() { return bossForceTable('sac'); },
     SACRED_MAX_OVER: 50,   // 必要値 +50 で与ダメが最大（125%）
 
     // ---- アーケインフォースの比率（自分AF ÷ 必要AF）ごとの倍率 --------------
@@ -302,16 +279,13 @@ const cheatsheet = {
     // ---------------------------------------------------------
     //  結晶石の価格
     // ---------------------------------------------------------
-    // 値は Planner と同じボスマスタ（System で編集したものがあればそれ）を使う。
+    // 値は Character Manager と同じボスマスタ（boss_master.js）を使う。
     // 各難易度にソロ価格と、最大人数で割った1人分（価格 ÷ 最大人数）を並べる。
     // デミアンより安いボスは載せない（最大価格がデミアンの最大価格未満のもの）。
     CRYSTAL_COL: { EASY: 'E', NORMAL: 'N', HARD: 'H', CHAOS: 'H', EXTREME: 'X' },
     CRYSTAL_FLOOR_BOSS: 'Damien',
-    // 要求フォースの無いボス（ボスマスタの name）。
-    NO_FORCE_BOSSES: ['Lotus', 'Damien', 'Guardian Angel Slime'],
-    // 最大人数。boss_data.js（Boss Scheduler）の maxMembers と同じ。ここに無いボスは6人。
-    MAX_PARTY: { 'First Adversary': 3, 'Malefic Star': 3, 'Limbo': 3, 'Bellona': 3, 'Baldrix': 3, 'Jupiter': 3 },
-
+    // 要求フォースの無いボス（ボスマスタの name）。boss_master.js で force: 'none' のもの。
+    get NO_FORCE_BOSSES() { return BOSS_MASTER.filter(b => b.force === 'none').map(b => b.en); },
     crystalBosses() {
         const master = (window.app && app.data && app.data.masterBosses && app.data.masterBosses.length)
             ? app.data.masterBosses : DEFAULT_BOSSES;
@@ -320,7 +294,7 @@ const cheatsheet = {
             const col = this.CRYSTAL_COL[b.difficulty];
             if (!col) return;
             if (!byName.has(b.name)) byName.set(b.name, {
-                name: b.kana || b.name, party: this.MAX_PARTY[b.name] || 6, monthly: false, max: 0, key: b.name });
+                name: b.kana || b.name, party: (bossByEn(b.name) || {}).maxMembers || 6, monthly: false, max: 0, key: b.name });
             const e = byName.get(b.name);
             e[col] = { meso: b.meso, chaos: b.difficulty === 'CHAOS' };
             e.monthly = e.monthly || b.type === 'MONTHLY';
