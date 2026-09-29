@@ -407,164 +407,118 @@
     </div>
 
     <div id="char-modal"
-        class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div
-            class="bg-slate-900 border border-slate-700 w-full max-w-6xl rounded-xl shadow-2xl overflow-hidden flex flex-col h-[92vh]">
-            <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950">
-                <div>
-                    <h3 class="text-white font-bold text-lg leading-tight" id="modal-title">Edit Character</h3>
-                    <p class="text-[11px] text-slate-500 mt-1">Update character details and pick the bosses shown on the dashboard</p>
-                </div>
-                <button type="button" onclick="app.closeCharModal()" class="text-slate-400 hover:text-white"><i
-                        data-lucide="x" class="w-5 h-5"></i></button>
+        class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col h-[92vh]">
+            <div class="px-4 py-2.5 border-b border-slate-800 flex items-center gap-3 bg-slate-950">
+                <h3 class="text-white font-bold" id="modal-title">Edit Character</h3>
+                <span id="modal-subtitle" class="text-slate-500 text-xs"></span>
+                <div class="flex-1"></div>
+                <button type="button" onclick="app.closeCharModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             <form id="char-form" onsubmit="app.saveCharacter(event)" class="flex flex-col flex-1 overflow-hidden">
                 <input type="hidden" name="id">
                 <input type="hidden" name="job">
                 <input type="hidden" name="image">
-                <div class="flex-1 grid grid-cols-1 lg:grid-cols-[420px_1fr] overflow-hidden">
-                    <!-- ===== LEFT: Character info ===== -->
-                    <aside class="overflow-y-auto custom-scrollbar bg-slate-950/40 border-r border-slate-800 p-5 space-y-4">
-                        <!-- Name + Fetch -->
-                        <div>
-                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1.5 tracking-wider">Character Name / IGN</label>
-                            <div class="flex gap-2">
-                                <input type="text" name="name" required
-                                    class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-indigo-500 outline-none"
-                                    onblur="app.fetchCharacterData()">
-                                <button type="button" id="btn-fetch" onclick="app.fetchCharacterData()"
-                                    class="bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-indigo-500 whitespace-nowrap flex items-center gap-1.5 min-w-[72px] justify-center"><i data-lucide="download" class="w-3.5 h-3.5"></i>Fetch</button>
-                            </div>
-                            <div id="fetch-error-msg" class="hidden mt-2 text-xs text-rose-400 font-medium"></div>
-                        </div>
+                <input type="hidden" name="role" value="MAIN">
+                <input type="hidden" name="server" value="KRONOS">
+                <input type="hidden" name="hidden" value="false">
 
-                        <!-- Level + Role -->
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1.5 tracking-wider">Level</label>
-                                <input type="number" name="level" placeholder="—"
-                                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-indigo-500 outline-none">
+                <!-- 上段: キャラ画像（クリックで立ち絵の位置） / 情報2段 / メモ -->
+                <div class="flex border-b border-slate-800 bg-slate-950/40 relative flex-shrink-0">
+                    <button type="button" id="char-avatar-btn" onclick="app.togglePortraitPop()" title="クリックで立ち絵の位置を変更"
+                        class="w-24 border-r border-slate-800 flex items-center justify-center relative flex-shrink-0 hover:bg-slate-800/40">
+                        <img id="char-avatar-img" src="" alt="" class="max-w-[5rem] max-h-[5rem] object-contain hidden">
+                        <i id="char-avatar-ph" data-lucide="user" class="w-8 h-8 text-slate-700"></i>
+                        <i data-lucide="move-horizontal" class="w-3.5 h-3.5 absolute right-1.5 bottom-1.5 text-slate-500"></i>
+                    </button>
+                    <div class="flex-shrink-0 flex flex-col w-[600px]">
+                        <div class="flex">
+                            <div class="cm-cell border-b">
+                                <div class="cm-lbl">IGN</div>
+                                <div class="flex">
+                                    <input type="text" name="name" required class="cm-inp w-44" onblur="app.fetchCharacterData()">
+                                    <button type="button" id="btn-fetch" onclick="app.fetchCharacterData()" class="cm-btn -ml-px flex items-center gap-1 min-w-[76px] justify-center"><i data-lucide="download" class="w-3.5 h-3.5"></i>Fetch</button>
+                                </div>
+                                <div id="fetch-error-msg" class="hidden mt-1 text-[10px] text-rose-400"></div>
                             </div>
-                            <div>
-                                <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1.5 tracking-wider">Role</label>
-                                <select name="role"
-                                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-indigo-500 outline-none">
-                                    <option value="MAIN">Main</option>
-                                    <option value="SUB">Sub</option>
-                                    <option value="MULE">Mule</option>
+                            <div class="cm-cell border-b">
+                                <div class="cm-lbl">Level</div>
+                                <input type="number" name="level" placeholder="—" class="cm-inp w-16 font-mono font-bold text-right">
+                            </div>
+                            <div class="cm-cell border-b flex-1">
+                                <div class="cm-lbl">Class</div>
+                                <select name="job-select" id="char-job-select" onchange="app.onJobSelect(this.value)" class="cm-inp w-full">
+                                    <option value="">Select a Class</option>
                                 </select>
                             </div>
                         </div>
-
-                        <!-- Job Selection -->
-                        <div>
-                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1.5 tracking-wider">Job / Class</label>
-                            <select name="job-select" id="char-job-select" onchange="app.onJobSelect(this.value)"
-                                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-indigo-500 outline-none">
-                                <option value="">Select a Class</option>
-                            </select>
-                        </div>
-
-                        <!-- Previews -->
-                        <div class="grid grid-cols-2 gap-3">
-                            <div id="preview-class-container" class="hidden flex items-center gap-3 bg-slate-900/60 p-3 rounded-lg border border-slate-700/60">
-                                <img id="preview-class-img" src="" class="w-14 h-14 object-contain rounded flex-shrink-0">
-                                <div class="min-w-0">
-                                    <div class="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Class</div>
-                                    <div id="preview-class-name" class="text-white text-xs font-bold truncate"></div>
+                        <div class="flex">
+                            <div class="cm-cell">
+                                <div class="cm-lbl">Role</div>
+                                <div class="flex" id="cm-role">
+                                    <button type="button" data-v="MAIN" onclick="app.setCharRole('MAIN')" class="cm-btn">Main</button>
+                                    <button type="button" data-v="SUB" onclick="app.setCharRole('SUB')" class="cm-btn -ml-px">Sub</button>
+                                    <button type="button" data-v="MULE" onclick="app.setCharRole('MULE')" class="cm-btn -ml-px">Mule</button>
                                 </div>
                             </div>
-                            <div id="preview-api-container" class="flex items-center gap-3 bg-slate-900/60 p-3 rounded-lg border border-slate-700/60">
-                                <img id="preview-api-img" src="" class="w-14 h-14 object-contain rounded hidden flex-shrink-0">
-                                <div id="preview-api-placeholder"
-                                    class="w-14 h-14 flex items-center justify-center bg-slate-800 rounded text-[8px] text-slate-500 font-bold tracking-widest text-center leading-tight flex-shrink-0">
-                                    NO<br>IMG</div>
-                                <div class="min-w-0">
-                                    <div class="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">API / Custom</div>
-                                    <div id="preview-api-name" class="text-white text-[11px] font-mono truncate">--</div>
+                            <div class="cm-cell">
+                                <div class="cm-lbl">Server</div>
+                                <div class="flex" id="cm-server">
+                                    <button type="button" data-v="KRONOS" onclick="app.setCharServer('KRONOS')" class="cm-btn">Kronos</button>
+                                    <button type="button" data-v="CHALLENGER" onclick="app.setCharServer('CHALLENGER')" class="cm-btn -ml-px">Challenger</button>
+                                </div>
+                            </div>
+                            <div class="cm-cell flex-1">
+                                <div class="cm-lbl">Linked</div>
+                                <div class="flex gap-2">
+                                    <button type="button" id="cm-link-hexa" onclick="app.openLinkedFromModal('hexa')" class="cm-btn flex items-center gap-1.5"><i data-lucide="hexagon" class="w-3.5 h-3.5"></i>HEXA</button>
+                                    <button type="button" id="cm-link-gear" onclick="app.openLinkedFromModal('gear')" class="cm-btn flex items-center gap-1.5 whitespace-nowrap"><i data-lucide="arrow-up-wide-narrow" class="w-3.5 h-3.5"></i>Upgrade Priority</button>
                                 </div>
                             </div>
                         </div>
+                    </div>
+                    <div class="flex-1 flex flex-col px-3 py-1.5 min-w-0">
+                        <div class="cm-lbl">Memo</div>
+                        <textarea name="memo" placeholder="Notes, goals, reminders..." class="cm-inp flex-1 w-full resize-none"></textarea>
+                    </div>
 
-                        <!-- Image position editor (Dashboard slim portrait preview) -->
-                        <div>
-                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1.5 tracking-wider">Dashboard Image Position</label>
-                            <div class="flex gap-3 items-center bg-slate-900/60 p-3 rounded-lg border border-slate-700/60">
-                                <div class="w-20 h-36 bg-gradient-to-b from-slate-800 to-slate-950 border border-slate-700 rounded overflow-hidden flex-shrink-0 relative" title="Matches the dashboard's slim portrait layout">
-                                    <img id="pos-preview-img" src="" style="position:absolute;left:0;width:100%;height:100%;top:0;object-fit:cover;object-position:50% center;" onerror="this.style.display='none'">
-                                </div>
-                                <div class="flex-1 space-y-2 min-w-0">
-                                    <div>
-                                        <div class="flex items-center justify-between text-[10px] mb-0.5">
-                                            <span class="text-slate-400 font-bold uppercase tracking-wider">Horizontal (← left / right →)</span>
-                                            <span id="pos-x-val" class="text-slate-300 font-mono font-bold">50%</span>
-                                        </div>
-                                        <input type="range" id="pos-x-slider" name="imgOffsetX" min="0" max="100" value="50" step="1" oninput="app.onImagePosChange()" class="w-full accent-indigo-500">
-                                    </div>
-                                    <button type="button" onclick="app.resetImagePos()" class="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1"><i data-lucide="crosshair" class="w-3 h-3"></i>Reset to center</button>
-                                    <p class="text-[9px] text-slate-600">Drag right to shift the image right, left to shift left.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Server -->
-                        <div>
-                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1.5 tracking-wider">Server</label>
-                            <div class="grid grid-cols-2 gap-2">
-                                <label class="flex items-center gap-2 cursor-pointer bg-slate-800 border border-slate-700 hover:border-emerald-500/60 rounded-lg px-3 py-2.5 transition-colors">
-                                    <input type="radio" name="server" value="KRONOS" class="accent-emerald-500 w-4 h-4">
-                                    <span id="lbl-server-KRONOS" class="text-white text-sm font-medium">Kronos</span>
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer bg-slate-800 border border-slate-700 hover:border-purple-500/60 rounded-lg px-3 py-2.5 transition-colors">
-                                    <input type="radio" name="server" value="CHALLENGER" class="accent-purple-500 w-4 h-4">
-                                    <span id="lbl-server-CHALLENGER" class="text-white text-sm font-medium">Challenger</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <input type="hidden" name="hidden" value="false">
-                        <!-- Memo -->
-                        <div>
-                            <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1.5 tracking-wider">Memo</label>
-                            <textarea name="memo" placeholder="Notes, goals, reminders..."
-                                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-indigo-500 outline-none resize-none h-24"></textarea>
-                        </div>
-                    </aside>
-
-                    <!-- ===== RIGHT: Bosses ===== -->
-                    <section class="flex flex-col overflow-hidden bg-slate-900">
-                        <div class="flex border-b border-slate-800 bg-slate-900/60 flex-shrink-0">
-                            <button type="button" onclick="app.switchCharTab('boss')" id="char-tab-btn-boss"
-                                class="flex-1 py-3 text-xs font-bold transition-colors tab-active flex items-center justify-center gap-1.5"><i data-lucide="skull" class="w-3.5 h-3.5"></i>Bosses</button>
-                        </div>
-                        <!-- Boss sub-toolbar -->
-                        <div id="cm-boss-toolbar" class="border-b border-slate-800 bg-slate-900/30 px-4 py-2.5 flex flex-wrap items-center gap-2 flex-shrink-0">
-                            <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
-                                <button type="button" onclick="app.switchBossConfigTab('WEEKLY')" id="bc-tab-WEEKLY" class="px-2.5 py-1 rounded text-[11px] font-bold transition-colors flex items-center gap-1"><i data-lucide="bar-chart-3" class="w-3 h-3"></i>Weekly</button>
-                                <button type="button" onclick="app.switchBossConfigTab('MONTHLY')" id="bc-tab-MONTHLY" class="px-2.5 py-1 rounded text-[11px] font-bold transition-colors flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i>Monthly</button>
-                            </div>
+                    <!-- 立ち絵の位置（キャラ画像のクリックで開く） -->
+                    <div id="portrait-pop" class="hidden absolute left-2 top-[calc(100%+4px)] z-20 w-80 bg-slate-950 border border-slate-600 shadow-2xl">
+                        <div class="px-3 py-2 border-b border-slate-800 flex items-center">
+                            <span class="text-xs text-white font-bold whitespace-nowrap">立ち絵の位置</span>
+                            <span class="text-[10px] text-slate-500 ml-2 whitespace-nowrap">カードと同じ切り抜き</span>
                             <div class="flex-1"></div>
-                            <div class="text-[10px] text-slate-400 flex items-center gap-1.5">
-                                <span id="bc-counter" class="font-mono text-white font-bold">0/14</span>
-                                <span class="text-slate-600">·</span>
-                                <span id="bc-total-selected">0 total</span>
-                                <span class="text-slate-600">·</span>
-                                <span class="text-slate-500">Earnings:</span>
-                                <span id="bc-weekly-earnings" class="text-amber-300 font-mono font-bold">0</span>
+                            <button type="button" onclick="app.togglePortraitPop(false)" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+                        </div>
+                        <div class="p-3 flex gap-3">
+                            <div class="w-20 h-36 border border-slate-700 bg-slate-900 overflow-hidden flex-shrink-0 relative">
+                                <img id="pos-preview-img" src="" style="position:absolute;left:0;width:100%;height:100%;top:0;object-fit:cover;object-position:50% center;" onerror="this.style.display='none'">
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between text-[10px] text-slate-500 mb-1"><span>横位置</span><span id="pos-x-val" class="font-mono text-slate-300">50%</span></div>
+                                <input type="range" id="pos-x-slider" name="imgOffsetX" min="0" max="100" value="50" step="1" oninput="app.onImagePosChange()" class="w-full accent-indigo-500">
+                                <button type="button" onclick="app.resetImagePos()" class="text-[10px] text-indigo-400 hover:text-indigo-300 mt-2 flex items-center gap-1"><i data-lucide="crosshair" class="w-3 h-3"></i>中央に戻す</button>
+                                <p class="text-[10px] text-slate-600 mt-3">カードの立ち絵は職業の画像を使います。右へ動かすと画像が右へずれます。</p>
                             </div>
                         </div>
-                        <div class="flex-1 overflow-y-auto custom-scrollbar p-5">
-                            <div id="char-content-boss">
-                                <div id="bc-grid" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
-                            </div>
-                        </div>
-                    </section>
+                    </div>
                 </div>
-                <div class="p-4 border-t border-slate-800 bg-slate-950 flex justify-end gap-3 flex-shrink-0">
-                    <button type="button" onclick="app.closeCharModal()"
-                        class="px-4 py-2 text-slate-400 hover:text-white text-sm">Cancel</button>
-                    <button type="submit"
-                        class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2"><i data-lucide="save" class="w-4 h-4"></i>Save</button>
+
+                <!-- ボス一覧 -->
+                <div class="flex-1 overflow-y-auto custom-scrollbar">
+                    <table class="cm-boss">
+                        <thead><tr><th>Boss</th><th class="text-right cm-num">結晶</th><th class="text-right cm-num">獲得メル</th><th class="whitespace-nowrap">Difficulty</th><th>PT</th></tr></thead>
+                        <tbody id="bc-grid"></tbody>
+                    </table>
+                    <div class="text-[10px] text-slate-500 px-3 py-2">難易度を押すと登録、同じ難易度をもう一度押すと解除。結晶は人数で割る前の価格、獲得メルは結晶 ÷ PT人数。</div>
+                </div>
+
+                <div class="px-4 py-2.5 border-t border-slate-800 bg-slate-950 flex items-center gap-5 text-xs flex-shrink-0">
+                    <div><span class="cm-lbl inline mr-2">Weekly</span><span id="bc-counter" class="font-mono font-bold inline-block w-12 text-right text-violet-300">0/14</span></div>
+                    <div><span class="cm-lbl inline mr-2">週の見込み</span><span id="bc-weekly-earnings" class="font-mono font-bold text-amber-300 text-[15px] inline-block w-36 text-right">0</span></div>
+                    <div class="flex-1"></div>
+                    <button type="button" onclick="app.closeCharModal()" class="cm-btn">Cancel</button>
+                    <button type="submit" class="cm-btn cm-on px-6 flex items-center gap-1.5"><i data-lucide="save" class="w-3.5 h-3.5"></i>Save</button>
                 </div>
             </form>
         </div>
