@@ -155,11 +155,6 @@
                     class="htab nav-inactive flex items-center gap-1.5">
                     <i data-lucide="users" class="w-3.5 h-3.5"></i>Characters
                 </button>
-                <!-- タスク機能は一旦停止中 (script.js の TASKS_ENABLED) -->
-                <button type="button" id="nav-tasks" disabled title="タスク機能は現在停止中です"
-                    class="htab nav-inactive feature-disabled flex items-center gap-1.5">
-                    <i data-lucide="list-checks" class="w-3.5 h-3.5"></i>Tasks
-                </button>
                 <button onclick="app.navigate('system')" id="nav-system"
                     class="htab nav-inactive flex items-center gap-1.5">
                     <i data-lucide="settings-2" class="w-3.5 h-3.5"></i>System
@@ -303,101 +298,6 @@
                     <div id="char-list-container"></div>
                 </div>
 
-                <div id="view-tasks" class="hidden-page fade-in flex flex-col h-[calc(100vh-7rem)]">
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl flex flex-col flex-1 overflow-hidden">
-                        <div class="flex border-b border-slate-800 bg-slate-900/50 flex-shrink-0">
-                            <button onclick="app.switchTaskTab('daily')" id="task-tab-btn-daily"
-                                class="flex-1 py-3 text-xs font-bold transition-colors tab-active">Daily Tasks</button>
-                            <button onclick="app.switchTaskTab('weekly')" id="task-tab-btn-weekly"
-                                class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive">Weekly
-                                Tasks</button>
-                            <button onclick="app.switchTaskTab('boss')" id="task-tab-btn-boss"
-                                class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive">Boss Data</button>
-                        </div>
-                        <div class="flex-1 overflow-hidden relative">
-                            <div id="task-content-daily" class="absolute inset-0 flex flex-col p-6">
-                                <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-2"
-                                    id="master-daily-list"></div>
-                                <form onsubmit="app.addMasterItem(event, 'masterDailies')"
-                                    class="mt-4 pt-4 border-t border-slate-800 flex flex-wrap gap-2 flex-shrink-0 items-center">
-                                    <input type="text" name="name" placeholder="Name (English)" required
-                                        class="flex-1 min-w-[150px] bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white outline-none focus:border-indigo-500">
-                                    <input type="text" name="kana" placeholder="日本語"
-                                        class="flex-1 min-w-[150px] bg-slate-800 border border-slate-700 rounded px-3 py-2 text-slate-300 outline-none focus:border-indigo-500">
-                                    <select name="type"
-                                        class="bg-slate-800 border border-slate-700 rounded px-2 py-2 text-xs text-white outline-none focus:border-indigo-500">
-                                        <option value="OTHER">Other</option>
-                                        <option value="EVENT">Event</option>
-                                        <option value="SYMBOL">Symbol</option>
-                                        <option value="MONPA">Monster Park</option>
-                                        <option value="EPIC_DUNGEON">Epic Dungeon</option>
-                                        <option value="HEXA">HEXA</option>
-                                        <option value="GUILD">Guild</option>
-                                    </select>
-                                    <button type="submit"
-                                        class="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-500 font-bold transition-colors">ADD</button>
-                                </form>
-                            </div>
-                            <div id="task-content-weekly" class="absolute inset-0 flex flex-col p-6 hidden">
-                                <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-2"
-                                    id="master-weekly-list"></div>
-                                <form onsubmit="app.addMasterItem(event, 'masterWeeklies')"
-                                    class="mt-4 pt-4 border-t border-slate-800 flex flex-wrap gap-2 flex-shrink-0 items-center">
-                                    <input type="text" name="name" placeholder="Name (English)" required
-                                        class="flex-1 min-w-[150px] bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white outline-none focus:border-emerald-500">
-                                    <input type="text" name="kana" placeholder="日本語"
-                                        class="flex-1 min-w-[150px] bg-slate-800 border border-slate-700 rounded px-3 py-2 text-slate-300 outline-none focus:border-emerald-500">
-                                    <select name="type"
-                                        class="bg-slate-800 border border-slate-700 rounded px-2 py-2 text-xs text-white outline-none focus:border-emerald-500">
-                                        <option value="OTHER">Other</option>
-                                        <option value="EVENT">Event</option>
-                                        <option value="SYMBOL">Symbol</option>
-                                        <option value="MONPA">Monster Park</option>
-                                        <option value="EPIC_DUNGEON">Epic Dungeon</option>
-                                        <option value="HEXA">HEXA</option>
-                                        <option value="GUILD">Guild</option>
-                                    </select>
-                                    <button type="submit"
-                                        class="bg-emerald-600 text-white px-6 py-2 rounded hover:bg-emerald-500 font-bold transition-colors">ADD</button>
-                                </form>
-                            </div>
-                            <div id="task-content-boss" class="absolute inset-0 flex flex-col p-6 hidden">
-                                <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-2"
-                                    id="master-boss-list"></div>
-                                <form onsubmit="app.addBoss(event)"
-                                    class="mt-4 pt-4 border-t border-slate-800 flex gap-3 flex-shrink-0 items-center">
-                                    <div class="flex-1 flex gap-2"><input type="text" name="name"
-                                            placeholder="Boss Name" required
-                                            class="w-1/2 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white outline-none focus:border-rose-500"><input
-                                            type="text" name="kana" placeholder="日本語"
-                                            class="w-1/2 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-slate-300 outline-none focus:border-rose-500">
-                                    </div>
-                                    <div class="flex gap-2">
-                                        <select name="diff"
-                                            class="w-24 bg-slate-800 border border-slate-700 rounded px-2 py-2 text-xs text-white outline-none focus:border-rose-500">
-                                            <option value="EASY">Easy</option>
-                                            <option value="NORMAL" selected>Normal</option>
-                                            <option value="HARD">Hard</option>
-                                            <option value="CHAOS">Chaos</option>
-                                            <option value="EXTREME">Extreme</option>
-                                        </select>
-                                        <select name="type"
-                                            class="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-2 text-xs text-slate-300 outline-none focus:border-rose-500">
-                                            <option value="WEEKLY" selected>Week</option>
-                                            <option value="MONTHLY">Month</option>
-                                            <option value="DAILY">Daily</option>
-                                        </select>
-                                        <input type="number" name="meso" placeholder="Meso"
-                                            class="w-24 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white outline-none focus:border-rose-500">
-                                        <button type="submit"
-                                            class="bg-rose-600 text-white px-4 py-2 rounded hover:bg-rose-500 font-bold transition-colors">ADD</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- ========== CHEAT SHEET APP ========== -->
                 <!-- 中身は cheatsheet.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
                 <div id="view-cheatsheet" class="hidden-page fade-in"></div>
@@ -511,7 +411,7 @@
             <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950">
                 <div>
                     <h3 class="text-white font-bold text-lg leading-tight" id="modal-title">Edit Character</h3>
-                    <p class="text-[11px] text-slate-500 mt-1">Update character details and pick the recurring tasks shown on the dashboard</p>
+                    <p class="text-[11px] text-slate-500 mt-1">Update character details and pick the bosses shown on the dashboard</p>
                 </div>
                 <button type="button" onclick="app.closeCharModal()" class="text-slate-400 hover:text-white"><i
                         data-lucide="x" class="w-5 h-5"></i></button>
@@ -629,19 +529,14 @@
                         </div>
                     </aside>
 
-                    <!-- ===== RIGHT: Tasks + Bosses ===== -->
+                    <!-- ===== RIGHT: Bosses ===== -->
                     <section class="flex flex-col overflow-hidden bg-slate-900">
                         <div class="flex border-b border-slate-800 bg-slate-900/60 flex-shrink-0">
                             <button type="button" onclick="app.switchCharTab('boss')" id="char-tab-btn-boss"
                                 class="flex-1 py-3 text-xs font-bold transition-colors tab-active flex items-center justify-center gap-1.5"><i data-lucide="skull" class="w-3.5 h-3.5"></i>Bosses</button>
-                            <!-- タスク機能は一旦停止中 (script.js の TASKS_ENABLED) -->
-                            <button type="button" id="char-tab-btn-daily" disabled title="タスク機能は現在停止中です"
-                                class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive feature-disabled flex items-center justify-center gap-1.5"><i data-lucide="sun" class="w-3.5 h-3.5"></i>Daily Tasks</button>
-                            <button type="button" id="char-tab-btn-weekly" disabled title="タスク機能は現在停止中です"
-                                class="flex-1 py-3 text-xs font-bold transition-colors tab-inactive feature-disabled flex items-center justify-center gap-1.5"><i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i>Weekly Tasks</button>
                         </div>
-                        <!-- Boss sub-toolbar (only visible on Bosses tab) -->
-                        <div id="cm-boss-toolbar" class="hidden border-b border-slate-800 bg-slate-900/30 px-4 py-2.5 flex flex-wrap items-center gap-2 flex-shrink-0">
+                        <!-- Boss sub-toolbar -->
+                        <div id="cm-boss-toolbar" class="border-b border-slate-800 bg-slate-900/30 px-4 py-2.5 flex flex-wrap items-center gap-2 flex-shrink-0">
                             <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
                                 <button type="button" onclick="app.switchBossConfigTab('WEEKLY')" id="bc-tab-WEEKLY" class="px-2.5 py-1 rounded text-[11px] font-bold transition-colors flex items-center gap-1"><i data-lucide="bar-chart-3" class="w-3 h-3"></i>Weekly</button>
                                 <button type="button" onclick="app.switchBossConfigTab('MONTHLY')" id="bc-tab-MONTHLY" class="px-2.5 py-1 rounded text-[11px] font-bold transition-colors flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i>Monthly</button>
@@ -657,15 +552,7 @@
                             </div>
                         </div>
                         <div class="flex-1 overflow-y-auto custom-scrollbar p-5">
-                            <div id="char-content-daily" class="block">
-                                <p class="text-[11px] text-slate-500 mb-3">Choose the daily quests/activities this character should track. Toggle completion later from the dashboard.</p>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2" id="modal-daily-list"></div>
-                            </div>
-                            <div id="char-content-weekly" class="hidden">
-                                <p class="text-[11px] text-slate-500 mb-3">Choose the weekly activities this character should track.</p>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2" id="modal-weekly-list"></div>
-                            </div>
-                            <div id="char-content-boss" class="hidden">
+                            <div id="char-content-boss">
                                 <div id="bc-grid" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
                             </div>
                         </div>
