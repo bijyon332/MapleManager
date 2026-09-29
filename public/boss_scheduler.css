@@ -41,7 +41,6 @@ body {
 .player-dot {
     width: 8px; height: 8px; border-radius: 50%;
     flex-shrink: 0;
-    box-shadow: 0 0 6px currentColor;
 }
 
 /* === メイン / サブ === */
@@ -54,18 +53,18 @@ body {
 .role-tag {
     display: inline-block; margin-left: 5px; padding: 0 4px;
     font-size: 9px; font-weight: 700; line-height: 1.5;
-    color: #0b1220; background: var(--role-sub); border-radius: 2px;
+    color: var(--role-sub-text); background: transparent; border: 1px solid var(--role-sub); border-radius: 0;
     vertical-align: middle;
 }
 /* キャラカードのメイン／サブ切り替え */
 .role-pill {
     font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;
     padding: 2px 8px; border-radius: 2px; cursor: pointer; flex-shrink: 0;
-    background: #150f04; border: 1px solid var(--role-sub); color: var(--role-sub-text);
+    background: transparent; border: 1px solid var(--role-sub); color: var(--role-sub-text);
 }
-.role-pill:hover { background: #1d1406; }
+.role-pill:hover { background: #111827; }
 .role-pill.main {
-    background: #1e1b4b; border-color: var(--role-main); color: #c7d2fe; cursor: default;
+    background: transparent; border-color: var(--role-main); color: #c7d2fe; cursor: default;
 }
 .char-card.main { border-left: 3px solid var(--role-main); }
 .char-card.sub  { border-left: 3px solid var(--role-sub); }
@@ -310,18 +309,18 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .wr-chips { display: flex; gap: 5px; flex-wrap: wrap; flex: 1; }
 .chip {
     display: inline-flex; align-items: center; gap: 5px;
-    padding: 4px 12px; border-radius: 14px;
+    padding: 4px 12px; border-radius: 0;
     border: 1px solid #1e293b; background: #0b1220;
     font-size: 11.5px; font-weight: 700; color: #64748b; cursor: pointer;
     transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 .chip:hover { border-color: #475569; color: #e2e8f0; }
-.chip.on { color: #fff; }
-.chip.on[data-d="EASY"]    { background: #374151; border-color: #6b7280; }
-.chip.on[data-d="NORMAL"]  { background: #0e7490; border-color: #22d3ee; }
-.chip.on[data-d="HARD"]    { background: #991b1b; border-color: #f87171; }
-.chip.on[data-d="CHAOS"]   { background: #7c5e05; border-color: #facc15; }
-.chip.on[data-d="EXTREME"] { background: #7f1d1d; border-color: #ef4444; }
+/* 選んだ難易度は、塗りつぶさずに枠と文字を難易度色にし、地だけ薄く色を敷く。 */
+.chip.on[data-d="EASY"]    { color: #d1d5db; border-color: #6b7280; background: color-mix(in srgb, #6b7280 16%, #0b1220); }
+.chip.on[data-d="NORMAL"]  { color: #67e8f9; border-color: #22d3ee; background: color-mix(in srgb, #22d3ee 12%, #0b1220); }
+.chip.on[data-d="HARD"]    { color: #fca5a5; border-color: #f87171; background: color-mix(in srgb, #f87171 12%, #0b1220); }
+.chip.on[data-d="CHAOS"]   { color: #fde047; border-color: #facc15; background: color-mix(in srgb, #facc15 12%, #0b1220); }
+.chip.on[data-d="EXTREME"] { color: #f87171; border-color: #ef4444; background: color-mix(in srgb, #ef4444 12%, #0b1220); }
 .chip .mark { font-size: 11px; line-height: 1; }
 .wr-state { font-size: 10px; color: #475569; font-family: monospace; min-width: 82px; text-align: right; }
 .wr-state.on { color: #6ee7b7; }
@@ -360,11 +359,10 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .cand:active { cursor: grabbing; }
 /* メイン=藍 / サブ=琥珀 */
 .cand.main { border-left-color: var(--role-main); }
-.cand.sub  { border-left-color: var(--role-sub); background: #150f04; }
+.cand.sub  { border-left-color: var(--role-sub); }
 .cand.sub .cand-name { color: var(--role-sub-text); }
-.cand.sub:hover { background: #1d1406; }
-.cand.selected { background: #1e1b4b; border-color: #6366f1; border-left-color: #6366f1; }
-.cand.sub.selected { background: #2a1d05; border-color: var(--role-sub); border-left-color: var(--role-sub); }
+.cand.selected { background: #131c2e; border-color: #6366f1; border-left-color: #6366f1; }
+.cand.sub.selected { border-color: var(--role-sub); border-left-color: var(--role-sub); }
 .cand.dragging { opacity: 0.4; }
 .cand.placed-elsewhere { opacity: 0.45; cursor: default; }
 .cand .icon {
@@ -418,7 +416,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
     background: #1e293b; border: 1px solid #334155; color: #94a3b8;
 }
 .pill:hover { border-color: #475569; color: #e2e8f0; }
-.pill.published { background: #052e1b; border-color: #047857; color: #6ee7b7; }
+.pill.published { background: transparent; border-color: #047857; color: #6ee7b7; }
 
 /* --slot-h: 空きスロットを埋まっているスロット（アイコン＋キャラ名＋メンバー名の
    2行ぶん）と同じ高さに揃える。PTごとに枠の位置がずれると人数が読み取りにくい。 */
@@ -429,7 +427,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .slot.filled.dragging { opacity: 0.4; }
 /* メイン=藍 / サブ=琥珀。左端の線と名前の色で見分ける（バッジは色に頼らない保険）*/
 .slot.filled.main { border-left: 3px solid var(--role-main); }
-.slot.filled.sub  { border-left: 3px solid var(--role-sub); background: #150f04; }
+.slot.filled.sub  { border-left: 3px solid var(--role-sub); }
 .slot.filled.sub .slot-name { color: var(--role-sub-text); }
 .slot.empty { border: 1px dashed #1e293b; color: #475569; font-size: 11px; }
 .slot-no { font-size: 9.5px; color: #475569; font-family: monospace; width: 12px; text-align: right; flex-shrink: 0; }
@@ -474,8 +472,8 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
  *  ③ ダッシュボード
  * ========================================================= */
 .dash-hero {
-    background: linear-gradient(180deg, #131c33 0%, #0b1220 100%);
-    border: 1px solid #1e293b; border-radius: 2px;
+    background: #0f172a;
+    border: 1px solid #1e293b; border-radius: 0;
     padding: 12px 14px; margin-bottom: 12px;
 }
 .dash-hero-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 9px; }
@@ -496,9 +494,10 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 /* ボスカードは縦に積む。1ボス=1行なので、PT枠を横に広く使える。 */
 .boss-grid { display: flex; flex-direction: column; gap: 10px; }
 .boss-card {
-    background: color-mix(in srgb, var(--boss-color, #6366f1) 7%, #0f172a);
-    border: 1px solid color-mix(in srgb, var(--boss-color, #6366f1) 24%, #1e293b);
-    border-top: 3px solid var(--boss-color, #6366f1);
+    /* 地は他のパネルと同じ紺黒。ボスの色は上端の線だけで出す。 */
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-top: 2px solid var(--boss-color, #6366f1);
     border-radius: 2px; padding: 10px 11px;
 }
 .boss-card.empty { opacity: 0.55; }
