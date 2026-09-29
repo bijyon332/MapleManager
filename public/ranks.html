@@ -8,7 +8,7 @@
             <h2 class="text-white font-bold text-lg leading-tight whitespace-nowrap">EXP Tracker</h2>
             <p class="text-[11px] text-slate-500 truncate">キャラ名で検索して追加。データはMapleHubから自動取得(日次スナップショット 最大90日分)。</p>
         </div>
-        <form id="ranks-import-form" class="space-y-2">
+        <form id="ranks-import-form">
             <div class="flex flex-wrap items-center gap-2">
                 <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
                     <button type="button" data-region="na" class="ranks-region-btn px-3 py-1.5 rounded text-[11px] font-bold transition-all">NA</button>
@@ -25,13 +25,13 @@
                 <button type="button" id="ranks-refresh-all" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors" title="全キャラのデータをMapleHubから再取得">
                     <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>全更新
                 </button>
-            </div>
-            <!-- コミュニティ名簿から一括追加。手入力(上)はそのまま使える。 -->
-            <div id="ranks-community-row" class="hidden flex-wrap items-center gap-2 pt-2 border-t border-slate-800">
-                <button type="button" id="ranks-community-open" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors">
-                    <i data-lucide="users-round" class="w-3.5 h-3.5"></i>名簿から追加
-                </button>
-                <span id="ranks-community-note" class="text-[11px] text-slate-500"></span>
+                <!-- コミュニティ名簿から一括追加。表を広く使うため、手入力の追加と同じ行に置く。 -->
+                <div id="ranks-community-row" class="hidden items-center gap-2 pl-2 border-l border-slate-800">
+                    <button type="button" id="ranks-community-open" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white disabled:opacity-50 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors">
+                        <i data-lucide="users-round" class="w-3.5 h-3.5"></i>名簿から追加
+                    </button>
+                    <span id="ranks-community-note" class="text-[11px] text-slate-500 whitespace-nowrap font-mono"></span>
+                </div>
             </div>
         </form>
         <div id="ranks-msg" class="hidden mt-2 text-[11px] font-medium"></div>
@@ -53,7 +53,7 @@
                 </table>
             </div>
             <div class="px-4 py-2 border-t border-slate-800 text-[10px] text-slate-600">
-                ヘッダークリックでソート / 行クリックで推移グラフを展開 / +1〜5Lv予測は14日平均、290・295到達予測は30日平均(無い場合は90日)ベース
+                ヘッダークリックでソート / 行クリックで推移グラフを表示 / +1〜5Lv予測は14日平均、290・295到達予測は30日平均(無い場合は90日)ベース
             </div>
         </div>
     </div>

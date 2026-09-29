@@ -60,19 +60,3 @@ const DEFAULT_BOSSES = [
     { id: 'b_pink_normal', name: 'Pink Bean', kana: 'ピンクビーン', difficulty: 'NORMAL', meso: 7022500, type: 'DAILY' },
     { id: 'b_gollux_normal', name: 'Gollux', kana: 'ヴェラッド', difficulty: 'NORMAL', meso: 0, type: 'DAILY' }
 ];
-
-const DEFAULT_DAILIES = [
-    { id: 'd_mp', name: 'Monster Park', kana: 'モンパ', type: 'MONPA' },
-    { id: 'd_arc', name: 'Arcane Daily', kana: 'アーケインデイリー', type: 'SYMBOL' },
-    { id: 'd_sac', name: 'Sacred Daily', kana: 'オーセンティックデイリー', type: 'SYMBOL' },
-    { id: 'd_com', name: 'Commeric', kana: 'コメルツ', type: 'OTHER' }
-];
-
-const DEFAULT_WEEKLIES = [
-    { id: 'w_mpe', name: 'Monster Park Ex', kana: 'モンパEX', type: 'MONPA' },
-    { id: 'w_high', name: 'High mountain', kana: 'ハイマウンテン', type: 'EPIC_DUNGEON' },
-    { id: 'w_ang', name: 'Angler Company', kana: 'アングラー', type: 'EPIC_DUNGEON' },
-    { id: 'w_sym', name: 'Symbol weekly', kana: 'シンボル週', type: 'SYMBOL' },
-    { id: 'w_erda', name: 'Erda\'s Request', kana: 'ソルエルダ', type: 'HEXA' },
-    { id: 'w_cul', name: 'Culvert', kana: '水路', type: 'GUILD' }
-];

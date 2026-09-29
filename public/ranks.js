@@ -2,7 +2,7 @@
 // EXP Leaderboard & Progress: per-character EXP tracking with two tabs.
 //   - リーダーボード: sortable table (yesterday / 7d / 14d / 30d averages,
 //     +1..+5 level ETAs, predicted order of reaching Lv.290 / Lv.295).
-//     Clicking a row expands an inline level / daily-EXP chart (7/14/30/90d).
+//     Clicking a row opens a modal with that character's level / daily-EXP chart (7/14/30/90d).
 //   - 推移: pick characters from the roster list and overlay their curves
 //     on a single Chart.js chart (level / delta / cumulative EXP / daily EXP).
 //     The window is the last N days, or an explicit date range.
@@ -41,7 +41,8 @@ const ranks = {
     activeTab: 'board',  // 'board' | 'trend'
     sortKey: 'char',     // column key
     sortDir: 'desc',
-    expandedKey: null,   // cache key of the expanded leaderboard row
+    detailKey: null,     // cache key of the character shown in the chart modal
+    boardOrder: [],      // cache keys in the order the board last drew them (for ◀ ▶ in the modal)
     detailMode: 'level', // 'level' | 'exp'
     detailRange: 30,     // 7 | 14 | 30 | 90
     detailChart: null,
@@ -340,7 +341,7 @@ const ranks = {
         const left = this._communityCandidates().length;
         const btn = document.getElementById('ranks-community-open');
         if (btn) btn.disabled = !left;
-        if (note) note.textContent = left ? `名簿に未追加のキャラが${left}体います` : '名簿のキャラはすべて追加済み';
+        if (note) note.textContent = left ? `未追加 ${left}体` : 'すべて追加済み';
     },
 
     // 名簿のキャラをカードで選ぶモーダル。
@@ -713,7 +714,7 @@ const ranks = {
         this.roster = this.roster.filter(r => this._key(r) !== key);
         delete this.cache[key];
         if (Array.isArray(this.selectedKeys)) this.selectedKeys = this.selectedKeys.filter(k => k !== key);
-        if (this.expandedKey === key) this.expandedKey = null;
+        if (this.detailKey === key) this.closeDetail();
         this.saveRoster();
         this.saveCache();
         this.savePrefs();
@@ -933,9 +934,27 @@ const ranks = {
         this.renderBoard();
     },
 
-    toggleExpand(key) {
-        this.expandedKey = (this.expandedKey === key) ? null : key;
+    // 行クリックでグラフをモーダルで開く。表の下に差し込むと表がずれるので、上に重ねる。
+    // 開けるのは1つだけで、別のキャラは ◀ ▶（または ← → キー）で切り替える。
+    openDetail(key) {
+        this.detailKey = key;
         this.renderBoard();
+        this._renderDetail();
+    },
+    closeDetail() {
+        this._destroyDetailChart();
+        const m = document.getElementById('ranks-detail-modal');
+        if (m) m.remove();
+        if (this._detailKeyHandler) { document.removeEventListener('keydown', this._detailKeyHandler); this._detailKeyHandler = null; }
+        const had = this.detailKey;
+        this.detailKey = null;
+        if (had) this.renderBoard();
+    },
+    stepDetail(delta) {
+        const order = this.boardOrder;
+        const i = order.indexOf(this.detailKey);
+        if (i < 0 || order.length < 2) return;
+        this.openDetail(order[(i + delta + order.length) % order.length]);
     },
 
     renderBoard() {
@@ -944,8 +963,6 @@ const ranks = {
         const head = document.getElementById('ranks-board-head');
         const body = document.getElementById('ranks-board-body');
         if (!wrap || !empty || !head || !body) return;
-
-        this._destroyDetailChart();
 
         if (this.roster.length === 0) {
             wrap.classList.add('hidden');
@@ -982,6 +999,7 @@ const ranks = {
             return `<th data-sort="${sortable ? col.key : ''}" class="px-2 py-1.5 text-[11px] font-semibold whitespace-nowrap ${alignCls} ${this._colBg(col, 'head')} ${textCls} ${sortable ? 'cursor-pointer select-none hover:text-white' : ''}">${col.label}${arrow}</th>`;
         }).join('') + '</tr>';
 
+        this.boardOrder = rows.map(row => row.key);
         body.innerHTML = rows.map(row => this._boardRowHtml(row, rank290, rank295)).join('');
 
         // listeners
@@ -992,7 +1010,7 @@ const ranks = {
         body.querySelectorAll('tr[data-key]').forEach(tr => {
             tr.addEventListener('click', e => {
                 if (e.target.closest('[data-del]')) return;
-                this.toggleExpand(tr.dataset.key);
+                this.openDetail(tr.dataset.key);
             });
         });
         body.querySelectorAll('button[data-del]').forEach(btn => {
@@ -1002,14 +1020,13 @@ const ranks = {
             });
         });
 
-        if (this.expandedKey) this._renderDetail();
         if (window.lucide) lucide.createIcons();
     },
 
     _boardRowHtml(row, rank290, rank295) {
         const { r, key, s } = row;
         const info = (row.c && row.c.charInfo) || {};
-        const expanded = this.expandedKey === key;
+        const expanded = this.detailKey === key;
 
         // inner content per column key (no <td> wrapper — the loop adds it)
         const inner = {
@@ -1033,36 +1050,9 @@ const ranks = {
             return `<td class="px-2 py-1 align-middle ${alignCls} ${this._colBg(col, 'cell')}">${inner[col.key]}</td>`;
         }).join('');
 
-        const rowHtml = `
+        return `
             <tr data-key="${this._escape(key)}" class="border-b border-slate-800 cursor-pointer transition-colors ${expanded ? 'bg-slate-800/60' : 'hover:bg-slate-800/30'}">
                 ${tds}
-            </tr>`;
-
-        if (!expanded) return rowHtml;
-
-        // inline detail: per-character level / daily-EXP chart
-        const modeBtn = (mode, label) => `
-            <button type="button" data-detail-mode="${mode}" class="px-2.5 py-1 rounded text-[11px] font-bold transition-all ${this.detailMode === mode ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}">${label}</button>`;
-        const rangeBtn = n => `
-            <button type="button" data-detail-range="${n}" class="px-2.5 py-1 rounded text-[11px] font-bold transition-all ${this.detailRange === n ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}">${n}d</button>`;
-
-        return rowHtml + `
-            <tr class="border-b border-slate-800 bg-slate-950/60">
-                <td colspan="${this.BOARD_COLUMNS.length}" class="px-4 py-3">
-                    <div class="flex items-center gap-3 flex-wrap mb-3">
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">グラフ</span>
-                        <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
-                            ${modeBtn('level', 'レベル推移')}${modeBtn('exp', '獲得経験値')}
-                        </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-2">期間</span>
-                        <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
-                            ${rangeBtn(7)}${rangeBtn(14)}${rangeBtn(30)}${rangeBtn(90)}
-                        </div>
-                    </div>
-                    <div class="relative h-[300px]">
-                        <canvas id="ranks-detail-canvas"></canvas>
-                    </div>
-                </td>
             </tr>`;
     },
 
@@ -1132,26 +1122,86 @@ const ranks = {
     },
 
     _renderDetail() {
-        const canvas = document.getElementById('ranks-detail-canvas');
-        const c = this.cache[this.expandedKey];
-        if (!canvas || !c || !Array.isArray(c.labels)) return;
+        const key = this.detailKey;
+        const c = this.cache[key];
+        const r = this.roster.find(x => this._key(x) === key);
+        if (!r) { this.closeDetail(); return; }
+        const info = (c && c.charInfo) || {};
+        const s = this._computeStats(c);
 
-        document.querySelectorAll('[data-detail-mode]').forEach(btn => {
-            btn.addEventListener('click', e => {
-                e.stopPropagation();
-                this.detailMode = btn.dataset.detailMode;
-                this.savePrefs();
-                this.renderBoard();
-            });
-        });
-        document.querySelectorAll('[data-detail-range]').forEach(btn => {
-            btn.addEventListener('click', e => {
-                e.stopPropagation();
-                this.detailRange = parseInt(btn.dataset.detailRange, 10);
-                this.savePrefs();
-                this.renderBoard();
-            });
-        });
+        let m = document.getElementById('ranks-detail-modal');
+        if (!m) {
+            m = document.createElement('div');
+            m.id = 'ranks-detail-modal';
+            m.className = 'fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4';
+            m.addEventListener('click', e => { if (e.target === m) this.closeDetail(); });
+            document.body.appendChild(m);
+            this._detailKeyHandler = e => {
+                if (e.key === 'Escape') this.closeDetail();
+                else if (e.key === 'ArrowLeft') this.stepDetail(-1);
+                else if (e.key === 'ArrowRight') this.stepDetail(1);
+            };
+            document.addEventListener('keydown', this._detailKeyHandler);
+        }
+
+        const seg = (attr, val, label, on) => `
+            <button type="button" ${attr}="${val}" class="px-2.5 py-1 text-[11px] font-bold ${on ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}">${label}</button>`;
+        const navBtn = (d, icon, title) => `
+            <button type="button" data-detail-step="${d}" title="${title}" class="w-7 h-7 flex items-center justify-center border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500"><i data-lucide="${icon}" class="w-4 h-4"></i></button>`;
+        const pos = this.boardOrder.indexOf(key);
+        const imgUrl = this._fixImgUrl(info.img);
+        const sub = [info.job, info.world].filter(Boolean).join(' · ');
+        const lv = s.level != null ? `Lv.${s.level}${s.expPct != null ? ` ${s.expPct.toFixed(2)}%` : ''}` : 'データなし';
+
+        m.innerHTML = `
+<div class="bg-slate-900 border border-slate-700 w-full max-w-4xl shadow-2xl flex flex-col">
+    <div class="flex items-center gap-3 px-3 py-2 border-b border-slate-800 bg-slate-950">
+        ${imgUrl ? `<img src="${this._escape(imgUrl)}" alt="" class="w-10 h-10 object-contain object-bottom flex-shrink-0">` : ''}
+        <div class="min-w-0">
+            <div class="flex items-baseline gap-2">
+                <span class="text-base font-bold text-white truncate">${this._escape(r.name)}</span>
+                <span class="text-[10px] uppercase tracking-wider text-slate-500">${r.region}</span>
+                <span class="font-mono text-xs text-indigo-300">${lv}</span>
+            </div>
+            ${sub ? `<div class="text-[11px] text-slate-500 truncate">${this._escape(sub)}</div>` : ''}
+        </div>
+        <div class="flex-1"></div>
+        ${navBtn(-1, 'chevron-left', '前のキャラ（←）')}
+        <span class="font-mono text-[11px] text-slate-500 w-12 text-center">${pos + 1}/${this.boardOrder.length}</span>
+        ${navBtn(1, 'chevron-right', '次のキャラ（→）')}
+        <button type="button" data-detail-close title="閉じる（Esc）" class="ml-2 text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+    <div class="flex items-center gap-3 flex-wrap px-3 py-2 border-b border-slate-800">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">グラフ</span>
+        <div class="flex border border-slate-700">
+            ${seg('data-detail-mode', 'level', 'レベル推移', this.detailMode === 'level')}${seg('data-detail-mode', 'exp', '獲得経験値', this.detailMode === 'exp')}
+        </div>
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-2">期間</span>
+        <div class="flex border border-slate-700">
+            ${[7, 14, 30, 90].map(n => seg('data-detail-range', n, `${n}d`, this.detailRange === n)).join('')}
+        </div>
+    </div>
+    <div class="relative h-[340px] p-3">
+        ${c && Array.isArray(c.labels) ? '<canvas id="ranks-detail-canvas"></canvas>' : '<div class="h-full flex items-center justify-center text-xs text-slate-500">データがありません</div>'}
+    </div>
+</div>`;
+
+        m.querySelector('[data-detail-close]').addEventListener('click', () => this.closeDetail());
+        m.querySelectorAll('[data-detail-step]').forEach(btn => btn.addEventListener('click', () => this.stepDetail(parseInt(btn.dataset.detailStep, 10))));
+        m.querySelectorAll('[data-detail-mode]').forEach(btn => btn.addEventListener('click', () => {
+            this.detailMode = btn.dataset.detailMode;
+            this.savePrefs();
+            this._renderDetail();
+        }));
+        m.querySelectorAll('[data-detail-range]').forEach(btn => btn.addEventListener('click', () => {
+            this.detailRange = parseInt(btn.dataset.detailRange, 10);
+            this.savePrefs();
+            this._renderDetail();
+        }));
+        if (window.lucide) lucide.createIcons();
+
+        const canvas = document.getElementById('ranks-detail-canvas');
+        if (!canvas) { this._destroyDetailChart(); return; }
 
         const N = this.detailRange;
         const labels = c.labels.slice(-N);

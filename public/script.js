@@ -4,17 +4,13 @@
 const CHART_JS = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
 
 const app = {
-    data: { config: { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' }, characters: [], masterDailies: [], masterWeeklies: [], masterBosses: [], memo: "" },
-    lastLoginDate: null, lastCheckAt: null, editingBossId: null, currentTaskTab: 'daily', activeCharId: null, currentBossFilter: 'ALL', tempBossIds: new Set(), tempPartySizes: {},
+    data: { config: { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' }, characters: [], masterBosses: [], memo: "" },
+    lastLoginDate: null, lastCheckAt: null, activeCharId: null,
     currentApp: 'planner',
     bcCharId: null, bcTab: 'WEEKLY', bcSelected: {}, bcParty: {}, bcDiff: {},
     DEFAULT_IMG_OFFSET_X: 50,
     DEFAULT_IMG_OFFSET_Y: 50,
     DEFAULT_IMG_SCALE: 100,
-
-    // Daily/Weekly タスク機能は一旦停止中。復活させるときは true に戻し、
-    // index.html 側の disabled / feature-disabled も外す。
-    TASKS_ENABLED: false,
 
     // ランキングAPIの職名から CLASS_DATA のエントリを引く。改名された職は
     // CLASS_ALIASES で旧エントリへ読み替える（例: Blade Master → Dual Blade）。
@@ -160,8 +156,7 @@ const app = {
     emptyPlannerData() {
         return {
             config: { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' },
-            characters: [], masterDailies: [...DEFAULT_DAILIES],
-            masterWeeklies: [...DEFAULT_WEEKLIES], masterBosses: [...DEFAULT_BOSSES], memo: ''
+            characters: [], masterBosses: this.bossMaster([]), memo: ''
         };
     },
     // 「自分」を選ぶ前のデータや、旧いキー方式で保存されたデータを拾う。
@@ -182,6 +177,16 @@ const app = {
         }
         return null;
     },
+    // ボスの名前・難易度・結晶価格は保存データに持たず、毎回 config.js の DEFAULT_BOSSES から作る。
+    // 以前は最初に開いたときの一覧をそのまま保存していたので、config.js で価格を直しても
+    // 既存の利用者には届かなかった。DEFAULT_BOSSES に無いid（昔のタスク画面で足した自作ボス）だけは
+    // 選択が消えないよう保存データから引き継ぐ。
+    bossMaster(saved) {
+        const out = DEFAULT_BOSSES.map(b => ({ ...b }));
+        const have = new Set(out.map(b => b.id));
+        (Array.isArray(saved) ? saved : []).forEach(b => { if (b && b.id && !have.has(b.id)) out.push({ ...b }); });
+        return out;
+    },
     loadData() {
         const key = this.plannerKey();
         this.dataKey = key;   // この this.data がどのキーの中身なのかを覚えておく
@@ -190,11 +195,7 @@ const app = {
             if (!stored && key !== 'gms_v24_data') stored = this.findLegacyPlannerData(key);
             if (stored) {
                 this.data = JSON.parse(stored);
-                if (!this.data.masterDailies) this.data.masterDailies = [...DEFAULT_DAILIES];
-                if (!this.data.masterWeeklies) this.data.masterWeeklies = [...DEFAULT_WEEKLIES];
-                if (!this.data.masterBosses) this.data.masterBosses = [...DEFAULT_BOSSES];
-                // Merge in any newly-added default bosses (by id) without overwriting user edits
-                else { const have = new Set(this.data.masterBosses.map(b => b.id)); DEFAULT_BOSSES.forEach(b => { if (!have.has(b.id)) this.data.masterBosses.push({ ...b }); }); }
+                this.data.masterBosses = this.bossMaster(this.data.masterBosses);
                 if (!this.data.config) this.data.config = { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' };
             } else {
                 this.data = this.emptyPlannerData();
@@ -463,11 +464,9 @@ const app = {
         this.data.characters.forEach(c => {
             if (!c.progress) return;
             if (daily) {
-                c.progress.daily = [];
                 c.progress.boss = keep(c.progress.boss, ['DAILY']);
             }
             if (weekly) {
-                c.progress.weekly = [];
                 c.progress.charDone = false;
                 c.progress.boss = keep(c.progress.boss, ['WEEKLY']);
             }
@@ -495,15 +494,14 @@ const app = {
     },
     startClock() { setInterval(() => { const n = new Date(); document.getElementById('clock-jst').innerText = n.toLocaleTimeString('ja-JP', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }); document.getElementById('clock-utc').innerText = n.toISOString().split('T')[1].split('.')[0]; }, 1000); },
     navigate(view) {
-        if (view === 'tasks' && !this.TASKS_ENABLED) return;
-        ['dashboard', 'characters', 'tasks', 'system'].forEach(v => {
+        ['dashboard', 'characters', 'system'].forEach(v => {
             const el = document.getElementById(`view-${v}`);
             if (el) el.classList.add('hidden-page');
         });
         document.querySelectorAll('[id^="nav-"]').forEach(e => { e.classList.remove('nav-active'); e.classList.add('nav-inactive'); });
         document.getElementById(`view-${view}`).classList.remove('hidden-page');
         document.querySelectorAll(`[id="nav-${view}"]`).forEach(e => { e.classList.add('nav-active'); e.classList.remove('nav-inactive'); });
-        if (view === 'dashboard') this.renderDashboard(); if (view === 'characters') this.renderCharacters(); if (view === 'tasks') this.renderTaskMaster();
+        if (view === 'dashboard') this.renderDashboard(); if (view === 'characters') this.renderCharacters();
     },
 
     // ---------------------------------------------------------
@@ -816,48 +814,6 @@ const app = {
                 </div>`;
     },
 
-    getTaskBtnHTML(charId, item, type, isDone) {
-        let containerTheme = "";
-        let iconTheme = "";
-        if (type === 'daily') {
-            containerTheme = "bg-indigo-900/20 border-indigo-500/50";
-            iconTheme = "text-indigo-400";
-        } else {
-            containerTheme = "bg-emerald-900/20 border-emerald-500/50";
-            iconTheme = "text-emerald-400";
-        }
-
-        let typeColor = "";
-        let taskType = item.type;
-        if (!taskType) {
-            if (item.isEvent) taskType = 'EVENT';
-            else taskType = 'OTHER';
-        }
-
-        if (taskType === 'EVENT') typeColor = "text-rose-400";
-        else if (taskType === 'SYMBOL') typeColor = "text-cyan-400";
-        else if (taskType === 'MONPA') typeColor = "text-orange-400";
-        else if (taskType === 'EPIC_DUNGEON') typeColor = "text-purple-400";
-        else if (taskType === 'HEXA') typeColor = "text-indigo-400";
-        else if (taskType === 'GUILD') typeColor = "text-amber-400";
-        else typeColor = "text-slate-500 font-bold";
-
-        const containerClass = isDone ? "bg-slate-950 border-slate-800 opacity-40" : `${containerTheme} hover:bg-opacity-40`;
-        const textClass = isDone ? "text-slate-600 line-through decoration-slate-700 font-medium" : "text-slate-200 font-bold";
-        const icon = taskType === 'EVENT' && !isDone ? "sparkles" : (isDone ? "check-circle-2" : "circle");
-        const finalIconColor = isDone ? "text-slate-600" : iconTheme;
-        const typeLabel = taskType.replace('_', ' ');
-
-        return `
-        <button onclick="app.toggleTask('${charId}','${type}','${item.id}')"
-            class="group flex items-center px-1 py-0.5 rounded border transition-all duration-200 text-left task-btn-compact w-full ${containerClass} h-[26px]">
-            <i data-lucide="${icon}" class="w-3 h-3 flex-shrink-0 ${finalIconColor}"></i>
-            <div class="ml-1 overflow-hidden flex items-center min-w-0 flex-1">
-                <div class="truncate text-[11px] leading-none ${textClass}">${item.name}</div>
-            </div>
-        </button>`;
-    },
-
     getBadgeClass(diff) {
         const d = diff?.toUpperCase();
         if (d === 'EASY') return 'badge-easy';
@@ -961,7 +917,7 @@ const app = {
         const calcStats = (chars) => {
             let allCrystals = [], monthlyRev = 0;
             chars.filter(c => !c.hidden).forEach(char => {
-                const settings = char.settings || { daily_ids: [], weekly_ids: [], boss_ids: [] };
+                const settings = char.settings || { boss_ids: [] };
                 const partySizes = settings.boss_party_sizes || {};
                 const charWeekly = this.data.masterBosses
                     .filter(b => (settings.boss_ids || []).includes(b.id) && b.type === 'WEEKLY')
@@ -1002,14 +958,11 @@ const app = {
 
         c.innerHTML = activeChars.map(char => {
             const p = char.progress || { daily: [], weekly: [], boss: [] };
-            const settings = char.settings || { daily_ids: [], weekly_ids: [], boss_ids: [] };
+            const settings = char.settings || { boss_ids: [] };
             const partySizes = settings.boss_party_sizes || {};
-            const mD = this.data.masterDailies.filter(d => (settings.daily_ids || []).includes(d.id));
-            const mW = this.data.masterWeeklies.filter(w => (settings.weekly_ids || []).includes(w.id));
             const cB = this.data.masterBosses.filter(b => (settings.boss_ids || []).includes(b.id)).map(b => ({ ...b, pSize: partySizes[b.id] || 1, effectiveMeso: b.meso / (partySizes[b.id] || 1) })).sort((a, b) => b.effectiveMeso - a.effectiveMeso);
             const dB = cB.filter(b => b.type === 'DAILY'), wB = cB.filter(b => b.type === 'WEEKLY'), mB = cB.filter(b => b.type === 'MONTHLY');
             const localMaxTotal = wB.slice(0, charLimit).reduce((s, b) => s + b.effectiveMeso, 0);
-            const countD = mD.filter(i => (p.daily || []).includes(i.id)).length, countW = mW.filter(i => (p.weekly || []).includes(i.id)).length;
 
             const isKronos = char.server === 'KRONOS';
             const sCol = isKronos ? (this.data.config.serverKColor || 'emerald') : (this.data.config.serverCColor || 'purple');
@@ -1104,13 +1057,6 @@ const app = {
         }).join('') + addCardHTML;
         lucide.createIcons();
     },
-    toggleTask(cid, type, tid) {
-        const c = this.data.characters.find(x => x.id === cid); if (!c) return;
-        if (!c.progress) c.progress = { daily: [], weekly: [], boss: [] };
-        if (!Array.isArray(c.progress[type])) c.progress[type] = [];
-        if (c.progress[type].includes(tid)) c.progress[type] = c.progress[type].filter(id => id !== tid); else c.progress[type].push(tid);
-        this.saveData(); this.renderDashboard();
-    },
     toggleCharDone(cid, scope = 'weekly') {
         const c = this.data.characters.find(x => x.id === cid); if (!c) return;
         if (!c.progress) c.progress = { daily: [], weekly: [], boss: [] };
@@ -1129,7 +1075,7 @@ const app = {
         const charLimit = this.data.config.charMaxCrystals || 14;
         const hexaReady = (typeof hexaTracker !== 'undefined');
         const rows = activeChars.map((x, idx) => {
-            const settings = x.settings || { daily_ids: [], weekly_ids: [], boss_ids: [] };
+            const settings = x.settings || { boss_ids: [] };
             const sCol = x.server === 'KRONOS' ? (this.data.config.serverKColor || 'emerald') : (this.data.config.serverCColor || 'purple');
             const charWeekly = this.data.masterBosses.filter(b => (settings.boss_ids || []).includes(b.id) && b.type === 'WEEKLY').length;
             const hexaClassId = hexaReady ? hexaTracker.getCharClassId(x) : null;
@@ -1253,7 +1199,7 @@ const app = {
             id: 'c' + Date.now(),
             name, job, classImage, image,
             level, role: 'MAIN', server, hidden: false, memo: '',
-            settings: { daily_ids: [], weekly_ids: [], boss_ids: [], boss_party_sizes: {} },
+            settings: { boss_ids: [], boss_party_sizes: {} },
             progress: { daily: [], weekly: [], boss: [] }
         };
         this.data.characters.push(newChar);
@@ -1317,7 +1263,7 @@ const app = {
             server: this.data.config.activeServer === 'CHALLENGER' ? 'CHALLENGER' : 'KRONOS',
             hidden: false, memo: '',
             communityCharId: c.id,   // 名簿のどのキャラか（週ボスの設定はこちらだけが持つ）
-            settings: { daily_ids: [], weekly_ids: [], boss_ids: [], boss_party_sizes: {} },
+            settings: { boss_ids: [], boss_party_sizes: {} },
             progress: { daily: [], weekly: [], boss: [] }
         };
     },
@@ -1437,44 +1383,7 @@ const app = {
         this._quickMsgTimer = setTimeout(() => msg.classList.add('hidden'), 4000);
     },
 
-    renderTaskMaster() { this.switchTaskTab(this.currentTaskTab); },
-    switchTaskTab(t) {
-        this.currentTaskTab = t;
-        ['daily', 'weekly', 'boss'].forEach(x => {
-            const b = document.getElementById(`task-tab-btn-${x}`), c = document.getElementById(`task-content-${x}`);
-            if (b && c) {
-                if (x === t) { b.classList.add('tab-active'); b.classList.remove('tab-inactive'); c.classList.remove('hidden'); }
-                else { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); c.classList.add('hidden'); }
-            }
-        });
-        const rl = (id, l, tp) => {
-            const el = document.getElementById(id);
-            if (el) el.innerHTML = (l || []).map(i => `<div class="flex items-center gap-2 bg-slate-800 p-2 rounded border border-slate-700 text-xs mb-2"><div class="flex-1 overflow-hidden"><span class="text-slate-200 font-medium block truncate"><span class="text-xs font-bold text-indigo-400 mr-2">[${i.type || (i.isEvent ? 'EVENT' : 'OTHER')}]</span>${i.name}</span></div><button onclick="app.deleteMasterItem('${tp}','${i.id}')" class="text-slate-600 hover:text-red-400 p-1 rounded hover:bg-slate-900"><i data-lucide="trash" class="w-3 h-3"></i></button></div>`).join('');
-        };
-        rl('master-daily-list', this.data.masterDailies, 'masterDailies');
-        rl('master-weekly-list', this.data.masterWeeklies, 'masterWeeklies');
-        this.data.masterBosses.sort((a, b) => b.meso - a.meso);
-        const bl = document.getElementById('master-boss-list');
-        if (bl) bl.innerHTML = this.data.masterBosses.map(b => this.editingBossId === b.id
-            ? `<div class="flex items-center gap-2 bg-slate-800 p-2 rounded border border-indigo-500 text-sm mb-2"><input id="edit-meso-${b.id}" type="number" value="${b.meso}" class="flex-1 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white"><button onclick="app.saveEditBoss('${b.id}')" class="bg-indigo-600 p-1 rounded text-white"><i data-lucide="check" class="w-3 h-3"></i></button></div>`
-            : `<div class="flex items-center gap-2 bg-slate-800 p-2 rounded border border-slate-700 text-xs mb-2"><div class="flex-1 overflow-hidden"><div class="flex items-center gap-2 mb-0.5"><span class="px-1.5 py-0.5 rounded text-[8px] font-bold ${this.getBadgeClass(b.difficulty)}">${b.difficulty}</span><span class="text-slate-200 font-medium truncate">${b.name}</span></div><div class="text-[10px] text-slate-500 flex items-center gap-2"><span>${b.meso.toLocaleString()}</span></div></div><div class="flex gap-1"><button onclick="app.startEditBoss('${b.id}')" class="text-slate-500 hover:text-indigo-400 p-1 rounded hover:bg-slate-900"><i data-lucide="pencil" class="w-3 h-3"></i></button><button onclick="app.deleteBoss('${b.id}')" class="text-slate-600 hover:text-red-400 p-1 rounded hover:bg-slate-900"><i data-lucide="trash" class="w-3 h-3"></i></button></div></div>`
-        ).join('');
-        lucide.createIcons();
-    },
-    addMasterItem(e, l) {
-        e.preventDefault(); const f = e.target;
-        if (f.name.value) {
-            if (!this.data[l]) this.data[l] = [];
-            this.data[l].push({ id: 'i' + Date.now(), name: f.name.value, kana: f.kana.value, type: f.type.value });
-            f.reset(); this.saveData(); this.renderTaskMaster();
-        }
-    },
-    deleteMasterItem(l, id) { if (confirm('Delete?')) { this.data[l] = this.data[l].filter(x => x.id !== id); this.saveData(); this.renderTaskMaster(); } },
-    addBoss(e) { e.preventDefault(); const f = e.target; this.data.masterBosses.push({ id: 'b' + Date.now(), name: f.name.value, kana: f.kana.value, difficulty: f.diff.value, meso: parseInt(f.meso.value) || 0, type: f.type.value }); f.reset(); this.saveData(); this.renderTaskMaster(); },
-    startEditBoss(id) { this.editingBossId = id; this.renderTaskMaster(); },
-    saveEditBoss(id) { const v = document.getElementById(`edit-meso-${id}`).value; const b = this.data.masterBosses.find(x => x.id === id); if (b) { b.meso = parseInt(v) || 0; this.editingBossId = null; this.saveData(); this.renderTaskMaster(); } },
-    deleteBoss(id) { if (confirm('Delete?')) { this.data.masterBosses = this.data.masterBosses.filter(x => x.id !== id); this.saveData(); this.renderTaskMaster(); } },
-    openCharModal(cid = null, initialTab = 'boss') {
+    openCharModal(cid = null) {
         const m = document.getElementById('char-modal'), f = document.getElementById('char-form');
         if (!m || !f) return;
 
@@ -1490,13 +1399,10 @@ const app = {
         document.getElementById('preview-api-name').innerText = "--";
 
         m.classList.remove('hidden');
-        this.currentBossFilter = 'ALL';
         this.activeCharId = cid;
 
         if (cid) {
             const c = this.data.characters.find(x => x.id === cid);
-            this.tempBossIds = new Set(c.settings?.boss_ids || []);
-            this.tempPartySizes = { ...(c.settings?.boss_party_sizes || {}) };
             this.initBossConfigState(c);
 
             document.getElementById('modal-title').innerText = 'Edit Character';
@@ -1544,8 +1450,6 @@ const app = {
 
             this.applyImagePosToUI(c);
         } else {
-            this.tempBossIds = new Set();
-            this.tempPartySizes = {};
             this.bcCharId = null;
             this.bcSelected = {};
             this.bcParty = {};
@@ -1570,70 +1474,8 @@ const app = {
             this.applyImagePosToUI(null);
         }
 
-        this.renderModalLists(cid);
-        this.switchCharTab(initialTab);
-    },
-    updateTempBoss(id, checked) { if (checked) this.tempBossIds.add(id); else this.tempBossIds.delete(id); this.renderBossListFiltered(); },
-    updateTempParty(id, val) { const size = parseInt(val); if (size > 1) this.tempPartySizes[id] = size; else delete this.tempPartySizes[id]; },
-    renderModalLists(cid) {
-        const c = cid ? this.data.characters.find(x => x.id === cid) : null;
-        const settings = c?.settings || { daily_ids: [], weekly_ids: [], boss_ids: [] };
-        const typeColor = {
-            EVENT: 'text-rose-300 bg-rose-950/40 border-rose-500/30',
-            SYMBOL: 'text-cyan-300 bg-cyan-950/40 border-cyan-500/30',
-            MONPA: 'text-orange-300 bg-orange-950/40 border-orange-500/30',
-            EPIC_DUNGEON: 'text-purple-300 bg-purple-950/40 border-purple-500/30',
-            HEXA: 'text-indigo-300 bg-indigo-950/40 border-indigo-500/30',
-            GUILD: 'text-amber-300 bg-amber-950/40 border-amber-500/30',
-            OTHER: 'text-slate-300 bg-slate-800 border-slate-600'
-        };
-        const rc = (id, l, chk, nm) => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            const items = l || [];
-            if (!items.length) { el.innerHTML = '<div class="col-span-full text-center text-slate-500 text-xs py-8 italic">No tasks defined. Add some in the Tasks view.</div>'; return; }
-            el.innerHTML = items.map(i => {
-                const t = i.type || (i.isEvent ? 'EVENT' : 'OTHER');
-                const checked = (chk || []).includes(i.id);
-                const badge = typeColor[t] || typeColor.OTHER;
-                return `
-                <label class="group flex items-center gap-3 cursor-pointer bg-slate-800/60 hover:bg-slate-800 border ${checked ? 'border-indigo-500/60 ring-1 ring-indigo-500/30' : 'border-slate-700/60'} rounded-lg px-3 py-2.5 transition-all">
-                    <input type="checkbox" name="${nm}" value="${i.id}" class="accent-indigo-500 w-4 h-4 flex-shrink-0" ${checked ? 'checked' : ''}>
-                    <div class="flex-1 min-w-0 overflow-hidden">
-                        <div class="text-sm font-bold text-white truncate leading-tight">${i.name}</div>
-                        ${i.kana ? `<div class="text-[10px] text-slate-500 truncate">${i.kana}</div>` : ''}
-                    </div>
-                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded border ${badge} flex-shrink-0 uppercase tracking-wider">${t.replace('_', ' ')}</span>
-                </label>`;
-            }).join('');
-        };
-        rc('modal-daily-list', this.data.masterDailies, settings.daily_ids, 'chk_daily');
-        rc('modal-weekly-list', this.data.masterWeeklies, settings.weekly_ids, 'chk_weekly');
-    },
-    renderBossListFiltered() {
-        const filteredBosses = this.data.masterBosses.filter(b => this.currentBossFilter === 'ALL' || b.difficulty === this.currentBossFilter).sort((a, b) => b.meso - a.meso);
-        const el = document.getElementById('modal-boss-list');
-        if (el) el.innerHTML = filteredBosses.map(b => {
-            const isChecked = this.tempBossIds.has(b.id), pSize = this.tempPartySizes[b.id] || 1;
-            return `<div class="flex items-center gap-2 p-2 rounded border border-slate-700/50 hover:bg-slate-800"><label class="flex-1 flex items-center gap-2 cursor-pointer"><input type="checkbox" onchange="app.updateTempBoss('${b.id}', this.checked)" class="accent-indigo-500 w-4 h-4" ${isChecked ? 'checked' : ''}><div class="overflow-hidden"><div class="flex items-center gap-1"><span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${this.getBadgeClass(b.difficulty)}">${b.difficulty}</span> <span class="truncate text-xs font-medium text-slate-200">${b.name}</span></div></div></label><input type="number" min="1" max="6" value="${pSize}" onchange="app.updateTempParty('${b.id}', this.value)" class="w-10 h-6 bg-slate-900 border border-slate-600 rounded text-center text-xs text-white outline-none focus:border-indigo-500"></div>`;
-        }).join('');
-    },
-    filterCharBosses(filter) { this.currentBossFilter = filter; this.renderBossListFiltered(); },
-    switchCharTab(t) {
-        if (!this.TASKS_ENABLED && t !== 'boss') t = 'boss';
-        ['daily', 'weekly', 'boss'].forEach(x => {
-            const b = document.getElementById(`char-tab-btn-${x}`), c = document.getElementById(`char-content-${x}`);
-            if (b && c) {
-                if (x === t) { b.classList.add('tab-active'); b.classList.remove('tab-inactive'); c.classList.remove('hidden'); }
-                else { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); c.classList.add('hidden'); }
-            }
-        });
-        const toolbar = document.getElementById('cm-boss-toolbar');
-        if (toolbar) toolbar.classList.toggle('hidden', t !== 'boss');
-        if (t === 'boss') {
-            this.switchBossConfigTab(this.bcTab || 'WEEKLY');
-            lucide.createIcons();
-        }
+        this.switchBossConfigTab(this.bcTab || 'WEEKLY');
+        lucide.createIcons();
     },
     closeCharModal() { document.getElementById('char-modal').classList.add('hidden'); },
     async updateAllCharacters() {
@@ -1712,13 +1554,10 @@ const app = {
             imgOffsetX: Number.isFinite(offX) ? offX : defX,
             hidden: hiddenVal,
             server: f.querySelector('input[name="server"]:checked')?.value || 'KRONOS',
-            settings: {
-                daily_ids: Array.from(f.querySelectorAll('input[name="chk_daily"]:checked')).map(c => c.value),
-                weekly_ids: Array.from(f.querySelectorAll('input[name="chk_weekly"]:checked')).map(c => c.value),
-                boss_ids,
-                boss_party_sizes
-            },
-            progress: { daily: pc?.progress?.daily || [], weekly: pc?.progress?.weekly || [], boss: pc?.progress?.boss || [] }
+            // 画面に無い項目（旧タスク機能の選択など）は消さずに引き継ぐ。
+            settings: { ...(pc?.settings || {}), boss_ids, boss_party_sizes },
+            // 週・月の消し込み（charDone / charMonthlyDone）も引き継ぐ。以前は編集して保存すると外れていた。
+            progress: { daily: [], weekly: [], boss: [], ...(pc?.progress || {}) }
         };
         const idx = this.data.characters.findIndex(x => x.id === id);
         if (idx >= 0) this.data.characters[idx] = nd; else this.data.characters.push(nd);
@@ -1796,7 +1635,7 @@ const app = {
 
     openBossConfigModal(charId) {
         // Now opens the unified edit modal on the Bosses tab.
-        this.openCharModal(charId, 'boss');
+        this.openCharModal(charId);
     },
 
     initBossConfigState(c) {
