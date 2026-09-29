@@ -862,7 +862,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
 
         load() {
             try {
-                const raw = localStorage.getItem(STORAGE_KEY);
+                const raw = localStorage.getItem(this.storageKey || STORAGE_KEY);
                 if (!raw) return;
                 const s = JSON.parse(raw);
                 const d = DEFAULT_STATE();
@@ -907,7 +907,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                 });
         },
         save() {
-            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state)); } catch (e) { /* quota */ }
+            try { localStorage.setItem(this.storageKey || STORAGE_KEY, JSON.stringify(this.state)); } catch (e) { /* quota */ }
         },
 
         // The 18★+ mode here is only the default; each slot may pin its own.
@@ -924,7 +924,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
             return `<style>${CSS}</style>
 <div class="gp"><div class="wrap">
     <div class="head"><h1>Upgrade Priority</h1>
-    <p class="sub">いま持っている装備を入れると、次に伸ばすべき順番をメソ効率順に並べます。リブート／シャイニングスターフォース前提、潜在はレジェンダリー基準。</p></div>
+    <p class="sub">いま持っている装備を入れると、次に伸ばすべき順番をメソ効率順に並べます。リブート／シャイニングスターフォース前提、潜在はレジェンダリー基準。${this.storageKey ? '' : '<br>ここはキャラに紐づかない仮の入力です。キャラごとの入力は Character Manager のカードの「UPGRADE」から開きます。'}</p></div>
 
     <section>
         <p class="eyebrow">スコア重み</p>
@@ -1441,5 +1441,82 @@ ${grades}
             });
         },
     };
+
+    /* ---------- キャラごとの Upgrade Priority（Character Manager から開く） ---------- */
+    // サイドバーの Upgrade Priority はキャラに紐づかない仮の入力のまま残し、
+    // キャラごとの入力は Character Manager のカードから開くモーダルに持つ（HEXA と同じ形）。
+    // 保存先は 'gms-gear-priority::char:<キャラid>'。初めて開いたキャラは、スコア重みと設定を
+    // サイドバー側の入力から引き継ぎ、武器の職業はキャラの職業から埋める。
+    const charKey = (charId) => `${STORAGE_KEY}::char:${charId}`;
+    gearPriority.hasCharData = (charId) => {
+        try { return !!localStorage.getItem(charKey(charId)); } catch (e) { return false; }
+    };
+    gearPriority.openForCharacter = function (charId) {
+        const app = window.app;
+        const char = app && app.data.characters.find((c) => c.id === charId);
+        if (!char) return;
+        this.closeCharacter();
+
+        const inst = Object.create(gearPriority);
+        inst.state = DEFAULT_STATE();
+        inst.expanded = new Set();
+        inst.draft = null;
+        inst.storageKey = charKey(charId);
+        if (!this.hasCharData(charId)) {
+            const base = Object.create(gearPriority);
+            base.state = DEFAULT_STATE();
+            base.storageKey = STORAGE_KEY;
+            base.load();
+            inst.state.w = { ...base.state.w };
+            inst.state.o = { ...base.state.o };
+            inst.state.limit = base.state.limit;
+            const cls = app.classByJobName && app.classByJobName(char.job);
+            if (cls && CLASS_WEAPON[cls.id]) inst.state.slots.weapon.job = cls.id;
+            inst.save();
+        }
+
+        const veil = document.createElement('div');
+        veil.id = 'gp-char-overlay';
+        veil.className = 'fixed inset-0 z-[45] bg-black/70 flex items-start justify-center p-4 overflow-y-auto';
+        const portrait = (char.image && char.image.startsWith('http')) ? char.image : (char.classImage || '');
+        veil.innerHTML = `
+<div class="w-full max-w-[1400px] bg-slate-950 border border-slate-700 shadow-2xl">
+    <div class="sticky top-0 z-10 flex items-center gap-3 h-11 pl-3 border-b border-slate-800 bg-slate-900">
+        ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-8 h-8 object-cover bg-slate-950">` : ''}
+        <span class="text-sm font-bold text-white">${esc(char.name)}</span>
+        <span class="text-[11px] font-mono text-slate-400">${char.level ? `Lv.${esc(char.level)}` : ''}</span>
+        <span class="text-[11px] text-indigo-300">${esc(char.job || '')}</span>
+        <span class="text-[11px] text-slate-500">のUpgrade Priority</span>
+        <div class="flex-1"></div>
+        <button type="button" data-x="close" title="閉じる（Esc）" class="w-11 h-full border-l border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center">
+            <i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+    <div data-x="root" class="px-4 pt-3"></div>
+</div>`;
+        document.body.appendChild(veil);
+        const root = veil.querySelector('[data-x="root"]');
+        root.id = 'gp-char-root';
+        inst.init('gp-char-root');
+        root.removeAttribute('id');
+
+        const close = () => this.closeCharacter();
+        veil.querySelector('[data-x="close"]').addEventListener('click', close);
+        veil.addEventListener('click', (e) => { if (e.target === veil) close(); });
+        // 装備の詳細モーダルが開いているときの Esc はそちらに任せる。
+        this._charEsc = (e) => { if (e.key === 'Escape' && !inst.draft) close(); };
+        // capture で先に受け、詳細モーダルが閉じる前の状態で判断する。
+        document.addEventListener('keydown', this._charEsc, true);
+        this._charInst = inst;
+        if (window.lucide) lucide.createIcons();
+    };
+    gearPriority.closeCharacter = function () {
+        const veil = document.getElementById('gp-char-overlay');
+        if (veil) veil.remove();
+        if (this._charEsc) { document.removeEventListener('keydown', this._charEsc, true); this._charEsc = null; }
+        if (this._charInst && this._charInst.onKey) window.removeEventListener('keydown', this._charInst.onKey);
+        this._charInst = null;
+        if (window.app && app.currentApp === 'planner') app.renderDashboard();
+    };
+
     window.gearPriority = gearPriority;
 })();

@@ -971,6 +971,8 @@ const app = {
             const hexaReady = (typeof hexaTracker !== 'undefined');
             const hexaClassId = hexaReady ? hexaTracker.getCharClassId(char) : null;
             const hexaPct = hexaClassId ? hexaTracker.getProgress('char:' + char.id, hexaClassId).pct : 0;
+            let gearSaved = false;
+            try { gearSaved = !!localStorage.getItem('gms-gear-priority::char:' + char.id); } catch (e) { /* 読めなければ未入力扱い */ }
 
             // Sort each section
             const wkSorted = wB.sort((a, b) => b.effectiveMeso - a.effectiveMeso);
@@ -1021,6 +1023,10 @@ const app = {
                     ${char.classImage ? `<img src="${char.classImage}" style="${this.getCharImgStyle(char)}">` : `<div class="w-full h-full flex items-center justify-center text-slate-700"><i data-lucide="user" class="w-8 h-8 opacity-40"></i></div>`}
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none"></div>
                     <span class="absolute top-1 left-1 px-1 text-[10px] font-mono font-bold border ${char.role === 'MAIN' ? 'border-yellow-500/50 text-yellow-300 bg-yellow-950/80' : (char.role === 'SUB' ? 'border-cyan-500/50 text-cyan-300 bg-cyan-950/80' : 'border-slate-600 text-slate-400 bg-slate-900/90')}">${char.role}</span>
+                    <button onclick="event.stopPropagation(); app.openGearForCharacter('${char.id}')" title="${gearSaved ? 'このキャラの Upgrade Priority を開く' : 'Upgrade Priority 未入力（クリックで入力）'}"
+                        class="absolute bottom-5 left-0 right-0 z-10 h-5 flex items-center gap-1 px-1.5 bg-slate-950/95 hover:bg-slate-800 border-t border-slate-700 ${gearSaved ? 'text-sky-300' : 'text-slate-500 hover:text-sky-300'} text-[11px] font-mono leading-none">
+                        <i data-lucide="arrow-up-wide-narrow" class="w-3 h-3 shrink-0 block"></i><span class="mm-captrim">UPGRADE</span>
+                    </button>
                     ${hexaReady ? (hexaClassId ? `
                     <button onclick="event.stopPropagation(); hexaTracker.openForCharacter('${char.id}')" title="HEXA Matrix 進捗を開く"
                         class="absolute bottom-0 left-0 right-0 z-10 h-5 flex items-center gap-1 px-1.5 bg-slate-950/95 hover:bg-slate-800 border-t border-slate-700 text-violet-300 text-[11px] font-mono leading-none">
@@ -1056,6 +1062,12 @@ const app = {
             </div>`;
         }).join('') + addCardHTML;
         lucide.createIcons();
+    },
+    // カードの UPGRADE から、そのキャラの Upgrade Priority をモーダルで開く（HEXA と同じ形）。
+    // Upgrade Priority のJSは遅延読み込みなので、先に読み込む。
+    async openGearForCharacter(cid) {
+        try { await this.loadAppAssets('gear'); } catch (e) { console.error(e); return; }
+        gearPriority.openForCharacter(cid);
     },
     toggleCharDone(cid, scope = 'weekly') {
         const c = this.data.characters.find(x => x.id === cid); if (!c) return;
