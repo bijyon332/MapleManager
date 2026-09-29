@@ -7,7 +7,7 @@ const app = {
     data: { config: { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' }, characters: [], masterBosses: [], memo: "" },
     lastLoginDate: null, lastCheckAt: null, activeCharId: null,
     currentApp: 'planner',
-    bcCharId: null, bcTab: 'WEEKLY', bcSelected: {}, bcParty: {}, bcDiff: {},
+    bcCharId: null, bcSelected: {}, bcParty: {}, bcDiff: {},
     DEFAULT_IMG_OFFSET_X: 50,
     DEFAULT_IMG_OFFSET_Y: 50,
     DEFAULT_IMG_SCALE: 100,
@@ -101,21 +101,61 @@ const app = {
     onJobSelect(val) {
         const sel = document.getElementById('char-job-select');
         const opt = sel.options[sel.selectedIndex];
-        const previewContainer = document.getElementById('preview-class-container');
         const f = document.getElementById('char-form');
-
         if (val && opt) {
             f.job.value = opt.dataset.name;
-
-            document.getElementById('preview-class-img').src = opt.dataset.path;
-            document.getElementById('preview-class-name').innerText = opt.dataset.name;
-            previewContainer.classList.remove('hidden');
-            // Sync image position preview src
+            // 立ち絵の位置のプレビュー（カードは職業の画像を使う）
             const posImg = document.getElementById('pos-preview-img');
-            if (posImg) posImg.src = opt.dataset.path;
-        } else {
-            previewContainer.classList.add('hidden');
+            if (posImg) { posImg.src = opt.dataset.path; posImg.style.display = ''; }
         }
+        this.updateCharAvatar();
+    },
+
+    // 左上の画像: Fetch で取れたキャラ画像があればそれ、無ければ職業の画像。
+    updateCharAvatar() {
+        const f = document.getElementById('char-form');
+        const img = document.getElementById('char-avatar-img');
+        const ph = document.getElementById('char-avatar-ph');
+        if (!f || !img) return;
+        const sel = document.getElementById('char-job-select');
+        const opt = sel && sel.value ? sel.options[sel.selectedIndex] : null;
+        const src = (f.image.value && f.image.value.startsWith('http')) ? f.image.value : (opt ? opt.dataset.path : '');
+        img.onerror = () => { img.classList.add('hidden'); if (ph) ph.classList.remove('hidden'); };
+        if (src) { img.src = src; img.classList.remove('hidden'); if (ph) ph.classList.add('hidden'); }
+        else { img.removeAttribute('src'); img.classList.add('hidden'); if (ph) ph.classList.remove('hidden'); }
+    },
+
+    togglePortraitPop(force) {
+        const pop = document.getElementById('portrait-pop');
+        if (!pop) return;
+        const show = typeof force === 'boolean' ? force : pop.classList.contains('hidden');
+        pop.classList.toggle('hidden', !show);
+    },
+
+    setCharRole(v) {
+        const f = document.getElementById('char-form');
+        f.role.value = v;
+        document.querySelectorAll('#cm-role [data-v]').forEach(b => b.classList.toggle('cm-on', b.dataset.v === v));
+    },
+
+    setCharServer(v) {
+        const f = document.getElementById('char-form');
+        f.server.value = v;
+        document.querySelectorAll('#cm-server [data-v]').forEach(b => {
+            const on = b.dataset.v === v;
+            b.classList.toggle('cm-on', on);
+            b.classList.toggle('cm-kr', on && v === 'KRONOS');
+            b.classList.toggle('cm-ch', on && v === 'CHALLENGER');
+        });
+    },
+
+    // 編集中のキャラの HEXA / Upgrade Priority を開く。保存前の新規キャラでは押せない。
+    openLinkedFromModal(kind) {
+        const cid = this.activeCharId;
+        if (!cid) return;
+        this.closeCharModal();
+        if (kind === 'hexa' && typeof hexaTracker !== 'undefined') hexaTracker.openForCharacter(cid);
+        if (kind === 'gear') this.openGearForCharacter(cid);
     },
 
     onImagePosChange() {
@@ -136,7 +176,8 @@ const app = {
         const xs = document.getElementById('pos-x-slider');
         const img = document.getElementById('pos-preview-img');
         if (xs) xs.value = char?.imgOffsetX ?? this.DEFAULT_IMG_OFFSET_X;
-        if (img) img.src = char?.classImage || '';
+        const cls = char ? (char.classImage || (this.classByJobName(char.job) || {}).path || '') : '';
+        if (img) { img.src = cls; img.style.display = ''; }
         this.onImagePosChange();
     },
     // Planner のデータはこのブラウザだけのもの（共有DBには載せない）。
@@ -333,7 +374,7 @@ const app = {
         // Fetchボタンをスピナー状態にする
         if (fetchBtn) {
             fetchBtn.disabled = true;
-            fetchBtn.innerHTML = `<svg class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Fetching...`;
+            fetchBtn.innerHTML = `<svg class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> `;
             fetchBtn.classList.add('opacity-70', 'cursor-not-allowed');
         }
 
@@ -344,7 +385,8 @@ const app = {
         const resetBtn = () => {
             if (fetchBtn) {
                 fetchBtn.disabled = false;
-                fetchBtn.innerHTML = 'Fetch';
+                fetchBtn.innerHTML = '<i data-lucide="download" class="w-3.5 h-3.5"></i>Fetch';
+                if (window.lucide) lucide.createIcons();
                 fetchBtn.classList.remove('opacity-70', 'cursor-not-allowed');
             }
         };
@@ -391,29 +433,11 @@ const app = {
                 // Image Handling
                 if (char.characterImgURL) {
                     f.image.value = char.characterImgURL;
-                    const apiPrev = document.getElementById('preview-api-container');
-                    const apiImg = document.getElementById('preview-api-img');
-                    const apiPh = document.getElementById('preview-api-placeholder');
-                    if (apiPrev && apiImg) {
-                        apiImg.src = char.characterImgURL;
-                        apiImg.classList.remove('hidden');
-                        if (apiPh) apiPh.classList.add('hidden');
-                        document.getElementById('preview-api-name').innerText = "Fetched";
-                        apiPrev.classList.remove('hidden');
-                    }
                     L('IMAGE', 'OK', `Set: ${char.characterImgURL.substring(0, 80)}...`);
                 } else {
-                    const apiPrev = document.getElementById('preview-api-container');
-                    const apiImg = document.getElementById('preview-api-img');
-                    const apiPh = document.getElementById('preview-api-placeholder');
-                    if (apiPrev) {
-                        if (apiImg) { apiImg.src = ""; apiImg.classList.add('hidden'); }
-                        if (apiPh) apiPh.classList.remove('hidden');
-                        document.getElementById('preview-api-name').innerText = "--";
-                        apiPrev.classList.remove('hidden');
-                    }
                     L('IMAGE', 'WARN', 'No characterImgURL in API response');
                 }
+                this.updateCharAvatar();
 
                 L('DONE', 'OK', 'Fetch complete');
             } else {
@@ -1017,11 +1041,10 @@ const app = {
             };
 
             return `
-            <div class="mm-card ${allDone ? 'border-emerald-500/80 ring-1 ring-emerald-500/30' : `border-${sCol}-500/45`} border-t-${sCol}-400 bg-gradient-to-b from-${sCol}-950/40 to-slate-950/60">
+            <div class="mm-card ${allDone ? 'border-emerald-500/80 ring-1 ring-emerald-500/30' : `border-${sCol}-500/45`} border-t-${sCol}-400 bg-slate-950/60">
                 <!-- 左: 立ち絵（クリックで編集） -->
-                <div onclick="app.openCharModal('${char.id}')" class="w-[5.5rem] bg-gradient-to-b from-${sCol}-950/80 to-slate-950 border-r border-slate-800 flex-shrink-0 relative overflow-hidden cursor-pointer hover:brightness-110 transition" title="Edit ${char.name}">
+                <div onclick="app.openCharModal('${char.id}')" class="w-[5.5rem] bg-slate-900 border-r border-slate-800 flex-shrink-0 relative overflow-hidden cursor-pointer hover:brightness-110 transition" title="Edit ${char.name}">
                     ${char.classImage ? `<img src="${char.classImage}" style="${this.getCharImgStyle(char)}">` : `<div class="w-full h-full flex items-center justify-center text-slate-700"><i data-lucide="user" class="w-8 h-8 opacity-40"></i></div>`}
-                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none"></div>
                     <span class="absolute top-1 left-1 px-1 text-[10px] font-mono font-bold border ${char.role === 'MAIN' ? 'border-yellow-500/50 text-yellow-300 bg-yellow-950/80' : (char.role === 'SUB' ? 'border-cyan-500/50 text-cyan-300 bg-cyan-950/80' : 'border-slate-600 text-slate-400 bg-slate-900/90')}">${char.role}</span>
                     <button onclick="event.stopPropagation(); app.openGearForCharacter('${char.id}')" title="${gearSaved ? 'このキャラの Upgrade Priority を開く' : 'Upgrade Priority 未入力（クリックで入力）'}"
                         class="absolute bottom-5 left-0 right-0 z-10 h-5 flex items-center gap-1 px-1.5 bg-slate-950/95 hover:bg-slate-800 border-t border-slate-700 ${gearSaved ? 'text-sky-300' : 'text-slate-500 hover:text-sky-300'} text-[11px] font-mono leading-none">
@@ -1399,97 +1422,45 @@ const app = {
         const m = document.getElementById('char-modal'), f = document.getElementById('char-form');
         if (!m || !f) return;
 
-        // thorough reset
         f.reset();
-        document.getElementById('preview-class-container').classList.add('hidden');
-        document.getElementById('preview-api-container').classList.remove('hidden'); // Always show container
-        document.getElementById('preview-class-img').src = "";
-        document.getElementById('preview-api-img').src = "";
-        document.getElementById('preview-api-img').classList.add('hidden'); // Default hide img
-        const ph = document.getElementById('preview-api-placeholder');
-        if (ph) ph.classList.remove('hidden'); // Default show placeholder
-        document.getElementById('preview-api-name').innerText = "--";
-
+        this.togglePortraitPop(false);
+        const err = document.getElementById('fetch-error-msg');
+        if (err) { err.classList.add('hidden'); err.textContent = ''; }
         m.classList.remove('hidden');
         this.activeCharId = cid;
+        const c = cid ? this.data.characters.find(x => x.id === cid) : null;
 
-        if (cid) {
-            const c = this.data.characters.find(x => x.id === cid);
-            this.initBossConfigState(c);
+        document.getElementById('modal-title').innerText = c ? 'Edit Character' : 'Add Character';
+        document.getElementById('modal-subtitle').innerText = c ? c.name : '';
+        f.id.value = c ? c.id : '';
+        f.name.value = c ? c.name : '';
+        f.level.value = c ? (c.level || '') : '';
+        f.job.value = c ? (c.job || '') : '';
+        f.image.value = c ? (c.image || '') : '';
+        f.memo.value = c ? (c.memo || '') : '';
 
-            document.getElementById('modal-title').innerText = 'Edit Character';
-            f.id.value = c.id;
-            f.name.value = c.name;
-            f.level.value = c.level || "";
-            f.job.value = c.job;
-            f.role.value = c.role;
-            f.image.value = c.image || "";
-            f.memo.value = c.memo || "";
-
-            // Set Job Select & Class Preview
-            const jobSel = document.getElementById('char-job-select');
-            if (jobSel && typeof CLASS_DATA !== 'undefined') {
-                const opts = Array.from(jobSel.options);
-                const match = opts.find(o => o.dataset.name === c.job);
-                if (match) {
-                    jobSel.value = match.value;
-                    // Manually populate since we don't call onJobSelect to avoid side effects
-                    document.getElementById('preview-class-img').src = match.dataset.path;
-                    document.getElementById('preview-class-name').innerText = match.dataset.name;
-                    document.getElementById('preview-class-container').classList.remove('hidden');
-                }
-            }
-            // Set API Preview if exists, else show placeholder
-            const apiImg = document.getElementById('preview-api-img');
-            const apiPh = document.getElementById('preview-api-placeholder');
-            const apiContainer = document.getElementById('preview-api-container');
-
-            if (c.image && c.image.startsWith('http')) {
-                apiImg.src = c.image;
-                apiImg.classList.remove('hidden');
-                if (apiPh) apiPh.classList.add('hidden');
-                document.getElementById('preview-api-name').innerText = "Custom/API";
-            } else {
-                apiImg.src = "";
-                apiImg.classList.add('hidden');
-                if (apiPh) apiPh.classList.remove('hidden');
-                document.getElementById('preview-api-name').innerText = "--";
-            }
-            if (apiContainer) apiContainer.classList.remove('hidden');
-
-            const radio = f.querySelector(`input[name="server"][value="${c.server || 'KRONOS'}"]`);
-            if (radio) radio.checked = true;
-
-            this.applyImagePosToUI(c);
-        } else {
-            this.bcCharId = null;
-            this.bcSelected = {};
-            this.bcParty = {};
-            this.bcDiff = {};
-            this.bcTab = 'WEEKLY';
-            document.getElementById('modal-title').innerText = 'Add Character';
-            f.id.value = "";
-            f.name.value = "";
-            f.level.value = "";
-            f.job.value = "";
-            f.image.value = "";
-
-            // Reset Job Select
-            const jobSel = document.getElementById('char-job-select');
-            if (jobSel) jobSel.value = "";
-
-            // Default Server Selection
-            const targetServer = this.data.config.activeServer === 'ALL' ? 'KRONOS' : this.data.config.activeServer;
-            const radio = f.querySelector(`input[name="server"][value="${targetServer}"]`);
-            if (radio) radio.checked = true;
-
-            this.applyImagePosToUI(null);
+        const jobSel = document.getElementById('char-job-select');
+        if (jobSel) {
+            const match = c ? Array.from(jobSel.options).find(o => o.dataset.name === c.job) : null;
+            jobSel.value = match ? match.value : '';
         }
+        this.setCharRole(c ? (c.role || 'MAIN') : 'MAIN');
+        const defServer = this.data.config.activeServer === 'ALL' ? 'KRONOS' : this.data.config.activeServer;
+        this.setCharServer(c ? (c.server || 'KRONOS') : defServer);
+        ['cm-link-hexa', 'cm-link-gear'].forEach(id => {
+            const b = document.getElementById(id);
+            if (b) { b.disabled = !c; b.title = c ? '' : '保存すると使えます'; }
+        });
 
-        this.switchBossConfigTab(this.bcTab || 'WEEKLY');
+        if (c) this.initBossConfigState(c);
+        else { this.bcCharId = null; this.bcSelected = {}; this.bcParty = {}; this.bcDiff = {}; }
+
+        this.applyImagePosToUI(c);
+        this.updateCharAvatar();
+        this.renderBossConfigGrid();
         lucide.createIcons();
     },
-    closeCharModal() { document.getElementById('char-modal').classList.add('hidden'); },
+    closeCharModal() { this.togglePortraitPop(false); document.getElementById('char-modal').classList.add('hidden'); },
     async updateAllCharacters() {
         if (!confirm('Update all characters from Ranking API? This may take a while.')) return;
         const btn = document.getElementById('btn-update-all');
@@ -1565,7 +1536,7 @@ const app = {
             memo: f.memo.value,
             imgOffsetX: Number.isFinite(offX) ? offX : defX,
             hidden: hiddenVal,
-            server: f.querySelector('input[name="server"]:checked')?.value || 'KRONOS',
+            server: f.server.value || 'KRONOS',
             // 画面に無い項目（旧タスク機能の選択など）は消さずに引き継ぐ。
             settings: { ...(pc?.settings || {}), boss_ids, boss_party_sizes },
             // 週・月の消し込み（charDone / charMonthlyDone）も引き継ぐ。以前は編集して保存すると外れていた。
@@ -1601,21 +1572,19 @@ const app = {
         Object.values(groups).forEach(g => {
             g.variants.sort((a, b) => this.DIFF_ORDER.indexOf(a.difficulty) - this.DIFF_ORDER.indexOf(b.difficulty));
         });
-        return Object.values(groups).sort((a, b) => {
-            const maxA = Math.max(...a.variants.map(v => v.meso));
-            const maxB = Math.max(...b.variants.map(v => v.meso));
-            return maxB - maxA;
-        });
+        // 並びは boss_master.js の BOSS_REGISTER_ORDER。無いボスは結晶価格の高い順で後ろへ。
+        const order = (typeof BOSS_REGISTER_ORDER !== 'undefined') ? BOSS_REGISTER_ORDER : [];
+        const rank = n => { const i = order.indexOf(n); return i < 0 ? Infinity : i; };
+        const top = g => Math.max(...g.variants.map(v => v.meso));
+        return Object.values(groups).sort((a, b) => (rank(a.name) - rank(b.name)) || (top(b) - top(a)));
     },
 
     openBossConfigModal(charId) {
-        // Now opens the unified edit modal on the Bosses tab.
         this.openCharModal(charId);
     },
 
     initBossConfigState(c) {
         this.bcCharId = c.id;
-        this.bcTab = 'WEEKLY';
         this.bcSelected = {};
         this.bcParty = {};
         this.bcDiff = {};
@@ -1631,129 +1600,99 @@ const app = {
         });
     },
 
-    switchBossConfigTab(type) {
-        if (type === 'DAILY') type = 'WEEKLY';
-        this.bcTab = type;
-        ['MONTHLY', 'WEEKLY'].forEach(t => {
-            const btn = document.getElementById(`bc-tab-${t}`);
-            if (!btn) return;
-            const base = "px-2.5 py-1 rounded text-[11px] font-bold transition-colors flex items-center gap-1";
-            if (t === type) btn.className = `${base} bg-indigo-600 text-white shadow-sm`;
-            else btn.className = `${base} text-slate-400 hover:text-white`;
-        });
-        const search = document.getElementById('bc-search');
-        if (search) search.placeholder = `Search ${type.toLowerCase()} bosses...`;
-        this.renderBossConfigGrid();
+    // 難易度の枠。ハードとカオスは同じボスに両方あることがないので同じ列にする。
+    BC_DIFF_COLS: [['EASY'], ['NORMAL'], ['HARD', 'CHAOS'], ['EXTREME']],
+    BC_DIFF_COLOR: { EASY: '#9ca3af', NORMAL: '#22d3ee', HARD: '#f87171', CHAOS: '#ca8a04', EXTREME: '#ef4444' },
+
+    bcVariant(key) {
+        const [type, ...rest] = key.split(':');
+        const group = this.getBossGroups(type).find(g => g.name === rest.join(':'));
+        if (!group) return null;
+        const diff = this.bcDiff[key] || group.variants[0].difficulty;
+        return group.variants.find(v => v.difficulty === diff) || null;
+    },
+
+    bcMaxParty(variant, name) {
+        return (variant && variant.max) || ((typeof bossByEn === 'function' && bossByEn(name)) || {}).maxMembers || 6;
     },
 
     renderBossConfigGrid() {
-        const grid = document.getElementById('bc-grid');
-        if (!grid) return;
-        const groups = this.getBossGroups(this.bcTab);
-
-        grid.innerHTML = groups.map(g => {
-            const key = `${this.bcTab}:${g.name}`;
-            const isSel = !!this.bcSelected[key];
-            const currentDiff = this.bcDiff[key] || g.variants[0].difficulty;
-            const variant = g.variants.find(v => v.difficulty === currentDiff) || g.variants[0];
-            const pSize = this.bcParty[key] || 1;
-            const eff = Math.floor(variant.meso / pSize);
-            const cardCls = isSel ? 'bg-indigo-950/40 border-indigo-500/60 ring-1 ring-indigo-500/30' : 'bg-slate-800/40 border-slate-700/60 hover:border-slate-600';
-
-            const img = this.getBossImageUrl(g.name);
-            return `
-            <div class="border rounded-lg p-2.5 transition-all ${cardCls}">
-                <div class="flex items-center gap-2 mb-2">
-                    ${img ? `<img src="${img}" alt="" class="w-9 h-9 object-contain flex-shrink-0 rounded ${isSel ? '' : 'opacity-80'}" onerror="this.style.display='none'">` : ''}
-                    <div class="min-w-0 flex-1">
-                        <div class="text-sm font-bold text-white truncate leading-tight">${g.name}</div>
-                        ${g.kana ? `<div class="text-[10px] text-slate-500 truncate">${g.kana}</div>` : ''}
-                    </div>
-                    <button type="button" onclick="app.bcToggleSelect('${key}')" class="flex-shrink-0 w-5 h-5 rounded-full border-2 ${isSel ? 'bg-indigo-500 border-indigo-400' : 'border-slate-600 hover:border-indigo-400'} flex items-center justify-center transition-colors">
-                        ${isSel ? '<i data-lucide="check" class="w-3 h-3 text-white"></i>' : ''}
-                    </button>
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <select onchange="app.bcSetDiff('${key}', this.value)" class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white outline-none focus:border-indigo-500">
-                        ${g.variants.map(v => `<option value="${v.difficulty}" ${v.difficulty === currentDiff ? 'selected' : ''}>${v.difficulty.charAt(0) + v.difficulty.slice(1).toLowerCase()}</option>`).join('')}
-                    </select>
-                    <div class="flex items-center gap-0.5 flex-shrink-0">
-                        <button type="button" onclick="app.bcAdjustParty('${key}', -1)" class="w-5 h-6 bg-slate-900 hover:bg-slate-700 border border-slate-700 rounded text-slate-400 text-xs leading-none">−</button>
-                        <span class="w-5 text-center text-xs font-mono font-bold text-white" title="Party size">${pSize}</span>
-                        <button type="button" onclick="app.bcAdjustParty('${key}', 1)" class="w-5 h-6 bg-slate-900 hover:bg-slate-700 border border-slate-700 rounded text-slate-400 text-xs leading-none">+</button>
-                    </div>
-                </div>
-                <div class="mt-2 pt-1.5 border-t border-slate-700/50 flex items-baseline justify-between gap-2">
-                    <span class="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Est. Mesos</span>
-                    <span class="text-${isSel ? 'amber-300' : 'slate-400'} font-mono font-bold text-xs">${eff.toLocaleString()}</span>
-                </div>
-            </div>`;
-        }).join('') || `<div class="col-span-full text-center text-slate-500 text-xs py-8">No ${this.bcTab.toLowerCase()} bosses</div>`;
-
+        const body = document.getElementById('bc-grid');
+        if (!body) return;
+        const label = d => d.charAt(0) + d.slice(1).toLowerCase();
+        const section = type => {
+            const groups = this.getBossGroups(type);
+            if (!groups.length) return '';
+            const col = type === 'WEEKLY' ? 'violet' : 'amber';
+            const head = `<tr><td colspan="5" class="!border-x-0 px-3 pt-3 pb-1 bg-slate-900"><div class="flex items-center gap-2 text-[11px] font-bold text-${col}-400">${type}<span class="flex-1 h-px bg-${col}-500/40"></span></div></td></tr>`;
+            return head + groups.map(g => {
+                const key = `${type}:${g.name}`;
+                const on = !!this.bcSelected[key];
+                const v = on ? this.bcVariant(key) : null;
+                const max = this.bcMaxParty(v, g.name);
+                const p = on ? Math.min(this.bcParty[key] || 1, max) : 1;
+                const img = this.getBossImageUrl(g.name);
+                const diffs = this.BC_DIFF_COLS.map(ds => {
+                    const x = g.variants.find(y => ds.includes(y.difficulty));
+                    if (!x) return `<button type="button" class="cm-db na" tabindex="-1"></button>`;
+                    const sel = on && v && v.difficulty === x.difficulty;
+                    return `<button type="button" onclick="app.bcPickDiff('${key}','${x.difficulty}')" class="cm-db ${sel ? 'on' : ''}" style="--c:${this.BC_DIFF_COLOR[x.difficulty] || '#94a3b8'}">${label(x.difficulty)}</button>`;
+                }).join('');
+                const bossMax = this.bcMaxParty(null, g.name);
+                const pts = Array.from({ length: bossMax }, (_, i) => i + 1).filter(i => i <= max)
+                    .map(i => `<button type="button" onclick="app.bcSetParty('${key}',${i})" class="cm-pb ${on && p === i ? 'on' : ''}">${i}</button>`).join('');
+                return `<tr class="${on ? 'cm-sel' : 'cm-off'}">
+                    <td class="cm-bn px-3 py-1 max-w-0 w-full overflow-hidden"><div class="flex items-center gap-2 overflow-hidden">
+                        ${img ? `<img src="${img}" alt="" class="w-7 h-7 object-contain flex-shrink-0 ${on ? '' : 'opacity-40'}" onerror="this.style.visibility='hidden'">` : '<span class="w-7 flex-shrink-0"></span>'}
+                        <span class="${on ? 'text-white font-bold' : 'text-slate-400'} text-[13px] whitespace-nowrap">${g.name}</span>
+                        ${g.kana ? `<span class="text-[10px] text-slate-500 whitespace-nowrap truncate">${g.kana}</span>` : ''}</div></td>
+                    <td class="px-3 w-36 text-right font-mono text-[12px] ${on ? 'text-slate-400' : 'text-slate-700'}">${v ? v.meso.toLocaleString() : '—'}</td>
+                    <td class="px-3 w-36 text-right font-mono text-[13px] ${on ? 'text-amber-300 font-bold' : 'text-slate-700'}">${v ? Math.floor(v.meso / p).toLocaleString() : '—'}</td>
+                    <td class="px-2 whitespace-nowrap"><div class="flex gap-1">${diffs}</div></td>
+                    <td class="px-2 whitespace-nowrap"><div class="flex gap-1 w-[164px]">${pts}</div></td></tr>`;
+            }).join('');
+        };
+        body.innerHTML = section('WEEKLY') + section('MONTHLY')
+            || `<tr><td colspan="5" class="text-center text-slate-500 text-xs py-8">No bosses</td></tr>`;
         this.updateBossConfigCounter();
-        lucide.createIcons();
     },
 
-    bcToggleSelect(key) {
-        this.bcSelected[key] = !this.bcSelected[key];
-        if (this.bcSelected[key] && !this.bcDiff[key]) {
-            const type = key.split(':')[0], name = key.split(':').slice(1).join(':');
-            const group = this.getBossGroups(type).find(g => g.name === name);
-            if (group) this.bcDiff[key] = group.variants[0].difficulty;
+    // 難易度を押すと登録、同じ難易度をもう一度押すと解除。
+    bcPickDiff(key, diff) {
+        if (this.bcSelected[key] && this.bcDiff[key] === diff) {
+            this.bcSelected[key] = false;
+        } else {
+            this.bcSelected[key] = true;
+            this.bcDiff[key] = diff;
+            if (!this.bcParty[key]) this.bcParty[key] = 1;
+            // 難易度で人数の上限が変わるボス（スウ Extreme は2人）は上限に合わせる。
+            const max = this.bcMaxParty(this.bcVariant(key), key.split(':').slice(1).join(':'));
+            if (this.bcParty[key] > max) this.bcParty[key] = max;
         }
-        if (!this.bcParty[key]) this.bcParty[key] = 1;
         this.renderBossConfigGrid();
     },
 
-    bcSetDiff(key, diff) {
-        this.bcDiff[key] = diff;
-        this.renderBossConfigGrid();
-    },
-
-    bcAdjustParty(key, delta) {
-        const cur = this.bcParty[key] || 1;
-        const next = Math.max(1, Math.min(6, cur + delta));
-        this.bcParty[key] = next;
+    bcSetParty(key, n) {
+        if (!this.bcSelected[key]) return;
+        this.bcParty[key] = n;
         this.renderBossConfigGrid();
     },
 
     updateBossConfigCounter() {
         const charLimit = this.data.config.charMaxCrystals || 14;
-        let weeklyCount = 0, totalCount = 0, weeklyEarnings = 0;
-        Object.keys(this.bcSelected).filter(k => this.bcSelected[k]).forEach(key => {
-            const [type, ...rest] = key.split(':');
-            const name = rest.join(':');
-            const group = this.getBossGroups(type).find(g => g.name === name);
-            if (!group) return;
-            const diff = this.bcDiff[key] || group.variants[0].difficulty;
-            const variant = group.variants.find(v => v.difficulty === diff);
-            if (!variant) return;
-            totalCount++;
-            if (type === 'WEEKLY') {
-                weeklyCount++;
-                const eff = variant.meso / (this.bcParty[key] || 1);
-                weeklyEarnings += eff;
-            }
+        const weekly = [];
+        Object.keys(this.bcSelected).filter(k => this.bcSelected[k] && k.startsWith('WEEKLY:')).forEach(key => {
+            const v = this.bcVariant(key);
+            if (v) weekly.push(v.meso / (this.bcParty[key] || 1));
         });
-        const sortedWeekly = Object.keys(this.bcSelected).filter(k => this.bcSelected[k] && k.startsWith('WEEKLY:')).map(key => {
-            const name = key.split(':').slice(1).join(':');
-            const group = this.getBossGroups('WEEKLY').find(g => g.name === name);
-            if (!group) return 0;
-            const diff = this.bcDiff[key] || group.variants[0].difficulty;
-            const variant = group.variants.find(v => v.difficulty === diff);
-            return variant ? variant.meso / (this.bcParty[key] || 1) : 0;
-        }).sort((a, b) => b - a).slice(0, charLimit);
-        const cappedEarnings = sortedWeekly.reduce((s, v) => s + v, 0);
-
+        const capped = weekly.sort((a, b) => b - a).slice(0, charLimit).reduce((s, x) => s + x, 0);
         const counter = document.getElementById('bc-counter');
-        const totalEl = document.getElementById('bc-total-selected');
         const earnEl = document.getElementById('bc-weekly-earnings');
         if (counter) {
-            counter.innerText = `${weeklyCount}/${charLimit}`;
-            counter.className = weeklyCount > charLimit ? 'font-mono text-amber-400 font-bold' : 'font-mono text-white font-bold';
+            counter.innerText = `${weekly.length}/${charLimit}`;
+            counter.className = `font-mono font-bold inline-block w-12 text-right ${weekly.length > charLimit ? 'text-rose-400' : 'text-violet-300'}`;
         }
-        if (totalEl) totalEl.innerText = `${totalCount} total selected`;
-        if (earnEl) earnEl.innerText = Math.floor(cappedEarnings).toLocaleString();
+        if (earnEl) earnEl.innerText = Math.floor(capped).toLocaleString();
     },
 
 };

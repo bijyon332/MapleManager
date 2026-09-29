@@ -19,6 +19,7 @@
  *                   difficulties は Party Builder で選べる難易度（易しい順）。
  *    diffs        : 難易度ごと（易しい順）。
  *                   id / type / meso … Character Manager の結晶（id は保存データのキーなので変えないこと）
+ *                   max             … この難易度だけ最大人数が違うとき（スウ Extreme は2人）
  *                   lv / af / sac   … Cheat Sheet のボスLv・必要AF・必要AUT
  *
  *  メモ:
@@ -148,7 +149,7 @@ const BOSS_MASTER = [
         diffs: [
             { d: "NORMAL", id: "b_lotus_normal", type: "WEEKLY", meso: 162562500 },
             { d: "HARD", id: "b_lotus_hard", type: "WEEKLY", meso: 444675000 },
-            { d: "EXTREME", id: "b_lotus_ex", type: "WEEKLY", meso: 1397500000 },
+            { d: "EXTREME", id: "b_lotus_ex", type: "WEEKLY", meso: 1397500000, max: 2 },
         ],
     },
     {
@@ -326,9 +327,17 @@ const BOSS_MASTER = [
 const bossByEn = (en) => BOSS_MASTER.find(b => b.en === en) || null;
 
 // Character Manager 用の結晶一覧（1難易度1行）。
+// Character Manager の編集画面でのボスの並び（bi 指定、2026-09-29）。英語名で書く。
+// ここに無いボスは後ろに、結晶価格の高い順で並ぶ。
+const BOSS_REGISTER_ORDER = [
+    "Jupiter", "Baldrix", "Malefic Star", "Limbo", "First Adversary", "Kaling", "Kalos the Guardian",
+    "Chosen Seren", "Verus Hilla", "Darknell", "Gloom", "Guardian Angel Slime", "Will", "Lucid", "Damien", "Lotus"
+];
+
 function bossCrystalList() {
     return BOSS_MASTER.flatMap(b => b.diffs.filter(d => d.id).map(d => ({
-        id: d.id, name: b.en, kana: b.ja, difficulty: d.d, meso: d.meso, type: d.type
+        id: d.id, name: b.en, kana: b.ja, difficulty: d.d, meso: d.meso, type: d.type,
+        max: d.max || b.maxMembers || 6
     })));
 }
 
@@ -349,5 +358,6 @@ if (typeof window !== 'undefined') {
     window.BOSS_MASTER = BOSS_MASTER;
     window.bossByEn = bossByEn;
     window.bossCrystalList = bossCrystalList;
+    window.BOSS_REGISTER_ORDER = BOSS_REGISTER_ORDER;
     window.bossForceTable = bossForceTable;
 }

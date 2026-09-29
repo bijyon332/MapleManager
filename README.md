@@ -142,5 +142,5 @@ npm run check
 
 ## 覚えておくこと
 
-- タスク機能 (Daily/Weekly) は `public/script.js` の `TASKS_ENABLED: false` で停止中。復活させるときはここを `true` に戻す。
+- Character Manager の編集画面のボスの並びは `public/boss_master.js` の `BOSS_REGISTER_ORDER`。難易度で最大人数が変わるボスは、その難易度に `max` を書く（スウ Extreme は2人）。
 - Erel Light には GMS の HEXA ノードテーブルがまだ無い（Erda Link 側のため）。ランキングや曲線の対象外になっている。
