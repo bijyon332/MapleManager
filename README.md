@@ -15,7 +15,7 @@ Cloudflare Worker + 静的アセットとして配信している。ビルド工
 | --- | --- | --- | --- |
 | Tools | Character Manager | `planner` | `public/script.js` |
 | Tools | HEXA Tracker | `hexa` | `public/hexa_tracker.js` |
-| Tools | Upgrade Priority | `gear` | `public/gear_priority.js` |
+| Tools | Upgrade Priority | `gear` | `public/gear_priority.js`（サイドバーは仮の入力。キャラごとの入力は Character Manager のカードの UPGRADE から開く） |
 | Tools | Cheat Sheet | `cheatsheet` | `public/cheatsheet.js` |
 | Monitoring | EXP Tracker | `ranks` | `public/ranks.js` |
 | Community | Party Builder | `scheduler` | `public/boss_scheduler.html`（同一オリジンの iframe） |
