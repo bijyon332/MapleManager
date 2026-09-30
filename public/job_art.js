@@ -50,7 +50,7 @@ const JOB_ART_POS = {
     khali: { x: -51, y: -70, z: 92 },
     hoyoung: { x: -67, y: -140, z: 100 },
     lara: { x: -41, y: -104, z: 90 },
-    ren: { x: -62, y: -93, z: 90 },
+    ren: { x: -129, y: -133, z: 122 },
     kinesis: { x: -46, y: -111, z: 90 },
     zero: { x: -24, y: -59, z: 68 },
     hayato: { x: -6, y: -159, z: 96 },
