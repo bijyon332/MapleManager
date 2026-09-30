@@ -606,7 +606,7 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 /* 職業の絵を、メルと月ボスの帯の後ろにだけ透かしで敷く（右寄せで切り取る）。ボスのマスにはかけない */
 .mx-main { position: relative; isolation: isolate; }
 .mx-main::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 88px; z-index: -1; background: var(--wm) var(--wm-pos, right -20px top -30px) / var(--wm-size, 62% auto) no-repeat; opacity: .45; filter: grayscale(.2); }
-.mx-done .mx-main::before { opacity: .2; }
+.mx-done .mx-main::before { opacity: .35; }
 
 /* DEV: Job Art Position（job_art_tool.js） */
 .ja { display: flex; flex-direction: column; gap: 12px; }
