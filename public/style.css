@@ -464,59 +464,6 @@ body {
 .htab.nav-inactive:hover { background: transparent; color: #e2e8f0; }
 header { box-shadow: inset 0 -1px 0 rgba(99, 102, 241, 0.25); }
 
-/* ---------- Character Manager のキャラカード ----------
-   月ボス1行・週ボス2行を必ず確保して、全カードの高さを揃える。 */
-.mm-card { display: flex; position: relative; width: 100%; max-width: 32rem; overflow: hidden; border-style: solid; border-width: 1px; border-top-width: 2px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04); }
-/* 右上と左下の角を斜めに落とす（丸めない）。落とした所にはサーバー色／罫線色の斜め線を引く。 */
-.mm-card { --cut: 14px; clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut))); }
-.mm-card::before, .mm-card::after { content: ""; position: absolute; z-index: 20; width: var(--cut); height: var(--cut); pointer-events: none; }
-.mm-card::before { top: 0; right: 0; background: linear-gradient(to bottom left, transparent calc(50% - 2px), var(--sc) calc(50% - 2px), var(--sc) 50%, transparent 50%); }
-.mm-card::after { bottom: 0; left: 0; background: linear-gradient(to top right, transparent calc(50% - 1.5px), #334155 calc(50% - 1.5px), #334155 50%, transparent 50%); }
-.mm-card-done::before { background: linear-gradient(to bottom left, transparent calc(50% - 2px), #334155 calc(50% - 2px), #334155 50%, transparent 50%); }
-.mm-meso { min-width: 14ch; text-align: right; font-size: 18px; line-height: 22px; }
-.mm-name { font-size: 18px; line-height: 22px; letter-spacing: -0.01em; }
-/* 全部消し込んだカードは沈める。獲得メルと COMPLETE だけが目立つ */
-.mm-card-done { background: #010411; }
-.mm-card-done > div:first-child img { filter: grayscale(0.85) brightness(0.5); }
-.mm-card-done .mm-name { color: #94a3b8; }
-.mm-card-done .mm-tile { opacity: 0.55; }
-.mm-count { flex-shrink: 0; min-width: 5ch; text-align: right; box-sizing: content-box; }
-.mm-sec-label { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; line-height: 16px; }
-/* 見出しは色文字＋右へ伸びる細線（サイドバーのグループ見出しと同じ形）。塗りつぶしはしない。 */
-.mm-sec-head::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, #334155, transparent); }
-
-.mm-tiles { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: repeat(var(--rows, 1), 52px); gap: 3px; cursor: pointer; }
-.mm-tiles:hover .mm-tile { filter: brightness(1.2); }
-.mm-tile { background: #070d1c; }
-.mm-tiles-empty { height: calc(var(--rows, 1) * 52px + (var(--rows, 1) - 1) * 3px); display: flex; align-items: center; justify-content: center; border: 1px dashed #334155; font-size: 11px; color: #64748b; }
-
-.mm-tile { position: relative; display: flex; flex-direction: column; min-width: 0; border: 1px solid #334155; background: #0b1222; overflow: hidden; }
-/* 月ボス／週ボスの区別は、塗りではなくマス上端の細線で出す。 */
-.mm-tiles-mo .mm-tile:not(.mm-tile-more) { box-shadow: inset 0 2px 0 rgba(234, 179, 8, 0.7); }
-.mm-tiles-wk .mm-tile:not(.mm-tile-more) { box-shadow: inset 0 2px 0 rgba(168, 85, 247, 0.7); }
-.mm-tile-body { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
-.mm-tile-body img { width: 100%; height: 100%; object-fit: contain; padding: 1px 1px 0; transform: scale(1.08); }
-.mm-tile-name { font-size: 10px; line-height: 1.15; color: #e2e8f0; padding: 0 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 100%; }
-.mm-tile-diff { border: 0 !important; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 9px; font-weight: 700; line-height: 13px; text-align: center; letter-spacing: 0.02em; }
-/* マス下の難易度帯は薄い地＋文字色で見分ける（他画面の難易度バッジはベタ塗りのまま）。 */
-.mm-tile-diff.badge-easy { background: rgba(55, 65, 81, 0.4); color: #9ca3af; }
-.mm-tile-diff.badge-normal { background: rgba(14, 116, 144, 0.25); color: #67e8f9; }
-.mm-tile-diff.badge-hard { background: rgba(153, 27, 27, 0.28); color: #fca5a5; }
-.mm-tile-diff.badge-chaos { background: rgba(202, 138, 4, 0.15); color: #facc15; }
-.mm-tile-diff.badge-extreme { background: rgba(69, 10, 10, 0.5); color: #f87171; }
-.mm-diff-extreme { border-color: rgba(239, 68, 68, 0.55); }
-.mm-diff-chaos { border-color: rgba(202, 138, 4, 0.55); }
-.mm-diff-hard { border-color: rgba(248, 113, 113, 0.55); }
-.mm-diff-normal { border-color: rgba(34, 211, 238, 0.55); }
-.mm-diff-easy { border-color: rgba(75, 85, 99, 0.55); }
-.mm-tile-more { align-items: center; justify-content: center; gap: 3px; border: 1px dashed #94a3b8; background: transparent; }
-
-/* 消し込み済み：マスを暗く沈め、斜めの帯を1本通す */
-.mm-stamp { position: absolute; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; background: rgba(2, 6, 23, 0.72); cursor: pointer; overflow: hidden; }
-.mm-stamp:hover { background: rgba(2, 6, 23, 0.6); }
-.mm-stamp-band { display: flex; align-items: center; justify-content: center; gap: 8px; width: 130%; padding: 5px 0; transform: rotate(-6deg); border-top: 2px solid currentColor; border-bottom: 2px solid currentColor; background: rgba(2, 6, 23, 0.92); font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 15px; font-weight: 700; letter-spacing: 0.4em; text-indent: 0.4em; }
-.mm-tiles-mo + .mm-stamp .mm-stamp-band { padding: 2px 0; font-size: 13px; }
-
 /* 上部バーの収入欄 */
 .mm-hstat { display: flex; align-items: center; gap: 6px; padding: 0 8px; border-left: 1px solid #1e293b; white-space: nowrap; flex-shrink: 0; }
 .mm-hstat:first-child { border-left: 0; }
@@ -574,7 +521,6 @@ tr.cm-sel .cm-db:not(.on) { color: #94a3b8; }
 tr.cm-off .cm-pb { color: #334155; cursor: default; }
 tr.cm-off .cm-pb:hover { border-color: #1e293b; color: #334155; }
 table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
-.mm-tiles-mo + .mm-stamp .mm-stamp-band { transform: rotate(-2.5deg); }
 
 /* ---------- Character Manager のキャラカード（立ち絵主役の版） ----------
    左は立ち絵を大きく、その上に Lv・名前・職業。右はメル、月ボス1行、週ボス7×2、HEXA/UPGRADE。

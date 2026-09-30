@@ -870,24 +870,6 @@ const app = {
         return 'badge-normal';
     },
 
-    // ボス1体ぶんのタイル。消し込みはボス単位ではなく、週ボス／月ボスの
-    // エリアごと（toggleCharDone）で行うので、ここは表示だけ。
-    getBossTileHTML(boss, partySize) {
-        const img = this.getBossImageUrl(boss.name);
-        const diff = (boss.difficulty || '').toUpperCase();
-        const typeChar = boss.type === 'WEEKLY' ? 'W' : (boss.type === 'MONTHLY' ? 'M' : 'D');
-        // 枠全体を難易度の色で囲み、下の帯に難易度をフルで書く。画像が読めないときはボス名を出す。
-        return `
-        <div title="[${typeChar}] ${boss.difficulty} ${boss.name}${partySize > 1 ? ` ×${partySize}` : ''}"
-            class="mm-tile mm-diff-${diff.toLowerCase()} ${boss.type === 'MONTHLY' ? 'mm-tile-mo' : ''}">
-            <div class="mm-tile-body">
-                ${img ? `<img src="${img}" alt="${boss.name}" onerror="this.nextElementSibling.style.display='block';this.remove()">` : ''}
-                <span class="mm-tile-name" ${img ? 'style="display:none"' : ''}>${(bossByEn(boss.name) || {}).shortEn || boss.name}</span>
-            </div>
-            <span class="${this.getBadgeClass(boss.difficulty)} mm-tile-diff">${diff}</span>
-            ${partySize > 1 ? `<span class="absolute top-0 left-0 bg-slate-950/80 text-[9px] font-mono font-bold text-blue-300 px-0.5">×${partySize}</span>` : ''}
-        </div>`;
-    },
 
     // 上部バーの収入欄。左の「週 / 月」で集計期間を切り替え、サーバーごとに、左に結晶アイコンと個数（上限で赤）、右にサーバー名と収入（全桁）を出す。
     // Kronos / Challenger の欄はそのままサーバーの切り替えボタンを兼ねる（別の切り替えボタンを置くと上部バーに収まらない）。
