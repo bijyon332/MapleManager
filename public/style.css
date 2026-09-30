@@ -599,9 +599,8 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .mx-tool.is-on { color: #7dd3fc; }
 .mx-bar { position: absolute; left: 0; top: 0; height: 2px; background: #8b5cf6; }
 
-/* 全部消し込んだカードは、立ち絵を落として沈める */
+/* 全部消し込んだカードは地と名前を沈める。キャラ画像はグレーにしない（bi 指定） */
 .mx-done { background: #060b18; }
-.mx-done .mx-art img, .mx-done .mx-art img.mx-avatar { filter: grayscale(.9) brightness(.45); }
 .mx-done .mx-name { color: #94a3b8; }
 .mx-done::before { background: #334155; }
 
