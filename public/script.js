@@ -22,6 +22,22 @@ const app = {
             .find(j => (aliasId ? j.id === aliasId : j.name.toLowerCase().replace(/[^a-z0-9]/g, '') === t)) || null;
     },
 
+    // 職業の絵の透かしの位置と大きさ（job_art.js）。DEV の Job Art Position で調整中の値
+    // （この端末の localStorage）があればそちらを優先して、ダッシュボードですぐ確かめられるようにする。
+    JOB_ART_DRAFT_KEY: 'mm-jobart-draft',
+    jobArtFor(char) {
+        const all = typeof CLASS_DATA === 'undefined' ? [] : Object.values(CLASS_DATA).flat();
+        const cls = all.find(j => j.path === char.classImage) || this.classByJobName(char.job);
+        if (!cls) return null;
+        let draft = {};
+        try { draft = JSON.parse(localStorage.getItem(this.JOB_ART_DRAFT_KEY) || '{}'); } catch (e) { /* 読めなければ下書きなし */ }
+        return { ...JOB_ART_DEFAULT, ...(JOB_ART_POS[cls.id] || {}), ...(draft[cls.id] || {}), id: cls.id };
+    },
+    jobArtVars(pos) {
+        return `;--wm-pos:right ${pos.x}px top ${pos.y}px;--wm-size:${pos.z}% auto`;
+    },
+    // カードの角の飾り線に使うサーバー色（Tailwind の色名 → 400 の値）
+    SERVER_HEX: { emerald: '#34d399', purple: '#c084fc', violet: '#a78bfa', indigo: '#818cf8', sky: '#38bdf8', cyan: '#22d3ee', teal: '#2dd4bf', amber: '#fbbf24', yellow: '#facc15', orange: '#fb923c', rose: '#fb7185', red: '#f87171', pink: '#f472b6', blue: '#60a5fa', lime: '#a3e635', green: '#4ade80' },
     getCharImgStyle(char) {
         // Slider value: 0 = image at left, 100 = image at right (intuitive).
         // CSS object-position is inverted, so we flip when applying.
@@ -549,6 +565,12 @@ const app = {
             chrome: 'planner',
             open() { this.navigate('dashboard'); }
         },
+        jobart: {
+            view: 'view-jobart',
+            scripts: ['job_art_tool.js'],
+            init() { jobArtTool.init('view-jobart'); },
+            reopen() { jobArtTool.render(); }
+        },
         cheatsheet: {
             view: 'view-cheatsheet',
             scripts: ['cheatsheet.js'],
@@ -1007,79 +1029,53 @@ const app = {
 
             // 月ボス1行・週ボス2行の枠は必ず取り、全カードの高さを揃える。
             // 枠に収まらない分は最後のマスを「+N and more」にする（中身はツールチップ）。
-            const section = (label, key, list, done, rows) => {
-                const scope = key === 'mo' ? 'monthly' : 'weekly';
-                const cap = rows * 7;
-                const head = `
-                    <div class="mm-sec-head flex items-center gap-2 mb-0.5 h-4">
-                        <span class="mm-sec-label ${key === 'mo' ? 'text-yellow-400' : 'text-purple-400'}">${label}</span>
-                    </div>`;
-                if (!list.length) {
-                    return `<div>${head}<div class="mm-tiles-empty" style="--rows:${rows}">${key === 'mo' ? '月' : '週'}ボスなし</div></div>`;
-                }
-                const shown = list.length > cap ? list.slice(0, cap - 1) : list;
+            // ボスは画像だけのマス（下に難易度をフル表記）。欄をクリックするとキャラ単位でまとめて消し込む。
+            const tiles = (list, max) => {
+                const shown = list.length > max ? list.slice(0, max - 1) : list;
                 const rest = list.slice(shown.length);
-                const more = rest.length ? `
-                    <div class="mm-tile mm-tile-more" title="${rest.map(b => `${b.difficulty} ${b.name}`).join('\n')}">
-                        <span class="text-sm font-mono font-bold text-white leading-none">+${rest.length}</span>
-                        <span class="text-[10px] text-slate-400 leading-none">and more</span>
-                    </div>` : '';
-                return `
-                <div>${head}
-                    <div class="relative">
-                        <div onclick="app.toggleCharDone('${char.id}','${scope}')" title="${done ? 'クリックで消し込みを解除' : `クリックで${key === 'mo' ? '月' : '週'}ボスをまとめて消し込む`}"
-                            class="mm-tiles ${key === 'mo' ? 'mm-tiles-mo' : 'mm-tiles-wk'}" style="--rows:${rows}">
-                            ${shown.map(b => this.getBossTileHTML(b, b.pSize)).join('')}${more}
-                        </div>
-                        ${done ? `
-                        <div onclick="app.toggleCharDone('${char.id}','${scope}')" title="クリックで消し込みを解除"
-                            class="mm-stamp ${key === 'mo' ? 'border-yellow-400/90 text-yellow-300' : 'border-purple-400/90 text-purple-300'}">
-                            <i data-lucide="check-circle-2" class="w-5 h-5"></i><span>COMPLETE</span>
-                        </div>` : ''}
-                    </div>
-                </div>`;
+                return shown.map(b => {
+                    const img = this.getBossImageUrl(b.name);
+                    const d = (b.difficulty || '').toLowerCase();
+                    return `<div class="mx-boss mx-d-${d}" title="${b.difficulty} ${b.name}${b.pSize > 1 ? ` ×${b.pSize}` : ''}">
+                        <div class="mx-boss-ic">${img ? `<img src="${img}" alt="" onerror="this.nextElementSibling.style.display='';this.remove()">` : ''}<span class="mx-boss-nm" ${img ? 'style="display:none"' : ''}>${(bossByEn(b.name) || {}).shortEn || b.name}</span>${b.pSize > 1 ? `<i class="mx-boss-ps">×${b.pSize}</i>` : ''}</div>
+                        <span class="mx-boss-df">${b.difficulty}</span></div>`;
+                }).join('') + (rest.length ? `<div class="mx-boss mx-boss-more" title="${rest.map(b => `${b.difficulty} ${b.name}`).join('\n')}"><div class="mx-boss-ic">+${rest.length}</div><span class="mx-boss-df">more</span></div>` : '');
             };
+            // 消し込み済みは元のカードと同じ「COMPLETE」（枠を色で囲み、中を沈める）
+            const completeMark = `<div class="mx-complete"><i data-lucide="check-circle-2"></i><span>COMPLETE</span></div>`;
 
             return `
-            <div class="mm-card ${allDone ? 'border-emerald-500/80 ring-1 ring-emerald-500/30' : `border-${sCol}-500/45`} border-t-${sCol}-400 bg-slate-950/60">
-                <!-- 左: 立ち絵（クリックで編集） -->
-                <div onclick="app.openCharModal('${char.id}')" class="w-[5.5rem] bg-slate-900 border-r border-slate-800 flex-shrink-0 relative overflow-hidden cursor-pointer hover:brightness-110 transition" title="Edit ${char.name}">
-                    ${char.classImage ? `<img src="${char.classImage}" style="${this.getCharImgStyle(char)}">` : `<div class="w-full h-full flex items-center justify-center text-slate-700"><i data-lucide="user" class="w-8 h-8 opacity-40"></i></div>`}
-                    <span class="absolute top-1 left-1 px-1 text-[10px] font-mono font-bold border ${char.role === 'MAIN' ? 'border-yellow-500/50 text-yellow-300 bg-yellow-950/80' : (char.role === 'SUB' ? 'border-cyan-500/50 text-cyan-300 bg-cyan-950/80' : 'border-slate-600 text-slate-400 bg-slate-900/90')}">${char.role}</span>
-                    <button onclick="event.stopPropagation(); app.openGearForCharacter('${char.id}')" title="${gearSaved ? 'このキャラの Upgrade Priority を開く' : 'Upgrade Priority 未入力（クリックで入力）'}"
-                        class="absolute bottom-5 left-0 right-0 z-10 h-5 flex items-center gap-1 px-1.5 bg-slate-950/95 hover:bg-slate-800 border-t border-slate-700 ${gearSaved ? 'text-sky-300' : 'text-slate-500 hover:text-sky-300'} text-[11px] font-mono leading-none">
-                        <i data-lucide="arrow-up-wide-narrow" class="w-3 h-3 shrink-0 block"></i><span class="mm-captrim">UPGRADE</span>
-                    </button>
-                    ${hexaReady ? (hexaClassId ? `
-                    <button onclick="event.stopPropagation(); hexaTracker.openForCharacter('${char.id}')" title="HEXA Matrix 進捗を開く"
-                        class="absolute bottom-0 left-0 right-0 z-10 h-5 flex items-center gap-1 px-1.5 bg-slate-950/95 hover:bg-slate-800 border-t border-slate-700 text-violet-300 text-[11px] font-mono leading-none">
-                        <span class="absolute left-0 top-0 h-0.5 bg-violet-500" style="width:${hexaPct}%"></span>
-                        <i data-lucide="hexagon" class="w-3 h-3 shrink-0 block"></i><span class="mm-captrim">HEXA</span><span class="mm-captrim ml-auto text-slate-200">${hexaPct}%</span>
-                    </button>` : `
-                    <button onclick="event.stopPropagation(); hexaTracker.openForCharacter('${char.id}')" title="HEXA職業を登録"
-                        class="absolute bottom-0 left-0 right-0 z-10 h-5 flex items-center gap-1 px-1.5 bg-slate-950/95 hover:bg-slate-800 border-t border-slate-700 text-slate-500 hover:text-violet-300 text-[11px] font-mono leading-none">
-                        <i data-lucide="plus" class="w-3 h-3 shrink-0 block"></i><span class="mm-captrim">HEXA登録</span>
-                    </button>`) : ''}
-                </div>
-                <!-- 右: 名前の行 + ボス -->
-                <div class="flex-1 flex flex-col min-w-0">
-                    <div class="flex items-center gap-2 px-2 py-1 border-b border-slate-800 bg-slate-900/45">
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-baseline gap-2 text-[11px] leading-4">
-                                <span class="text-indigo-300 truncate min-w-0">${char.job || '—'}</span>
-                                <span class="font-mono text-${sCol}-300 flex-shrink-0">Lv.${char.level || '?'}</span>
-                            </div>
-                            <h3 class="text-base font-bold text-white truncate leading-5">${char.name}</h3>
-                        </div>
-                        <div class="flex-shrink-0 text-right" title="週の収入（上位${charLimit}体）">
-                            <div class="text-[10px] leading-4 text-slate-500">mesos</div>
-                            <div class="mm-meso font-mono text-base font-semibold text-emerald-300 leading-5">${Math.floor(localMaxTotal).toLocaleString()}</div>
-                        </div>
-                        <span class="mm-count font-mono text-[11px] text-slate-300 bg-slate-950/70 border border-slate-700 px-1.5 self-center">${countAll}/${wkSorted.length + mB.length}</span>
+            <div class="mx-card ${allDone ? 'mx-done' : ''}" style="--sc:${this.SERVER_HEX[sCol] || '#94a3b8'}${char.classImage ? `;--wm:url('${char.classImage}')${this.jobArtVars(this.jobArtFor(char) || JOB_ART_DEFAULT)}` : ''}">
+                <div class="mx-art" onclick="app.openCharModal('${char.id}')" title="Edit ${char.name}">
+                    ${char.image ? `
+                    <img class="mx-avatar" src="${char.image}" alt="${char.name}" onerror="this.remove()">` : (char.classImage ? `<img src="${char.classImage}" style="${this.getCharImgStyle(char)}">` : '')}
+                    <span class="mx-role mx-role-${(char.role || '').toLowerCase()}">${char.role}</span>
+                    <div class="mx-id">
+                        <div class="mx-lv">Lv.${char.level || '?'}</div>
+                        <h3 class="mx-name">${char.name}</h3>
+                        <div class="mx-job">${char.job || '—'}</div>
                     </div>
-                    <div class="flex-1 px-2 pt-1 pb-2 space-y-1">
-                        ${section('Monthly', 'mo', mB, isMonthlyDone, 1)}
-                        ${section('Weekly', 'wk', wkSorted, isWeeklyDone, 2)}
+                </div>
+                <div class="mx-main">
+                    <div class="mx-top">
+                        <div class="mx-meso" title="週の収入（上位${charLimit}体）">${Math.floor(localMaxTotal).toLocaleString()}<small>mesos</small></div>
+                        <div class="mx-count"><b>${countAll}</b>/${wkSorted.length + mB.length}</div>
+                    </div>
+                    ${mB.length ? `
+                    <div class="mx-mo ${isMonthlyDone ? 'is-done' : ''}" onclick="app.toggleCharDone('${char.id}','monthly')" title="${isMonthlyDone ? 'クリックで消し込みを解除' : 'クリックで月ボスを消し込む'}">
+                        ${mB.slice(0, 2).map(b => { const img = this.getBossImageUrl(b.name); return `
+                        <span class="mx-mo-boss mx-d-${(b.difficulty || '').toLowerCase()}">
+                            <span class="mx-mo-ic" title="${b.difficulty} ${b.name}">${img ? `<img src="${img}" alt="" onerror="this.nextElementSibling.style.display='';this.remove()">` : ''}<span class="mx-mo-nm" ${img ? 'style="display:none"' : ''}>${(bossByEn(b.name) || {}).shortEn || b.name}</span></span>
+                            <span class="mx-mo-df">${b.difficulty}</span>
+                        </span>`; }).join('')}
+                        ${isMonthlyDone ? `${completeMark}<span class="mx-mo-meso">${Math.floor(mB.reduce((s, b) => s + b.effectiveMeso, 0)).toLocaleString()}</span>` : ''}
+                    </div>` : '<div class="mx-mo mx-mo-none">月ボスなし</div>'}
+                    <div class="mx-wk ${isWeeklyDone ? 'is-done' : ''}" ${wkSorted.length ? `onclick="app.toggleCharDone('${char.id}','weekly')" title="${isWeeklyDone ? 'クリックで消し込みを解除' : 'クリックで週ボスをまとめて消し込む'}"` : ''}>
+                        ${wkSorted.length ? `<div class="mx-grid">${tiles(wkSorted, 14)}</div>${isWeeklyDone ? completeMark : ''}` : '<div class="mx-none mx-none-wk">週ボスなし</div>'}
+                    </div>
+                    <div class="mx-tools">
+                        ${hexaReady ? `<button onclick="hexaTracker.openForCharacter('${char.id}')" class="mx-tool mx-tool-hexa"><span class="mx-bar" style="width:${hexaPct}%"></span>${hexaClassId ? `HEXA <b>${hexaPct}%</b>` : 'HEXA 登録'}</button>` : ''}
+                        <button onclick="app.openGearForCharacter('${char.id}')" class="mx-tool ${gearSaved ? 'is-on' : ''}">UPGRADE</button>
                     </div>
                 </div>
             </div>`;
