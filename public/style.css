@@ -612,7 +612,7 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .mx-mo-nm { font-size: 7.5px; line-height: 1; color: #fde68a; text-align: center; }
 .mx-mo-df { font: 700 10.5px/1 "Saira Condensed", sans-serif; color: var(--dc); letter-spacing: .06em; }
 .mx-mo-meso { margin-left: auto; font: 700 15px/1 "Saira Condensed", sans-serif; color: #facc15; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #020617; position: relative; }
-.mx-mo.is-done { border: 2px solid #eab308; }
+.mx-mo.is-done { border-color: transparent; outline: 2px solid #eab308; }
 .mx-mo.is-done .mx-mo-boss { opacity: .3; filter: grayscale(1); }
 
 /* 消し込み済みの印：元のカードと同じ「◎ COMPLETE」を枠の真ん中に */
@@ -636,8 +636,8 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .mx-boss-more .mx-boss-ic { font: 700 13px "Saira Condensed"; color: #e2e8f0; box-shadow: inset 0 0 0 1px #334155; }
 .mx-wk[onclick]:hover .mx-boss-ic { background: #16213f; }
 
-/* 週ボスの消し込み済み：紫の枠で囲み、マスを沈めて COMPLETE */
-.mx-wk.is-done { outline: 2px solid #a78bfa; outline-offset: 2px; }
+/* 週ボスの消し込み済み：紫の枠で囲み、マスを沈めて COMPLETE。枠は月ボスと同じ outline 2px（左右の線がそろう） */
+.mx-wk.is-done { outline: 2px solid #a78bfa; }
 .mx-wk.is-done .mx-grid { opacity: .22; filter: grayscale(1); }
 .mx-wk .mx-complete span { font-size: 17px; }
 
