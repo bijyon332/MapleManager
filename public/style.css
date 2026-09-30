@@ -532,8 +532,11 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .mx-art { position: relative; overflow: hidden; background: #0f1830; cursor: pointer; }
 .mx-art img { filter: saturate(1.05); transition: filter .15s; }
 /* 自分のキャラ画像があるときは、職業の絵を透かしで後ろに敷き、キャラ画像を名前の上に立たせる */
-.mx-avatar { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); width: 134px; image-rendering: pixelated; filter: drop-shadow(0 2px 0 #020617); }
 .mx-art:hover img { filter: brightness(1.15); }
+/* キャラ画像は小さいドット絵を拡大するので、pixelated だと段差が目立つ。なめらかに拡大し、
+   縁に濃い影を回して輪郭を締める（.mx-art img より強い指定にする） */
+.mx-art img.mx-avatar { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); width: 134px; image-rendering: auto; filter: drop-shadow(0 0 1px #020617) drop-shadow(0 4px 6px #020617b3) saturate(1.05); }
+.mx-art:hover img.mx-avatar { filter: drop-shadow(0 0 1px #020617) drop-shadow(0 4px 6px #020617b3) brightness(1.15); }
 .mx-role { position: absolute; top: 6px; left: 9px; font: 700 10.5px "IBM Plex Mono", monospace; letter-spacing: .08em; color: #94a3b8; background: #020617d9; padding: 0 5px; }
 .mx-role-main { color: #fde047; } .mx-role-sub { color: #67e8f9; }
 .mx-id { position: absolute; left: 0; right: 0; bottom: 0; padding: 5px 8px 6px 11px; background: #020617e6; border-top: 1px solid var(--sc); }
@@ -596,16 +599,15 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .mx-tool.is-on { color: #7dd3fc; }
 .mx-bar { position: absolute; left: 0; top: 0; height: 2px; background: #8b5cf6; }
 
-/* 全部消し込んだカードは、立ち絵を落として沈める */
+/* 全部消し込んだカードは地と名前を沈める。キャラ画像はグレーにしない（bi 指定） */
 .mx-done { background: #060b18; }
-.mx-done .mx-art img { filter: grayscale(.9) brightness(.45); }
 .mx-done .mx-name { color: #94a3b8; }
 .mx-done::before { background: #334155; }
 
 /* 職業の絵を、メルと月ボスの帯の後ろにだけ透かしで敷く（右寄せで切り取る）。ボスのマスにはかけない */
 .mx-main { position: relative; isolation: isolate; }
-.mx-main::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 88px; z-index: -1; background: var(--wm) var(--wm-pos, right -20px top -30px) / var(--wm-size, 62% auto) no-repeat; opacity: .3; filter: grayscale(.2); }
-.mx-done .mx-main::before { opacity: .14; }
+.mx-main::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 88px; z-index: -1; background: var(--wm) var(--wm-pos, right -20px top -30px) / var(--wm-size, 62% auto) no-repeat; opacity: .45; filter: grayscale(.2); }
+.mx-done .mx-main::before { opacity: .2; }
 
 /* DEV: Job Art Position（job_art_tool.js） */
 .ja { display: flex; flex-direction: column; gap: 12px; }
