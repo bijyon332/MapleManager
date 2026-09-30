@@ -23,6 +23,7 @@ Cloudflare Worker + 静的アセットとして配信している。ビルド工
 | DEV（開発中） | EXP Simulator | `exp` | `public/exp_sim.js` |
 | DEV（開発中） | Gear Cost Calculator | `cost` | `public/cost_calc.js` |
 | DEV（開発中） | Weapon Liberation | `liberation` | `public/liberation_calc.js` ほか |
+| DEV（開発中） | Job Art Position | `jobart` | `public/job_art_tool.js`（値は `public/job_art.js`） |
 
 ### アプリの読み込み
 
