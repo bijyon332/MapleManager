@@ -572,7 +572,7 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .mx-mo .mx-complete svg { width: 15px; height: 15px; }
 .mx-mo .mx-complete span { font-size: 13px; }
 .mx-lbl, .mx-none { font-size: 11px; color: #475569; }
-.mx-wk { position: relative; }
+.mx-wk { position: relative; background: #0a1124; } /* 地を敷き、上の透かしが週ボスの欄に透けないようにする */
 .mx-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px 5px; }
 .mx-none-wk { height: 108px; display: grid; place-items: center; border: 1px dashed #1e293b; }
 .mx-boss { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; }
@@ -600,7 +600,7 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .mx-bar { position: absolute; left: 0; top: 0; height: 2px; background: #8b5cf6; }
 
 /* 全部消し込んだカードは地と名前を沈める。キャラ画像はグレーにしない（bi 指定） */
-.mx-done { background: #060b18; }
+.mx-done, .mx-done .mx-wk { background: #060b18; }
 .mx-done .mx-name { color: #94a3b8; }
 
 /* 職業の絵を、メルと月ボスの帯の後ろにだけ透かしで敷く（右寄せで切り取る）。ボスのマスにはかけない */
