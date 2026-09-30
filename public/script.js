@@ -1008,6 +1008,8 @@ const app = {
             const isMonthlyDone = !!p.charMonthlyDone;
             const countAll = (isWeeklyDone ? wkSorted.length : 0) + (isMonthlyDone ? mB.length : 0);
             const allDone = (wkSorted.length + mB.length > 0) && (!wkSorted.length || isWeeklyDone) && (!mB.length || isMonthlyDone);
+            // 週ボスを消し込んだら、月ボスが残っていてもカードを沈める（キャラ画像も白黒に）
+            const dimmed = allDone || isWeeklyDone;
 
             // 月ボス1行・週ボス2行の枠は必ず取り、全カードの高さを揃える。
             // 枠に収まらない分は最後のマスを「+N and more」にする（中身はツールチップ）。
@@ -1027,7 +1029,7 @@ const app = {
             const completeMark = `<div class="mx-complete"><i data-lucide="check-circle-2"></i><span>COMPLETE</span></div>`;
 
             return `
-            <div class="mx-card ${allDone ? 'mx-done' : ''}" style="--sc:${this.SERVER_HEX[sCol] || '#94a3b8'}${char.classImage ? `;--wm:url('${char.classImage}')${this.jobArtVars(this.jobArtFor(char) || JOB_ART_DEFAULT)}` : ''}">
+            <div class="mx-card ${dimmed ? 'mx-done' : ''}" style="--sc:${this.SERVER_HEX[sCol] || '#94a3b8'}${char.classImage ? `;--wm:url('${char.classImage}')${this.jobArtVars(this.jobArtFor(char) || JOB_ART_DEFAULT)}` : ''}">
                 <div class="mx-art" onclick="app.openCharModal('${char.id}')" title="Edit ${char.name}">
                     ${char.image ? `
                     <img class="mx-avatar" src="${char.image}" alt="${char.name}" onerror="this.remove()">` : (char.classImage ? `<img src="${char.classImage}" style="${this.getCharImgStyle(char)}">` : '')}
