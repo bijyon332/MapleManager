@@ -602,7 +602,6 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 /* 全部消し込んだカードは地と名前を沈める。キャラ画像はグレーにしない（bi 指定） */
 .mx-done { background: #060b18; }
 .mx-done .mx-name { color: #94a3b8; }
-.mx-done::before { background: #334155; }
 
 /* 職業の絵を、メルと月ボスの帯の後ろにだけ透かしで敷く（右寄せで切り取る）。ボスのマスにはかけない */
 .mx-main { position: relative; isolation: isolate; }
