@@ -1011,7 +1011,7 @@ const app = {
 
             // 月ボス1行・週ボス2行の枠は必ず取り、全カードの高さを揃える。
             // 枠に収まらない分は最後のマスを「+N and more」にする（中身はツールチップ）。
-            // ボスは画像だけのマス（下に難易度をフル表記）。欄をクリックするとキャラ単位でまとめて消し込む。
+            // ボスは画像だけのマス（難易度は画像の下部に重ねてフル表記）。欄をクリックするとキャラ単位でまとめて消し込む。
             const tiles = (list, max) => {
                 const shown = list.length > max ? list.slice(0, max - 1) : list;
                 const rest = list.slice(shown.length);
@@ -1019,9 +1019,8 @@ const app = {
                     const img = this.getBossImageUrl(b.name);
                     const d = (b.difficulty || '').toLowerCase();
                     return `<div class="mx-boss mx-d-${d}" title="${b.difficulty} ${b.name}${b.pSize > 1 ? ` ×${b.pSize}` : ''}">
-                        <div class="mx-boss-ic">${img ? `<img src="${img}" alt="" onerror="this.nextElementSibling.style.display='';this.remove()">` : ''}<span class="mx-boss-nm" ${img ? 'style="display:none"' : ''}>${(bossByEn(b.name) || {}).shortEn || b.name}</span>${b.pSize > 1 ? `<i class="mx-boss-ps">×${b.pSize}</i>` : ''}</div>
-                        <span class="mx-boss-df">${b.difficulty}</span></div>`;
-                }).join('') + (rest.length ? `<div class="mx-boss mx-boss-more" title="${rest.map(b => `${b.difficulty} ${b.name}`).join('\n')}"><div class="mx-boss-ic">+${rest.length}</div><span class="mx-boss-df">more</span></div>` : '');
+                        <div class="mx-boss-ic">${img ? `<img src="${img}" alt="" onerror="this.nextElementSibling.style.display='';this.remove()">` : ''}<span class="mx-boss-nm" ${img ? 'style="display:none"' : ''}>${(bossByEn(b.name) || {}).shortEn || b.name}</span>${b.pSize > 1 ? `<i class="mx-boss-ps">×${b.pSize}</i>` : ''}<span class="mx-boss-df">${b.difficulty}</span></div></div>`;
+                }).join('') + (rest.length ? `<div class="mx-boss mx-boss-more" title="${rest.map(b => `${b.difficulty} ${b.name}`).join('\n')}"><div class="mx-boss-ic">+${rest.length}<span class="mx-boss-df">more</span></div></div>` : '');
             };
             // 消し込み済みは元のカードと同じ「COMPLETE」（枠を色で囲み、中を沈める）
             const completeMark = `<div class="mx-complete"><i data-lucide="check-circle-2"></i><span>COMPLETE</span></div>`;
