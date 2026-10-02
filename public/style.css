@@ -572,8 +572,8 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .mx-mo .mx-complete svg { width: 15px; height: 15px; }
 .mx-mo .mx-complete span { font-size: 13px; }
 .mx-lbl, .mx-none { font-size: 11px; color: #475569; }
-.mx-wk { position: relative; background: #0a1124; } /* 地を敷き、上の透かしが週ボスの欄に透けないようにする */
-.mx-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px 5px; }
+.mx-wk { position: relative; } /* 地は敷かず、マスの隙間には透かしが見える。マス自体は不透明 */
+.mx-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px 5px; min-height: 88px; align-content: start; } /* ボスが1行でも常に2行分の高さ */
 .mx-none-wk { height: 88px; display: grid; place-items: center; border: 1px dashed #1e293b; }
 .mx-boss { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; }
 .mx-boss-ic { position: relative; width: 100%; aspect-ratio: 1; max-width: 42px; background: #111a33; display: grid; place-items: center; overflow: hidden; }
@@ -590,7 +590,10 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 
 /* 週ボスの消し込み済み：紫の枠で囲み、マスを沈めて COMPLETE。枠は月ボスと同じ outline 2px（左右の線がそろう） */
 .mx-wk.is-done { outline: 2px solid #a78bfa; }
-.mx-wk.is-done .mx-grid { opacity: .22; filter: grayscale(1); }
+/* 沈めるのはマスの中身だけ。マスの地は不透明のままにして、透かしが透けないようにする */
+.mx-wk.is-done .mx-boss-ic { background: #0c1328; }
+.mx-wk.is-done .mx-boss-ic > *, .mx-wk.is-done .mx-boss-ic::after { opacity: .22; filter: grayscale(1); }
+.mx-wk.is-done .mx-boss-more .mx-boss-ic { color: #e2e8f038; }
 .mx-wk .mx-complete span { font-size: 17px; }
 
 .mx-tools { display: flex; margin: 2px -12px 0; border-top: 1px solid #1e293b; }
@@ -603,12 +606,12 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .mx-bar { position: absolute; left: 0; top: 0; height: 2px; background: #8b5cf6; }
 
 /* 全部消し込んだカードは地と名前を沈める。キャラ画像はグレーにしない（bi 指定） */
-.mx-done, .mx-done .mx-wk { background: #060b18; }
+.mx-done { background: #060b18; }
 .mx-done .mx-name { color: #94a3b8; }
 
-/* 職業の絵を、メルと月ボスの帯の後ろにだけ透かしで敷く（右寄せで切り取る）。ボスのマスにはかけない */
+/* 職業の絵を右側の欄全体の後ろに透かしで敷く（右寄せ）。ボスのマスは不透明なので隙間にだけ見える */
 .mx-main { position: relative; isolation: isolate; }
-.mx-main::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 88px; z-index: -1; background: var(--wm) var(--wm-pos, right -20px top -30px) / var(--wm-size, 62% auto) no-repeat; opacity: .45; filter: grayscale(.2); }
+.mx-main::before { content: ""; position: absolute; left: 0; right: 0; top: 0; bottom: 0; z-index: -1; background: var(--wm) var(--wm-pos, right -20px top -30px) / var(--wm-size, 62% auto) no-repeat; opacity: .45; filter: grayscale(.2); }
 
 /* DEV: Job Art Position（job_art_tool.js） */
 .ja { display: flex; flex-direction: column; gap: 12px; }
