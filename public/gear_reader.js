@@ -142,7 +142,7 @@
         [/\bemblem\b/i, 'emblem'], [/\bbadge\b/i, 'badge'], [/\bpocket/i, 'pocket'], [/\bheart\b/i, 'heart'],
         [/\boverall\b/i, 'overall'], [/\bhat\b/i, 'hat'], [/\btop\b/i, 'top'], [/\bbottom\b/i, 'bottom'],
         [/\bshoes?\b/i, 'shoe'], [/\bgloves?\b/i, 'glove'], [/\bcape\b/i, 'cape'],
-        [/\bsub\s*weapon\b|\bsecondary\b|\bimugi\b|\bgem\b|\bshield\b|\bkatara\b|\bmedallion|\brosary\b|\biron chain\b|\bmagic book\b|\barrow fletching\b|\bbow thimble\b|\bdagger scabbard\b|\bcharm\b|\bwrist band\b|\bfar sight\b|\bpowder keg\b|\bmass\b|\bdocument\b|\bmagic marble\b|\barrowhead\b|\bjewel\b|\bfox marble\b|\bcore controller\b|\bchess piece\b|\btransmitter\b|\bornament\b|\bspellbook\b|\bsoul ring\b|\bmagnum\b|\bfan tassel\b|\bhilt\b|\brelic\b|\bbracelet\b|\bweapon belt\b|\bnovel\b|\bwing\b/i, 'sub'],
+        [/\bsub\s*wea|\bsecondary\b|\bimugi\b|\bkodachi\b|\bgem\b|\bshield\b|\bkatara\b|\bmedallion|\brosary\b|\biron chain\b|\bmagic book\b|\barrow fletching\b|\bbow thimble\b|\bdagger scabbard\b|\bcharm\b|\bwrist band\b|\bfar sight\b|\bpowder keg\b|\bmass\b|\bdocument\b|\bmagic marble\b|\barrowhead\b|\bjewel\b|\bfox marble\b|\bcore controller\b|\bchess piece\b|\btransmitter\b|\bornament\b|\bspellbook\b|\bsoul ring\b|\bmagnum\b|\bfan tassel\b|\bhilt\b|\brelic\b|\bbracelet\b|\bweapon belt\b|\bnovel\b|\bwing\b/i, 'sub'],
         [/\bweapon\b|\bsword\b|\baxe\b|\bmace\b|\bspear\b|\bpolearm\b|\bdagger\b|\bclaw\b|\bbow\b|\bcrossbow\b|\bwand\b|\bstaff\b|\bgun\b|\bknuckle\b|\bcannon\b|\bcane\b|\bkatana\b|\bfan\b|\bscepter\b|\bgauntlet\b|\bchain\b|\bblade\b|\bshining rod\b|\bpsy-?limiter\b|\bchakram\b|\bhand cannon\b|\bbreath shooter\b|\bwhip blade\b|\bdesperado\b|\bwhispershot\b|\blong sword\b|\bheavy sword\b|\bbladecaster\b|\britual fan\b|\bmemorial staff\b|\bancient bow\b|\bdual bowguns\b|\benergy sword\b|\barm cannon\b|\bsoul shooter\b/i, 'weapon'],
     ];
     const GRADE_WORD = { rare: 'R', epic: 'E', unique: 'U', legendary: 'L' };
@@ -175,9 +175,31 @@
     };
 
     // `color(bbox)` says what colour a word is ('green' = flame).
+    // "Required" as OCR spells it ("Recuired", "Renuired", "Requlred"): within two letters.
+    function nearWord(t, word) {
+        const a = t.toLowerCase().replace(/[^a-z]/g, ''), b = word;
+        if (Math.abs(a.length - b.length) > 2) return false;
+        const d = Array.from({ length: b.length + 1 }, (_, i) => i);
+        for (let i = 1; i <= a.length; i++) {
+            let prev = d[0];
+            d[0] = i;
+            for (let j = 1; j <= b.length; j++) {
+                const t2 = d[j];
+                d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+                prev = t2;
+            }
+        }
+        return d[b.length] <= 2;
+    }
+    const isReq = (t) => /^R/i.test(t) && nearWord(t, 'required');
+    const isReqLevel = (t) => {
+        const ws = t.split(/\s+/);
+        return ws.some((x, k) => isReq(x) && ws[k + 1] && /^L[eo]v/i.test(ws[k + 1])) || /Requ\w*\s*Lev/i.test(t);
+    };
+
     function parse(lines, color) {
         const res = { name: '', kind: '', level: 0, grade: '', pot: [], flame: {} };
-        const iReq = lines.findIndex((l) => /Requ\w*\s*Lev/i.test(l.text));
+        const iReq = lines.findIndex((l) => isReqLevel(l.text));
         const head = iReq >= 0 ? lines.slice(0, iReq) : lines.slice(0, 8);
 
         // The name is the tallest wordy line above "Required".
@@ -188,7 +210,9 @@
             const letters = (l.text.match(/[A-Za-z]/g) || []).length;
             const lower = (l.text.match(/[a-z]/g) || []).length;
             if (letters < 4 || letters < l.text.replace(/\s/g, '').length * 0.7 || lower < letters * 0.4) continue;
-            if ((l.text.replace(TAG, '').match(/[A-Za-z]/g) || []).length < 4) continue;
+            // A type tag with star garbage beside it ("SP Ls! Sub Weapon") is not a name.
+            const rest = l.text.replace(TAG, '').replace(/\bSub\b/gi, '');
+            if ((rest.match(/[A-Za-z]/g) || []).length < 4 || !/[A-Za-z]{3}/.test(rest)) continue;
             // Item names are Capitalised Words ("AbsoLab", "Two-handed", "Mitra's Rage:").
             const words = l.text.split(/\s+/).filter(Boolean);
             if (words.filter((w) => /^[A-Z][A-Za-z'\-:]+$/.test(w)).length < words.length * 0.6) continue;
@@ -274,12 +298,18 @@
     // The whole screen has several columns of text, so this pass uses automatic layout.
     async function findByText(img, w, conv) {
         await w.setParameters({ tessedit_pageseg_mode: '3' });
-        let data;
-        try { ({ data } = await w.recognize(await conv(img), {}, { blocks: true })); }
-        finally { await w.setParameters({ tessedit_pageseg_mode: '6' }); }
+        try {
+            const out = spotsOfText(linesOf((await w.recognize(await conv(img), {}, { blocks: true })).data));
+            if (out.length) return out;
+            // Busy backgrounds can hide the line; try once more in black and white.
+            const bin = binarize(img, { x0: 0, y0: 0, w: img.width, h: img.height, f: 1 });
+            return spotsOfText(linesOf((await w.recognize(await conv(bin), {}, { blocks: true })).data));
+        } finally { await w.setParameters({ tessedit_pageseg_mode: '6' }); }
+    }
+    function spotsOfText(lines) {
         const out = [];
-        for (const l of linesOf(data)) {
-            const i = l.words.findIndex((x, k) => /^Requ/i.test(x.text) && l.words[k + 1] && /^Lev/i.test(l.words[k + 1].text));
+        for (const l of lines) {
+            const i = l.words.findIndex((x, k) => isReq(x.text) && l.words[k + 1] && /^L[eo]v/i.test(l.words[k + 1].text));
             if (i < 0) continue;
             const bb = l.words[i].bbox;
             // "Required" is 11px tall at 100% UI scale; the stars sit 175px above it.
