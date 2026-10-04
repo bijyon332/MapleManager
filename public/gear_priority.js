@@ -849,7 +849,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
     const SET_JP = {
         genesis: 'ジェネシス', destiny: 'デスティニー', eternal: 'エターナル', arcane: 'アーケインシェード', absolab: 'アブソラブ',
         cra: 'ルートアビス', pitched: '漆黒のボス', dawn: '黎明のボス',
-        boss_acc: 'ボスアクセサリー', meister: 'マイスター', gollux: 'ゴルロックス', other: 'その他',
+        boss_acc: 'ボスアクセサリー', meister: 'マイスター', gollux: 'ゴルロックス', sweetwater: 'スウィートウォーター', other: 'その他',
     };
     const iconUrl = (id) => `https://maplestory.io/api/GMS/${(ITEM_BY_ID.get(id) || {}).ver || 255}/item/${id}/icon`;
     const iconImg = (id, size) => id
@@ -918,7 +918,8 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
     // Lv200 is either Arcane or Genesis: "Genesis" anywhere in the tooltip text decides,
     // since the name line itself doesn't always survive the OCR.
     function weaponByLevel(L, text) {
-        const set = L >= 250 ? 'destiny' : L >= 200 ? (/gen[ec]s[il1]s/i.test(text) ? 'genesis' : 'arcane') : L >= 160 ? 'absolab' : '';
+        const set = L >= 250 ? 'destiny' : L >= 200 ? (/gen[ec]s[il1]s/i.test(text) ? 'genesis' : 'arcane')
+            : L >= 160 ? (/sweet\s*water/i.test(text) ? 'sweetwater' : 'absolab') : '';
         return ITEMS.find((it) => it.slot === 'weapon' && it.set === set) || null;
     }
     const snapLevel = (id, L) => {
@@ -1863,10 +1864,11 @@ ${grades}
 
         const veil = document.createElement('div');
         veil.id = 'gp-char-overlay';
-        veil.className = 'fixed inset-0 z-[45] bg-black/70 flex items-start justify-center p-4 overflow-y-auto';
+        // 上の余白は枠の外側（mt-4）に持つ。スクロール側に上の余白があると、固定したヘッダーの上に中身が透けて見える。
+        veil.className = 'fixed inset-0 z-[45] bg-black/70 flex items-start justify-center px-4 pb-4 overflow-y-auto';
         const portrait = (char.image && char.image.startsWith('http')) ? char.image : (char.classImage || '');
         veil.innerHTML = `
-<div class="w-full max-w-[1400px] bg-slate-950 border border-slate-700 shadow-2xl">
+<div class="w-full max-w-[1400px] mt-4 bg-slate-950 border border-slate-700 shadow-2xl">
     <div class="sticky top-0 z-10 flex items-center gap-3 h-11 pl-3 border-b border-slate-800 bg-slate-900">
         ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-8 h-8 object-cover bg-slate-950">` : ''}
         <span class="text-sm font-bold text-white">${esc(char.name)}</span>
