@@ -576,6 +576,12 @@ const app = {
             scripts: ['cheatsheet.js'],
             init() { cheatsheet.init('view-cheatsheet'); }
         },
+        kmsvideos: {
+            view: 'view-kmsvideos',
+            nav: 'kmsv-nav',
+            scripts: ['kms_videos.js'],
+            init() { kmsVideos.init('view-kmsvideos'); }
+        },
         ranks: {
             view: 'view-ranks',
             nav: 'ranks-nav',

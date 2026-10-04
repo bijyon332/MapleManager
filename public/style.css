@@ -670,3 +670,13 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .mx-meso, .mx-count { text-shadow: 0 0 2px #020617, 0 0 4px #020617, 0 1px 2px #020617; }
 .mx-meso small { color: #64748b; }
 .mx-main::before { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 55%); mask-image: linear-gradient(to right, transparent 0, #000 55%); }
+
+/* KMS Videos: 上部バーの入力欄と、系統ごとの表の段組み */
+.kmsv-ctl { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #94a3b8; white-space: nowrap; }
+.kmsv-ctl input[type="date"], .kmsv-ctl input[type="text"], .kmsv-ctl select { background: #020617; border: 1px solid #334155; color: #e2e8f0; font-size: 12px; padding: 2px 6px; outline: none; color-scheme: dark; }
+.kmsv-ctl input:focus, .kmsv-ctl select:focus { border-color: #6366f1; }
+.kmsv-ctl input:disabled { opacity: 0.4; }
+.kmsv-ctl input[type="checkbox"] { accent-color: #6366f1; }
+.kmsv-cols { columns: 2 520px; column-gap: 12px; }
+.kmsv-link { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #a5b4fc; word-break: break-all; }
+.kmsv-link:hover { color: #fff; text-decoration: underline; }
