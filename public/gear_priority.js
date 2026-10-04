@@ -1348,11 +1348,18 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
                     const t = spots[0], sig = this.spotSig(img, t);
                     const same = L.spot && Math.abs(L.spot.x0 - t.x0) < 3 && Math.abs(L.spot.y - t.y) < 3;
                     L.spot = t;
-                    if (!same || (L.done && this.sigDiff(L.done, sig) < 6)) return;
-                    L.done = sig;
-                    res = await gearReader.readTooltip(img, { starsOnly: true });
+                    if (!same) return;
+                    if (!L.done || this.sigDiff(L.done, sig) >= 6) {
+                        L.done = sig;
+                        res = await gearReader.readTooltip(img, { starsOnly: true });
+                        L.spotOk = res.length > 0;
+                    }
                 } else {
                     L.spot = null;
+                }
+                // No stars on screen, or the "stars" were other yellow UI that read as nothing:
+                // look for a starless tooltip (secondary, emblem) by its text now and then.
+                if (!(res && res.length) && !(spots.length && L.spotOk)) {
                     if (Date.now() - L.lastText < 5000) return;
                     L.lastText = Date.now();
                     res = await gearReader.readTooltip(img);
