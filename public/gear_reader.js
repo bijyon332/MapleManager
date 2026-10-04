@@ -190,7 +190,7 @@
             // Item names are Capitalised Words ("AbsoLab", "Two-handed", "Mitra's Rage:").
             const words = l.text.split(/\s+/).filter(Boolean);
             if (words.filter((w) => /^[A-Z][A-Za-z'\-:]+$/.test(w)).length < words.length * 0.6) continue;
-            if (/tradable|combat|power|increase|currently|equipped|one-of|unique equip/i.test(l.text)) continue;
+            if (/tradable|combat|power|increase|currently|equipped|one-of|unique equip|required/i.test(l.text)) continue;
             const h = Math.max(...l.words.map((w) => w.bbox.y1 - w.bbox.y0));
             if (!best || h > best.h + 1) best = { h, text: l.text };
         }
