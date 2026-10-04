@@ -97,7 +97,7 @@ const kmsVideos = {
     ],
     SP_SORT_DATE: 'CAI%3D',
 
-    DEFAULTS: { after: '2026-09-17', keyword: '극딜', custom: '', upload: '', orMode: true, sortDate: false },
+    DEFAULTS: { after: '2026-09-17', noDate: false, keyword: '극딜', custom: '', upload: '', orMode: true, sortDate: false },
 
     init(rootId) {
         this.root = document.getElementById(rootId);
@@ -128,7 +128,7 @@ const kmsVideos = {
         const names = [...new Set([...abbrs, official].filter(Boolean))];
         const s = this.state;
         const keyword = s.keyword === 'custom' ? s.custom.trim() : s.keyword;
-        const tail = [keyword, s.after ? `after:${s.after}` : ''].filter(Boolean).join(' ');
+        const tail = [keyword, !s.noDate && s.after ? `after:${s.after}` : ''].filter(Boolean).join(' ');
         const heads = s.orMode ? [names.join(' OR ')] : names;
         return heads.map(h => [h, tail].filter(Boolean).join(' '));
     },
@@ -149,6 +149,7 @@ const kmsVideos = {
         const opts = (list, cur) => list.map(o => `<option value="${this.esc(o.value)}" ${o.value === cur ? 'selected' : ''}>${o.label}</option>`).join('');
         nav.innerHTML = `
             <label class="kmsv-ctl">この日以降<input type="date" id="kmsv-after" value="${s.after}"></label>
+            <label class="kmsv-ctl cursor-pointer -ml-2"><input type="checkbox" id="kmsv-nodate" ${s.noDate ? 'checked' : ''}>指定なし</label>
             <label class="kmsv-ctl">キーワード<select id="kmsv-keyword">${opts(this.KEYWORDS, s.keyword)}</select>
                 <input type="text" id="kmsv-custom" placeholder="自由入力" value="${this.esc(s.custom)}" class="w-28"></label>
             <label class="kmsv-ctl">アップロード日<select id="kmsv-upload">${opts(this.UPLOAD, s.upload)}</select></label>
@@ -160,6 +161,7 @@ const kmsVideos = {
             this.render();
         });
         bind('#kmsv-after', 'after');
+        bind('#kmsv-nodate', 'noDate', 'checked');
         bind('#kmsv-keyword', 'keyword');
         bind('#kmsv-custom', 'custom');
         bind('#kmsv-upload', 'upload');
@@ -170,6 +172,8 @@ const kmsVideos = {
     render() {
         const custom = document.getElementById('kmsv-custom');
         if (custom) custom.disabled = this.state.keyword !== 'custom';
+        const after = document.getElementById('kmsv-after');
+        if (after) after.disabled = this.state.noDate;
         const sections = this.GROUPS.map(g => {
             const rows = g.jobs.map(job => {
                 const links = this.queries(job).map(q =>
