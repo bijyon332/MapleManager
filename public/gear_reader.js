@@ -40,6 +40,8 @@
         const ps = g.slice(1).map((r, i) => r[0] - g[i][0]);
         const p = (ps[0] + ps[1] + ps[2] + ps[3]) / 4;
         if (p < w * 1.2 || p > w * 2.3) return null;
+        // Yellow text (potential lines, chat) also comes in even runs, but much smaller.
+        if (p / STAR_PITCH < 0.6 || p / STAR_PITCH > 2.5) return null;
         if (Math.max(...ps) - Math.min(...ps) > Math.max(2, p * 0.2)) return null;
         return { x0: g[0][0], w, s: p / STAR_PITCH };
     }
@@ -140,7 +142,7 @@
         [/\bemblem\b/i, 'emblem'], [/\bbadge\b/i, 'badge'], [/\bpocket/i, 'pocket'], [/\bheart\b/i, 'heart'],
         [/\boverall\b/i, 'overall'], [/\bhat\b/i, 'hat'], [/\btop\b/i, 'top'], [/\bbottom\b/i, 'bottom'],
         [/\bshoes?\b/i, 'shoe'], [/\bgloves?\b/i, 'glove'], [/\bcape\b/i, 'cape'],
-        [/\bsecondary\b|\bshield\b|\bkatara\b|\bmedallion|\brosary\b|\biron chain\b|\bmagic book\b|\barrow fletching\b|\bbow thimble\b|\bdagger scabbard\b|\bcharm\b|\bwrist band\b|\bfar sight\b|\bpowder keg\b|\bmass\b|\bdocument\b|\bmagic marble\b|\barrowhead\b|\bjewel\b|\bfox marble\b|\bcore controller\b|\bchess piece\b|\btransmitter\b|\bornament\b|\bspellbook\b|\bsoul ring\b|\bmagnum\b|\bfan tassel\b|\bhilt\b|\brelic\b|\bbracelet\b|\bweapon belt\b|\bnovel\b|\bwing\b/i, 'sub'],
+        [/\bsub\s*weapon\b|\bsecondary\b|\bimugi\b|\bgem\b|\bshield\b|\bkatara\b|\bmedallion|\brosary\b|\biron chain\b|\bmagic book\b|\barrow fletching\b|\bbow thimble\b|\bdagger scabbard\b|\bcharm\b|\bwrist band\b|\bfar sight\b|\bpowder keg\b|\bmass\b|\bdocument\b|\bmagic marble\b|\barrowhead\b|\bjewel\b|\bfox marble\b|\bcore controller\b|\bchess piece\b|\btransmitter\b|\bornament\b|\bspellbook\b|\bsoul ring\b|\bmagnum\b|\bfan tassel\b|\bhilt\b|\brelic\b|\bbracelet\b|\bweapon belt\b|\bnovel\b|\bwing\b/i, 'sub'],
         [/\bweapon\b|\bsword\b|\baxe\b|\bmace\b|\bspear\b|\bpolearm\b|\bdagger\b|\bclaw\b|\bbow\b|\bcrossbow\b|\bwand\b|\bstaff\b|\bgun\b|\bknuckle\b|\bcannon\b|\bcane\b|\bkatana\b|\bfan\b|\bscepter\b|\bgauntlet\b|\bchain\b|\bblade\b|\bshining rod\b|\bpsy-?limiter\b|\bchakram\b|\bhand cannon\b|\bbreath shooter\b|\bwhip blade\b|\bdesperado\b|\bwhispershot\b|\blong sword\b|\bheavy sword\b|\bbladecaster\b|\britual fan\b|\bmemorial staff\b|\bancient bow\b|\bdual bowguns\b|\benergy sword\b|\barm cannon\b|\bsoul shooter\b/i, 'weapon'],
     ];
     const GRADE_WORD = { rare: 'R', epic: 'E', unique: 'U', legendary: 'L' };
@@ -290,9 +292,13 @@
 
     async function readTooltip(img, opts = {}) {
         const w = opts.worker || await getWorker();
-        let spots = findStarRows(img);
-        if (!spots.length && !opts.starsOnly) spots = await findByText(img, w, opts.toImage || toCanvas);
-        if (!spots.length) return [];
+        const out = await readSpots(img, w, findStarRows(img), opts);
+        // No stars (emblems, some secondaries), or something star-like that wasn't a tooltip.
+        if (!out.length && !opts.starsOnly) return readSpots(img, w, await findByText(img, w, opts.toImage || toCanvas), opts);
+        return out;
+    }
+
+    async function readSpots(img, w, spots, opts) {
         const out = [];
         for (const t of spots.slice(0, 2)) {
             const r = cropRect(img, t);
