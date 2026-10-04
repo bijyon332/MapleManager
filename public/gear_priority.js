@@ -915,8 +915,10 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
         return best && best.dist <= Math.max(2, Math.round(n.length * 0.2)) ? best.it : null;
     }
     // Weapons and secondaries differ by class, so the weapon goes by tier, read from its level.
-    function weaponByLevel(L, name) {
-        const set = L >= 250 ? 'destiny' : L >= 200 ? (/genesis/i.test(name) ? 'genesis' : 'arcane') : L >= 160 ? 'absolab' : '';
+    // Lv200 is either Arcane or Genesis: "Genesis" anywhere in the tooltip text decides,
+    // since the name line itself doesn't always survive the OCR.
+    function weaponByLevel(L, text) {
+        const set = L >= 250 ? 'destiny' : L >= 200 ? (/gen[ec]s[il1]s/i.test(text) ? 'genesis' : 'arcane') : L >= 160 ? 'absolab' : '';
         return ITEMS.find((it) => it.slot === 'weapon' && it.set === set) || null;
     }
     const snapLevel = (id, L) => {
@@ -1207,7 +1209,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
         },
         readToValue(id, res) {
             const cur = this.state.slots[id], st = this.rdStats();
-            const it = id === 'weapon' ? weaponByLevel(res.level, res.name) : matchItem(id, res.name);
+            const it = id === 'weapon' ? weaponByLevel(res.level, `${res.name}\n${res.raw || ''}`) : matchItem(id, res.name);
             const L = FIXED_LV[SLOTS[id].part] || (it ? it.level : snapLevel(id, res.level || defaultLevel(id)));
             const v = {
                 ...cur, on: true, item: it ? it.id : null, level: L,
