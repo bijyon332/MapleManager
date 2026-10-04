@@ -52,6 +52,7 @@ window.GEAR_ITEMS = [
     {"id": 1032330, "name": "Estella Earrings", "set": "dawn", "slot": "ear", "level": 160, "bossReward": true},
     {"id": 1122443, "name": "Daybreak Pendant", "set": "dawn", "slot": "pendant", "level": 140, "bossReward": true},
     {"id": 1113316, "name": "Dawn Guardian Angel Ring", "set": "dawn", "slot": "ring", "level": 160, "bossReward": true, "noFlame": true},
+    {"id": 1113155, "name": "Kanna's Treasure", "set": "other", "slot": "ring", "level": 140, "bossReward": false, "noFlame": true},
     {"id": 1113055, "name": "Meister Ring", "set": "meister", "slot": "ring", "level": 140, "bossReward": false, "noFlame": true},
     {"id": 1032200, "name": "Meister Earring", "set": "meister", "slot": "ear", "level": 140, "bossReward": false},
     {"id": 1152154, "name": "Meister Shoulder", "set": "meister", "slot": "shoulder", "level": 140, "bossReward": false, "noFlame": true},
