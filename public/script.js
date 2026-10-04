@@ -578,7 +578,6 @@ const app = {
         },
         kmsvideos: {
             view: 'view-kmsvideos',
-            nav: 'kmsv-nav',
             scripts: ['kms_videos.js'],
             init() { kmsVideos.init('view-kmsvideos'); }
         },

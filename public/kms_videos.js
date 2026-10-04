@@ -2,7 +2,7 @@
  *  KMS Videos
  *  KMSの職業ごとに YouTube の検索リンクを作る。押すと YouTube の検索結果が開く。
  *  検索語は「職業名（略称 OR 正式名）＋キーワード＋after:日付」。
- *  入力欄は上部バー（kmsv-nav）に置き、値はブラウザに覚えさせる。
+ *  入力欄は見出しの下に置き、値はブラウザに覚えさせる。
  *  新職業の追加や略称の変更は GROUPS を直すだけでよい。
  *  after: と OR は YouTube の公式ヘルプには無い演算子で、効かないこともある。
  * ========================================================= */
@@ -102,6 +102,16 @@ const kmsVideos = {
     init(rootId) {
         this.root = document.getElementById(rootId);
         this.state = { ...this.DEFAULTS, ...this.load() };
+        const total = this.GROUPS.reduce((n, g) => n + g.jobs.length, 0);
+        this.root.innerHTML = `
+            <div class="flex items-baseline gap-3 mb-3 flex-wrap">
+                <h1 class="text-[18px] font-bold text-white">KMS Videos</h1>
+                <span class="text-xs text-slate-500">KMSの職業ごとの YouTube 検索リンク（${total}職）。押すと検索結果が新しいタブで開きます。</span>
+            </div>
+            <div id="kmsv-controls" class="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2 mb-3 border border-slate-800 bg-slate-900/60"></div>
+            <div id="kmsv-list"></div>
+            <p class="text-[10px] text-slate-500 mt-1">after: と OR は YouTube の公式ヘルプに無い演算子で、効かないことがあります。
+                効いていないときは OR統合をオフにするか、アップロード日「今年」＋新しい順で投稿日を確かめてください。</p>`;
         this.renderControls();
         this.render();
     },
@@ -132,9 +142,9 @@ const kmsVideos = {
         return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     },
 
-    // 上部バーの入力欄。値が変わるたびに表を描き直す。
+    // 見出しの下の入力欄。値が変わるたびに表を描き直す（入力欄は描き直さない）。
     renderControls() {
-        const nav = document.getElementById('kmsv-nav');
+        const nav = document.getElementById('kmsv-controls');
         const s = this.state;
         const opts = (list, cur) => list.map(o => `<option value="${this.esc(o.value)}" ${o.value === cur ? 'selected' : ''}>${o.label}</option>`).join('');
         nav.innerHTML = `
@@ -160,7 +170,6 @@ const kmsVideos = {
     render() {
         const custom = document.getElementById('kmsv-custom');
         if (custom) custom.disabled = this.state.keyword !== 'custom';
-        const total = this.GROUPS.reduce((n, g) => n + g.jobs.length, 0);
         const sections = this.GROUPS.map(g => {
             const rows = g.jobs.map(job => {
                 const links = this.queries(job).map(q =>
@@ -180,13 +189,6 @@ const kmsVideos = {
                 <table class="w-full text-[12px]"><tbody>${rows}</tbody></table>
             </section>`;
         }).join('');
-        this.root.innerHTML = `
-            <div class="flex items-baseline gap-3 mb-3 flex-wrap">
-                <h1 class="text-[18px] font-bold text-white">KMS Videos</h1>
-                <span class="text-xs text-slate-500">KMSの職業ごとの YouTube 検索リンク（${total}職）。押すと検索結果が新しいタブで開きます。</span>
-            </div>
-            <div class="kmsv-cols">${sections}</div>
-            <p class="text-[10px] text-slate-500 mt-1">after: と OR は YouTube の公式ヘルプに無い演算子で、効かないことがあります。
-                効いていないときは OR統合をオフにするか、アップロード日「今年」＋新しい順で投稿日を確かめてください。</p>`;
+        document.getElementById('kmsv-list').innerHTML = `<div class="kmsv-cols">${sections}</div>`;
     }
 };
