@@ -11,7 +11,7 @@
         12: [.4, .6, 0], 13: [.35, .65, 0], 14: [.3, .7, 0], 15: [.3, .679, .021], 16: [.3, .679, .021],
         17: [.15, .782, .068], 18: [.15, .782, .068], 19: [.15, .765, .085], 20: [.3, .595, .105],
         21: [.15, .7225, .1275], 22: [.15, .68, .17], 23: [.1, .72, .18], 24: [.1, .72, .18],
-        25: [.1, .72, .18], 26: [.07, .744, .186], 27: [.05, .76, .19],
+        25: [.1, .72, .18], 26: [.07, .744, .186], 27: [.05, .76, .19], 28: [.03, .776, .194], 29: [.01, .792, .198],
     };
     const COEF = (() => {
         const c = {};
@@ -78,7 +78,7 @@
         return r;
     }
 
-    const CHECKPOINTS = [18, 20, 21, 22, 23, 24, 25, 26, 27, 28];
+    const CHECKPOINTS = [18, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30];
     const nextCheckpoint = (star, max) => {
         for (const c of CHECKPOINTS) if (c > star && c <= max) return c;
         return null;
@@ -113,13 +113,15 @@
         return v;
     }
 
+    // Per-star [stat, attack] from 16*. 29* and 30* aren't in any table we could
+    // reach yet, so they carry on the +1 attack per star that 26-28* step by (estimate).
     const BRACKETS = [
         [128, 137, { 16: [7, 7], 17: [7, 8], 18: [7, 9], 19: [7, 10], 20: [7, 11] }],
-        [138, 149, { 16: [9, 8], 17: [9, 9], 18: [9, 10], 19: [9, 11], 20: [9, 12], 21: [9, 13], 22: [9, 15], 23: [0, 17], 24: [0, 19], 25: [0, 21], 26: [0, 22], 27: [0, 23], 28: [0, 24] }],
-        [150, 159, { 16: [11, 9], 17: [11, 10], 18: [11, 11], 19: [11, 12], 20: [11, 13], 21: [11, 14], 22: [11, 16], 23: [0, 18], 24: [0, 20], 25: [0, 22], 26: [0, 23], 27: [0, 24], 28: [0, 25] }],
-        [160, 199, { 16: [13, 10], 17: [13, 11], 18: [13, 12], 19: [13, 13], 20: [13, 14], 21: [13, 15], 22: [13, 17], 23: [0, 19], 24: [0, 21], 25: [0, 23], 26: [0, 24], 27: [0, 25], 28: [0, 26] }],
-        [200, 249, { 16: [15, 12], 17: [15, 13], 18: [15, 14], 19: [15, 15], 20: [15, 16], 21: [15, 17], 22: [15, 19], 23: [0, 21], 24: [0, 23], 25: [0, 25], 26: [0, 26], 27: [0, 27], 28: [0, 28] }],
-        [250, 999, { 16: [17, 14], 17: [17, 15], 18: [17, 16], 19: [17, 17], 20: [17, 18], 21: [17, 19], 22: [17, 21], 23: [0, 23], 24: [0, 25], 25: [0, 27], 26: [0, 28], 27: [0, 29], 28: [0, 30] }],
+        [138, 149, { 16: [9, 8], 17: [9, 9], 18: [9, 10], 19: [9, 11], 20: [9, 12], 21: [9, 13], 22: [9, 15], 23: [0, 17], 24: [0, 19], 25: [0, 21], 26: [0, 22], 27: [0, 23], 28: [0, 24], 29: [0, 25], 30: [0, 26] }],
+        [150, 159, { 16: [11, 9], 17: [11, 10], 18: [11, 11], 19: [11, 12], 20: [11, 13], 21: [11, 14], 22: [11, 16], 23: [0, 18], 24: [0, 20], 25: [0, 22], 26: [0, 23], 27: [0, 24], 28: [0, 25], 29: [0, 26], 30: [0, 27] }],
+        [160, 199, { 16: [13, 10], 17: [13, 11], 18: [13, 12], 19: [13, 13], 20: [13, 14], 21: [13, 15], 22: [13, 17], 23: [0, 19], 24: [0, 21], 25: [0, 23], 26: [0, 24], 27: [0, 25], 28: [0, 26], 29: [0, 27], 30: [0, 28] }],
+        [200, 249, { 16: [15, 12], 17: [15, 13], 18: [15, 14], 19: [15, 15], 20: [15, 16], 21: [15, 17], 22: [15, 19], 23: [0, 21], 24: [0, 23], 25: [0, 25], 26: [0, 26], 27: [0, 27], 28: [0, 28], 29: [0, 29], 30: [0, 30] }],
+        [250, 999, { 16: [17, 14], 17: [17, 15], 18: [17, 16], 19: [17, 17], 20: [17, 18], 21: [17, 19], 22: [17, 21], 23: [0, 23], 24: [0, 25], 25: [0, 27], 26: [0, 28], 27: [0, 29], 28: [0, 30], 29: [0, 31], 30: [0, 32] }],
     ];
     const bracketOf = (L) => (BRACKETS.find(([a, b]) => L >= a && L <= b) || BRACKETS[0])[2];
     const GLOVE_ATT = new Set([5, 7, 9, 11, 13, 14, 15]);
@@ -127,7 +129,7 @@
         if (star <= 15) return [star <= 5 ? 2 : 3, part === '手袋' && GLOVE_ATT.has(star) ? 1 : 0];
         return bracketOf(L)[star] || null;
     }
-    const maxStarOf = (L) => (L < 128 ? 15 : L < 138 ? 20 : 28);
+    const maxStarOf = (L) => (L < 128 ? 15 : L < 138 ? 20 : 30);
 
     /* ---------- potential ---------- */
     const CUBE_PRICE = { red: 12e6, black: 22e6 };
@@ -757,6 +759,28 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
 .gp-veil .pick.on{border-color:var(--acc);background:#1e1b4b}
 .gp-veil .pick .pn{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gp-veil .pick .pl{font-size:10.5px;color:var(--mu);font-family:"IBM Plex Mono",monospace}
+.gp .rd{margin-top:8px;padding-top:6px;border-top:1px solid var(--ln)}
+.gp .rdbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.gp .rdbar .btn.live{border-color:var(--red);color:var(--red);font-weight:700}
+.gp .rdstat{display:flex;align-items:center;gap:6px;margin-left:auto;font-size:11px;color:var(--mu)}
+.gp .rdstat select{width:auto;padding:1px 4px;font-size:12px}
+.gp .rdmsg{margin:4px 0 0;font-size:11px;color:var(--mu)}
+.gp .rdmsg.err{color:var(--red)}
+.gp .rdmsg.ok{color:#4ade80}
+.gp .reads{margin-top:6px;border:1px solid var(--ln)}
+.gp .read{display:grid;grid-template-columns:104px 26px minmax(0,1fr) 22px;gap:6px;align-items:center;
+padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
+.gp .read:nth-child(even){background:#0c1428}
+.gp .read select{padding:1px 4px;font-size:12px}
+.gp .read .rn{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gp .read .rv{display:block;font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;font-size:11px;color:var(--mu);line-height:1.4}
+.gp .read .rv em{font-style:normal;color:var(--gold)}
+.gp .read .rv i{font-style:normal;color:var(--cyan)}
+.gp .read .rv u{text-decoration:none;color:#4ade80}
+.gp .read .rx{background:none;border:0;color:var(--mu);cursor:pointer;font-size:14px;padding:0}
+.gp .read .rx:hover{color:var(--red)}
+.gp .readfoot{display:flex;gap:6px;justify-content:flex-end;padding:5px 6px}
+.gp.drop .rd{outline:1px dashed var(--acc);outline-offset:2px}
 @media(max-width:640px){.gp .step{grid-template-columns:26px 1fr;row-gap:2px}
 .gp .num,.gp .eff{text-align:left;grid-column:2}}
 `;
@@ -844,6 +868,77 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
         slots: defaultSlots(),
         limit: 40,
     });
+
+    /* ---------- screenshot reader (gear_reader.js) ---------- */
+    // Main / sub stat and attack type per class, for turning "STR +114" into
+    // main/sub stat. Classes left out (Xenon, Demon Avenger, newer ones) are picked by hand.
+    const JOB_STAT = (() => {
+        const t = {};
+        const put = (ids, main, sub, att) => ids.split(' ').forEach((id) => { t[id] = { main, sub, att }; });
+        put('hero paladin darkknight dawnwarrior mihile aran blaster demonslayer kaiser adele zero hayato ark shade buccaneer cannoneer thunderbreaker ren', 'str', 'dex', 'att');
+        put('bowmaster marksman pathfinder windarcher mercedes wildhunter kain corsair angelicbuster mechanic', 'dex', 'str', 'att');
+        put('archmagefp archmageil bishop blazewizard evan luminous battlemage kinesis illium lara kanna lynn sia', 'int', 'luk', 'matt');
+        put('nightlord shadower dualblade nightwalker phantom cadena khali hoyoung', 'luk', 'dex', 'att');
+        return t;
+    })();
+    const STAT_JP = { str: 'STR', dex: 'DEX', int: 'INT', luk: 'LUK' };
+    // Tooltip item type -> slot(s) on the rack, in fill order.
+    const KIND_SLOTS = {
+        weapon: ['weapon'], sub: ['sub'], emblem: ['emblem'], ring: ['ring1', 'ring2', 'ring3', 'ring4'],
+        belt: ['belt'], face: ['face'], eye: ['eye'], ear: ['ear'], pendant: ['pendant1', 'pendant2'],
+        hat: ['hat'], top: ['top'], overall: ['top'], bottom: ['bottom'], shoulder: ['shoulder'],
+        pocket: ['pocket'], cape: ['cape'], glove: ['glove'], shoe: ['shoe'], heart: ['heart'], badge: ['badge'],
+    };
+    const normName = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
+    function editDist(a, b) {
+        const d = Array.from({ length: b.length + 1 }, (_, i) => i);
+        for (let i = 1; i <= a.length; i++) {
+            let prev = d[0];
+            d[0] = i;
+            for (let j = 1; j <= b.length; j++) {
+                const t = d[j];
+                d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+                prev = t;
+            }
+        }
+        return d[b.length];
+    }
+    // The catalog entry the read name is closest to, allowing a few misread letters.
+    function matchItem(slotId, name) {
+        const n = normName(name);
+        if (!n) return null;
+        let best = null;
+        for (const it of itemsFor(slotId)) {
+            const dist = editDist(n, normName(it.name));
+            if (!best || dist < best.dist) best = { it, dist };
+        }
+        return best && best.dist <= Math.max(2, Math.round(n.length * 0.2)) ? best.it : null;
+    }
+    // Weapons and secondaries differ by class, so the weapon goes by tier, read from its level.
+    // Lv200 is either Arcane or Genesis: "Genesis" anywhere in the tooltip text decides,
+    // since the name line itself doesn't always survive the OCR.
+    function weaponByLevel(L, text) {
+        const set = L >= 250 ? 'destiny' : L >= 200 ? (/gen[ec]s[il1]s/i.test(text) ? 'genesis' : 'arcane') : L >= 160 ? 'absolab' : '';
+        return ITEMS.find((it) => it.slot === 'weapon' && it.set === set) || null;
+    }
+    const snapLevel = (id, L) => {
+        const opts = levelsFor(id);
+        const below = opts.filter((x) => x <= L);
+        return below.length ? below[below.length - 1] : opts[0];
+    };
+    let audioCtx = null;
+    function beep() {
+        try {
+            audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.type = 'sine'; o.frequency.value = 880;
+            g.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.25, audioCtx.currentTime + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.18);
+            o.connect(g).connect(audioCtx.destination);
+            o.start(); o.stop(audioCtx.currentTime + 0.2);
+        } catch (e) { /* no audio */ }
+    }
 
     const gearPriority = {
         state: DEFAULT_STATE(),
@@ -971,6 +1066,16 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                 </span>
             </div>
             <div class="gridwrap"><div id="gp-rack" class="slots"></div></div>
+            <div class="rd">
+                <div class="rdbar">
+                    <button type="button" class="btn" data-gp="rd-file">スクショから読み取る</button>
+                    <button type="button" class="btn" data-gp="rd-live">ライブ読み取り</button>
+                    <input type="file" accept="image/*" multiple hidden data-gp="rd-input">
+                    <span class="rdstat">${this.statPicks()}</span>
+                </div>
+                <p class="rdmsg" data-rd="msg">ゲームで装備にカーソルを合わせたスクショを、Ctrl+V かドラッグでも渡せます。</p>
+                <div id="gp-reads"></div>
+            </div>
         </div>
     </section>
 
@@ -1054,10 +1159,289 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
                     this.save(); this.renderRack(); this.renderPlan();
                 }
             });
+            this.bindReader();
             this.onKey = (e) => { if (e.key === 'Escape' && this.draft) this.closeDraft(); };
             window.addEventListener('keydown', this.onKey);
             // The modal host outlives every modal, so delegate from it once.
             this.bindModal(root.querySelector('#gp-modal-host'));
+        },
+
+        /* ---------- screenshot reader ---------- */
+        // Main / sub stat and attack type the reads are sorted into. A pick made
+        // here wins; otherwise the character's class (or the weapon's) decides.
+        rdStats() {
+            const o = this.state.o;
+            const job = JOB_STAT[this.charJob || this.state.slots.weapon.job] || { main: 'str', sub: 'dex', att: 'att' };
+            return { main: o.rdMain || job.main, sub: o.rdSub || job.sub, att: o.rdAtt || job.att };
+        },
+        statPicks() {
+            const st = this.rdStats();
+            const sel = (key, val, opts) => `<select data-gp="rd-stat" data-key="${key}">${opts.map(([v, lb]) => `<option value="${v}" ${v === val ? 'selected' : ''}>${lb}</option>`).join('')}</select>`;
+            const stats = Object.entries(STAT_JP);
+            return `メイン${sel('rdMain', st.main, stats)}サブ${sel('rdSub', st.sub, stats)}${sel('rdAtt', st.att, [['att', '攻撃力'], ['matt', '魔力']])}`;
+        },
+        msg(text, kind) {
+            const el = this.root.querySelector('[data-rd="msg"]');
+            if (!el) return;
+            el.textContent = text;
+            el.className = 'rdmsg' + (kind ? ' ' + kind : '');
+        },
+
+        // Potential lines as the planner stores them: the read stat becomes
+        // "main" or "その他", and the grade of lines 2-3 comes from the value.
+        readLines(id, res, L, st) {
+            const allowed = POT_KEYS(SLOTS[id].part);
+            const grade = res.grade;
+            return [0, 1, 2].map((i) => {
+                const p = res.pot[i], gs = lineGrades(grade, i);
+                if (!p) return { k: '', g: defaultLineGrade(grade, i), v: 0 };
+                let k = p.k === st.main ? 'main' : p.k === st.att ? 'att' : p.k;
+                if (!p.pct || !allowed.includes(k)) k = 'etc';
+                if (k === 'etc') return { k, g: gs[gs.length - 1] || grade, v: p.v };
+                let v = p.v, g = gs.find((x) => potValues(k, x, L).includes(v));
+                if (!g) {
+                    g = gs.find((x) => potValues(k, x, L).length) || gs[0];
+                    const vals = potValues(k, g, L);
+                    if (vals.length) v = vals.reduce((a, b) => (Math.abs(b - p.v) < Math.abs(a - p.v) ? b : a));
+                }
+                return { k, g, v };
+            });
+        },
+        readToValue(id, res) {
+            const cur = this.state.slots[id], st = this.rdStats();
+            const it = id === 'weapon' ? weaponByLevel(res.level, `${res.name}\n${res.raw || ''}`) : matchItem(id, res.name);
+            const L = FIXED_LV[SLOTS[id].part] || (it ? it.level : snapLevel(id, res.level || defaultLevel(id)));
+            const v = {
+                ...cur, on: true, item: it ? it.id : null, level: L,
+                star: hasStar(id) ? Math.min(maxStarOf(L), res.stars || 0) : 0,
+                grade: 'L', lines: blankLines(), flame: blankFlame(),
+            };
+            if (hasPot(id) && res.grade) { v.grade = res.grade; v.lines = this.readLines(id, res, L, st); }
+            if (this.flameOk(id, v)) {
+                const f = res.flame;
+                v.flame = { main: f[st.main] || 0, sub: f[st.sub] || 0, att: f[st.att] || 0, boss: f.boss || 0, dmg: f.dmg || 0, allStat: f.allStat || 0 };
+            }
+            return v;
+        },
+        // Queue a read for review. Rings and pendants fill their slots in order;
+        // a second read of a one-slot part replaces the first.
+        stage(res) {
+            const slots = KIND_SLOTS[res.kind];
+            if (!slots) return false;
+            const key = [res.kind, res.name, res.level, res.stars, res.grade, res.pot.map((p) => p.k + p.v).join(','), JSON.stringify(res.flame)].join('|');
+            if (this.reads.some((r) => r.key === key)) return false;
+            let id = slots[0];
+            if (slots.length > 1) {
+                const used = this.reads.map((r) => r.id);
+                id = slots.find((x) => !used.includes(x)) || slots[slots.length - 1];
+            }
+            this.reads = this.reads.filter((r) => r.id !== id);
+            this.reads.push({ id, key, res, v: this.readToValue(id, res) });
+            this.renderReads();
+            return true;
+        },
+        renderReads() {
+            const el = this.root.querySelector('#gp-reads');
+            if (!el) return;
+            if (!this.reads.length) { el.innerHTML = ''; return; }
+            const opts = Object.keys(SLOTS).filter(hasWork);
+            const potText = (ln) => (POT_OPTS[ln.k] ? `${POT_OPTS[ln.k].jp}+${ln.v}%` : ln.k === 'etc' ? 'その他' : '');
+            const rows = this.reads.map((r, i) => {
+                const v = r.v, it = ITEM_BY_ID.get(v.item);
+                const pot = hasPot(r.id) && r.res.grade ? `<i>潜在${v.grade} ${v.lines.map(potText).filter(Boolean).join(' / ')}</i>` : '';
+                const f = v.flame, fl = [['メイン', f.main], ['サブ', f.sub], [this.rdStats().att === 'matt' ? '魔力' : '攻撃', f.att], ['ボス', f.boss, '%'], ['ダメ', f.dmg, '%'], ['オール', f.allStat, '%']]
+                    .filter((x) => x[1]).map(([lb, n, u]) => `${lb}${n}${u || ''}`).join(' ');
+                const parts = [`Lv${v.level}`, hasStar(r.id) ? `<em>${v.star}★</em>` : '', pot, fl ? `<u>転生 ${fl}</u>` : ''].filter(Boolean);
+                return `<div class="read">
+                    <select data-gp="rd-slot" data-i="${i}" aria-label="入れる部位">${opts.map((id) => `<option value="${id}" ${id === r.id ? 'selected' : ''}>${esc(SLOTS[id].label)}</option>`).join('')}</select>
+                    <span class="tile-ico">${iconImg(v.item, 26)}</span>
+                    <span style="min-width:0"><span class="rn" title="${esc(r.res.name)}">${esc(it ? it.name : r.res.name || '（名前を読めず）')}</span>
+                        <span class="rv">${parts.join(' · ')}</span></span>
+                    <button type="button" class="rx" data-gp="rd-x" data-i="${i}" title="この読み取りを捨てる">×</button>
+                </div>`;
+            }).join('');
+            el.innerHTML = `<div class="reads">${rows}
+                <div class="readfoot"><button type="button" class="btn danger" data-gp="rd-clear">すべて捨てる</button>
+                <button type="button" class="btn primary" data-gp="rd-apply">${this.reads.length}件を反映して保存</button></div></div>`;
+        },
+        applyReads() {
+            for (const r of this.reads) {
+                const clean = cleanSlot(r.v);
+                const L = FIXED_LV[SLOTS[r.id].part] || clean.level;
+                clean.star = hasStar(r.id) ? Math.min(maxStarOf(L), clean.star) : 0;
+                if (!this.flameOk(r.id, clean)) clean.flame = blankFlame();
+                this.state.slots[r.id] = clean;
+            }
+            const n = this.reads.length;
+            this.reads = [];
+            this.save();
+            this.renderRack(); this.renderPlan(); this.renderReads();
+            this.msg(`${n}件を反映しました。`, 'ok');
+        },
+        async readImage(blob) {
+            if (!window.gearReader) { this.msg('読み取りの部品が読み込まれていません。', 'err'); return; }
+            this.msg('読み取り中…（初回は文字認識の読み込みに少し時間がかかります）');
+            try {
+                const img = await gearReader.pixelsOf(blob);
+                const res = await gearReader.readTooltip(img);
+                if (!res.length) { this.msg('装備のツールチップが見つかりませんでした。カーソルを装備に合わせた状態のスクショを使ってください。', 'err'); return; }
+                const added = res.filter((r) => this.stage(r)).length;
+                const unknown = res.filter((r) => !KIND_SLOTS[r.kind]).length;
+                this.msg(added ? '読み取りました。内容を確かめて「反映して保存」を押してください。'
+                    : unknown ? '部位を判定できませんでした。' : 'すでに読み取った装備です。', added ? 'ok' : 'err');
+            } catch (e) {
+                console.error(e);
+                this.msg('読み取りに失敗しました: ' + (e && e.message || e), 'err');
+            }
+        },
+
+        // Live: share the game window, and each time a tooltip settles somewhere
+        // new, read it and beep. Star rows are looked for on every tick; tooltips
+        // without stars need the slower text search, so that runs every few seconds.
+        async toggleLive() {
+            if (this.live) { this.stopLive('ライブ読み取りを止めました。'); return; }
+            if (!window.gearReader) { this.msg('読み取りの部品が読み込まれていません。', 'err'); return; }
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { this.msg('このブラウザは画面共有に対応していません。', 'err'); return; }
+            try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { /* no audio */ }
+            let stream;
+            try { stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 5 }, audio: false }); } catch (e) {
+                this.msg('画面共有がキャンセルされました。', 'err'); return;
+            }
+            const video = document.createElement('video');
+            video.muted = true; video.playsInline = true; video.srcObject = stream;
+            try { await video.play(); } catch (e) { /* plays once frames arrive */ }
+            const L = { stream, video, busy: false, count: 0, spot: null, done: null, lastText: 0 };
+            this.live = L;
+            stream.getVideoTracks()[0].addEventListener('ended', () => { if (this.live === L) this.stopLive('画面共有が終わりました。'); });
+            L.timer = setInterval(() => this.liveTick(), 350);
+            this.liveButton();
+            this.msg('文字認識を準備しています…');
+            gearReader.getWorker().then(() => { if (this.live === L) this.msg('ライブ読み取り中。ゲームで装備にカーソルを合わせてください。読めたら音が鳴ります。'); })
+                .catch((e) => { this.stopLive(); this.msg('文字認識の読み込みに失敗しました: ' + (e && e.message || e), 'err'); });
+        },
+        stopLive(text) {
+            const L = this.live;
+            if (!L) return;
+            clearInterval(L.timer);
+            L.stream.getTracks().forEach((t) => t.stop());
+            this.live = null;
+            this.liveButton();
+            if (text) this.msg(text);
+        },
+        liveButton() {
+            const b = this.root.querySelector('[data-gp="rd-live"]');
+            if (!b) return;
+            b.textContent = this.live ? 'ライブ読み取りを止める' : 'ライブ読み取り';
+            b.classList.toggle('live', !!this.live);
+        },
+        async liveTick() {
+            const L = this.live;
+            if (!L || L.busy || !L.video.videoWidth) return;
+            L.busy = true;
+            try {
+                const img = await gearReader.pixelsOf(L.video);
+                const spots = gearReader.findStarRows(img);
+                let res = null;
+                if (spots.length) {
+                    // Wait for the tooltip to stop moving, then read it once.
+                    const t = spots[0], sig = this.spotSig(img, t);
+                    const same = L.spot && Math.abs(L.spot.x0 - t.x0) < 3 && Math.abs(L.spot.y - t.y) < 3;
+                    L.spot = t;
+                    if (!same || (L.done && this.sigDiff(L.done, sig) < 6)) return;
+                    L.done = sig;
+                    res = await gearReader.readTooltip(img, { starsOnly: true });
+                } else {
+                    L.spot = null;
+                    if (Date.now() - L.lastText < 5000) return;
+                    L.lastText = Date.now();
+                    res = await gearReader.readTooltip(img);
+                }
+                const added = (res || []).filter((r) => this.stage(r)).length;
+                if (added) {
+                    beep();
+                    L.count += added;
+                    this.msg(`読み取りました（${L.count}件）。次の装備にカーソルを合わせてください。`, 'ok');
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                L.busy = false;
+            }
+        },
+        // A coarse picture of the tooltip, to tell a new item from the same one.
+        spotSig(img, t) {
+            const r = gearReader.cropRect(img, t), out = new Uint8Array(24 * 48);
+            for (let y = 0; y < 48; y++) for (let x = 0; x < 24; x++) {
+                const px = Math.min(img.width - 1, Math.round(r.x0 + (x + 0.5) * r.w / 24));
+                const py = Math.min(img.height - 1, Math.round(r.y0 + (y + 0.5) * Math.min(r.h, 520 * t.s) / 48));
+                const i = (py * img.width + px) * 4;
+                out[y * 24 + x] = (img.data[i] + img.data[i + 1] + img.data[i + 2]) / 3;
+            }
+            return out;
+        },
+        sigDiff(a, b) {
+            let s = 0;
+            for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]);
+            return s / a.length;
+        },
+
+        bindReader() {
+            const root = this.root, gp = root.querySelector('.gp');
+            this.reads = [];
+            root.addEventListener('click', (e) => {
+                const t = e.target.closest('[data-gp]');
+                if (!t) return;
+                const kind = t.dataset.gp;
+                if (kind === 'rd-file') root.querySelector('[data-gp="rd-input"]').click();
+                else if (kind === 'rd-live') this.toggleLive();
+                else if (kind === 'rd-x') { this.reads.splice(Number(t.dataset.i), 1); this.renderReads(); }
+                else if (kind === 'rd-clear') { this.reads = []; this.renderReads(); this.msg('読み取りを捨てました。'); }
+                else if (kind === 'rd-apply') this.applyReads();
+            });
+            root.addEventListener('change', async (e) => {
+                const t = e.target.closest('[data-gp]');
+                if (!t) return;
+                const kind = t.dataset.gp;
+                if (kind === 'rd-input') {
+                    const files = [...t.files];
+                    t.value = '';
+                    for (const f of files) await this.readImage(f);
+                } else if (kind === 'rd-slot') {
+                    const r = this.reads[Number(t.dataset.i)];
+                    this.reads = this.reads.filter((x) => x === r || x.id !== t.value);
+                    r.id = t.value; r.v = this.readToValue(r.id, r.res);
+                    this.renderReads();
+                } else if (kind === 'rd-stat') {
+                    this.state.o[t.dataset.key] = t.value;
+                    this.save();
+                    this.reads.forEach((r) => { r.v = this.readToValue(r.id, r.res); });
+                    this.renderReads();
+                }
+            });
+            gp.addEventListener('dragover', (e) => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); gp.classList.add('drop'); } });
+            gp.addEventListener('dragleave', (e) => { if (e.target === gp || !gp.contains(e.relatedTarget)) gp.classList.remove('drop'); });
+            gp.addEventListener('drop', async (e) => {
+                const files = [...e.dataTransfer.files].filter((f) => f.type.startsWith('image/'));
+                if (!files.length) return;
+                e.preventDefault();
+                gp.classList.remove('drop');
+                for (const f of files) await this.readImage(f);
+            });
+            // Ctrl+V anywhere while this page (and no item dialog) is in front.
+            this.onPaste = (e) => {
+                if (!root.isConnected || root.offsetParent === null || this.draft) return;
+                const overlay = document.getElementById('gp-char-overlay');
+                if (overlay && !overlay.contains(root)) return;
+                const item = [...((e.clipboardData && e.clipboardData.items) || [])].find((x) => x.type.startsWith('image/'));
+                if (!item) return;
+                e.preventDefault();
+                this.readImage(item.getAsFile());
+            };
+            document.addEventListener('paste', this.onPaste);
+        },
+        teardown() {
+            if (this.onPaste) document.removeEventListener('paste', this.onPaste);
+            this.stopLive();
         },
 
         // Bonus stats: off for parts that never roll them and for picked items marked noFlame.
@@ -1462,6 +1846,8 @@ ${grades}
         inst.expanded = new Set();
         inst.draft = null;
         inst.storageKey = charKey(charId);
+        const jobCls = app.classByJobName && app.classByJobName(char.job);
+        inst.charJob = jobCls ? jobCls.id : '';
         if (!this.hasCharData(charId)) {
             const base = Object.create(gearPriority);
             base.state = DEFAULT_STATE();
@@ -1514,6 +1900,7 @@ ${grades}
         if (veil) veil.remove();
         if (this._charEsc) { document.removeEventListener('keydown', this._charEsc, true); this._charEsc = null; }
         if (this._charInst && this._charInst.onKey) window.removeEventListener('keydown', this._charInst.onKey);
+        if (this._charInst) this._charInst.teardown();
         this._charInst = null;
         if (window.app && app.currentApp === 'planner') app.renderDashboard();
     };
