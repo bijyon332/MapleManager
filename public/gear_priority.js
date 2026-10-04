@@ -863,7 +863,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
         return out;
     };
     const DEFAULT_STATE = () => ({
-        w: { main: 1, sub: 0.25, att: 4, statPct: 10, allStat: 12, crit: 30, attPct: 44, boss: 11, dmg: 11 },
+        w: { main: 1, sub: 0.1, att: 3, statPct: 11, allStat: 12, crit: 40, attPct: 45, boss: 10, dmg: 10 },
         o: { ssf: true, safeguard: true, starCatch: true, planName: '1144', flamePrice: 3e6, cubeSale: false, cubeSalePct: 25 },
         slots: defaultSlots(),
         limit: 40,
