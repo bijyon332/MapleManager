@@ -17,6 +17,7 @@ Cloudflare Worker + 静的アセットとして配信している。ビルド工
 | Tools | HEXA Tracker | `hexa` | `public/hexa_tracker.js` |
 | Tools | Upgrade Priority | `gear` | `public/gear_priority.js`（サイドバーは仮の入力。キャラごとの入力は Character Manager のカードの UPGRADE から開く）、`public/gear_reader.js`（ゲーム画面のスクショ・ライブ共有から装備のツールチップを読む。Tesseract.js を jsDelivr から読み込む） |
 | Tools | Cheat Sheet | `cheatsheet` | `public/cheatsheet.js` |
+| Tools | KMS Videos | `kmsvideos` | `public/kms_videos.js` |
 | Monitoring | EXP Tracker | `ranks` | `public/ranks.js` |
 | Community | Party Builder | `scheduler` | `public/boss_scheduler.html`（同一オリジンの iframe） |
 | Community | Community Members | `community` | `public/community.js`, `public/community_import.js` |

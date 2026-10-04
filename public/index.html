@@ -85,6 +85,11 @@
                 <i data-lucide="table-2" class="w-5 h-5"></i>
                 <span class="nav-label">Cheat Sheet</span>
             </button>
+            <button onclick="app.switchApp('kmsvideos')" id="app-kmsvideos"
+                class="nav-item nav-inactive" title="KMS Videos（KMSの職業ごとの YouTube 検索リンク）">
+                <i data-lucide="square-play" class="w-5 h-5"></i>
+                <span class="nav-label">KMS Videos</span>
+            </button>
 
             <div class="nav-group">
                 <span class="nav-group-label">Monitoring</span>
@@ -310,6 +315,8 @@
                 <!-- ========== CHEAT SHEET APP ========== -->
                 <!-- 中身は cheatsheet.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
                 <div id="view-cheatsheet" class="hidden-page fade-in"></div>
+                <!-- 中身は kms_videos.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
+                <div id="view-kmsvideos" class="hidden-page fade-in"></div>
                 <!-- 中身は job_art_tool.js が描く（DEV: 職業の透かしの位置合わせ）。 -->
                 <div id="view-jobart" class="hidden-page fade-in"></div>
 
