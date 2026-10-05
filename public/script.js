@@ -370,10 +370,10 @@ const app = {
         const qK = document.getElementById('btn-quick-srv-kronos');
         const qC = document.getElementById('btn-quick-srv-challenger');
         if (qK && qC) {
-            const qBase = "px-3 py-1.5 rounded text-[11px] font-bold transition-all";
-            const qkActive = "bg-emerald-600 text-white shadow-sm";
-            const qcActive = "bg-purple-600 text-white shadow-sm";
-            const qIn = "text-slate-400 hover:text-white";
+            const qBase = "join-item btn btn-sm";
+            const qkActive = "bg-emerald-600 border-emerald-600 text-white";
+            const qcActive = "bg-purple-600 border-purple-600 text-white";
+            const qIn = "text-base-content/60";
             if (srv === 'KRONOS') { qK.className = `${qBase} ${qkActive}`; qC.className = `${qBase} ${qIn}`; }
             else if (srv === 'CHALLENGER') { qK.className = `${qBase} ${qIn}`; qC.className = `${qBase} ${qcActive}`; }
             else { qK.className = `${qBase} ${qkActive}`; qC.className = `${qBase} ${qcActive}`; }
@@ -1124,24 +1124,27 @@ const app = {
             const charWeekly = this.data.masterBosses.filter(b => (settings.boss_ids || []).includes(b.id) && b.type === 'WEEKLY').length;
             const hexaClassId = hexaReady ? hexaTracker.getCharClassId(x) : null;
             const hexaPct = hexaClassId ? hexaTracker.getProgress('char:' + x.id, hexaClassId).pct : null;
-            const roleCls = x.role === 'MAIN' ? 'border-yellow-500/50 text-yellow-300 bg-yellow-950/80' : (x.role === 'SUB' ? 'border-cyan-500/50 text-cyan-300 bg-cyan-950/80' : 'border-slate-600 text-slate-400 bg-slate-900/90');
-            const act = (fn, icon, label, hover) => `<button onclick="${fn}" title="${label}" class="flex items-center gap-1 px-1.5 py-0.5 text-[11px] text-slate-400 border border-transparent hover:border-slate-700 ${hover}"><i data-lucide="${icon}" class="w-3 h-3"></i>${label}</button>`;
+            const roleCls = x.role === 'MAIN' ? 'border-yellow-500/60 text-yellow-300' : (x.role === 'SUB' ? 'border-cyan-500/60 text-cyan-300' : 'border-base-content/20 text-base-content/50');
+            const act = (fn, icon, label, hover) => `<button onclick="${fn}" title="${label}" class="btn btn-ghost btn-xs font-normal text-base-content/60 ${hover}"><i data-lucide="${icon}" class="w-3 h-3"></i>${label}</button>`;
             return `
-            <tr class="${x.hidden ? 'opacity-45' : ''}">
-                <td class="text-right font-mono text-slate-500">${idx + 1}</td>
+            <tr class="hover:bg-base-200/60 ${x.hidden ? 'opacity-45' : ''}">
+                <td class="text-right font-mono text-base-content/40">${idx + 1}</td>
                 <td>
-                    <div class="flex items-center gap-2 min-w-0 cursor-pointer" onclick="app.openCharModal('${x.id}')" title="Edit ${x.name}">
-                        <span class="w-7 h-7 shrink-0 border border-${sCol}-500/40 bg-slate-950 relative overflow-hidden">${x.classImage ? `<img src="${x.classImage}" style="${this.getCharImgStyle(x)}">` : ''}</span>
-                        <span class="font-semibold text-white truncate">${x.name}</span>
-                        ${x.hidden ? '<span class="text-[10px] text-slate-500 flex items-center gap-0.5"><i data-lucide="eye-off" class="w-3 h-3"></i>Hidden</span>' : ''}
+                    <div class="flex items-center gap-2.5 min-w-0 cursor-pointer" onclick="app.openCharModal('${x.id}')" title="Edit ${x.name}">
+                        <span class="w-8 h-8 shrink-0 border-l-[3px] border-${sCol}-500 bg-base-300 relative overflow-hidden">${x.image
+                            ? `<img src="${x.image}" alt="" class="absolute left-1/2 top-[66%] w-[52px] max-w-none -translate-x-1/2 -translate-y-1/2" onerror="this.remove()">`
+                            : (x.classImage ? `<img src="${x.classImage}" style="${this.getCharImgStyle(x)}">` : '')}</span>
+                        <span class="font-bold text-white truncate">${x.name}</span>
+                        ${x.hidden ? '<span class="badge badge-xs badge-ghost gap-0.5"><i data-lucide="eye-off" class="w-3 h-3"></i>Hidden</span>' : ''}
                     </div>
                 </td>
-                <td class="text-right font-mono text-${sCol}-300">${x.level || '?'}</td>
-                <td class="text-slate-300 truncate">${x.job || '—'}</td>
+                <td class="text-right font-mono font-bold text-${sCol}-300">${x.level || '?'}</td>
+                <td class="text-base-content/80 truncate">${x.job || '—'}</td>
                 <td class="font-mono text-[11px] text-${sCol}-400">${x.server === 'KRONOS' ? 'Kronos' : 'Challenger'}</td>
-                <td><span class="px-1 text-[10px] font-mono font-bold border ${roleCls}">${x.role || '—'}</span></td>
-                <td class="text-right font-mono ${charWeekly > charLimit ? 'text-amber-400' : 'text-slate-300'}" title="週ボスの数 / 上限">${charWeekly}/${charLimit}</td>
-                <td class="text-right font-mono text-violet-300">${hexaPct === null ? '<span class="text-slate-600">—</span>' : hexaPct + '%'}</td>
+                <td><span class="badge badge-xs font-mono font-bold bg-transparent ${roleCls}">${x.role || '—'}</span></td>
+                <td class="text-right font-mono ${charWeekly > charLimit ? 'text-amber-400 font-bold' : 'text-base-content/80'}" title="週ボスの数 / 上限">${charWeekly}/${charLimit}</td>
+                <td>${hexaPct === null ? '<span class="text-base-content/30">—</span>'
+                    : `<div class="flex items-center gap-2"><progress class="progress progress-secondary w-16 h-1.5" value="${hexaPct}" max="100"></progress><span class="font-mono text-violet-300 w-9 text-right">${hexaPct}%</span></div>`}</td>
                 <td>
                     <div class="flex items-center gap-0.5 justify-end">
                         ${act(`app.openCharModal('${x.id}')`, 'pencil', 'Edit', 'hover:text-white')}
@@ -1153,15 +1156,15 @@ const app = {
             </tr>`;
         }).join('');
         if (c) c.innerHTML = activeChars.length ? `
-            <div class="overflow-x-auto">
-                <table class="mm-table w-full">
-                    <thead><tr>
+            <div class="card bg-base-100 border border-base-content/10 overflow-x-auto">
+                <table class="table table-sm [&_td]:py-1">
+                    <thead><tr class="text-[11px] text-base-content/50">
                         <th class="w-8 text-right">#</th><th>Name</th><th class="w-12 text-right">Lv</th><th>Job</th><th class="w-24">Server</th>
-                        <th class="w-16">Role</th><th class="w-16 text-right">Weekly</th><th class="w-14 text-right">HEXA</th><th class="w-64"></th>
+                        <th class="w-16">Role</th><th class="w-16 text-right">Weekly</th><th class="w-32">HEXA</th><th class="w-72"></th>
                     </tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
-            </div>` : `<div class="border border-dashed border-slate-700 py-10 text-center text-slate-500 text-xs">このサーバーにはキャラがいません。上の欄から追加できます。</div>`;
+            </div>` : `<div class="card bg-base-100 border border-dashed border-base-content/20 py-10 text-center text-base-content/50 text-xs">このサーバーにはキャラがいません。上の欄から追加できます。</div>`;
         lucide.createIcons();
     },
 
@@ -1211,12 +1214,12 @@ const app = {
         const name = (input?.value || '').trim();
         if (!name) return;
         if (this.data.characters.some(c => c.name.toLowerCase() === name.toLowerCase())) {
-            if (msg) { msg.textContent = `"${name}" is already in your roster.`; msg.className = 'mt-2 text-[11px] font-medium text-center text-amber-400'; msg.classList.remove('hidden'); }
+            if (msg) { msg.textContent = `"${name}" is already in your roster.`; msg.className = 'text-[11px] font-medium text-amber-400'; msg.classList.remove('hidden'); }
             return;
         }
 
         if (btn) { btn.disabled = true; btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>`; lucide.createIcons(); }
-        if (msg) { msg.textContent = `Fetching "${name}"...`; msg.className = 'mt-2 text-[11px] font-medium text-center text-slate-400'; msg.classList.remove('hidden'); }
+        if (msg) { msg.textContent = `Fetching "${name}"...`; msg.className = 'text-[11px] font-medium text-slate-400'; msg.classList.remove('hidden'); }
 
         let level = 0, job = '', classImage = '', image = '';
         try {
@@ -1231,11 +1234,11 @@ const app = {
                     if (m) classImage = m.path;
                 }
             } else {
-                if (msg) { msg.textContent = `No character found: "${name}". Added anyway with defaults.`; msg.className = 'mt-2 text-[11px] font-medium text-center text-amber-400'; }
+                if (msg) { msg.textContent = `No character found: "${name}". Added anyway with defaults.`; msg.className = 'text-[11px] font-medium text-amber-400'; }
             }
         } catch (err) {
             console.error(err);
-            if (msg) { msg.textContent = `API failed. Added "${name}" with defaults.`; msg.className = 'mt-2 text-[11px] font-medium text-center text-amber-400'; }
+            if (msg) { msg.textContent = `API failed. Added "${name}" with defaults.`; msg.className = 'text-[11px] font-medium text-amber-400'; }
         }
 
         const server = this.data.config.activeServer === 'CHALLENGER' ? 'CHALLENGER' : 'KRONOS';
@@ -1250,7 +1253,7 @@ const app = {
         this.saveData();
         if (input) input.value = '';
         if (btn) { btn.disabled = false; btn.innerHTML = `<i data-lucide="plus" class="w-4 h-4"></i>`; lucide.createIcons(); }
-        if (msg) { msg.textContent = `Added "${name}"${level ? ` (Lv.${level} ${job})` : ''}`; msg.className = 'mt-2 text-[11px] font-medium text-center text-emerald-400'; setTimeout(() => msg.classList.add('hidden'), 3000); }
+        if (msg) { msg.textContent = `Added "${name}"${level ? ` (Lv.${level} ${job})` : ''}`; msg.className = 'text-[11px] font-medium text-emerald-400'; setTimeout(() => msg.classList.add('hidden'), 3000); }
         this.renderCharacters();
         this.renderDashboard();
     },
@@ -1421,7 +1424,7 @@ const app = {
         if (!msg) return;
         const color = kind === 'ok' ? 'text-emerald-400' : kind === 'warn' ? 'text-amber-400' : 'text-slate-400';
         msg.textContent = text;
-        msg.className = `mt-2 text-[11px] font-medium text-center ${color}`;
+        msg.className = `text-[11px] font-medium ${color}`;
         msg.classList.remove('hidden');
         clearTimeout(this._quickMsgTimer);
         this._quickMsgTimer = setTimeout(() => msg.classList.add('hidden'), 4000);

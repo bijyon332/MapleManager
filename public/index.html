@@ -318,47 +318,40 @@
                 </div>
 
                 <div id="view-characters" class="hidden-page fade-in">
-                    <!-- Manage Roster Header (MapleHub style) -->
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-5">
-                        <div class="flex items-center gap-3 mb-3">
-                            <div class="bg-indigo-600/20 border border-indigo-500/30 rounded-lg p-2"><i data-lucide="users" class="w-4 h-4 text-indigo-400"></i></div>
-                            <div class="flex-1">
-                                <h2 class="text-white font-bold text-base leading-tight">Manage Roster</h2>
-                                <p class="text-[11px] text-slate-500">Add characters and pull live data from the Ranking API</p>
+                    <!-- 登録の1行: 見出し・人数・サーバー・名前で追加（ランキングAPIから取得）・手動・全更新 -->
+                    <section class="card card-sm bg-base-100 border border-base-content/10 mb-3"><div class="card-body gap-2">
+                        <form onsubmit="app.quickAddCharacter(event)" class="flex items-center gap-2 flex-wrap">
+                            <div class="leading-tight mr-2 shrink-0">
+                                <div class="flex items-baseline gap-2"><h2 class="font-bold text-sm text-white">Manage Roster</h2><span id="roster-count-badge" class="badge badge-sm badge-ghost">0 Characters</span></div>
+                                <p class="text-[11px] text-base-content/50">Add characters and pull live data from the Ranking API</p>
                             </div>
-                            <span id="roster-count-badge" class="px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-[11px] text-slate-300 font-bold">0 Characters</span>
-                        </div>
-                        <form onsubmit="app.quickAddCharacter(event)" class="flex items-center gap-2 max-w-2xl mx-auto">
-                            <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
-                                <button type="button" onclick="app.setServer('KRONOS')" id="btn-quick-srv-kronos" class="px-3 py-1.5 rounded text-[11px] font-bold transition-all">Kronos</button>
-                                <button type="button" onclick="app.setServer('CHALLENGER')" id="btn-quick-srv-challenger" class="px-3 py-1.5 rounded text-[11px] font-bold transition-all">Challenger</button>
+                            <div class="join shrink-0">
+                                <button type="button" onclick="app.setServer('KRONOS')" id="btn-quick-srv-kronos" class="join-item btn btn-sm">Kronos</button>
+                                <button type="button" onclick="app.setServer('CHALLENGER')" id="btn-quick-srv-challenger" class="join-item btn btn-sm">Challenger</button>
                             </div>
-                            <div class="flex-1 relative">
-                                <i data-lucide="user-plus" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
-                                <input type="text" id="quick-add-name" required placeholder="Add character to roster..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white outline-none focus:border-indigo-500">
-                            </div>
-                            <button type="submit" id="btn-quick-add" title="Add with API fetch" class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors min-w-[44px]"><i data-lucide="plus" class="w-4 h-4"></i></button>
-                            <button type="button" onclick="app.openCharModal()" title="Add manually (no API)" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"><i data-lucide="pencil" class="w-3.5 h-3.5"></i>Manual</button>
-                            <button type="button" onclick="app.updateAllCharacters()" id="btn-update-all" title="Refresh all characters" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>Update All</button>
+                            <label class="input input-sm flex-1 min-w-[220px]">
+                                <i data-lucide="user-plus" class="w-3.5 h-3.5 text-base-content/40"></i>
+                                <input type="text" id="quick-add-name" required placeholder="Add character to roster...">
+                            </label>
+                            <button type="submit" id="btn-quick-add" title="Add with API fetch" class="btn btn-sm btn-primary min-w-[44px]"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                            <button type="button" onclick="app.openCharModal()" title="Add manually (no API)" class="btn btn-sm"><i data-lucide="pencil" class="w-3.5 h-3.5"></i>Manual</button>
+                            <button type="button" onclick="app.updateAllCharacters()" id="btn-update-all" title="Refresh all characters" class="btn btn-sm"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>Update All</button>
                         </form>
-                        <div id="quick-add-msg" class="hidden mt-2 text-[11px] font-medium text-center"></div>
+                        <div id="quick-add-msg" class="hidden text-[11px] font-medium"></div>
 
                         <!-- コミュニティ名簿との連携。自分のDiscord名を選ぶと、Plannerのデータが
                              その人ごとに分かれ、名簿のキャラをそのまま取り込める。
                              名簿を使わない人は上の手動追加だけで今までどおり使える。 -->
-                        <div id="planner-community-bar" class="hidden flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-800">
-                            <span class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">自分</span>
-                            <select id="planner-me"
-                                class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-indigo-500 min-w-[180px]"></select>
-                            <button type="button" id="btn-planner-import" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors">
-                                <i data-lucide="download" class="w-3.5 h-3.5"></i>いま取り込む
-                            </button>
-                            <label id="planner-auto-import-wrap" class="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer" title="名簿に追加されたキャラを自動でPlannerにも足し、レベル・職・画像を追随させます">
-                                <input type="checkbox" id="planner-auto-import" class="w-3.5 h-3.5 accent-indigo-500">名簿を自動で反映
+                        <div id="planner-community-bar" class="hidden flex-wrap items-center gap-2 pt-2 border-t border-base-content/10">
+                            <span class="text-[11px] text-base-content/50 font-bold">自分</span>
+                            <select id="planner-me" class="select select-sm w-auto min-w-[180px]"></select>
+                            <button type="button" id="btn-planner-import" class="btn btn-sm"><i data-lucide="download" class="w-3.5 h-3.5"></i>いま取り込む</button>
+                            <label id="planner-auto-import-wrap" class="flex items-center gap-1.5 text-[11px] text-base-content/70 cursor-pointer" title="名簿に追加されたキャラを自動でPlannerにも足し、レベル・職・画像を追随させます">
+                                <input type="checkbox" id="planner-auto-import" class="checkbox checkbox-xs">名簿を自動で反映
                             </label>
-                            <span id="planner-community-note" class="text-[11px] text-slate-500"></span>
+                            <span id="planner-community-note" class="text-[11px] text-base-content/50"></span>
                         </div>
-                    </div>
+                    </div></section>
                     <div id="char-list-container"></div>
                 </div>
 
@@ -408,56 +401,41 @@
                 <div id="view-ranks" class="hidden-page fade-in"></div>
 
                 <div id="view-system" class="hidden-page fade-in">
-                    <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2"><i data-lucide="settings-2"
-                            class="w-5 h-5 text-slate-400"></i> System Configuration</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
-                            <h3 class="text-white font-bold text-sm uppercase tracking-wider mb-4">Revenue Calculation
-                            </h3>
-                            <div class="flex justify-between items-center mb-4">
-                                <div>
-                                    <div class="text-slate-300 text-sm font-medium">World Max Crystals</div>
-                                    <div class="text-slate-500 text-[10px]">Total limit for account</div>
+                    <!-- 設定は3枚のカードを横に並べる。値は変えたらすぐ保存（app.saveConfig）。 -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-5xl">
+                        <section class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
+                            <h3 class="font-bold text-sm text-white flex items-center gap-1.5"><i data-lucide="coins" class="w-4 h-4 text-base-content/50"></i>Revenue Calculation</h3>
+                            <div class="flex justify-between items-center gap-3">
+                                <div class="leading-tight">
+                                    <div class="text-sm">World Max Crystals</div>
+                                    <div class="text-[11px] text-base-content/50">Total limit for account</div>
                                 </div>
-                                <input type="number" id="config-world-crystals"
-                                    class="w-20 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-right text-white"
-                                    value="180" min="1" onchange="app.saveConfig()">
+                                <input type="number" id="config-world-crystals" class="input input-sm w-20 font-mono font-bold text-right" value="180" min="1" onchange="app.saveConfig()">
                             </div>
-                            <div class="flex justify-between items-center">
-                                <div>
-                                    <div class="text-slate-300 text-sm font-medium">Character Max Crystals</div>
-                                    <div class="text-slate-500 text-[10px]">Per character limit</div>
+                            <div class="flex justify-between items-center gap-3">
+                                <div class="leading-tight">
+                                    <div class="text-sm">Character Max Crystals</div>
+                                    <div class="text-[11px] text-base-content/50">Per character limit</div>
                                 </div>
-                                <input type="number" id="config-char-crystals"
-                                    class="w-20 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-right text-white"
-                                    value="14" min="1" onchange="app.saveConfig()">
+                                <input type="number" id="config-char-crystals" class="input input-sm w-20 font-mono font-bold text-right" value="14" min="1" onchange="app.saveConfig()">
                             </div>
-                        </div>
-                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
-                            <h3 class="text-white font-bold text-sm uppercase tracking-wider mb-4">Server Names</h3>
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1">Server 1
-                                        (Default: Kronos)</label>
-                                    <input type="text" id="config-server-kronos"
-                                        class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white outline-none focus:border-indigo-500"
-                                        placeholder="Kronos" onchange="app.saveConfig()">
-                                </div>
-                                <div>
-                                    <label class="block text-slate-500 text-[10px] uppercase font-bold mb-1">Server 2
-                                        (Default: Challenger)</label>
-                                    <input type="text" id="config-server-challenger"
-                                        class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white outline-none focus:border-indigo-500"
-                                        placeholder="Challenger" onchange="app.saveConfig()">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 border-l-4 border-l-red-500/50">
-                            <h3 class="text-white font-bold text-sm uppercase tracking-wider mb-4">Data Management</h3>
-                            <button onclick="app.resetAllData()"
-                                class="w-full border border-red-500/30 text-red-400 hover:bg-red-500/10 py-2 rounded-lg text-sm transition-colors flex justify-center gap-2"><i
-                                    data-lucide="trash-2" class="w-4 h-4"></i> Factory Reset</button>
-                        </div>
+                        </div></section>
+                        <section class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
+                            <h3 class="font-bold text-sm text-white flex items-center gap-1.5"><i data-lucide="server" class="w-4 h-4 text-base-content/50"></i>Server Names</h3>
+                            <label class="block">
+                                <span class="block text-[11px] text-base-content/50 mb-1">Server 1 (Default: Kronos)</span>
+                                <input type="text" id="config-server-kronos" class="input input-sm w-full border-l-[3px] border-l-emerald-500" placeholder="Kronos" onchange="app.saveConfig()">
+                            </label>
+                            <label class="block">
+                                <span class="block text-[11px] text-base-content/50 mb-1">Server 2 (Default: Challenger)</span>
+                                <input type="text" id="config-server-challenger" class="input input-sm w-full border-l-[3px] border-l-purple-500" placeholder="Challenger" onchange="app.saveConfig()">
+                            </label>
+                        </div></section>
+                        <section class="card card-sm bg-base-100 border border-error/30"><div class="card-body gap-2">
+                            <h3 class="font-bold text-sm text-error flex items-center gap-1.5"><i data-lucide="database" class="w-4 h-4"></i>Data Management</h3>
+                            <p class="text-[11px] text-base-content/50">Character Manager のキャラ・ボス設定を消して初期状態に戻します（他のアプリのデータは残ります）。</p>
+                            <button onclick="app.resetAllData()" class="btn btn-sm btn-error btn-outline mt-auto"><i data-lucide="trash-2" class="w-4 h-4"></i>Factory Reset</button>
+                        </div></section>
                     </div>
                 </div>
 
