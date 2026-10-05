@@ -95,7 +95,7 @@ color:var(--tx);font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",sy
 .cm *,.cm-veil *{box-sizing:border-box}
 .cm .wrap{max-width:1480px}
 .cm .head{display:flex;align-items:baseline;gap:12px;margin:0 0 8px}
-.cm .head .stat{margin-left:auto;color:var(--mu);font-size:11.5px;font-family:"IBM Plex Mono",ui-monospace,monospace;white-space:nowrap}
+.cm .head .cm-stat{margin-left:auto;color:var(--mu);font-size:11.5px;font-family:"IBM Plex Mono",ui-monospace,monospace;white-space:nowrap}
 .cm .meg{display:flex;align-items:center;gap:6px;flex:1 1 100%;min-width:0;padding-top:5px;border-top:1px solid var(--ln)}
 .cm h1{font-size:18px;font-weight:700;margin:0;color:#fff;white-space:nowrap}
 .cm .sub{color:var(--mu);margin:0;font-size:11.5px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -141,7 +141,7 @@ padding:1px 6px;white-space:nowrap;margin-left:auto}
 color:var(--mu);padding:8px 14px;font-size:12.5px;font-weight:700}
 .cm .tab:hover{color:var(--tx)}
 .cm .tab.on{color:#fff;border-bottom-color:var(--ac);background:rgba(129,140,248,.08)}
-.cm .tabs .stat{margin-left:auto;color:var(--mu);font-size:11.5px;font-family:ui-monospace,monospace}
+.cm .tabs .cm-stat{margin-left:auto;color:var(--mu);font-size:11.5px;font-family:ui-monospace,monospace}
 
 .cm .empty{color:var(--mu);text-align:center;padding:24px 12px;border:1px dashed var(--ln);border-radius:0}
 .cm .tab .badge{background:var(--warn);color:#241a00;border-radius:999px;font-size:9.5px;
@@ -182,10 +182,10 @@ display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .cm .ccard{display:grid;grid-template-columns:56px minmax(0,1fr);gap:8px;
 background:var(--sf2);border:1px solid var(--ln);border-radius:0;padding:4px}
 .cm .ccard:hover{border-color:#4f46e5}
-.cm .avatar{position:relative;width:56px;height:56px;border-radius:0;background:var(--bg);
+.cm .cm-avatar{position:relative;width:56px;height:56px;border-radius:0;background:var(--bg);
 border:1px solid var(--ln);overflow:hidden;flex:none}
-.cm .avatar img.face{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
-.cm .avatar .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#3d4767}
+.cm .cm-avatar img.face{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.cm .cm-avatar .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#3d4767}
 .cm .cinfo{display:flex;flex-direction:column;min-width:0;padding-top:1px}
 .cm .cname{font-size:13.5px;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cm .cmeta{display:flex;align-items:baseline;gap:8px;min-width:0;margin-top:1px}
@@ -239,9 +239,9 @@ border:1px solid var(--ln);overflow:hidden}
 .cm-veil{position:fixed;inset:0;background:rgba(6,8,16,.74);display:flex;align-items:center;
 justify-content:center;padding:20px;z-index:60}
 .cm-veil.top{z-index:70}
-.cm-veil .modal{background:var(--sf);border:1px solid var(--ln2);border-top:2px solid #6366f1;border-radius:0;width:100%;
+.cm-veil .cm-modal{background:var(--sf);border:1px solid var(--ln2);border-top:2px solid #6366f1;border-radius:0;width:100%;
 max-width:440px;padding:14px 16px;box-shadow:0 24px 60px rgba(0,0,0,.55);max-height:88vh;overflow:auto}
-.cm-veil .modal.wide{max-width:880px}
+.cm-veil .cm-modal.wide{max-width:880px}
 .cm-veil h2{font-size:15px;margin:0 0 10px;font-weight:700}
 .cm-veil .fld{margin-bottom:11px}
 .cm-veil .fld label{display:block;color:var(--mu);font-size:10.5px;font-weight:600;margin-bottom:2px}
@@ -260,7 +260,7 @@ resize:vertical;white-space:pre;overflow:auto}
 font-weight:700;margin-bottom:6px}
 .cm-veil .row{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
 @media(max-width:720px){.cm-veil .io{grid-template-columns:1fr}}
-@media(prefers-reduced-motion:no-preference){.cm-veil .modal{animation:cm-pop .16s ease-out}}
+@media(prefers-reduced-motion:no-preference){.cm-veil .cm-modal{animation:cm-pop .16s ease-out}}
 @keyframes cm-pop{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
 
 .cm-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:80;
@@ -403,7 +403,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
                 '<div class="cm"><div class="wrap">' +
                 '<div class="head"><h1>Community Members</h1>' +
                 '<p class="sub">Discord名にキャラクターを紐づけた名簿。キャラ名を入れると レベル・職・画像 をランキングAPIから取得します（ギルドは手入力）。</p>' +
-                '<span class="stat" id="cm-stat"></span></div>' +
+                '<span class="cm-stat" id="cm-stat"></span></div>' +
                 '<div class="bar">' +
                 // Discord名は「誰か」を決める識別子、表示名は各ツールに出る呼び名。
                 // 別物なので入口で両方受け取る（表示名は後から編集でも可）。
@@ -512,7 +512,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
         },
 
         avatar(c) {
-            return '<div class="avatar">' + (c.imgURL
+            return '<div class="cm-avatar">' + (c.imgURL
                 ? `<img class="face" src="${esc(c.imgURL)}" alt="" loading="lazy">`
                 : '<span class="ph"><i data-lucide="user" class="w-6 h-6"></i></span>') + '</div>';
         },
@@ -1040,7 +1040,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
 
         confirm(message, okLabel) {
             return new Promise((resolve) => {
-                const veil = this.openVeil(`<div class="modal" style="max-width:400px">
+                const veil = this.openVeil(`<div class="cm-modal" style="max-width:400px">
     <h2>確認</h2>
     <p class="msg">${esc(message)}</p>
     <div class="foot"><span class="grow"></span>
@@ -1070,7 +1070,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
             const swatches = COLORS.map((c, i) =>
                 `<button type="button" data-x="color" data-i="${i}" title="色 ${i + 1}"
     style="width:22px;height:22px;padding:0;border-radius:50%;background:${c};border:2px solid ${i === m.colorIdx ? '#fff' : 'transparent'}"></button>`).join('');
-            const veil = this.openVeil(`<div class="modal">
+            const veil = this.openVeil(`<div class="cm-modal">
     <h2>メンバーの編集</h2>
     <div class="fld"><label>Discord名（識別用）</label><input data-x="discord" type="text" value="${esc(m.discordName)}" spellcheck="false"></div>
     <div class="fld"><label>表示名（各ツールに出る呼び名／未設定ならDiscord名）</label><input data-x="display" type="text" value="${esc(m.displayName)}"></div>
@@ -1129,7 +1129,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
             const memberOpts = this.state.members.map((m) =>
                 `<option value="${m.id}" ${m.id === hit.member.id ? 'selected' : ''}>${esc(CS().labelWithHandle(m))}</option>`).join('');
 
-            const veil = this.openVeil(`<div class="modal">
+            const veil = this.openVeil(`<div class="cm-modal">
     <h2>キャラクターの編集</h2>
     <div class="fld"><label>キャラ名</label><input data-x="name" type="text" value="${esc(c.name)}" spellcheck="false"></div>
     <div class="pair">
@@ -1301,7 +1301,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
             // 共有データを一撃で壊せるので、普段の画面には出さない。URL に ?admin=1 を
             // 付けたときだけ現れる。
             const admin = ADMIN;
-            const veil = this.openVeil(`<div class="modal${admin ? ' wide' : ''}">
+            const veil = this.openVeil(`<div class="cm-modal${admin ? ' wide' : ''}">
     <h2>データ</h2>
     <p class="note" style="margin-top:0">名簿はコミュニティ全員で共有しています。書き出しは自由に使ってください。</p>
     <div class="${admin ? 'io' : ''}">

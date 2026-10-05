@@ -1061,8 +1061,8 @@ const ranks = {
     _charCellInner(r, info, s) {
         const imgUrl = this._fixImgUrl(info.img);
         const img = imgUrl
-            ? `<img src="${this._escape(imgUrl)}" alt="" class="w-16 h-16 object-contain object-bottom flex-shrink-0 -my-2" loading="lazy">`
-            : `<div class="w-16 h-16 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0"><i data-lucide="user" class="w-6 h-6 text-slate-600"></i></div>`;
+            ? `<img src="${this._escape(imgUrl)}" alt="" class="w-16 h-16 object-contain object-bottom shrink-0 -my-2" loading="lazy">`
+            : `<div class="w-16 h-16 rounded-lg bg-slate-800 flex items-center justify-center shrink-0"><i data-lucide="user" class="w-6 h-6 text-slate-600"></i></div>`;
 
         const pct = (s.expPct != null) ? Math.max(0, Math.min(100, s.expPct)) : null;
         const lvTxt = s.level != null
@@ -1156,7 +1156,7 @@ const ranks = {
         m.innerHTML = `
 <div class="bg-slate-900 border border-slate-700 w-full max-w-4xl shadow-2xl flex flex-col">
     <div class="flex items-center gap-3 px-3 py-2 border-b border-slate-800 bg-slate-950">
-        ${imgUrl ? `<img src="${this._escape(imgUrl)}" alt="" class="w-10 h-10 object-contain object-bottom flex-shrink-0">` : ''}
+        ${imgUrl ? `<img src="${this._escape(imgUrl)}" alt="" class="w-10 h-10 object-contain object-bottom shrink-0">` : ''}
         <div class="min-w-0">
             <div class="flex items-baseline gap-2">
                 <span class="text-base font-bold text-white truncate">${this._escape(r.name)}</span>
@@ -1303,15 +1303,15 @@ const ranks = {
             const color = this.PALETTE[idx % this.PALETTE.length];
             const imgUrl = this._fixImgUrl(info.img);
             const img = imgUrl
-                ? `<img src="${this._escape(imgUrl)}" alt="" class="w-9 h-9 object-contain object-bottom flex-shrink-0" loading="lazy">`
-                : `<div class="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0"><i data-lucide="user" class="w-4 h-4 text-slate-600"></i></div>`;
+                ? `<img src="${this._escape(imgUrl)}" alt="" class="w-9 h-9 object-contain object-bottom shrink-0" loading="lazy">`
+                : `<div class="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center shrink-0"><i data-lucide="user" class="w-4 h-4 text-slate-600"></i></div>`;
             const lvTxt = info.level != null
                 ? `Lv.${info.level}${Number.isFinite(info.expPct) ? ` (${info.expPct.toFixed(2)}%)` : ''}`
                 : 'データなし';
             return `
                 <button type="button" data-key="${this._escape(key)}"
                         class="ranks-trend-item w-full flex items-center gap-2.5 rounded-lg border px-2.5 py-2 transition-all text-left ${selected ? 'bg-indigo-600/20 border-indigo-500/60' : 'bg-slate-800/40 border-slate-700/60 hover:border-slate-500 opacity-60 hover:opacity-100'}">
-                    <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${selected ? color : '#475569'}"></span>
+                    <span class="w-2 h-2 rounded-full shrink-0" style="background:${selected ? color : '#475569'}"></span>
                     ${img}
                     <div class="flex-1 min-w-0">
                         <div class="text-xs font-bold text-white truncate">${this._escape(r.name)}
@@ -1319,7 +1319,7 @@ const ranks = {
                         </div>
                         <div class="text-[10px] text-slate-400">${lvTxt}</div>
                     </div>
-                    ${selected ? '<i data-lucide="check" class="w-3.5 h-3.5 text-indigo-400 flex-shrink-0"></i>' : ''}
+                    ${selected ? '<i data-lucide="check" class="w-3.5 h-3.5 text-indigo-400 shrink-0"></i>' : ''}
                 </button>`;
         }).join('');
 

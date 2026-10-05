@@ -1132,7 +1132,7 @@ const app = {
                 <td class="text-right font-mono text-slate-500">${idx + 1}</td>
                 <td>
                     <div class="flex items-center gap-2 min-w-0 cursor-pointer" onclick="app.openCharModal('${x.id}')" title="Edit ${x.name}">
-                        <span class="w-7 h-7 flex-shrink-0 border border-${sCol}-500/40 bg-slate-950 relative overflow-hidden">${x.classImage ? `<img src="${x.classImage}" style="${this.getCharImgStyle(x)}">` : ''}</span>
+                        <span class="w-7 h-7 shrink-0 border border-${sCol}-500/40 bg-slate-950 relative overflow-hidden">${x.classImage ? `<img src="${x.classImage}" style="${this.getCharImgStyle(x)}">` : ''}</span>
                         <span class="font-semibold text-white truncate">${x.name}</span>
                         ${x.hidden ? '<span class="text-[10px] text-slate-500 flex items-center gap-0.5"><i data-lucide="eye-off" class="w-3 h-3"></i>Hidden</span>' : ''}
                     </div>
@@ -1653,7 +1653,7 @@ const app = {
                     .map(i => `<button type="button" onclick="app.bcSetParty('${key}',${i})" class="cm-pb ${on && p === i ? 'on' : ''}">${i}</button>`).join('');
                 return `<tr class="${on ? 'cm-sel' : 'cm-off'}">
                     <td class="cm-bn px-3 py-1 max-w-0 w-full overflow-hidden"><div class="flex items-center gap-2 overflow-hidden">
-                        ${img ? `<img src="${img}" alt="" class="w-7 h-7 object-contain flex-shrink-0 ${on ? '' : 'opacity-40'}" onerror="this.style.visibility='hidden'">` : '<span class="w-7 flex-shrink-0"></span>'}
+                        ${img ? `<img src="${img}" alt="" class="w-7 h-7 object-contain shrink-0 ${on ? '' : 'opacity-40'}" onerror="this.style.visibility='hidden'">` : '<span class="w-7 shrink-0"></span>'}
                         <span class="${on ? 'text-white font-bold' : 'text-slate-400'} text-[13px] whitespace-nowrap">${g.name}</span>
                         ${g.kana ? `<span class="text-[10px] text-slate-500 whitespace-nowrap truncate">${g.kana}</span>` : ''}</div></td>
                     <td class="px-3 w-36 text-right font-mono text-[12px] ${on ? 'text-slate-400' : 'text-slate-700'}">${v ? v.meso.toLocaleString() : '—'}</td>

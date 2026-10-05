@@ -121,7 +121,7 @@
             const me = cs.me();
             const veil = document.createElement('div');
             veil.className = 'cm-veil top';
-            veil.innerHTML = `<div class="modal">
+            veil.innerHTML = `<div class="cm-modal">
     <h2>キャラを一括追加</h2>
     <p class="note" style="margin-top:0">キャラ名を1行に1つずつ貼り付けてください。
         レベル・職・画像はキャラ名からAPIで取得します。</p>
@@ -204,7 +204,7 @@
             if (!cs) { alert('名簿ストアが読み込まれていません'); return; }
             const veil = document.createElement('div');
             veil.className = 'cm-veil top';
-            veil.innerHTML = `<div class="modal wide">
+            veil.innerHTML = `<div class="cm-modal wide">
     <h2>スプレッドシートから一括登録</h2>
     <p class="note" style="margin-top:0">
         タブ区切りで <b>Discord名 / D1での名前 / 表示名 / キャラ1(メイン) / キャラ2 …</b> の順に貼り付けてください。
