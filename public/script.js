@@ -165,27 +165,28 @@ const app = {
     setCharRole(v) {
         const f = document.getElementById('char-form');
         f.role.value = v;
-        document.querySelectorAll('#cm-role [data-v]').forEach(b => b.classList.toggle('cm-on', b.dataset.v === v));
+        document.querySelectorAll('#cm-role [data-v]').forEach(b => b.classList.toggle('ed-on', b.dataset.v === v));
     },
 
     setCharServer(v) {
         const f = document.getElementById('char-form');
         f.server.value = v;
+        // 選択中はサーバー色の枠（ダッシュボードのサーバー色と同じ）
         document.querySelectorAll('#cm-server [data-v]').forEach(b => {
-            const on = b.dataset.v === v;
-            b.classList.toggle('cm-on', on);
-            b.classList.toggle('cm-kr', on && v === 'KRONOS');
-            b.classList.toggle('cm-ch', on && v === 'CHALLENGER');
+            const col = b.dataset.v === 'KRONOS' ? (this.data.config.serverKColor || 'emerald') : (this.data.config.serverCColor || 'purple');
+            b.style.setProperty('--c', this.SERVER_HEX[col] || '#94a3b8');
+            b.classList.toggle('ed-on', b.dataset.v === v);
         });
     },
 
-    // 編集中のキャラの HEXA / Upgrade Priority を開く。保存前の新規キャラでは押せない。
+    // 編集中のキャラの HEXA / Upgrade Priority / Scouter を開く。保存前の新規キャラでは押せない。
     openLinkedFromModal(kind) {
         const cid = this.activeCharId;
         if (!cid) return;
         this.closeCharModal();
         if (kind === 'hexa' && typeof hexaTracker !== 'undefined') hexaTracker.openForCharacter(cid);
         if (kind === 'gear') this.openGearForCharacter(cid);
+        if (kind === 'scouter') this.openScouterForCharacter(cid);
     },
 
     onImagePosChange() {
@@ -1073,7 +1074,7 @@ const app = {
                             <span class="mx-mo-ic" title="${b.difficulty} ${b.name}">${img ? `<img src="${img}" alt="" onerror="this.nextElementSibling.style.display='';this.remove()">` : ''}<span class="mx-mo-nm" ${img ? 'style="display:none"' : ''}>${(bossByEn(b.name) || {}).shortEn || b.name}</span></span>
                             <span class="mx-mo-df">${b.difficulty}</span>
                         </span>`; }).join('')}
-                        ${isMonthlyDone ? `${completeMark}<span class="mx-mo-meso">${Math.floor(mB.reduce((s, b) => s + b.effectiveMeso, 0)).toLocaleString()}</span>` : ''}
+                        ${isMonthlyDone ? `<div class="mx-mo-done">${Math.floor(mB.reduce((s, b) => s + b.effectiveMeso, 0)).toLocaleString()}</div>` : ''}
                     </div>` : '<div class="mx-mo mx-mo-none">月ボスなし</div>'}
                     <div class="mx-wk ${isWeeklyDone ? 'is-done' : ''}" ${wkSorted.length ? `onclick="app.toggleCharDone('${char.id}','weekly')" title="${isWeeklyDone ? 'クリックで消し込みを解除' : 'クリックで週ボスをまとめて消し込む'}"` : ''}>
                         ${wkSorted.length ? `<div class="mx-grid">${tiles(wkSorted, 14)}</div>${isWeeklyDone ? completeMark : ''}` : '<div class="mx-none mx-none-wk">週ボスなし</div>'}
@@ -1454,7 +1455,7 @@ const app = {
         this.setCharRole(c ? (c.role || 'MAIN') : 'MAIN');
         const defServer = this.data.config.activeServer === 'ALL' ? 'KRONOS' : this.data.config.activeServer;
         this.setCharServer(c ? (c.server || 'KRONOS') : defServer);
-        ['cm-link-hexa', 'cm-link-gear'].forEach(id => {
+        ['cm-link-hexa', 'cm-link-gear', 'cm-link-scouter'].forEach(id => {
             const b = document.getElementById(id);
             if (b) { b.disabled = !c; b.title = c ? '' : '保存すると使えます'; }
         });
@@ -1623,44 +1624,55 @@ const app = {
         return (variant && variant.max) || ((typeof bossByEn === 'function' && bossByEn(name)) || {}).maxMembers || 6;
     },
 
+    // ボス一覧。週ボス → 月ボスの順に並べ、行数の半分で左右2列に分ける（スクロールせずに全行が見える）。
     renderBossConfigGrid() {
         const body = document.getElementById('bc-grid');
         if (!body) return;
         const label = d => d.charAt(0) + d.slice(1).toLowerCase();
-        const section = type => {
-            const groups = this.getBossGroups(type);
-            if (!groups.length) return '';
-            const col = type === 'WEEKLY' ? 'violet' : 'amber';
-            const head = `<tr><td colspan="5" class="!border-x-0 px-3 pt-3 pb-1 bg-slate-900"><div class="flex items-center gap-2 text-[11px] font-bold text-${col}-400">${type}<span class="flex-1 h-px bg-${col}-500/40"></span></div></td></tr>`;
-            return head + groups.map(g => {
-                const key = `${type}:${g.name}`;
-                const on = !!this.bcSelected[key];
-                const v = on ? this.bcVariant(key) : null;
-                const max = this.bcMaxParty(v, g.name);
-                const p = on ? Math.min(this.bcParty[key] || 1, max) : 1;
-                const img = this.getBossImageUrl(g.name);
-                const diffs = this.BC_DIFF_COLS.map(ds => {
-                    const x = g.variants.find(y => ds.includes(y.difficulty));
-                    if (!x) return `<button type="button" class="cm-db na" tabindex="-1"></button>`;
-                    const sel = on && v && v.difficulty === x.difficulty;
-                    return `<button type="button" onclick="app.bcPickDiff('${key}','${x.difficulty}')" class="cm-db ${sel ? 'on' : ''}" style="--c:${this.BC_DIFF_COLOR[x.difficulty] || '#94a3b8'}">${label(x.difficulty)}</button>`;
-                }).join('');
-                const bossMax = this.bcMaxParty(null, g.name);
-                const pts = Array.from({ length: bossMax }, (_, i) => i + 1).filter(i => i <= max)
-                    .map(i => `<button type="button" onclick="app.bcSetParty('${key}',${i})" class="cm-pb ${on && p === i ? 'on' : ''}">${i}</button>`).join('');
-                return `<tr class="${on ? 'cm-sel' : 'cm-off'}">
-                    <td class="cm-bn px-3 py-1 max-w-0 w-full overflow-hidden"><div class="flex items-center gap-2 overflow-hidden">
-                        ${img ? `<img src="${img}" alt="" class="w-7 h-7 object-contain shrink-0 ${on ? '' : 'opacity-40'}" onerror="this.style.visibility='hidden'">` : '<span class="w-7 shrink-0"></span>'}
-                        <span class="${on ? 'text-white font-bold' : 'text-slate-400'} text-[13px] whitespace-nowrap">${g.name}</span>
-                        ${g.kana ? `<span class="text-[10px] text-slate-500 whitespace-nowrap truncate">${g.kana}</span>` : ''}</div></td>
-                    <td class="px-3 w-36 text-right font-mono text-[12px] ${on ? 'text-slate-400' : 'text-slate-700'}">${v ? v.meso.toLocaleString() : '—'}</td>
-                    <td class="px-3 w-36 text-right font-mono text-[13px] ${on ? 'text-amber-300 font-bold' : 'text-slate-700'}">${v ? Math.floor(v.meso / p).toLocaleString() : '—'}</td>
-                    <td class="px-2 whitespace-nowrap"><div class="flex gap-1">${diffs}</div></td>
-                    <td class="px-2 whitespace-nowrap"><div class="flex gap-1 w-[164px]">${pts}</div></td></tr>`;
+        const items = [];
+        ['WEEKLY', 'MONTHLY'].forEach(type => this.getBossGroups(type).forEach(g => items.push({ type, g })));
+        if (!items.length) { body.innerHTML = '<div class="col-span-2 text-center text-slate-500 text-xs py-8">No bosses</div>'; this.updateBossConfigCounter(); return; }
+        const row = ({ type, g }) => {
+            const key = `${type}:${g.name}`;
+            const on = !!this.bcSelected[key];
+            const v = on ? this.bcVariant(key) : null;
+            const max = this.bcMaxParty(v, g.name);
+            const p = on ? Math.min(this.bcParty[key] || 1, max) : 1;
+            const img = this.getBossImageUrl(g.name);
+            const diffs = this.BC_DIFF_COLS.map(ds => {
+                const x = g.variants.find(y => ds.includes(y.difficulty));
+                if (!x) return '<span class="ed-db-na"></span>';
+                const sel = on && v && v.difficulty === x.difficulty;
+                return `<button type="button" onclick="app.bcPickDiff('${key}','${x.difficulty}')" class="btn btn-xs ed-db ${sel ? 'ed-on' : 'btn-ghost'}" style="--c:${this.BC_DIFF_COLOR[x.difficulty] || '#94a3b8'}">${label(x.difficulty)}</button>`;
             }).join('');
+            // 人数は難易度ごとの上限を超える数は押せない（スウ Extreme は2人）
+            const pts = Array.from({ length: this.bcMaxParty(null, g.name) }, (_, i) => i + 1)
+                .map(i => `<button type="button" onclick="app.bcSetParty('${key}',${i})" class="btn btn-xs btn-square ed-pb ${on && p === i ? 'ed-pon' : 'btn-ghost'}" ${!on || i > max ? 'disabled' : ''}>${i}</button>`).join('');
+            const ini = g.name.split(/\s+/).slice(0, 2).map(w => w[0]).join('');
+            return `<tr class="${on ? 'ed-sel' : ''}">
+                <td class="pl-2 pr-1 w-8"><span class="ed-ic ${on ? '' : 'opacity-40'}">${img ? `<img src="${img}" alt="" onerror="this.replaceWith('${ini}')">` : ini}</span></td>
+                <td class="max-w-0 w-full pr-2"><div class="flex items-baseline gap-1.5 overflow-hidden whitespace-nowrap">
+                    <span class="shrink-0 text-[13px] ${on ? 'font-bold text-white' : 'text-slate-400'}">${g.name}</span>
+                    ${g.kana ? `<span class="text-[10px] text-slate-500 truncate">${g.kana}</span>` : ''}</div></td>
+                <td class="px-2 text-right font-mono text-[11px] whitespace-nowrap ${on ? 'text-slate-400' : 'text-slate-700'}">${v ? v.meso.toLocaleString() : '—'}</td>
+                <td class="px-2 text-right font-mono text-[12px] whitespace-nowrap ${on ? 'text-amber-300 font-bold' : 'text-slate-700'}">${v ? Math.floor(v.meso / p).toLocaleString() : '—'}</td>
+                <td class="px-1.5 whitespace-nowrap"><div class="flex gap-0.5">${diffs}</div></td>
+                <td class="pl-1.5 pr-3 whitespace-nowrap"><div class="flex gap-0.5 w-[130px]">${pts}</div></td></tr>`;
         };
-        body.innerHTML = section('WEEKLY') + section('MONTHLY')
-            || `<tr><td colspan="5" class="text-center text-slate-500 text-xs py-8">No bosses</td></tr>`;
+        const table = part => {
+            let last = null;
+            const rows = part.map(it => {
+                let head = '';
+                if (it.type !== last) {
+                    last = it.type;
+                    head = `<tr><td colspan="6" class="pt-1.5 pb-0.5 px-2"><div class="flex items-center gap-2 text-[11px] font-bold ${it.type === 'WEEKLY' ? 'text-violet-400' : 'text-amber-400'}">${it.type}<span class="flex-1 h-px bg-current opacity-30"></span></div></td></tr>`;
+                }
+                return head + row(it);
+            }).join('');
+            return `<table class="ed-boss"><thead><tr><th></th><th class="text-left">ボス</th><th class="text-right px-2">結晶</th><th class="text-right px-2">獲得メル</th><th class="text-left px-1.5">難易度</th><th class="text-left pl-1.5">人数</th></tr></thead><tbody>${rows}</tbody></table>`;
+        };
+        const half = Math.ceil(items.length / 2);
+        body.innerHTML = `<div>${table(items.slice(0, half))}</div><div class="border-l border-base-content/10 pl-3">${table(items.slice(half))}</div>`;
         this.updateBossConfigCounter();
     },
 
@@ -1697,7 +1709,7 @@ const app = {
         const earnEl = document.getElementById('bc-weekly-earnings');
         if (counter) {
             counter.innerText = `${weekly.length}/${charLimit}`;
-            counter.className = `font-mono font-bold inline-block w-12 text-right ${weekly.length > charLimit ? 'text-rose-400' : 'text-violet-300'}`;
+            counter.className = `font-mono text-sm ml-1 ${weekly.length > charLimit ? 'text-rose-400' : 'text-white'}`;
         }
         if (earnEl) earnEl.innerText = Math.floor(capped).toLocaleString();
     },

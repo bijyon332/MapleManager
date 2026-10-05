@@ -88,20 +88,6 @@ body {
     background: rgba(30, 41, 59, 0.5);
 }
 
-.nav-active {
-    background-color: rgba(99, 102, 241, 0.15);
-    color: #fff;
-}
-
-.nav-inactive {
-    color: #94a3b8;
-}
-
-.nav-inactive:hover {
-    background-color: rgba(30, 41, 59, 0.5);
-    color: #cbd5e1;
-}
-
 .badge-easy {
     background-color: #374151;
     color: #9ca3af;
@@ -370,13 +356,6 @@ body {
 .font-mono, .tabular-nums { font-variant-numeric: tabular-nums; }
 
 
-/* 旧来のタブ（HEXA モーダルの上部でだけ使用。PR 4 で daisyUI に移す）。下線で選択中を示す。 */
-.htab { display: flex; align-items: center; gap: 5px; padding: 0 8px; font-size: 12px; font-weight: 600; border-bottom: 2px solid transparent; white-space: nowrap; transition: color 0.15s, background-color 0.15s; }
-.htab.nav-active { color: #fff; border-bottom-color: #6366f1; background: linear-gradient(180deg, transparent 40%, rgba(99, 102, 241, 0.18)); }
-.htab.nav-active svg { color: #a5b4fc; }
-.htab.nav-inactive:hover { background: transparent; color: #e2e8f0; }
-
-
 /* 表（Characters の一覧など）。行を詰め、偶数行を少し明るくする。 */
 .mm-table { border: 1px solid #1e293b; border-collapse: collapse; background: #0f172a; font-size: 13px; }
 .mm-table th { font-size: 11px; font-weight: 600; color: #64748b; text-align: left; padding: 5px 8px; border-bottom: 1px solid #334155; background: #0f172a; white-space: nowrap; }
@@ -392,37 +371,6 @@ body {
    フォントの上下の余白の差で文字が上にずれて見えるのを防ぐ（未対応のブラウザでは今まで通り）。 */
 .mm-captrim { display: block; text-box: trim-both cap alphabetic; }
 
-/* ===== Edit Character（キャラ編集モーダル） ===== */
-.cm-cell { border-right: 1px solid #1e293b; border-color: #1e293b; padding: 6px 12px; }
-.cm-lbl { color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
-.cm-inp { background: #020617; border: 1px solid #334155; color: #fff; font-size: 13px; padding: 5px 8px; outline: none; }
-.cm-inp:focus { border-color: #6366f1; }
-.cm-btn { border: 1px solid #334155; color: #cbd5e1; font-size: 12px; padding: 5px 10px; background: transparent; }
-.cm-btn:hover:not(:disabled) { border-color: #6366f1; color: #fff; }
-.cm-btn:disabled { color: #475569; cursor: not-allowed; }
-.cm-on { position: relative; z-index: 1; border-color: #6366f1; color: #fff; font-weight: 700; box-shadow: inset 0 -2px 0 #6366f1; }
-.cm-on.cm-kr { color: #34d399; border-color: #10b981; box-shadow: inset 0 -2px 0 #10b981; }
-.cm-on.cm-ch { color: #c084fc; border-color: #a855f7; box-shadow: inset 0 -2px 0 #a855f7; }
-
-table.cm-boss { border-collapse: collapse; width: 100%; }
-table.cm-boss th, table.cm-boss td { border: 1px solid #1e293b; }
-table.cm-boss th { color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 5px 12px; text-align: left; background: #020617; position: sticky; top: 0; z-index: 1; }
-table.cm-boss th.text-right { text-align: right; }
-table.cm-boss tr.cm-sel td { background: rgba(99, 102, 241, .10); }
-table.cm-boss tr.cm-sel:hover td { background: rgba(99, 102, 241, .16); }
-table.cm-boss tr.cm-sel td.cm-bn { box-shadow: inset 2px 0 0 #6366f1; }
-table.cm-boss tr.cm-off:hover td { background: rgba(30, 41, 59, .35); }
-.cm-db { width: 64px; height: 24px; border: 1px solid #1e293b; font-size: 11px; color: #64748b; }
-.cm-db:hover { border-color: #475569; color: #e2e8f0; }
-.cm-db.na { visibility: hidden; }
-tr.cm-sel .cm-db:not(.on) { color: #94a3b8; }
-.cm-db.on { color: var(--c); font-weight: 700; border-color: var(--c); box-shadow: inset 0 -2px 0 var(--c); }
-.cm-pb { width: 24px; height: 24px; border: 1px solid #1e293b; font-size: 11px; color: #64748b; font-family: "IBM Plex Mono", ui-monospace, monospace; }
-.cm-pb:hover { border-color: #475569; color: #e2e8f0; }
-.cm-pb.on { color: #a5b4fc; font-weight: 700; border-color: #6366f1; box-shadow: inset 0 -2px 0 #6366f1; }
-tr.cm-off .cm-pb { color: #334155; cursor: default; }
-tr.cm-off .cm-pb:hover { border-color: #1e293b; color: #334155; }
-table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 
 /* ---------- Character Manager のキャラカード（v6 案、2026-10-05 bi 了承） ----------
    左は立ち絵、下に「Lv 職業」と名前の2行。右はメル、月ボス1行、週ボス7×2、HEXA / UPGRADE / SCOUTER の帯。
@@ -454,27 +402,24 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .mx-meso, .mx-count { text-shadow: 0 0 2px #020617, 0 0 4px #020617, 0 1px 2px #020617; }
 
 /* 月ボス：枠なしの1行（アイコン＋難易度）。消し込むと金の COMPLETE で覆い、右端に月の額 */
-.mx-mo { position: relative; display: flex; align-items: center; gap: 12px; height: 28px; padding: 0 6px; cursor: pointer; }
+.mx-mo { position: relative; display: flex; align-items: center; gap: 12px; height: 34px; padding: 0 6px; cursor: pointer; }
 .mx-mo:hover .mx-mo-ic { box-shadow: inset 0 0 0 1px #ca8a04; }
 .mx-mo-none { font-size: 11px; color: #ffffff4d; cursor: default; }
 .mx-mo-boss { display: flex; align-items: center; gap: 6px; }
-.mx-mo-ic { position: relative; width: 24px; height: 24px; background: #0b1222; box-shadow: inset 0 0 0 1px #334155; display: grid; place-items: center; overflow: hidden; flex: none; }
+.mx-mo-ic { position: relative; width: 29px; height: 29px; background: #0b1222; box-shadow: inset 0 0 0 1px #334155; display: grid; place-items: center; overflow: hidden; flex: none; }
 .mx-mo-ic img { width: 100%; height: 100%; object-fit: cover; }
-.mx-mo-nm { font-size: 7.5px; line-height: 1; color: #cbd5e1; text-align: center; }
-.mx-mo-df { font: 700 11px/1 "IBM Plex Sans JP", sans-serif; color: var(--dc); }
+.mx-mo-nm { font-size: 9px; line-height: 1; color: #cbd5e1; text-align: center; }
+.mx-mo-df { font: 700 13px/1 "IBM Plex Sans JP", sans-serif; color: var(--dc); }
 
 /* 消し込み済み：暗い幕で上から覆い、色の枠と「◎ COMPLETE」（週＝紫、月＝金）。マス自体は薄くしない */
-.mx-complete { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 8px; pointer-events: none; color: var(--cc, #c4b5fd); background: #020617d9; border: 2px solid currentColor; }
+.mx-complete { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 8px; pointer-events: none; color: var(--cc, #c4b5fd); background: #020617b3; border: 2px solid currentColor; }
 .mx-complete svg { width: 17px; height: 17px; stroke-width: 2.25; }
 .mx-complete span { font: 700 16px/1 "IBM Plex Mono", monospace; letter-spacing: .28em; }
-.mx-mo .mx-complete { --cc: #facc15; }
-.mx-mo .mx-complete svg { width: 14px; height: 14px; }
-.mx-mo .mx-complete span { font-size: 12px; }
-.mx-mo-meso { position: absolute; right: 8px; top: 50%; z-index: 4; transform: translateY(-50%); font: 700 14px/1 "Saira Condensed", sans-serif; color: #facc15; font-variant-numeric: tabular-nums; pointer-events: none; }
-.mx-mo.is-done .mx-complete { justify-content: center; }
+/* 月の消し込みは左半分だけを覆い、獲得メルだけを出す */
+.mx-mo-done { position: absolute; left: 0; top: 0; bottom: 0; width: 50%; z-index: 3; display: grid; place-items: center; pointer-events: none; background: #020617b3; border: 2px solid #facc15; font: 700 17px/1 "Saira Condensed", sans-serif; color: #facc15; font-variant-numeric: tabular-nums; }
 .mx-lbl, .mx-none { font-size: 11px; color: #475569; }
 .mx-wk { position: relative; } /* 地は敷かず、マスの隙間には透かしが見える。マス自体は不透明 */
-.mx-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px 4px; min-height: 84px; align-content: start; } /* ボスが1行でも常に2行分の高さ */
+.mx-grid { display: grid; grid-template-columns: repeat(7, 38px); gap: 3px; min-height: 84px; align-content: start; } /* ボスが1行でも常に2行分の高さ */
 .mx-none-wk { height: 84px; display: grid; place-items: center; border: 1px dashed #1e293b; }
 .mx-boss { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; }
 .mx-boss-ic { position: relative; width: 100%; aspect-ratio: 1; max-width: 40px; background: #0b1222; box-shadow: inset 0 0 0 1px #1e293b; display: grid; place-items: center; overflow: hidden; }
@@ -534,7 +479,7 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .ja-state { font-size: 12px; color: #94a3b8; }
 .ja-previews { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 14px; }
 .ja-cap { font-size: 11px; color: #64748b; margin-bottom: 4px; }
-.ja-card { width: 440px; }  /* 1600px 幅の画面でダッシュボードに3列並んだときのカード幅 */
+.ja-card { width: 430px; }  /* ダッシュボードのカード幅（#dashboard-list の列幅）と同じ */
 .ja-card .mx-main { cursor: grab; touch-action: none; user-select: none; }
 .ja-card .mx-main:active { cursor: grabbing; }
 .ja-ctrl { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin: 0 0 12px; padding: 8px 10px; border: 1px solid #1e293b; font-size: 12px; color: #94a3b8; }
@@ -766,3 +711,23 @@ header .tabs-box > .tab:hover { color: #e2e8f0; }
 header .tabs-box > .tab-active { --tab-bg: var(--color-neutral); color: #fff; }
 header .tabs-box > .tab-active svg { color: #a5b4fc; }
 
+/* ---------- Edit Character（daisyUI の modal / btn / input） ----------
+   選択中のボタン（Role・Server・難易度）は色の枠と薄い地（--c がその色）。人数の選択中は藍の塗り。 */
+.ed-f { display: flex; flex-direction: column; gap: 2px; }
+.ed-lbl { font-size: 11px; color: #64748b; }
+#char-modal .ed-on { position: relative; z-index: 1; color: var(--c); border-color: var(--c); background: color-mix(in oklab, var(--c) 14%, transparent); font-weight: 700; }
+.ed-boss { width: 100%; border-collapse: collapse; }
+.ed-boss th { font-size: 10px; font-weight: 400; color: #64748b; padding-top: 4px; }
+.ed-boss tr.ed-sel td { background: rgba(99, 102, 241, .10); }
+.ed-boss tbody tr + tr td { border-top: 1px solid #ffffff0d; }
+.ed-boss td { height: 32px; }
+.ed-ic { display: grid; place-items: center; width: 24px; height: 24px; overflow: hidden; font-size: 9px; font-weight: 700; background: #0b1222; border: 1px solid #334155; color: #94a3b8; }
+.ed-ic img { width: 100%; height: 100%; object-fit: contain; }
+#char-modal .ed-db { width: 46px; padding: 0; font-weight: 400; }
+#char-modal .ed-db.btn-ghost { color: #94a3b8; border-color: #ffffff1a; }
+#char-modal .ed-db.ed-on { font-weight: 700; }
+.ed-db-na { width: 46px; flex: none; }
+#char-modal .ed-pb { width: 20px; height: 20px; min-height: 0; font: 400 11px "IBM Plex Mono", monospace; }
+#char-modal .ed-pb.btn-ghost { color: #94a3b8; }
+#char-modal .ed-pb:disabled { color: #334155; background: transparent; }
+#char-modal .ed-pon { background: #6366f1; color: #fff; border-color: #6366f1; }
