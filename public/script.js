@@ -384,8 +384,9 @@ const app = {
         this.saveData();
         this.renderDashboard();
     },
-    toggleRevenueMode() {
-        this.data.config.revenueMode = this.data.config.revenueMode === 'weekly' ? 'monthly' : 'weekly';
+    setRevenueMode(mode) {
+        if ((this.data.config.revenueMode || 'weekly') === mode) return;
+        this.data.config.revenueMode = mode;
         this.saveData(); this.renderDashboard();
     },
     async fetchCharacterData(e) {
@@ -552,9 +553,9 @@ const app = {
             const el = document.getElementById(`view-${v}`);
             if (el) el.classList.add('hidden-page');
         });
-        document.querySelectorAll('[id^="nav-"]').forEach(e => { e.classList.remove('nav-active'); e.classList.add('nav-inactive'); });
+        document.querySelectorAll('[id^="nav-"]').forEach(e => e.classList.remove('tab-active'));
         document.getElementById(`view-${view}`).classList.remove('hidden-page');
-        document.querySelectorAll(`[id="nav-${view}"]`).forEach(e => { e.classList.add('nav-active'); e.classList.remove('nav-inactive'); });
+        document.querySelectorAll(`[id="nav-${view}"]`).forEach(e => e.classList.add('tab-active'));
         if (view === 'dashboard') this.renderDashboard(); if (view === 'characters') this.renderCharacters();
     },
 
@@ -715,9 +716,9 @@ const app = {
             if (url !== location.pathname + location.search + location.hash) history.pushState(null, '', url);
         }
 
-        document.querySelectorAll('[id^="app-"]').forEach(e => { e.classList.remove('nav-active'); e.classList.add('nav-inactive'); });
+        document.querySelectorAll('[id^="app-"]').forEach(e => e.classList.remove('menu-active'));
         const appBtn = document.getElementById(`app-${appName}`);
-        if (appBtn) { appBtn.classList.add('nav-active'); appBtn.classList.remove('nav-inactive'); }
+        if (appBtn) appBtn.classList.add('menu-active');
 
         document.querySelectorAll('[id^="view-"]').forEach(e => e.classList.add('hidden-page'));
         this.applyChrome(entry.chrome === 'planner');
@@ -859,8 +860,7 @@ const app = {
         ['members', 'builder', 'dashboard'].forEach(t => {
             const b = document.getElementById(`snav-${t}`);
             if (!b) return;
-            b.classList.toggle('nav-active', t === tab);
-            b.classList.toggle('nav-inactive', t !== tab);
+            b.classList.toggle('tab-active', t === tab);
         });
     },
 
@@ -868,8 +868,7 @@ const app = {
         ['genesis', 'destiny', 'astra'].forEach(t => {
             document.getElementById(`lib-content-${t}`).classList.toggle('hidden', t !== tab);
             const btn = document.getElementById(`lib-tab-btn-${t}`);
-            btn.classList.toggle('nav-active', t === tab);
-            btn.classList.toggle('nav-inactive', t !== tab);
+            btn.classList.toggle('tab-active', t === tab);
         });
     },
 
@@ -896,29 +895,29 @@ const app = {
     },
 
 
-    // 上部バーの収入欄。左の「週 / 月」で集計期間を切り替え、サーバーごとに、左に結晶アイコンと個数（上限で赤）、右にサーバー名と収入（全桁）を出す。
-    // Kronos / Challenger の欄はそのままサーバーの切り替えボタンを兼ねる（別の切り替えボタンを置くと上部バーに収まらない）。
+    // 上部バーの収入欄。左に「週 / 月」の切り替え、右寄せでサーバーごとの枠（左線がサーバー色）。
+    // 枠の中は、左に結晶の個数（上限で赤）と上限までの進み具合のバー、右にサーバー名と収入（全桁）。
+    // Kronos / Challenger の枠はそのままサーバーの切り替えボタンを兼ねる（別の切り替えボタンを置くと上部バーに収まらない）。
     // 幅を固定して、桁が変わっても横の並びを動かさない。
     headerStatsHTML({ revMode, k, c, worldLimit, kOn, cOn }) {
         const full = n => Math.floor(n).toLocaleString();
         const srv = (key, name, color, s, on) => `
-            <button type="button" onclick="app.setServer('${key}')" title="${name} に切り替え"
-                class="mm-hstat mm-hstat-srv ${on ? `border-b-${color}-400 bg-${color}-950/40` : 'opacity-45 hover:opacity-80'}">
-                <span class="mm-hstat-cry border-${color}-500/40 bg-${color}-950/60" title="結晶の数（残り ${Math.max(0, worldLimit - s.count)}）">
-                    <i data-lucide="gem" class="w-3.5 h-3.5 text-${color}-400"></i>
-                    <span class="font-mono text-[10px] leading-none ${s.count >= worldLimit ? 'text-red-400' : 'text-slate-300'}">${s.count}/${worldLimit}</span>
+            <button type="button" onclick="app.setServer('${key}')" title="${name} に切り替え（結晶 ${s.count}/${worldLimit}、残り ${Math.max(0, worldLimit - s.count)}）"
+                class="mm-srv border-l-${color}-400 ${on ? '' : 'opacity-45 hover:opacity-80'}">
+                <span class="flex flex-col items-center gap-1 leading-none">
+                    <span class="font-mono text-[11px] ${s.count >= worldLimit ? 'text-red-400' : 'text-slate-300'}">${s.count}/${worldLimit}</span>
+                    <progress class="progress w-12 h-1 text-${color}-400" value="${Math.min(s.count, worldLimit)}" max="${worldLimit}"></progress>
                 </span>
-                <span class="flex flex-col items-start leading-none gap-0.5">
-                    <span class="text-[10px] font-bold tracking-wider text-${color}-400">${name.toUpperCase()}</span>
-                    <span class="mm-hstat-full font-mono text-[17px] font-semibold text-${color}-300">${full(s.rev)}</span>
+                <span class="flex flex-col items-end gap-1 leading-none">
+                    <span class="text-[10px] font-bold tracking-widest text-${color}-400">${name.toUpperCase()}</span>
+                    <span class="mm-srv-v">${full(s.rev)}</span>
                 </span>
             </button>`;
-        const seg = (mode, label) => `<span class="mm-seg ${revMode === mode ? 'mm-seg-on' : ''}">${label}</span>`;
+        const seg = (mode, label) => `<button type="button" class="btn btn-xs join-item ${revMode === mode ? 'btn-primary btn-soft text-indigo-300' : 'text-slate-500'}" onclick="app.setRevenueMode('${mode}')">${label}</button>`;
         return `
-            <div class="flex items-stretch h-full">
-                <button type="button" class="mm-hstat" style="gap:0" onclick="app.toggleRevenueMode()" title="クリックで週 / 月を切り替え">
-                    ${seg('weekly', '週')}${seg('monthly', '月')}
-                </button>
+            <div class="flex items-center gap-2 w-full min-w-0">
+                <div class="join shrink-0" title="収入の集計期間">${seg('weekly', '週')}${seg('monthly', '月')}</div>
+                <div class="flex-1"></div>
                 ${srv('KRONOS', 'Kronos', this.data.config.serverKColor || 'emerald', k, kOn)}
                 ${srv('CHALLENGER', 'Challenger', this.data.config.serverCColor || 'purple', c, cOn)}
             </div>`;

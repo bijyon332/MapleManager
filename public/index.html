@@ -9,7 +9,8 @@
          版は固定する。上げるときは全画面を撮って見た目を確かめる。
          テーマ maple（daisyUI の色・角・大きさ）は style.css の [data-theme="maple"] にある。 -->
     <!-- 重なりの順。style.css は legacy に入れてあり、Tailwind のユーティリティ（px-6 など）が
-         style.css より勝つ（Tailwind 3 のときと同じ勝ち負け）。daisyUI の部品には style.css が勝つ。 -->
+         style.css より勝つ（Tailwind 3 のときと同じ勝ち負け）。daisyUI の部品（btn / menu / tabs など）は
+         utilities の中に入るので legacy より強い。部品の見た目の調整は style.css 末尾のレイヤーの外に書く。 -->
     <style>@layer theme, base, daisyui, components, legacy, utilities;</style>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@5.7.47/daisyui.css" rel="stylesheet" type="text/css">
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3"></script>
@@ -85,114 +86,105 @@
     <!-- サイドバー。開くとアイコン + ツール名、畳むとアイコンだけ（名前はホバーで出る）。
          開閉は下の Collapse ボタン。状態は localStorage の mm-sidebar-collapsed に端末ごとに残す。
          ボタンの id は app-<APPSのキー>。キーはURLのハッシュなので、表示名を変えてもキーは変えない。 -->
-    <aside id="sidebar" class="bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 z-20">
-        <div class="sidebar-head h-12 flex items-center border-b border-slate-800">
-            <div class="bg-indigo-600 p-1.5 rounded-lg shadow-lg shadow-indigo-500/20 shrink-0">
-                <i data-lucide="leaf" class="text-white w-4 h-4"></i>
+    <aside id="sidebar" class="bg-base-100 border-r border-base-content/10 flex flex-col shrink-0 z-20">
+        <div class="sidebar-head h-12 flex items-center border-b border-base-content/10">
+            <div class="w-7 h-7 grid place-items-center bg-primary text-primary-content rounded-box shrink-0">
+                <i data-lucide="leaf" class="w-4 h-4"></i>
             </div>
             <span class="nav-label font-bold text-white tracking-wide">MapleManager</span>
         </div>
-        <nav class="flex-1 py-3 flex flex-col gap-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
-            <div class="nav-group">
-                <span class="nav-group-label">Tools</span>
-            </div>
-            <button onclick="app.switchApp('planner')" id="app-planner"
-                class="nav-item nav-active" title="Character Manager（自分のキャラの管理）">
-                <i data-lucide="user-cog" class="w-5 h-5"></i>
-                <span class="nav-label">Character Manager</span>
-            </button>
-            <button onclick="app.switchApp('hexa')" id="app-hexa"
-                class="nav-item nav-inactive" title="HEXA Tracker">
-                <!-- HEXA core: a hexagon inside a hexagon. Hand-drawn in lucide's
-                     stroke style since lucide has no nested-hexagon icon. -->
-                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                    <path d="M12 7.5l4 2.25v4.5L12 16.5l-4-2.25v-4.5z" fill="currentColor" fill-opacity="0.35"/>
-                </svg>
-                <span class="nav-label">HEXA Tracker</span>
-            </button>
-            <button onclick="app.switchApp('gear')" id="app-gear"
-                class="nav-item nav-inactive" title="Upgrade Priority（スタフォ・潜在を上げる順番）">
-                <i data-lucide="arrow-up-wide-narrow" class="w-5 h-5"></i>
-                <span class="nav-label">Upgrade Priority</span>
-            </button>
-            <button onclick="app.switchApp('scouter')" id="app-scouter"
-                class="nav-item nav-inactive" title="Scouter（MapleScouter の換算主ステをキャラごとに）">
-                <i data-lucide="gauge" class="w-5 h-5"></i>
-                <span class="nav-label">Scouter</span>
-            </button>
-            <button onclick="app.switchApp('cheatsheet')" id="app-cheatsheet"
-                class="nav-item nav-inactive" title="Cheat Sheet（ボスの必要フォース・レベル差補正の早見表）">
-                <i data-lucide="table-2" class="w-5 h-5"></i>
-                <span class="nav-label">Cheat Sheet</span>
-            </button>
-            <button onclick="app.switchApp('kmsvideos')" id="app-kmsvideos"
-                class="nav-item nav-inactive" title="KMS Videos（KMSの職業ごとの YouTube 検索リンク）">
-                <i data-lucide="square-play" class="w-5 h-5"></i>
-                <span class="nav-label">KMS Videos</span>
-            </button>
-
-            <div class="nav-group">
-                <span class="nav-group-label">Monitoring</span>
-            </div>
-            <button onclick="app.switchApp('ranks')" id="app-ranks"
-                class="nav-item nav-inactive" title="EXP Tracker（経験値の推移）">
-                <i data-lucide="trending-up" class="w-5 h-5"></i>
-                <span class="nav-label">EXP Tracker</span>
-            </button>
-
-            <div class="nav-group">
-                <span class="nav-group-label">Community</span>
-            </div>
-            <button onclick="app.switchApp('scheduler')" id="app-scheduler"
-                class="nav-item nav-inactive" title="Party Builder（週ボスのPT編成）">
-                <i data-lucide="swords" class="w-5 h-5"></i>
-                <span class="nav-label">Party Builder</span>
-            </button>
-            <button onclick="app.switchApp('community')" id="app-community"
-                class="nav-item nav-inactive" title="Community Members（Discord名とキャラの名簿）">
-                <i data-lucide="contact" class="w-5 h-5"></i>
-                <span class="nav-label">Community Members</span>
-            </button>
-
-            <!-- In-development apps -->
-            <div class="nav-group nav-group-dev">
-                <span class="nav-group-label" title="開発中 / In Development">DEV</span>
-            </div>
-            <button onclick="app.switchApp('exp')" id="app-exp"
-                class="nav-item dev-app nav-inactive" title="EXP Simulator(開発中)">
-                <i data-lucide="flask-conical" class="w-5 h-5"></i>
-                <span class="nav-label">EXP Simulator</span>
-                <span class="dev-dot"></span>
-            </button>
-            <button onclick="app.switchApp('cost')" id="app-cost"
-                class="nav-item dev-app nav-inactive" title="Gear Cost Calculator(開発中)">
-                <i data-lucide="coins" class="w-5 h-5"></i>
-                <span class="nav-label">Gear Cost Calculator</span>
-                <span class="dev-dot"></span>
-            </button>
-            <button onclick="app.switchApp('liberation')" id="app-liberation"
-                class="nav-item dev-app nav-inactive" title="Weapon Liberation (Genesis / Destiny / Astra)(開発中)">
-                <i data-lucide="sword" class="w-5 h-5"></i>
-                <span class="nav-label">Weapon Liberation</span>
-                <span class="dev-dot"></span>
-            </button>
-            <button onclick="app.switchApp('jobart')" id="app-jobart"
-                class="nav-item dev-app nav-inactive" title="Job Art Position（カードの職業の透かしの位置合わせ）(開発中)">
-                <i data-lucide="image" class="w-5 h-5"></i>
-                <span class="nav-label">Job Art Position</span>
-                <span class="dev-dot"></span>
-            </button>
+        <nav class="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+            <ul class="menu menu-sm w-full gap-px">
+                <li class="menu-title">Tools</li>
+                <li><button onclick="app.switchApp('planner')" id="app-planner"
+                    class="nav-item menu-active" title="Character Manager（自分のキャラの管理）">
+                    <i data-lucide="user-cog" class="w-5 h-5"></i>
+                    <span class="nav-label">Character Manager</span>
+                </button></li>
+                <li><button onclick="app.switchApp('hexa')" id="app-hexa"
+                    class="nav-item" title="HEXA Tracker">
+                    <!-- HEXA core: a hexagon inside a hexagon. Hand-drawn in lucide's
+                         stroke style since lucide has no nested-hexagon icon. -->
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                        <path d="M12 7.5l4 2.25v4.5L12 16.5l-4-2.25v-4.5z" fill="currentColor" fill-opacity="0.35"/>
+                    </svg>
+                    <span class="nav-label">HEXA Tracker</span>
+                </button></li>
+                <li><button onclick="app.switchApp('gear')" id="app-gear"
+                    class="nav-item" title="Upgrade Priority（スタフォ・潜在を上げる順番）">
+                    <i data-lucide="arrow-up-wide-narrow" class="w-5 h-5"></i>
+                    <span class="nav-label">Upgrade Priority</span>
+                </button></li>
+                <li><button onclick="app.switchApp('scouter')" id="app-scouter"
+                    class="nav-item" title="Scouter（MapleScouter の換算主ステをキャラごとに）">
+                    <i data-lucide="gauge" class="w-5 h-5"></i>
+                    <span class="nav-label">Scouter</span>
+                </button></li>
+                <li><button onclick="app.switchApp('cheatsheet')" id="app-cheatsheet"
+                    class="nav-item" title="Cheat Sheet（ボスの必要フォース・レベル差補正の早見表）">
+                    <i data-lucide="table-2" class="w-5 h-5"></i>
+                    <span class="nav-label">Cheat Sheet</span>
+                </button></li>
+                <li><button onclick="app.switchApp('kmsvideos')" id="app-kmsvideos"
+                    class="nav-item" title="KMS Videos（KMSの職業ごとの YouTube 検索リンク）">
+                    <i data-lucide="square-play" class="w-5 h-5"></i>
+                    <span class="nav-label">KMS Videos</span>
+                </button></li>
+                <li class="menu-title">Monitoring</li>
+                <li><button onclick="app.switchApp('ranks')" id="app-ranks"
+                    class="nav-item" title="EXP Tracker（経験値の推移）">
+                    <i data-lucide="trending-up" class="w-5 h-5"></i>
+                    <span class="nav-label">EXP Tracker</span>
+                </button></li>
+                <li class="menu-title">Community</li>
+                <li><button onclick="app.switchApp('scheduler')" id="app-scheduler"
+                    class="nav-item" title="Party Builder（週ボスのPT編成）">
+                    <i data-lucide="swords" class="w-5 h-5"></i>
+                    <span class="nav-label">Party Builder</span>
+                </button></li>
+                <li><button onclick="app.switchApp('community')" id="app-community"
+                    class="nav-item" title="Community Members（Discord名とキャラの名簿）">
+                    <i data-lucide="contact" class="w-5 h-5"></i>
+                    <span class="nav-label">Community Members</span>
+                </button></li>
+                <!-- In-development apps -->
+                <li class="menu-title nav-group-dev" title="開発中 / In Development">DEV</li>
+                <li><button onclick="app.switchApp('exp')" id="app-exp"
+                    class="nav-item dev-app" title="EXP Simulator(開発中)">
+                    <i data-lucide="flask-conical" class="w-5 h-5"></i>
+                    <span class="nav-label">EXP Simulator</span>
+                    <span class="dev-dot"></span>
+                </button></li>
+                <li><button onclick="app.switchApp('cost')" id="app-cost"
+                    class="nav-item dev-app" title="Gear Cost Calculator(開発中)">
+                    <i data-lucide="coins" class="w-5 h-5"></i>
+                    <span class="nav-label">Gear Cost Calculator</span>
+                    <span class="dev-dot"></span>
+                </button></li>
+                <li><button onclick="app.switchApp('liberation')" id="app-liberation"
+                    class="nav-item dev-app" title="Weapon Liberation (Genesis / Destiny / Astra)(開発中)">
+                    <i data-lucide="sword" class="w-5 h-5"></i>
+                    <span class="nav-label">Weapon Liberation</span>
+                    <span class="dev-dot"></span>
+                </button></li>
+                <li><button onclick="app.switchApp('jobart')" id="app-jobart"
+                    class="nav-item dev-app" title="Job Art Position（カードの職業の透かしの位置合わせ）(開発中)">
+                    <i data-lucide="image" class="w-5 h-5"></i>
+                    <span class="nav-label">Job Art Position</span>
+                    <span class="dev-dot"></span>
+                </button></li>
+            </ul>
         </nav>
-        <div class="border-t border-slate-800 py-2">
-            <button type="button" onclick="app.toggleSidebar()" id="sidebar-toggle"
-                class="nav-item nav-inactive" title="サイドバーを畳む / 開く">
+        <ul class="menu menu-sm w-full border-t border-base-content/10">
+            <li><button type="button" onclick="app.toggleSidebar()" id="sidebar-toggle"
+                class="nav-item" title="サイドバーを畳む / 開く">
                 <i data-lucide="panel-left-close" class="sidebar-icon-close w-5 h-5"></i>
                 <i data-lucide="panel-left-open" class="sidebar-icon-open w-5 h-5"></i>
                 <span class="nav-label">Collapse</span>
-            </button>
-        </div>
+            </button></li>
+        </ul>
     </aside>
     <script>
         // 描画前に畳み状態を当てて、開いた状態が一瞬見えるのを防ぐ。
@@ -200,88 +192,88 @@
     </script>
 
     <div class="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header class="h-12 bg-slate-900 border-b border-slate-800 flex items-center pl-2 pr-3 shrink-0 z-10 gap-1">
+        <header class="h-12 bg-base-100 border-b border-base-content/10 flex items-center pl-2 pr-3 shrink-0 z-10 gap-1">
             <!-- Sub Navigation -->
-            <nav class="flex self-stretch mr-3 shrink-0">
+            <nav role="tablist" class="tabs tabs-box tabs-sm flex-nowrap mr-3 shrink-0">
                 <button onclick="app.navigate('dashboard')" id="nav-dashboard"
-                    class="htab nav-active flex items-center gap-1.5">
+                    role="tab" class="tab tab-active gap-1.5">
                     <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>Dashboard
                 </button>
                 <button onclick="app.navigate('characters')" id="nav-characters"
-                    class="htab nav-inactive flex items-center gap-1.5">
+                    role="tab" class="tab gap-1.5">
                     <i data-lucide="users" class="w-3.5 h-3.5"></i>Characters
                 </button>
                 <button onclick="app.navigate('system')" id="nav-system"
-                    class="htab nav-inactive flex items-center gap-1.5">
+                    role="tab" class="tab gap-1.5">
                     <i data-lucide="settings-2" class="w-3.5 h-3.5"></i>System
                 </button>
             </nav>
             <!-- Boss Scheduler sub navigation (shown only for the scheduler app) -->
-            <nav id="scheduler-nav" class="hidden self-stretch mr-3 shrink-0">
+            <nav id="scheduler-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="app.schedulerTab('members')" id="snav-members"
-                    class="htab nav-active flex items-center gap-1.5">
+                    role="tab" class="tab tab-active gap-1.5">
                     <i data-lucide="users" class="w-3.5 h-3.5"></i>Members
                 </button>
                 <button onclick="app.schedulerTab('builder')" id="snav-builder"
-                    class="htab nav-inactive flex items-center gap-1.5">
+                    role="tab" class="tab gap-1.5">
                     <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>Builder
                 </button>
                 <button onclick="app.schedulerTab('dashboard')" id="snav-dashboard"
-                    class="htab nav-inactive flex items-center gap-1.5">
+                    role="tab" class="tab gap-1.5">
                     <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>Dashboard
                 </button>
             </nav>
             <!-- HEXA sub navigation (shown only for the hexa app) -->
-            <nav id="hexa-nav" class="hidden self-stretch mr-3 shrink-0">
+            <nav id="hexa-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="hexaTracker.setPage('ranking')" id="hnav-ranking"
-                    class="htab nav-active flex items-center gap-1.5">
+                    role="tab" class="tab tab-active gap-1.5">
                     <i data-lucide="trophy" class="w-3.5 h-3.5"></i>効率ランキング
                 </button>
                 <button onclick="hexaTracker.setPage('tracker')" id="hnav-tracker"
-                    class="htab nav-inactive flex items-center gap-1.5">
+                    role="tab" class="tab gap-1.5">
                     <i data-lucide="hexagon" class="w-3.5 h-3.5"></i>トラッカー
                 </button>
             </nav>
             <!-- EXP Tracker sub navigation (shown only for the ranks app) -->
-            <nav id="ranks-nav" class="hidden self-stretch mr-3 shrink-0">
-                <button type="button" data-tab="board" class="ranks-tab-btn htab nav-active flex items-center gap-1.5">
+            <nav id="ranks-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
+                <button type="button" data-tab="board" role="tab" class="ranks-tab-btn tab tab-active gap-1.5">
                     <i data-lucide="list-ordered" class="w-3.5 h-3.5"></i>リーダーボード
                 </button>
-                <button type="button" data-tab="trend" class="ranks-tab-btn htab nav-inactive flex items-center gap-1.5">
+                <button type="button" data-tab="trend" role="tab" class="ranks-tab-btn tab gap-1.5">
                     <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>推移
                 </button>
             </nav>
             <!-- Weapon Liberation sub navigation (shown only for the liberation app) -->
-            <nav id="liberation-nav" class="hidden self-stretch mr-3 shrink-0">
+            <nav id="liberation-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="app.switchLiberationTab('genesis')" id="lib-tab-btn-genesis"
-                    class="htab nav-active flex items-center gap-1.5">Genesis Weapon</button>
+                    role="tab" class="tab tab-active gap-1.5">Genesis Weapon</button>
                 <button onclick="app.switchLiberationTab('destiny')" id="lib-tab-btn-destiny"
-                    class="htab nav-inactive flex items-center gap-1.5">Destiny Weapon</button>
+                    role="tab" class="tab gap-1.5">Destiny Weapon</button>
                 <button onclick="app.switchLiberationTab('astra')" id="lib-tab-btn-astra"
-                    class="htab nav-inactive flex items-center gap-1.5">Astra Weapon</button>
+                    role="tab" class="tab gap-1.5">Astra Weapon</button>
             </nav>
             <!-- Community Members sub navigation (shown only for the community app) -->
-            <nav id="community-nav" class="hidden self-stretch mr-3 shrink-0">
+            <nav id="community-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="community.setTab('roster')" id="cnav-roster"
-                    class="htab nav-active flex items-center gap-1.5">
+                    role="tab" class="tab tab-active gap-1.5">
                     <i data-lucide="contact" class="w-3.5 h-3.5"></i>名簿
                 </button>
                 <button onclick="community.setTab('list')" id="cnav-list"
-                    class="htab nav-inactive flex items-center gap-1.5">
+                    role="tab" class="tab gap-1.5">
                     <i data-lucide="table" class="w-3.5 h-3.5"></i>キャラ一覧
                 </button>
                 <button onclick="community.setTab('guild')" id="cnav-guild"
-                    class="htab nav-inactive flex items-center gap-1.5">
+                    role="tab" class="tab gap-1.5">
                     <i data-lucide="shield" class="w-3.5 h-3.5"></i>ギルド別
                 </button>
                 <button onclick="community.setTab('todo')" id="cnav-todo"
-                    class="htab nav-inactive flex items-center gap-1.5">
+                    role="tab" class="tab gap-1.5">
                     <i data-lucide="inbox" class="w-3.5 h-3.5"></i>未割り当て<span id="cm-todo-badge" class="cm-nav-badge"></span>
                 </button>
             </nav>
             <!-- Dashboard Stats -->
             <div id="dashboard-stats-container"
-                class="flex items-stretch self-stretch flex-1 justify-end min-w-0 overflow-hidden"></div>
+                class="flex items-center self-stretch flex-1 min-w-0 overflow-hidden"></div>
             <!-- サーバーの切り替えは、上の収入欄の Kronos / Challenger を押して行う（headerStatsHTML）。 -->
             <!-- Clock -->
             <div

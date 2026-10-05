@@ -555,8 +555,7 @@ const ranks = {
         document.querySelectorAll('.ranks-tab-btn').forEach(btn => {
             const active = btn.dataset.tab === this.activeTab;
             // タブは上部バー（index.html の ranks-nav）にある。
-            btn.classList.toggle('nav-active', active);
-            btn.classList.toggle('nav-inactive', !active);
+            btn.classList.toggle('tab-active', active);
         });
         const board = document.getElementById('ranks-tab-board');
         const trend = document.getElementById('ranks-tab-trend');
