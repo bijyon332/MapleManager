@@ -368,6 +368,10 @@ const scouter = (() => {
                     <b>${esc(char ? char.name : '仮入力')}</b>
                     <span>Scouter</span>
                 </div>
+                <nav class="sc-tabs">
+                    <button data-sc="tab" data-tab="input" class="${cur.tab !== 'result' ? 'on' : ''}"><i data-lucide="pencil-line"></i>入力</button>
+                    <button data-sc="tab" data-tab="result" class="${cur.tab === 'result' ? 'on' : ''}"><i data-lucide="gauge"></i>結果</button>
+                </nav>
                 <div class="sc-bar-act">
                     <button data-sc="file" title="ステータス画面のスクショを読み取る（貼り付け・ドロップでも可）"><i data-lucide="image"></i>スクショ読み取り</button>
                     <button data-sc="live" class="${cur.live ? 'is-live' : ''}" title="ゲーム画面を共有して、ステータス画面を読み取り続ける"><i data-lucide="monitor"></i>${cur.live ? 'ライブ停止' : 'ライブ読み取り'}</button>
@@ -377,11 +381,11 @@ const scouter = (() => {
                 <input type="file" accept="image/*" multiple data-sc="input" hidden>
             </div>
             <div class="sc-msg ${cur.msgKind}" id="sc-msg">${esc(cur.msg)}</div>
-            <div id="sc-reads">${readsHTML()}</div>
-            <div class="sc-body">
-                <div class="sc-form">${formHTML(e.form)}</div>
+            ${cur.tab === 'result' ? `<div class="sc-body sc-resbody">
                 <div class="sc-side" id="sc-result">${resultHTML(e)}</div>
-            </div>
+                <div class="sc-cutpage">${cutPageHTML(e)}</div>
+            </div>` : `<div id="sc-reads">${readsHTML()}</div>
+            <div class="sc-form">${formHTML(e.form)}</div>`}
         </div>`;
         bindDrop(veil);
         if (window.lucide) lucide.createIcons();
@@ -491,33 +495,61 @@ const scouter = (() => {
         const k = ko === '가엔슬' ? '가디언 엔젤 슬라임' : ko;
         return list.find((b) => b.ko && (b.ko === k || b.ko.endsWith(' ' + k))) || null;
     }
-    // 先方の「自分の目安」と同じ絞り込み: 楽すぎる（10倍超）・遠すぎるボスは出さない。
-    const nearCut = (c) => c.p ? (c.r / c.l <= 10 && c.r >= 0.85 / c.l) : (c.r <= 10 && c.r >= 0.15);
-    function cutsHTML(cuts) {
-        if (!cuts) return `<h3><i data-lucide="skull"></i>ボスカット</h3><p class="sc-empty">もう一度「計算する」を押すと出ます。</p>`;
-        const all = cur && cur.allCuts;
-        const list = cuts.filter((c) => c.d !== 'Destiny' && c.d !== 'Champion' && (all || nearCut(c)));
-        const rows = list.map((c) => {
-            const b = bossOf(c.b);
-            const [txt, cls] = CUT_LABEL[c.v] || [c.v, 'c-no'];
-            const pct = c.r * 100;
-            const pctTxt = (pct >= 1000 ? Math.round(pct).toLocaleString() : pct >= 100 ? pct.toFixed(1) : pct.toFixed(2)) + '%';
-            const img = b && b.image ? `<img src="https://cdn.maplehub.app/bosses/${esc(b.image)}.webp" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<span></span>';
-            return `<tr class="${cls}" title="ボスカットに対して ${pctTxt}${c.p ? '（パーティ前提のボス）' : ''}">
-                <td class="sc-cut-img">${img}</td>
-                <th><b>${esc(b ? (b.short || b.ja) : c.b)}</b><small class="df-${esc(c.d.toLowerCase())}">${esc(DIFF_NAME[c.d] || c.d)}</small></th>
-                <td class="sc-cut-pct">${c.p ? '<i>PT</i>' : ''}${pctTxt}</td>
-                <td class="sc-cut-v">${esc(txt)}</td>
-            </tr>`;
-        }).join('');
-        return `<h3><i data-lucide="skull"></i>ボスカット <small>${all ? 'すべて' : '自分の目安'}</small><button data-sc="cuts" class="sc-mini">${all ? '目安だけ' : 'すべて表示'}</button></h3>
-            ${rows ? `<table class="sc-cut">${rows}</table>` : '<p class="sc-empty">目安に入るボスがありません。</p>'}`;
+    const pctText = (r) => { const p = r * 100; return (p >= 1000 ? Math.round(p).toLocaleString() : p >= 100 ? p.toFixed(1) : p.toFixed(2)) + '%'; };
+    // 列。Hard と Chaos は同じ列（Character Manager の編集画面と同じ）。
+    const CUT_COLS = [['Easy'], ['Normal'], ['Hard', 'Chaos'], ['Extreme']];
+    // ボスの並びは Character Manager の編集画面と同じ（BOSS_REGISTER_ORDER）。無いボスは後ろ。
+    function cutRows(cuts) {
+        const order = window.BOSS_REGISTER_ORDER || [];
+        const by = {};
+        for (const c of cuts) {
+            if (c.d === 'Destiny' || c.d === 'Champion') continue;
+            (by[c.b] = by[c.b] || []).push(c);
+        }
+        const rank = (ko) => { const b = bossOf(ko); const i = b ? order.indexOf(b.en) : -1; return i < 0 ? 99 : i; };
+        return Object.keys(by).sort((x, y) => rank(x) - rank(y)).map((ko) => ({ ko, boss: bossOf(ko), cuts: by[ko] }));
+    }
+    function cutCell(c) {
+        if (!c) return '<td class="sc-bc-none"></td>';
+        const [txt, cls] = CUT_LABEL[c.v] || [c.v, 'c-no'];
+        const bar = Math.max(0, Math.min(100, c.r / (c.p ? 5.1 : 2) * 100));
+        return `<td class="sc-bc ${cls}" title="ボスカットに対して ${pctText(c.r)}${c.p ? '（パーティ前提のボス。最大' + c.l + '人）' : ''}">
+            <img src="${ICON}boss/${esc(c.d.toLowerCase())}_${esc(c.n)}.png" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+            <span class="sc-bc-t">
+                <small class="df-${esc(c.d.toLowerCase())}">${esc(DIFF_NAME[c.d] || c.d)}${c.p ? ' <i>PT</i>' : ''}</small>
+                <b>${pctText(c.r)}</b>
+                <em>${esc(txt)}</em>
+            </span>
+            <span class="sc-bc-bar"><span style="width:${bar.toFixed(1)}%"></span></span>
+        </td>`;
+    }
+    const CUT_LEGEND = [['c-solo2', 'ソロ余裕'], ['c-solo1', 'ソロ可'], ['c-solo0', 'ソロ最低ライン'], ['c-pt1', 'パーティで可'], ['c-pt0', 'パーティ最低ライン'], ['c-no', '不可']];
+    function cutPageHTML(e) {
+        const r = e.result;
+        if (!r || r.error) return '';
+        if (!r.cuts) return `<div class="sc-res-empty">もう一度「計算する」を押すと出ます（ボスカットを足す前の計算結果です）。</div>`;
+        const rows = cutRows(r.cuts);
+        const count = {};
+        for (const x of rows) for (const c of x.cuts) { const cls = (CUT_LABEL[c.v] || [, 'c-no'])[1]; count[cls] = (count[cls] || 0) + 1; }
+        const body = rows.map(({ ko, boss, cuts }) => `<tr>
+            <th><b>${esc(boss ? (boss.short || boss.ja) : ko)}</b></th>
+            ${CUT_COLS.map((ds) => cutCell(cuts.find((c) => ds.includes(c.d)))).join('')}
+        </tr>`).join('');
+        return `<h3 class="sc-bc-h"><i data-lucide="skull"></i>ボスカット</h3>
+            <div class="sc-bc-head">
+                <div class="sc-bc-legend">${CUT_LEGEND.map(([cls, t]) => `<span class="${cls}"><i></i>${t}<b>${count[cls] || 0}</b></span>`).join('')}</div>
+                <p>％は MapleScouter のボスカット（そのボスに必要な火力）に対する今の火力です。100% 前後でソロの最低ライン。<i>PT</i> はパーティ前提のボスで、人数ごとの目安を出しています。レベル・フォース不足も反映しています。</p>
+            </div>
+            <table class="sc-bctbl">
+                <thead><tr><th></th>${CUT_COLS.map((ds) => `<th>${ds.join(' / ')}</th>`).join('')}</tr></thead>
+                <tbody>${body}</tbody>
+            </table>`;
     }
 
     function resultHTML(e) {
         const r = e.result;
         const f = e.form;
-        if (!r) return `<div class="sc-res-empty">値を入れて「計算する」を押すと、ここに換算主ステが出ます。</div>`;
+        if (!r) return `<div class="sc-res-empty">「入力」で値を入れて「計算する」を押すと、ここに結果が出ます。</div>`;
         if (r.error) return `<div class="sc-res-empty sc-err">${esc(r.error)}</div>`;
         const eff = r.eff || {};
         // 各スペックが主ステ（Base に足す主ステ 1）いくつ分かで出す。
@@ -546,7 +578,6 @@ const scouter = (() => {
                 ${cpGame ? `<tr><th>戦闘力（画面）</th><td>${fmt(cpGame)}</td></tr>` : ''}
                 <tr><th>計算日時</th><td>${esc((r.at || '').replace('T', ' ').slice(0, 16))}</td></tr>
             </table>
-            ${cutsHTML(r.cuts)}
             ${rows.length && base ? `<h3>スペック効率 <small>${esc(label)}いくつ分か</small></h3>
             <table class="sc-kv sc-eff">${rows.map(([n, v]) => `<tr><th>${esc(n)}</th><td>${esc(label)} <b>${(v / base).toFixed(2)}</b></td></tr>`).join('')}</table>` : ''}
             ${hist.length > 1 ? `<h3>履歴</h3><table class="sc-kv">${hist.map((h) => `<tr><th>${esc((h.at || '').replace('T', ' ').slice(0, 16))}</th><td>${fmt(h.b300)}</td></tr>`).join('')}</table>` : ''}`;
@@ -586,7 +617,7 @@ const scouter = (() => {
             else if (k === 'live') toggleLive();
             else if (k === 'hexa') importHexa();
             else if (k === 'buff') toggleBuff(t.dataset.key);
-            else if (k === 'cuts') { cur.allCuts = !cur.allCuts; renderModal(); }
+            else if (k === 'tab') { cur.tab = t.dataset.tab; renderModal(); }
             else if (k === 'apply') applyReads();
             else if (k === 'discard') { cur.reads = null; document.getElementById('sc-reads').innerHTML = ''; setMsg('読み取りを捨てました。'); }
         });
@@ -678,7 +709,7 @@ const scouter = (() => {
                 e.history = (e.history || []).concat({ at, b300: d.boss300_stat, b300h: d.boss300_hexaStat }).slice(-30);
             }
             save();
-            if (cur === mine) setMsg(e.result.error ? '' : '計算しました。', e.result.error ? 'err' : 'ok');
+            if (cur === mine) { cur.tab = 'result'; setMsg(e.result.error ? '' : '計算しました。', e.result.error ? 'err' : 'ok'); }
         } catch (err) {
             if (cur === mine) setMsg('計算に失敗しました: ' + (err && err.message || err) + (location.protocol === 'file:' ? '（Worker 経由で開いてください）' : ''), 'err');
         } finally {
@@ -747,6 +778,7 @@ const scouter = (() => {
         </div>`;
     }
     function showReads() {
+        if (cur && cur.tab === 'result') { cur.tab = 'input'; renderModal(); return; }   // 読み取りは入力タブで見せる
         const el = document.getElementById('sc-reads');
         if (el) el.innerHTML = readsHTML();
     }
