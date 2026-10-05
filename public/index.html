@@ -288,7 +288,7 @@
         <main class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-950">
             <div class="max-w-[1920px] mx-auto pb-10">
                 <div id="view-dashboard" class="fade-in">
-                    <div id="dashboard-list" class="grid grid-cols-[repeat(auto-fill,minmax(420px,1fr))] gap-2"></div>
+                    <div id="dashboard-list" class="grid grid-cols-[repeat(auto-fill,430px)] gap-2"></div>
                     <div id="empty-state" class="hidden text-center py-20">
                         <div class="bg-slate-900/50 inline-block p-6 rounded-full mb-4"><i data-lucide="ghost"
                                 class="w-12 h-12 text-slate-600"></i></div>
@@ -458,16 +458,16 @@
         </main>
     </div>
 
-    <div id="char-modal"
-        class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-700 w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col h-[92vh]">
-            <div class="px-4 py-2.5 border-b border-slate-800 flex items-center gap-3 bg-slate-950">
-                <h3 class="text-white font-bold" id="modal-title">Edit Character</h3>
-                <span id="modal-subtitle" class="text-slate-500 text-xs"></span>
-                <div class="flex-1"></div>
-                <button type="button" onclick="app.closeCharModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+    <!-- Edit Character（daisyUI の modal。2026-10-05 bi 了承の案）。
+         上に職画像＋基本情報2段＋メモ、下にボス一覧を左右2列（全行がスクロールなしで収まる）。 -->
+    <div id="char-modal" class="modal modal-open hidden bg-slate-950/80 z-50">
+        <div class="modal-box max-w-none w-[96vw] max-h-[94vh] p-0 flex flex-col bg-base-100 border border-base-content/15">
+            <div class="flex items-center gap-2 px-4 h-11 border-b border-base-content/10 shrink-0">
+                <h3 class="font-bold text-white" id="modal-title">Edit Character</h3>
+                <span id="modal-subtitle" class="text-xs text-slate-500"></span>
+                <button type="button" onclick="app.closeCharModal()" class="btn btn-sm btn-ghost btn-square ml-auto"><i data-lucide="x" class="w-4 h-4"></i></button>
             </div>
-            <form id="char-form" onsubmit="app.saveCharacter(event)" class="flex flex-col flex-1 overflow-hidden">
+            <form id="char-form" onsubmit="app.saveCharacter(event)" class="flex flex-col flex-1 min-h-0">
                 <input type="hidden" name="id">
                 <input type="hidden" name="job">
                 <input type="hidden" name="image">
@@ -476,63 +476,65 @@
                 <input type="hidden" name="hidden" value="false">
 
                 <!-- 上段: キャラ画像（クリックで立ち絵の位置） / 情報2段 / メモ -->
-                <div class="flex border-b border-slate-800 bg-slate-950/40 relative shrink-0">
+                <div class="relative flex gap-4 px-4 py-3 border-b border-base-content/10 shrink-0">
+                    <!-- 画像の枠は IGN の見出しの上端から Role のボタンの下端まで -->
                     <button type="button" id="char-avatar-btn" onclick="app.togglePortraitPop()" title="クリックで立ち絵の位置を変更"
-                        class="w-24 border-r border-slate-800 flex items-center justify-center relative shrink-0 hover:bg-slate-800/40">
-                        <img id="char-avatar-img" src="" alt="" class="max-w-[5rem] max-h-[5rem] object-contain hidden">
+                        class="relative self-stretch w-[106px] shrink-0 bg-base-200 border border-base-content/10 hover:border-indigo-500 grid place-items-center overflow-hidden">
+                        <img id="char-avatar-img" src="" alt="" class="absolute inset-0 w-full h-full object-contain hidden">
                         <i id="char-avatar-ph" data-lucide="user" class="w-8 h-8 text-slate-700"></i>
-                        <i data-lucide="move-horizontal" class="w-3.5 h-3.5 absolute right-1.5 bottom-1.5 text-slate-500"></i>
+                        <i data-lucide="move-horizontal" class="w-3.5 h-3.5 absolute right-1 bottom-1 text-slate-500"></i>
                     </button>
-                    <div class="shrink-0 flex flex-col w-[600px]">
-                        <div class="flex">
-                            <div class="cm-cell border-b">
-                                <div class="cm-lbl">IGN</div>
-                                <div class="flex">
-                                    <input type="text" name="name" required class="cm-inp w-44" onblur="app.fetchCharacterData()">
-                                    <button type="button" id="btn-fetch" onclick="app.fetchCharacterData()" class="cm-btn -ml-px flex items-center gap-1 min-w-[76px] justify-center"><i data-lucide="download" class="w-3.5 h-3.5"></i>Fetch</button>
+                    <div class="flex flex-col gap-2 shrink-0">
+                        <div class="flex items-end gap-3">
+                            <label class="ed-f">
+                                <span class="ed-lbl">IGN</span>
+                                <div class="join">
+                                    <input type="text" name="name" required class="input input-sm join-item w-40" onblur="app.fetchCharacterData()">
+                                    <button type="button" id="btn-fetch" onclick="app.fetchCharacterData()" class="btn btn-sm join-item gap-1 min-w-[76px]"><i data-lucide="download" class="w-3.5 h-3.5"></i>Fetch</button>
                                 </div>
-                                <div id="fetch-error-msg" class="hidden mt-1 text-[10px] text-rose-400"></div>
-                            </div>
-                            <div class="cm-cell border-b">
-                                <div class="cm-lbl">Level</div>
-                                <input type="number" name="level" placeholder="—" class="cm-inp w-16 font-mono font-bold text-right">
-                            </div>
-                            <div class="cm-cell border-b flex-1">
-                                <div class="cm-lbl">Class</div>
-                                <select name="job-select" id="char-job-select" onchange="app.onJobSelect(this.value)" class="cm-inp w-full">
+                            </label>
+                            <label class="ed-f">
+                                <span class="ed-lbl">Level</span>
+                                <input type="number" name="level" placeholder="—" class="input input-sm w-20 font-mono text-right">
+                            </label>
+                            <label class="ed-f">
+                                <span class="ed-lbl">Class</span>
+                                <select name="job-select" id="char-job-select" onchange="app.onJobSelect(this.value)" class="select select-sm w-48">
                                     <option value="">Select a Class</option>
                                 </select>
-                            </div>
+                            </label>
                         </div>
-                        <div class="flex">
-                            <div class="cm-cell">
-                                <div class="cm-lbl">Role</div>
-                                <div class="flex" id="cm-role">
-                                    <button type="button" data-v="MAIN" onclick="app.setCharRole('MAIN')" class="cm-btn">Main</button>
-                                    <button type="button" data-v="SUB" onclick="app.setCharRole('SUB')" class="cm-btn -ml-px">Sub</button>
-                                    <button type="button" data-v="MULE" onclick="app.setCharRole('MULE')" class="cm-btn -ml-px">Mule</button>
+                        <div id="fetch-error-msg" class="hidden -mt-1 text-[10px] text-rose-400"></div>
+                        <div class="flex items-end gap-3">
+                            <div class="ed-f">
+                                <span class="ed-lbl">Role</span>
+                                <div class="join" id="cm-role">
+                                    <button type="button" data-v="MAIN" onclick="app.setCharRole('MAIN')" class="btn btn-sm join-item" style="--c:#818cf8">Main</button>
+                                    <button type="button" data-v="SUB" onclick="app.setCharRole('SUB')" class="btn btn-sm join-item" style="--c:#818cf8">Sub</button>
+                                    <button type="button" data-v="MULE" onclick="app.setCharRole('MULE')" class="btn btn-sm join-item" style="--c:#818cf8">Mule</button>
                                 </div>
                             </div>
-                            <div class="cm-cell">
-                                <div class="cm-lbl">Server</div>
-                                <div class="flex" id="cm-server">
-                                    <button type="button" data-v="KRONOS" onclick="app.setCharServer('KRONOS')" class="cm-btn">Kronos</button>
-                                    <button type="button" data-v="CHALLENGER" onclick="app.setCharServer('CHALLENGER')" class="cm-btn -ml-px">Challenger</button>
+                            <div class="ed-f">
+                                <span class="ed-lbl">Server</span>
+                                <div class="join" id="cm-server">
+                                    <button type="button" data-v="KRONOS" onclick="app.setCharServer('KRONOS')" class="btn btn-sm join-item">Kronos</button>
+                                    <button type="button" data-v="CHALLENGER" onclick="app.setCharServer('CHALLENGER')" class="btn btn-sm join-item">Challenger</button>
                                 </div>
                             </div>
-                            <div class="cm-cell flex-1">
-                                <div class="cm-lbl">Linked</div>
-                                <div class="flex gap-2">
-                                    <button type="button" id="cm-link-hexa" onclick="app.openLinkedFromModal('hexa')" class="cm-btn flex items-center gap-1.5"><i data-lucide="hexagon" class="w-3.5 h-3.5"></i>HEXA</button>
-                                    <button type="button" id="cm-link-gear" onclick="app.openLinkedFromModal('gear')" class="cm-btn flex items-center gap-1.5 whitespace-nowrap"><i data-lucide="arrow-up-wide-narrow" class="w-3.5 h-3.5"></i>Upgrade Priority</button>
+                            <div class="ed-f">
+                                <span class="ed-lbl">Linked</span>
+                                <div class="flex gap-1">
+                                    <button type="button" id="cm-link-hexa" onclick="app.openLinkedFromModal('hexa')" class="btn btn-sm btn-soft btn-secondary">HEXA</button>
+                                    <button type="button" id="cm-link-gear" onclick="app.openLinkedFromModal('gear')" class="btn btn-sm btn-soft btn-info">UPGRADE</button>
+                                    <button type="button" id="cm-link-scouter" onclick="app.openLinkedFromModal('scouter')" class="btn btn-sm btn-soft btn-warning">SCOUTER</button>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="flex-1 flex flex-col px-3 py-1.5 min-w-0">
-                        <div class="cm-lbl">Memo</div>
-                        <textarea name="memo" placeholder="Notes, goals, reminders..." class="cm-inp flex-1 w-full resize-none"></textarea>
-                    </div>
+                    <label class="ed-f flex-1 min-w-0">
+                        <span class="ed-lbl">Memo</span>
+                        <textarea name="memo" placeholder="Notes, goals, reminders..." class="textarea textarea-sm w-full flex-1 min-h-0 resize-none"></textarea>
+                    </label>
 
                     <!-- 立ち絵の位置（キャラ画像のクリックで開く） -->
                     <div id="portrait-pop" class="hidden absolute left-2 top-[calc(100%+4px)] z-20 w-80 bg-slate-950 border border-slate-600 shadow-2xl">
@@ -556,21 +558,17 @@
                     </div>
                 </div>
 
-                <!-- ボス一覧 -->
-                <div class="flex-1 overflow-y-auto custom-scrollbar">
-                    <table class="cm-boss">
-                        <thead><tr><th>Boss</th><th class="text-right cm-num">結晶</th><th class="text-right cm-num">獲得メル</th><th class="whitespace-nowrap">Difficulty</th><th>PT</th></tr></thead>
-                        <tbody id="bc-grid"></tbody>
-                    </table>
-                    <div class="text-[10px] text-slate-500 px-3 py-2">難易度を押すと登録、同じ難易度をもう一度押すと解除。結晶は人数で割る前の価格、獲得メルは結晶 ÷ PT人数。</div>
-                </div>
+                <!-- ボス一覧（左右2列）。難易度を押すと登録、同じ難易度をもう一度押すと解除。
+                     結晶は人数で割る前の価格、獲得メルは結晶 ÷ PT人数。 -->
+                <div id="bc-grid" class="flex-1 min-h-0 overflow-y-auto custom-scrollbar grid grid-cols-2 gap-x-4 px-3 py-1 items-start"></div>
 
-                <div class="px-4 py-2.5 border-t border-slate-800 bg-slate-950 flex items-center gap-5 text-xs shrink-0">
-                    <div><span class="cm-lbl inline mr-2">Weekly</span><span id="bc-counter" class="font-mono font-bold inline-block w-12 text-right text-violet-300">0/14</span></div>
-                    <div><span class="cm-lbl inline mr-2">週の見込み</span><span id="bc-weekly-earnings" class="font-mono font-bold text-amber-300 text-[15px] inline-block w-36 text-right">0</span></div>
-                    <div class="flex-1"></div>
-                    <button type="button" onclick="app.closeCharModal()" class="cm-btn">Cancel</button>
-                    <button type="submit" class="cm-btn cm-on px-6 flex items-center gap-1.5"><i data-lucide="save" class="w-3.5 h-3.5"></i>Save</button>
+                <div class="flex items-center gap-5 px-4 h-12 border-t border-base-content/10 shrink-0 bg-base-200">
+                    <span class="text-[11px] font-bold text-violet-400">WEEKLY <span id="bc-counter" class="font-mono text-sm text-white ml-1">0/14</span></span>
+                    <span class="text-[11px] text-slate-500">週の見込み <span id="bc-weekly-earnings" class="ml-1 font-['Saira_Condensed'] text-xl font-bold text-amber-300 tabular-nums">0</span></span>
+                    <div class="ml-auto flex gap-2">
+                        <button type="button" onclick="app.closeCharModal()" class="btn btn-sm btn-ghost">Cancel</button>
+                        <button type="submit" class="btn btn-sm btn-primary gap-1.5"><i data-lucide="save" class="w-3.5 h-3.5"></i>Save</button>
+                    </div>
                 </div>
             </form>
         </div>
