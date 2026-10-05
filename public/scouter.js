@@ -495,6 +495,7 @@ const scouter = (() => {
         const k = ko === '가엔슬' ? '가디언 엔젤 슬라임' : ko;
         return list.find((b) => b.ko && (b.ko === k || b.ko.endsWith(' ' + k))) || null;
     }
+    const CUT_HIDE = 5;
     const pctText = (r) => { const p = r * 100; return (p >= 1000 ? Math.round(p).toLocaleString() : p >= 100 ? p.toFixed(1) : p.toFixed(2)) + '%'; };
     // 列。Hard と Chaos は同じ列（Character Manager の編集画面と同じ）。
     const CUT_COLS = [['Easy'], ['Normal'], ['Hard', 'Chaos'], ['Extreme']];
@@ -504,6 +505,7 @@ const scouter = (() => {
         const by = {};
         for (const c of cuts) {
             if (c.d === 'Destiny' || c.d === 'Champion') continue;
+            if (c.r > CUT_HIDE) continue;   // 楽すぎるもの（500%超）は出さない（bi 指定）
             (by[c.b] = by[c.b] || []).push(c);
         }
         const rank = (ko) => { const b = bossOf(ko); const i = b ? order.indexOf(b.en) : -1; return i < 0 ? 99 : i; };
@@ -538,7 +540,7 @@ const scouter = (() => {
         return `<h3 class="sc-bc-h"><i data-lucide="skull"></i>ボスカット</h3>
             <div class="sc-bc-head">
                 <div class="sc-bc-legend">${CUT_LEGEND.map(([cls, t]) => `<span class="${cls}"><i></i>${t}<b>${count[cls] || 0}</b></span>`).join('')}</div>
-                <p>％は MapleScouter のボスカット（そのボスに必要な火力）に対する今の火力です。100% 前後でソロの最低ライン。<i>PT</i> はパーティ前提のボスで、人数ごとの目安を出しています。レベル・フォース不足も反映しています。</p>
+                <p>％は MapleScouter のボスカット（そのボスに必要な火力）に対する今の火力です。100% 前後でソロの最低ライン。<i>PT</i> はパーティ前提のボスで、人数ごとの目安を出しています。レベル・フォース不足も反映しています。500% を超えたものは出していません。</p>
             </div>
             <table class="sc-bctbl">
                 <thead><tr><th></th>${CUT_COLS.map((ds) => `<th>${ds.join(' / ')}</th>`).join('')}</tr></thead>
