@@ -70,15 +70,62 @@ const scouter = (() => {
         ['summonDur', '召喚獣持続時間増加', '%'], ['arcane', 'アーケインフォース', ''],
         ['sacred', 'オーセンティックフォース', ''],
     ];
+    const ICON = 'assets/scouter/';
+    // リンクスキル。only は、その職業のときだけ出すもの（自分の職業のリンク）。
     const LINKS = [
-        ['ark', 'Ark'], ['illium', 'Illium'], ['kadena', 'Cadena'], ['kain', 'Kain'], ['magician', 'Explorer魔法使い'],
-        ['thief', 'Explorer盗賊'], ['angel', 'Angelic Buster'], ['hoyoung', 'Hoyoung'], ['mukhyun', 'Mo Xuan'],
-        ['mihile', 'Mihile'], ['kaiser', 'Kaiser'], ['hayato', 'Hayato'], ['kanna', 'Kanna'],
+        ['ark', 'Ark', 'link/ark.png'], ['illium', 'Illium', 'link/illium.png'], ['kadena', 'Cadena', 'link/kadena.png'],
+        ['kain', 'Kain', 'link/kain.png'], ['magician', 'Explorer 魔法使い', 'link/magician.png'],
+        ['thief', 'Explorer 盗賊', 'link/thief.png'], ['angel', 'Angelic Buster', 'link/angel.png'],
+        ['hoyoung', 'Hoyoung', 'link/hoyoung.png'], ['mukhyun', 'Mo Xuan', 'link/mukhyun.png'], ['kanna', 'Kanna', 'link/kanna.png'],
+        ['mihile', 'Mihile', 'link/mihile.png', 'mihile'], ['kaiser', 'Kaiser', 'link/kaiser.png', 'kaiser'],
     ];
     const SEEDS = [
-        ['restraintRing', 'Restraint Ring'], ['weaponRing', 'Weapon Jump Ring'], ['ringOfSum', 'Ring of Sum'],
-        ['continuosRing', 'Continuous Ring'], ['riskTaker', 'Risk Taker Ring'],
+        ['restraintRing', 'Restraint Ring', 'seed/restraint.png'], ['continuosRing', 'Continuous Ring', 'seed/continuos.png'],
     ];
+    // バフアイテム（ボス戦で使う前提のもの）。先方の手入力ページで GMS のときに出る項目と同じ。
+    // lv: レベルを入れるもの（0 で使わない）。group: 同じ group の中では1つしか使えない。
+    const BUFFS = [
+        { title: 'ギルドスキル', items: [
+            ['noblessBoss', 'Boss Slayers', 'buff/noblessboss.png', { lv: 0, max: 15 }],
+            ['noblessIgnore', 'Undeterred', 'buff/noblessignore.png', { lv: 3, max: 15 }],
+            ['noblessDmg', 'For the Guild', 'buff/noblessdam.png', { lv: 1, max: 15 }],
+            ['noblessCriDmg', 'Hard Hitter', 'buff/noblesscridam.png', { lv: 2, max: 15 }],
+        ] },
+        { title: '秘薬・バフ', items: [
+            ['statPotion', 'ステータス薬（主＋副）', 'buff/statpotion.png', { stat: true, max: 30 }],
+            ['extreme', 'Extreme Potion', 'buff/extreme.png'],
+            ['heroesHawl', 'Echo of Hero', 'buff/hero.png'],
+            ['unionsPower', "Legion's Might", 'buff/union.png'],
+            ['urus', 'Ursus', 'buff/urus.png'],
+            ['superPower', 'MVP Super Power', 'buff/superpower.png'],
+            ['additional1', 'VIP Buff', 'buff/vipbuff.png'],
+            ['sayram', 'Sayram の霊薬', 'buff/sayram.png'],
+            ['collector', 'Collector の霊薬', 'buff/collector.png'],
+            ['buff275', '名誉の霊薬', 'buff/buff300.png'],
+            ['moonshine', 'Moonshine', 'buff/moonshine.png'],
+            ['shiningRed', 'Red Star', 'buff/shiningred.png'],
+            ['genePass', 'Genesis Pass', 'buff/opponent.png'],
+            ['authenticDmg', 'シンボル最大（ダメージ20%）', 'buff/authentic_symbol.png'],
+        ] },
+        { title: '攻撃力の薬（1つ）', items: [
+            ['bigHero', '大英雄の秘薬', 'buff/bighero.png', { group: 'atk' }],
+            ['legendHero', '伝説の英雄の秘薬', 'buff/legendhero.png', { group: 'atk' }],
+            ['jangBi', '高級武器精錬', 'buff/jangbi.png', { group: 'atk' }],
+            ['shiningBlue', 'Blue Star', 'buff/shiningblue.png', { group: 'atk' }],
+        ] },
+        { title: '食べ物（1つ）', items: [
+            ['fish', 'Fish Bread', 'buff/fish.png', { group: 'food' }],
+            ['apple', 'Onyx Apple', 'buff/apple.webp', { group: 'food' }],
+            ['tengu', "Tengu's Judgement", 'buff/tengu.png', { group: 'food' }],
+            ['candy', 'Candied Apple', 'buff/candy.png'],
+            ['house', "Caretaker's Support", 'buff/house.png'],
+        ] },
+    ];
+    // 同じ group のもの（先方の画面で、1つ選ぶと他が外れるもの）。
+    const GROUP_KEYS = {
+        atk: ['bigHero', 'legendHero', 'legendHp', 'jangBi', 'shiningBlue'],
+        food: ['fish', 'apple', 'tengu', 'cake', 'dragonsMeal', 'whiteBear', 'rebootAtkPotion'],
+    };
     // HEXA。hexa_data.js のキー → 先方のキー。
     const HEXA_KEYS = [
         ['origin', 'skillCore1', 'Origin'], ['ascent', 'skillCore2', 'Ascent'],
@@ -93,6 +140,7 @@ const scouter = (() => {
     const ERRORS = { '-2': '防御率無視の値がおかしい', '-4': '入力エラー', '-5': 'ありえない組み合わせ', '-6': 'クリティカル率が100%未満' };
 
     const blankStat = () => ({ base: '', per: '', abs: '' });
+    const dopingDefault = () => ({ ...DOPING, nobless: [...DOPING.nobless] });
     function DEFAULT_FORM() {
         return {
             classId: '', level: '', reboot: false, genesis: false, destiny: false,
@@ -101,8 +149,9 @@ const scouter = (() => {
             coolSec: '', coolPer: '', buffDuration: '', resetCool: '', ignoreElem: '', statusDmg: '', summonDur: '',
             arcane: '', sacred: '',
             hexa: Object.fromEntries(HEXA_KEYS.map(([, k]) => [k, k === 'solJanus' ? '30' : '0'])),
-            link: { ark: '2', illium: '2', kadena: '2', kain: '2', magician: '6', thief: '6', angel: '2', hoyoung: '0', mukhyun: '0', mihile: '0', kaiser: '0', hayato: '0', kanna: '0' },
-            seed: { restraintRing: '4', weaponRing: '0', ringOfSum: '0', continuosRing: '4', riskTaker: '0' },
+            link: { ark: '2', illium: '2', kadena: '2', kain: '2', magician: '6', thief: '6', angel: '2', hoyoung: '0', mukhyun: '0', mihile: '0', kaiser: '0', kanna: '0' },
+            seed: { restraintRing: '4', continuosRing: '4' },
+            doping: dopingDefault(),
             wildhunterUnion: '0',
             screen: {},   // 画面から読んだ最終値（STR などの検算用）と戦闘力
         };
@@ -114,16 +163,31 @@ const scouter = (() => {
     const fmt = (n) => (n === null || n === undefined || !Number.isFinite(n)) ? '—' : Math.round(n).toLocaleString();
     const finalOf = (s) => Math.floor(num(s.base) * (1 + num(s.per) / 100)) + num(s.abs);
 
+    // 画面のバフ欄 → 先方の doping。ギルドスキルはレベル、ステータス薬は値を入れたら使う扱い。
+    function dopingOf(f) {
+        const d = { ...dopingDefault(), ...(f.doping || {}) };
+        const lv = (v, max) => String(Math.max(0, Math.min(max, Math.floor(num(v)))));
+        d.nobless = [0, 1, 2, 3].map((i) => lv((d.nobless || [])[i], 15));
+        d.noblessBoss = d.nobless[0] !== '0'; d.noblessDmg = d.nobless[1] !== '0';
+        d.noblessCriDmg = d.nobless[2] !== '0'; d.noblessIgnore = d.nobless[3] !== '0';
+        d.stat = lv(d.stat, 30);
+        d.statPotion = d.stat !== '0';
+        // デーモンアヴェンジャーは「伝説の英雄の秘薬」が HP 版になる（先方の画面と同じ）。
+        if (f.classId === 'demonavenger') { d.legendHp = !!d.legendHero; d.legendHero = false; } else d.legendHp = false;
+        return d;
+    }
+
     function buildUserStat(f) {
         const c = CLASSES[f.classId];
         const sx = (k) => f[k] || blankStat();
         const screen = f.screen || {};
         const others = ['STR', 'DEX', 'INT', 'LUK'].filter((s) => c && ![c[1], c[2], c[3]].includes(s));
         const entire = { str: str(screen.str), dex: str(screen.dex), int: str(screen.int), luk: str(screen.luk) };
-        const seedLv = (k) => str(f.seed[k]);
+        const seedLv = (k) => SEEDS.some(([sk]) => sk === k) ? str(f.seed[k]) : '0';
+        const linkOn = ([k, , , only]) => !only || only === f.classId;
         return {
-            doping: { ...DOPING },
-            linkSkill: Object.fromEntries(Object.entries(f.link).map(([k, v]) => [k, str(v)])),
+            doping: dopingOf(f),
+            linkSkill: { hayato: '0', ...Object.fromEntries(LINKS.map((l) => [l[0], linkOn(l) ? str(f.link[l[0]]) : '0'])) },
             special: {
                 isReboot: !!f.reboot, combat: true, epiSoul: '0', mugongSoul: '0', genesis: !!f.genesis,
                 destiny: !!f.destiny, oneHandSword: false, useRuinForceShild: false, useContinuousRingAsMainRing: false,
@@ -190,7 +254,7 @@ const scouter = (() => {
         const e = data[id];
         e.form = { ...DEFAULT_FORM(), ...e.form };
         for (const k of ['main', 'sub', 'sub2', 'atk']) e.form[k] = { ...blankStat(), ...e.form[k] };
-        for (const k of ['hexa', 'link', 'seed']) e.form[k] = { ...DEFAULT_FORM()[k], ...e.form[k] };
+        for (const k of ['hexa', 'link', 'seed', 'doping']) e.form[k] = { ...DEFAULT_FORM()[k], ...e.form[k] };
         return e;
     }
 
@@ -256,12 +320,14 @@ const scouter = (() => {
         if (!e.form.level && char && char.level) e.form.level = String(char.level);
         close();
         cur = { id, char, e, reads: null, busy: false, live: null, msg: '', msgKind: '' };
+        syncHexa();
         const veil = document.createElement('div');
         veil.id = 'sc-overlay';
         veil.className = 'fixed inset-0 z-[200] flex items-start justify-center bg-black/70 p-3 overflow-y-auto';
         veil.addEventListener('click', (ev) => { if (ev.target === veil) close(); });
         document.body.appendChild(veil);
-        cur.esc = (ev) => { if (ev.key === 'Escape') close(); };
+        bindModal(veil);   // veil は閉じるまで同じ要素なので、ここで1回だけ付ける
+        cur.esc = (ev) => { if (ev.key === 'Escape' && !document.getElementById('hexa-modal-overlay')) close(); };
         document.addEventListener('keydown', cur.esc);
         cur.paste = (ev) => {
             const item = [...((ev.clipboardData && ev.clipboardData.items) || [])].find((x) => x.type.startsWith('image/'));
@@ -318,7 +384,7 @@ const scouter = (() => {
                 <div class="sc-side" id="sc-result">${resultHTML(e)}</div>
             </div>
         </div>`;
-        bindModal(veil);
+        bindDrop(veil);
         if (window.lucide) lucide.createIcons();
     }
 
@@ -339,13 +405,10 @@ const scouter = (() => {
                 <td class="sc-scr ${diff}" title="${diff === 'ng' ? '入力から出した最終値と、画面の値が合いません' : ''}">${shown !== undefined && shown !== null ? fmt(shown) : '—'}</td>
             </tr>`;
         }).join('');
-        const cls = hexaClass(f.classId);
-        const hexaName = (hk, fallback) => { const s = cls && cls.skills.find((x) => x.key === hk); return s ? s.name : fallback; };
-        const canImport = cur && cur.char && tracker();
         return `
-            <p class="sc-note">ゲーム内の値は MapleScouter の前提の状態で入れます: 秘薬・外部バフ・ギルドスキルなし、リンクスキル装着（スタックなし）、シードリング装着、召喚獣（ソル・ヘカテなど）On、コンバットオーダーズ・シャープアイズ使用、ソウルゲージ初期化、ファミリア召喚。</p>
+            <p class="sc-note">ゲーム内の値は MapleScouter の前提の状態で入れます: 秘薬・外部バフ・ギルドスキルなし、リンクスキル装着（スタックなし）、シードリング装着、召喚獣（ソル・ヘカテなど）On、コンバットオーダーズ・シャープアイズ使用、ソウルゲージ初期化、ファミリア召喚。ボス戦で使うバフは下の「バフアイテム」で選びます。</p>
             <section class="sc-sec">
-                <h3>基本</h3>
+                <h3><i data-lucide="user-round"></i>基本</h3>
                 <div class="sc-row">
                     <label>職業<select data-k="classId"><option value="">選択</option>${opts}</select></label>
                     <label>Lv${inp('level', f.level, 'w-s')}</label>
@@ -355,30 +418,117 @@ const scouter = (() => {
                 </div>
             </section>
             <section class="sc-sec">
-                <h3>主ステータス・攻撃力 <small>STRなどにカーソルを合わせると出る [Applied Value] の値</small></h3>
+                <h3><i data-lucide="swords"></i>主ステータス・攻撃力 <small>STRなどにカーソルを合わせると出る [Applied Value] の値</small></h3>
                 ${f.classId ? `<table class="sc-tbl">
                     <thead><tr><th></th><th>Base Value</th><th>% Value</th><th>% Not Applied</th><th>最終値</th><th>画面の値</th></tr></thead>
                     <tbody>${statRows}</tbody>
                 </table>` : '<p class="sc-empty">先に職業を選んでください。</p>'}
             </section>
             <section class="sc-sec">
-                <h3>詳細ステータス</h3>
+                <h3><i data-lucide="list"></i>詳細ステータス</h3>
                 <div class="sc-detail">${DETAIL.map(([k, label, unit]) => `<label><span>${esc(label)}</span>${inp(k, f[k])}<i>${unit}</i></label>`).join('')}</div>
             </section>
+            ${hexaHTML(f)}
             <section class="sc-sec">
-                <h3>HEXA ${canImport ? '<button data-sc="hexa" class="sc-mini">HEXA Tracker から取り込む</button>' : ''}</h3>
-                <div class="sc-hexa">${HEXA_KEYS.map(([hk, k, label]) => `<label title="${esc(hexaName(hk, label))}"><span>${esc(label)}</span>${inp('hexa.' + k, f.hexa[k])}</label>`).join('')}</div>
+                <h3><i data-lucide="flask-conical"></i>バフアイテム <small>ボス戦で使うもの。押すと On / Off</small></h3>
+                ${BUFFS.map((g) => `<div class="sc-bgrp"><h4>${esc(g.title)}</h4><div class="sc-tiles">${g.items.map((it) => buffTile(f, it)).join('')}</div></div>`).join('')}
             </section>
-            <details class="sc-sec sc-more">
-                <summary>リンクスキル・シードリング</summary>
-                <h4>リンクスキル（Lv）</h4>
-                <div class="sc-hexa">${LINKS.map(([k, label]) => `<label><span>${esc(label)}</span>${inp('link.' + k, f.link[k])}</label>`).join('')}</div>
-                <h4>シードリング（Lv）</h4>
-                <div class="sc-hexa">${SEEDS.map(([k, label]) => `<label><span>${esc(label)}</span>${inp('seed.' + k, f.seed[k])}</label>`).join('')}
-                    <label><span>Wild Hunter ユニオン</span>${inp('wildhunterUnion', f.wildhunterUnion)}</label></div>
-            </details>`;
+            <section class="sc-sec">
+                <h3><i data-lucide="link"></i>リンクスキル・シードリング <small>レベル</small></h3>
+                <div class="sc-tiles">${LINKS.filter(([, , , only]) => !only || only === f.classId).map(([k, label, icon]) => lvTile(label, icon, 'link.' + k, f.link[k])).join('')}</div>
+                <div class="sc-tiles sc-tiles-2">${SEEDS.map(([k, label, icon]) => lvTile(label, icon, 'seed.' + k, f.seed[k])).join('')}
+                    <label class="sc-tile sc-tile-lv ${num(f.wildhunterUnion) ? 'on' : ''}" title="Wild Hunter のユニオン効果（%）"><span class="sc-ico sc-ico-txt">WH</span><span class="sc-tn">Wild Hunter ユニオン</span>${inp('wildhunterUnion', f.wildhunterUnion)}</label>
+                </div>
+            </section>`;
+    }
+    const img = (icon) => `<img class="sc-ico" src="${ICON}${icon}" alt="" loading="lazy">`;
+    function lvTile(label, icon, path, v) {
+        return `<label class="sc-tile sc-tile-lv ${num(v) ? 'on' : ''}" title="${esc(label)}">${img(icon)}<span class="sc-tn">${esc(label)}</span>${inp(path, v)}</label>`;
+    }
+    function buffTile(f, [k, label, icon, opt = {}]) {
+        const d = f.doping;
+        if (opt.lv !== undefined || opt.stat) {
+            const path = opt.stat ? 'doping.stat' : 'doping.nobless.' + opt.lv;
+            const v = opt.stat ? d.stat : (d.nobless || [])[opt.lv];
+            return `<label class="sc-tile sc-tile-lv ${num(v) ? 'on' : ''}" title="${esc(label)}（0〜${opt.max}、0 で使わない）">${img(icon)}<span class="sc-tn">${esc(label)}</span>${inp(path, v)}</label>`;
+        }
+        return `<button type="button" class="sc-tile ${d[k] ? 'on' : ''}" data-sc="buff" data-key="${k}" title="${esc(label)}">${img(icon)}<span class="sc-tn">${esc(label)}</span><i class="sc-onoff">${d[k] ? 'ON' : 'OFF'}</i></button>`;
+    }
+
+    // HEXA。キャラは HEXA Tracker の進捗をそのまま使う（ここでは編集しない）。仮入力だけ手で入れる。
+    function hexaHTML(f) {
+        const head = (extra) => `<h3><i data-lucide="hexagon"></i>HEXA ${extra}</h3>`;
+        if (cur && cur.char) {
+            const lk = linkedHexa();
+            if (!lk) {
+                return `<section class="sc-sec">${head('<small>HEXA Tracker と連動</small>')}
+                    <p class="sc-empty">HEXA Tracker にこのキャラの職業が登録されていません。<button data-sc="hexa" class="sc-mini"><i data-lucide="hexagon"></i>HEXA Tracker で登録</button></p></section>`;
+            }
+            const tiles = HEXA_KEYS.map(([hk, k, label]) => {
+                const s = lk.cls.skills.find((x) => x.key === hk);
+                const lv = num(f.hexa[k]);
+                return `<span class="sc-tile sc-tile-hx ${lv ? 'on' : ''}" title="${esc(s ? s.name : label)}">
+                    ${s && s.icon ? `<img class="sc-ico" src="assets/hexa_icons/gms/${esc(s.icon)}.png" alt="" loading="lazy">` : `<span class="sc-ico sc-ico-txt">${esc(label.slice(0, 2))}</span>`}
+                    <span class="sc-tn">${esc(label)}</span><b>${lv}</b></span>`;
+            }).join('');
+            return `<section class="sc-sec">${head(`<small>HEXA Tracker の今のレベル</small><button data-sc="hexa" class="sc-mini"><i data-lucide="pencil"></i>HEXA Tracker で編集</button>`)}
+                <div class="sc-tiles">${tiles}</div></section>`;
+        }
+        const cls = hexaClass(f.classId);
+        const tiles = HEXA_KEYS.map(([hk, k, label]) => {
+            const s = cls && cls.skills.find((x) => x.key === hk);
+            return `<label class="sc-tile sc-tile-lv ${num(f.hexa[k]) ? 'on' : ''}" title="${esc(s ? s.name : label)}">
+                ${s && s.icon ? `<img class="sc-ico" src="assets/hexa_icons/gms/${esc(s.icon)}.png" alt="" loading="lazy">` : `<span class="sc-ico sc-ico-txt">${esc(label.slice(0, 2))}</span>`}
+                <span class="sc-tn">${esc(label)}</span>${inp('hexa.' + k, f.hexa[k])}</label>`;
+        }).join('');
+        return `<section class="sc-sec">${head('<small>レベル</small>')}<div class="sc-tiles">${tiles}</div></section>`;
     }
     const screenKey = (k, label) => k === 'atk' ? (label === 'Magic ATT' ? 'matt' : 'att') : label.toLowerCase();
+
+    /* ---------- ボスカット ---------- */
+    // 計算のときに出して結果と一緒に保存する（先方の応答そのものは大きいので持たない）。
+    function bossCuts(d, us) {
+        if (typeof scouterBossCut === 'undefined') return null;
+        try {
+            const out = scouterBossCut.computeBossCuts(d, us);
+            if (out.error) return null;
+            return out.rows.map((x) => ({ b: x.boss, n: x.name, d: x.difficulty, s: x.bossStat, r: Math.round(x.clearRate * 1e4) / 1e4, p: x.isPartyBoss ? 1 : 0, l: x.partyLimit, v: x.label }));
+        } catch (err) { console.error(err); return null; }
+    }
+    const CUT_LABEL = {
+        '솔플 여유컷': ['ソロ余裕', 'c-solo2'], '솔플 가능': ['ソロ可', 'c-solo1'], '솔플 최소컷': ['ソロ最低ライン', 'c-solo0'],
+        '파티격 가능': ['パーティで可', 'c-pt1'], '파티 최소컷': ['パーティ最低ライン', 'c-pt0'],
+        '2인 최소컷': ['2人で最低ライン', 'c-pt1'], '3인 최소컷': ['3人で最低ライン', 'c-pt1'], '4인 최소컷': ['4人で最低ライン', 'c-pt0'],
+        '6인 최소컷': ['6人で最低ライン', 'c-pt0'], '불가능': ['不可', 'c-no'], '입장 불가능': ['入場Lv不足', 'c-no'],
+    };
+    const DIFF_NAME = { Easy: 'Easy', Normal: 'Normal', Hard: 'Hard', Chaos: 'Chaos', Extreme: 'Extreme', Destiny: 'Destiny', Champion: 'Champion' };
+    function bossOf(ko) {
+        const list = window.BOSS_MASTER || [];
+        const k = ko === '가엔슬' ? '가디언 엔젤 슬라임' : ko;
+        return list.find((b) => b.ko && (b.ko === k || b.ko.endsWith(' ' + k))) || null;
+    }
+    // 先方の「自分の目安」と同じ絞り込み: 楽すぎる（10倍超）・遠すぎるボスは出さない。
+    const nearCut = (c) => c.p ? (c.r / c.l <= 10 && c.r >= 0.85 / c.l) : (c.r <= 10 && c.r >= 0.15);
+    function cutsHTML(cuts) {
+        if (!cuts) return `<h3><i data-lucide="skull"></i>ボスカット</h3><p class="sc-empty">もう一度「計算する」を押すと出ます。</p>`;
+        const all = cur && cur.allCuts;
+        const list = cuts.filter((c) => c.d !== 'Destiny' && c.d !== 'Champion' && (all || nearCut(c)));
+        const rows = list.map((c) => {
+            const b = bossOf(c.b);
+            const [txt, cls] = CUT_LABEL[c.v] || [c.v, 'c-no'];
+            const pct = c.r * 100;
+            const pctTxt = (pct >= 1000 ? Math.round(pct).toLocaleString() : pct >= 100 ? pct.toFixed(1) : pct.toFixed(2)) + '%';
+            const img = b && b.image ? `<img src="https://cdn.maplehub.app/bosses/${esc(b.image)}.webp" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<span></span>';
+            return `<tr class="${cls}" title="ボスカットに対して ${pctTxt}${c.p ? '（パーティ前提のボス）' : ''}">
+                <td class="sc-cut-img">${img}</td>
+                <th><b>${esc(b ? (b.short || b.ja) : c.b)}</b><small class="df-${esc(c.d.toLowerCase())}">${esc(DIFF_NAME[c.d] || c.d)}</small></th>
+                <td class="sc-cut-pct">${c.p ? '<i>PT</i>' : ''}${pctTxt}</td>
+                <td class="sc-cut-v">${esc(txt)}</td>
+            </tr>`;
+        }).join('');
+        return `<h3><i data-lucide="skull"></i>ボスカット <small>${all ? 'すべて' : '自分の目安'}</small><button data-sc="cuts" class="sc-mini">${all ? '目安だけ' : 'すべて表示'}</button></h3>
+            ${rows ? `<table class="sc-cut">${rows}</table>` : '<p class="sc-empty">目安に入るボスがありません。</p>'}`;
+    }
 
     function resultHTML(e) {
         const r = e.result;
@@ -386,14 +536,16 @@ const scouter = (() => {
         if (!r) return `<div class="sc-res-empty">値を入れて「計算する」を押すと、ここに換算主ステが出ます。</div>`;
         if (r.error) return `<div class="sc-res-empty sc-err">${esc(r.error)}</div>`;
         const eff = r.eff || {};
-        const base = eff.mainStatPereff1;
+        // 各スペックが主ステ（Base に足す主ステ 1）いくつ分かで出す。
+        const base = eff.mainStateff1;
         const label = (CLASSES[f.classId] || [])[1] || '主ステ';
+        const sub = (CLASSES[f.classId] || [])[2] || '副ステ';
         const atkLabel = isMagic(f.classId) ? '魔力' : '攻撃力';
         const rows = [
-            [`${label} 1%`, eff.mainStatPereff1], [`${atkLabel} 1%`, eff.atkPereff1], ['ダメージ・ボス 1%', eff.dmgeff1],
-            ['クリダメ 1%', eff.cridmgeff1], ['オールステ 1%', eff.allStatEff], ['防御率無視 1%', eff.igreff1],
-            [`${atkLabel} 1`, eff.atkeff1], [`${label} 1`, eff.mainStateff1], [`未適用${label} 1`, eff.mainStatAbseff1],
-        ].filter(([, v]) => typeof v === 'number');
+            [`${atkLabel} 1`, eff.atkeff1], [`${atkLabel} 1%`, eff.atkPereff1], [`${label} 1%`, eff.mainStatPereff1],
+            ['ダメージ・ボス 1%', eff.dmgeff1], ['クリダメ 1%', eff.cridmgeff1], ['オールステ 1%', eff.allStatEff],
+            ['防御率無視 1%', eff.igreff1], [`未適用${label} 1`, eff.mainStatAbseff1], [`${sub} 1`, eff.subStateff1],
+        ].filter(([, v]) => typeof v === 'number' && v > 0);
         const hist = (e.history || []).slice(-6).reverse();
         const cpGame = f.screen && f.screen.combatPower;
         return `
@@ -410,8 +562,9 @@ const scouter = (() => {
                 ${cpGame ? `<tr><th>戦闘力（画面）</th><td>${fmt(cpGame)}</td></tr>` : ''}
                 <tr><th>計算日時</th><td>${esc((r.at || '').replace('T', ' ').slice(0, 16))}</td></tr>
             </table>
-            ${rows.length && base ? `<h3>スペック効率 <small>${esc(label)}%に直すと</small></h3>
-            <table class="sc-kv sc-eff">${rows.map(([n, v]) => `<tr><th>${esc(n)}</th><td>${(v / base).toFixed(3)}%</td></tr>`).join('')}</table>` : ''}
+            ${cutsHTML(r.cuts)}
+            ${rows.length && base ? `<h3>スペック効率 <small>${esc(label)}いくつ分か</small></h3>
+            <table class="sc-kv sc-eff">${rows.map(([n, v]) => `<tr><th>${esc(n)}</th><td>${esc(label)} <b>${(v / base).toFixed(2)}</b></td></tr>`).join('')}</table>` : ''}
             ${hist.length > 1 ? `<h3>履歴</h3><table class="sc-kv">${hist.map((h) => `<tr><th>${esc((h.at || '').replace('T', ' ').slice(0, 16))}</th><td>${fmt(h.b300)}</td></tr>`).join('')}</table>` : ''}`;
     }
 
@@ -429,6 +582,15 @@ const scouter = (() => {
         o[ks[ks.length - 1]] = v;
     }
 
+    function toggleBuff(key) {
+        const d = cur.e.form.doping;
+        const on = !d[key];
+        for (const ks of Object.values(GROUP_KEYS)) if (on && ks.includes(key)) for (const o of ks) d[o] = false;
+        d[key] = on;
+        save();
+        renderModal();
+    }
+
     function bindModal(veil) {
         veil.addEventListener('click', (ev) => {
             const t = ev.target.closest('[data-sc]');
@@ -438,7 +600,9 @@ const scouter = (() => {
             else if (k === 'calc') calc();
             else if (k === 'file') veil.querySelector('[data-sc="input"]').click();
             else if (k === 'live') toggleLive();
-            else if (k === 'hexa') importHexa();
+            else if (k === 'hexa') editHexa();
+            else if (k === 'buff') toggleBuff(t.dataset.key);
+            else if (k === 'cuts') { cur.allCuts = !cur.allCuts; renderModal(); }
             else if (k === 'apply') applyReads();
             else if (k === 'discard') { cur.reads = null; document.getElementById('sc-reads').innerHTML = ''; setMsg('読み取りを捨てました。'); }
         });
@@ -455,7 +619,8 @@ const scouter = (() => {
             if (t.type === 'checkbox') setPath(f, t.dataset.k, t.checked);
             else setPath(f, t.dataset.k, t.value.trim());
             save();
-            if (t.dataset.k === 'classId') renderModal();
+            // 入力欄が消えるときの blur からも change が来るので、作り直しは後に回す。
+            if (t.dataset.k === 'classId' || /^(doping|link|seed|hexa)\.|^wildhunterUnion$/.test(t.dataset.k)) setTimeout(renderModal);
         });
         // 打っている間は作り直さない（フォーカスが外れる）。最終値の欄だけ書き換える。
         veil.addEventListener('input', (ev) => {
@@ -467,6 +632,9 @@ const scouter = (() => {
             const cell = veil.querySelector(`[data-fin="${k}"]`);
             if (cell) cell.textContent = fmt(finalOf(cur.e.form[k]));
         });
+    }
+    // .sc-modal は描き直すたびに作り直すので、こちらは毎回付ける。
+    function bindDrop(veil) {
         const box = veil.querySelector('.sc-modal');
         box.addEventListener('dragover', (ev) => { if ([...ev.dataTransfer.types].includes('Files')) { ev.preventDefault(); box.classList.add('drop'); } });
         box.addEventListener('dragleave', (ev) => { if (!box.contains(ev.relatedTarget)) box.classList.remove('drop'); });
@@ -479,36 +647,61 @@ const scouter = (() => {
         });
     }
 
-    /* ---------- HEXA Tracker から ---------- */
-    function importHexa() {
+    /* ---------- HEXA Tracker と連動 ---------- */
+    // キャラの HEXA は HEXA Tracker に保存してある今のレベルを使う。開いたとき・計算するとき・
+    // HEXA Tracker を閉じたときに読み直す。
+    function linkedHexa() {
         const ht = tracker();
-        if (!ht || !cur || !cur.char) return;
+        if (!ht || !cur || !cur.char) return null;
         ht.ensureLoaded();
-        const saved = ht.data['char:' + cur.char.id];
-        if (!saved || !saved.levels) { setMsg('HEXA Tracker にこのキャラの入力がありません。', 'err'); return; }
-        const cls = hexaClass(saved.classId || cur.e.form.classId);
+        const classId = ht.getCharClassId(cur.char);
+        const cls = classId && hexaClass(classId);
+        if (!cls) return null;
+        const saved = ht.data['char:' + cur.char.id] || {};
+        return { ht, cls, levels: saved.levels || {} };
+    }
+    function syncHexa() {
+        const lk = linkedHexa();
+        if (!lk) return false;
+        const f = cur.e.form;
         for (const [hk, k] of HEXA_KEYS) {
-            const s = cls && cls.skills.find((x) => x.key === hk);
-            const min = s && ht.minLevel ? ht.minLevel(s) : 0;
-            cur.e.form.hexa[k] = String(Math.max(min, saved.levels[hk] || 0));
+            const s = lk.cls.skills.find((x) => x.key === hk);
+            f.hexa[k] = String(s ? Math.max(lk.ht.minLevel(s), lk.levels[hk] || 0) : 0);
         }
         save();
-        renderModal();
-        setMsg('HEXA Tracker の現在のレベルを取り込みました。', 'ok');
+        return true;
+    }
+    function editHexa() {
+        const ht = tracker();
+        if (!ht || !cur || !cur.char) return;
+        const mine = cur;
+        ht.openForCharacter(cur.char.id);
+        // HEXA Tracker の画面はこの上に重なる。閉じられたら読み直す。
+        const obs = new MutationObserver(() => {
+            if (document.getElementById('hexa-modal-overlay')) return;
+            obs.disconnect();
+            if (cur !== mine) return;
+            syncHexa();
+            renderModal();
+            setMsg('HEXA Tracker のレベルを読み直しました。', 'ok');
+        });
+        obs.observe(document.body, { childList: true });
     }
 
     /* ---------- 計算 ---------- */
     async function calc() {
         if (!cur || cur.busy) return;
         const e = cur.e, f = e.form;
+        syncHexa();
         if (!CLASSES[f.classId]) { setMsg('職業を選んでください。', 'err'); return; }
         if (!num(f.main.base)) { setMsg(`${CLASSES[f.classId][1]} の Base Value を入れてください。`, 'err'); return; }
         cur.busy = true;
         renderModal();
         setMsg('MapleScouter で計算しています…');
         const mine = cur;
+        const us = buildUserStat(f);
         try {
-            const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userStat: buildUserStat(f) }) });
+            const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userStat: us }) });
             const out = await res.json().catch(() => null);
             if (!res.ok || !out || !out.calculatedData) throw new Error((out && out.error) || `HTTP ${res.status}`);
             const d = out.calculatedData;
@@ -520,6 +713,7 @@ const scouter = (() => {
                 e.result = {
                     at, b300: d.boss300_stat, b380: d.boss380_stat, b300h: d.boss300_hexaStat, b380h: d.boss380_hexaStat,
                     cp: d.combatPower, xp: d.exchangePower, xph: d.exchangePowerHexa, eff: d.specEfficiency || {},
+                    cuts: bossCuts(d, us),
                 };
                 e.history = (e.history || []).concat({ at, b300: d.boss300_stat, b300h: d.boss300_hexaStat }).slice(-30);
             }

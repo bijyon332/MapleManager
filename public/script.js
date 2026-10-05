@@ -578,7 +578,7 @@ const app = {
         },
         scouter: {
             view: 'view-scouter',
-            scripts: ['hexa_data.js', 'scouter_reader.js', 'scouter.js'],
+            scripts: ['hexa_data.js', 'hexa_tracker.js', 'scouter_reader.js', 'scouter_bosscut.js', 'scouter.js'],
             init() { scouter.init('view-scouter'); },
             reopen() { scouter.render(); }
         },
