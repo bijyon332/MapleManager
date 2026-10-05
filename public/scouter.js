@@ -402,8 +402,8 @@ const scouter = (() => {
         return `<div class="card bg-base-100 border border-base-content/10"><div class="flex items-center gap-5 px-4 py-2.5 flex-wrap">
             ${who}
             <div class="${who ? 'border-l border-base-content/10 pl-5' : ''} leading-none shrink-0">
-                <div class="text-[11px] text-base-content/50 mb-1">換算主ステ（防御率300%）</div>
-                ${r ? `<div class="flex items-baseline gap-4">${big(r.b300)}${r.b300h ? `<span class="flex items-baseline gap-1.5"><span class="text-xs font-bold text-secondary">HEXA</span>${big(r.b300h)}</span>` : ''}</div>`
+                <div class="text-[11px] text-base-content/50 mb-1">換算主ステ</div>
+                ${r ? `<div class="flex items-baseline gap-1.5">${r.b300h ? `<span class="text-xs font-bold text-secondary">HEXA</span>${big(r.b300h)}` : big(r.b300)}</div>`
                     : '<span class="text-sm text-base-content/40">まだ計算していません</span>'}
             </div>
             ${at ? `<div class="border-l border-base-content/10 pl-5 leading-tight">
