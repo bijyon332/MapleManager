@@ -215,6 +215,15 @@
                     <i data-lucide="settings-2" class="w-3.5 h-3.5"></i>System
                 </button>
             </nav>
+            <!-- Scouter の入力／結果（Scouter のときだけ出す）。押したときの切り替えは scouter.js -->
+            <nav id="scouter-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
+                <button onclick="scouter.setTab('input')" data-tab="input" role="tab" class="tab tab-active gap-1.5">
+                    <i data-lucide="pencil-line" class="w-3.5 h-3.5"></i>入力
+                </button>
+                <button onclick="scouter.setTab('result')" data-tab="result" role="tab" class="tab gap-1.5">
+                    <i data-lucide="gauge" class="w-3.5 h-3.5"></i>結果
+                </button>
+            </nav>
             <!-- Boss Scheduler sub navigation (shown only for the scheduler app) -->
             <nav id="scheduler-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="app.schedulerTab('members')" id="snav-members"
