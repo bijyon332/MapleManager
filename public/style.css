@@ -694,23 +694,8 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .mx-tool.mx-tool-scout:hover { background: #f59e0b29; }
 .mx-tool.mx-tool-scout.is-on { color: #fcd34d; }
 .mx-tool.mx-tool-scout b { color: #fbbf24; }
-.sc-page { color: #cbd5e1; }
-.sc-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
-.sc-head h2 { font-size: 18px; font-weight: 700; color: #fff; }
-.sc-head p, .sc-empty { font-size: 11px; color: #64748b; }
-.sc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 4px; }
-.sc-card { display: flex; align-items: center; gap: 8px; padding: 4px 8px 4px 4px; text-align: left; background: #0b1224; border: 1px solid #1e293b; }
-.sc-card:hover { border-color: #475569; background: #111a33; }
-.sc-card.is-on { border-color: #f59e0b55; }
-.sc-pic { width: 40px; height: 40px; flex: none; background: #020617; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.sc-pic img { max-width: 40px; max-height: 40px; object-fit: contain; }
-.sc-who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.sc-who b { font: 700 15px/1.1 "Saira Condensed", sans-serif; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sc-who small { font-size: 10.5px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sc-val { display: flex; flex-direction: column; align-items: flex-end; }
-.sc-val b { font: 700 20px/1 "Saira Condensed", sans-serif; color: #fbbf24; font-variant-numeric: tabular-nums; }
-.sc-val small { font: 500 10px "IBM Plex Mono", monospace; color: #64748b; margin-top: 2px; }
-.sc-none { font-size: 11px; color: #475569; }
+.sc-empty { font-size: 11px; color: #64748b; }
+.sc-inline .sc-modal { max-width: none; margin-top: 0; }
 
 .sc-modal { width: 100%; max-width: 1180px; margin-top: 16px; background: #020617; border: 1px solid #334155; color: #cbd5e1; font-size: 12px; }
 .sc-modal.drop { outline: 1px dashed #818cf8; outline-offset: -4px; }

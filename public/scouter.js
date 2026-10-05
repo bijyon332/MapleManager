@@ -276,59 +276,49 @@ const scouter = (() => {
         return null;
     }
 
-    /* ---------- 一覧ページ ---------- */
+    /* ---------- アプリのページ ---------- */
+    // サイドバーの Scouter は仮入力（'free'）の入力画面をそのまま出す。登録キャラは
+    // Character Manager のカードの SCOUTER からモーダルで開く（Upgrade Priority と同じ分け方）。
     let rootEl = null;
     function init(rootId) {
         rootEl = document.getElementById(rootId);
         if (!loaded) load();
         render();
     }
-    function cardHTML(id, title, sub, portrait) {
-        const e = data[id];
-        const r = e && e.result;
-        const ok = r && r.b300 > 0;
-        return `<button onclick="scouter.open('${esc(id)}')" class="sc-card ${ok ? 'is-on' : ''}">
-            <span class="sc-pic">${portrait ? `<img src="${esc(portrait)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>
-            <span class="sc-who"><b>${esc(title)}</b><small>${esc(sub)}</small></span>
-            ${ok ? `<span class="sc-val"><b>${fmt(r.b300)}</b><small>HEXA ${fmt(r.b300h)} · ${esc((r.at || '').slice(5, 10).replace('-', '/'))}</small></span>`
-                 : '<span class="sc-val sc-none">未入力</span>'}
-        </button>`;
-    }
     function render() {
         if (!rootEl) return;
-        const list = chars();
-        const cards = list.map((c) => cardHTML('char:' + c.id, c.name, `Lv.${c.level || '?'} ${c.job || ''}`,
-            (c.image && c.image.startsWith('http')) ? c.image : (c.classImage || ''))).join('');
-        rootEl.innerHTML = `<div class="sc-page">
-            <div class="sc-head">
-                <h2>Scouter</h2>
-                <p>MapleScouter の換算主ステ（防御率300%のボス相手）をキャラごとに出します。カードを押すと入力と結果を開きます。</p>
-            </div>
-            <div class="sc-grid">${cards}${cardHTML('free', '仮入力', 'キャラに紐付けない入力', '')}</div>
-            ${list.length ? '' : '<p class="sc-empty">Character Manager にキャラを登録すると、ここに並びます。</p>'}
-        </div>`;
+        if (cur) { if (cur.page) renderModal(); return; }
+        rootEl.innerHTML = '<div id="sc-overlay" class="sc-inline"></div>';
+        open('free', { page: true });
     }
 
     /* ---------- モーダル ---------- */
     let cur = null;   // { id, char, e, reads: [], busy, live }
 
-    function open(id) {
+    function open(id, opt = {}) {
         if (!loaded) load();
         const char = id.startsWith('char:') ? charOf(id.slice(5)) : null;
         const e = entry(id);
         if (!e.form.classId) e.form.classId = classIdFor(char);
         if (!e.form.level && char && char.level) e.form.level = String(char.level);
-        close();
-        cur = { id, char, e, reads: null, busy: false, live: null, msg: '', msgKind: '' };
-        const veil = document.createElement('div');
-        veil.id = 'sc-overlay';
-        veil.className = 'fixed inset-0 z-[200] flex items-start justify-center bg-black/70 p-3 overflow-y-auto';
-        veil.addEventListener('click', (ev) => { if (ev.target === veil) close(); });
-        document.body.appendChild(veil);
+        const page = !!opt.page;
+        const pageVeil = page ? document.getElementById('sc-overlay') : null;
+        if (page && !pageVeil) return;
+        close(true);
+        cur = { id, char, e, page, reads: null, busy: false, live: null, msg: '', msgKind: '' };
+        let veil = pageVeil;
+        if (!page) {
+            veil = document.createElement('div');
+            veil.id = 'sc-overlay';
+            veil.className = 'fixed inset-0 z-[200] flex items-start justify-center bg-black/70 p-3 overflow-y-auto';
+            veil.addEventListener('click', (ev) => { if (ev.target === veil) close(); });
+            document.body.appendChild(veil);
+        }
         bindModal(veil);   // veil は閉じるまで同じ要素なので、ここで1回だけ付ける
-        cur.esc = (ev) => { if (ev.key === 'Escape') close(); };
+        cur.esc = (ev) => { if (ev.key === 'Escape' && !page) close(); };
         document.addEventListener('keydown', cur.esc);
         cur.paste = (ev) => {
+            if (page && !(rootEl && rootEl.offsetParent)) return;   // ページが隠れているときは読まない
             const item = [...((ev.clipboardData && ev.clipboardData.items) || [])].find((x) => x.type.startsWith('image/'));
             if (!item) return;
             ev.preventDefault();
@@ -339,15 +329,16 @@ const scouter = (() => {
     }
     function openForCharacter(charId) { open('char:' + charId); }
 
-    function close() {
+    function close(silent) {
         if (!cur) return;
         stopLive();
         document.removeEventListener('keydown', cur.esc);
         document.removeEventListener('paste', cur.paste);
         const v = document.getElementById('sc-overlay');
         if (v) v.remove();
+        const wasPage = cur.page;
         cur = null;
-        render();
+        if (!silent && !wasPage) render();   // モーダルを閉じたら、アプリのページを描き直す
         refreshRoster();
     }
     function refreshRoster() {
@@ -377,7 +368,7 @@ const scouter = (() => {
                     <button data-sc="live" class="${cur.live ? 'is-live' : ''}" title="ゲーム画面を共有して、ステータス画面を読み取り続ける"><i data-lucide="monitor"></i>${cur.live ? 'ライブ停止' : 'ライブ読み取り'}</button>
                     <button data-sc="calc" class="sc-go" ${cur.busy ? 'disabled' : ''}><i data-lucide="calculator"></i>${cur.busy ? '計算中…' : '計算する'}</button>
                 </div>
-                <button data-sc="close" class="sc-x" title="閉じる"><i data-lucide="x"></i></button>
+                ${cur.page ? '' : '<button data-sc="close" class="sc-x" title="閉じる"><i data-lucide="x"></i></button>'}
                 <input type="file" accept="image/*" multiple data-sc="input" hidden>
             </div>
             <div class="sc-msg ${cur.msgKind}" id="sc-msg">${esc(cur.msg)}</div>
