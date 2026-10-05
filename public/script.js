@@ -25,13 +25,24 @@ const app = {
     // 職業の絵の透かしの位置と大きさ（job_art.js）。DEV の Job Art Position で調整中の値
     // （この端末の localStorage）があればそちらを優先して、ダッシュボードですぐ確かめられるようにする。
     JOB_ART_DRAFT_KEY: 'mm-jobart-draft',
+    jobArtDraft() {
+        try { return JSON.parse(localStorage.getItem(this.JOB_ART_DRAFT_KEY) || '{}'); } catch (e) { return {}; /* 読めなければ下書きなし */ }
+    },
+    // 職の透かしに使う絵（立ち絵 stand／イラスト illust）と、その絵用の位置。
+    // 下書きのキーは 立ち絵の位置＝id、イラストの位置＝id:illust、どちらを使うか＝id:use
+    jobArtOf(cls) {
+        const d = this.jobArtDraft();
+        const use = d[cls.id + ':use'] || (JOB_ART_USE_ILLUST.includes(cls.id) ? 'illust' : 'stand');
+        const kind = cls.illust && use === 'illust' ? 'illust' : 'stand';
+        const pos = kind === 'illust'
+            ? { ...JOB_ART_ILLUST_DEFAULT, ...(JOB_ART_ILLUST_POS[cls.id] || {}), ...(d[cls.id + ':illust'] || {}) }
+            : { ...JOB_ART_DEFAULT, ...(JOB_ART_POS[cls.id] || {}), ...(d[cls.id] || {}) };
+        return { ...pos, id: cls.id, kind, src: kind === 'illust' ? cls.illust : cls.path };
+    },
     jobArtFor(char) {
         const all = typeof CLASS_DATA === 'undefined' ? [] : Object.values(CLASS_DATA).flat();
         const cls = all.find(j => j.path === char.classImage) || this.classByJobName(char.job);
-        if (!cls) return null;
-        let draft = {};
-        try { draft = JSON.parse(localStorage.getItem(this.JOB_ART_DRAFT_KEY) || '{}'); } catch (e) { /* 読めなければ下書きなし */ }
-        return { ...JOB_ART_DEFAULT, ...(JOB_ART_POS[cls.id] || {}), ...(draft[cls.id] || {}), id: cls.id };
+        return cls ? this.jobArtOf(cls) : null;
     },
     jobArtVars(pos) {
         return `;--wm-pos:right ${pos.x}px top ${pos.y}px;--wm-size:${pos.z}% auto`;
@@ -1036,9 +1047,10 @@ const app = {
             };
             // 消し込み済みは元のカードと同じ「COMPLETE」（枠を色で囲み、中を沈める）
             const completeMark = `<div class="mx-complete"><i data-lucide="check-circle-2"></i><span>COMPLETE</span></div>`;
+            const art = char.classImage ? this.jobArtFor(char) : null;
 
             return `
-            <div class="mx-card ${allDone ? 'mx-done' : ''}" style="--sc:${this.SERVER_HEX[sCol] || '#94a3b8'}${char.classImage ? `;--wm:url('${char.classImage}')${this.jobArtVars(this.jobArtFor(char) || JOB_ART_DEFAULT)}` : ''}">
+            <div class="mx-card ${allDone ? 'mx-done' : ''}" style="--sc:${this.SERVER_HEX[sCol] || '#94a3b8'}${char.classImage ? `;--wm:url('${(art && art.src) || char.classImage}')${this.jobArtVars(art || JOB_ART_DEFAULT)}` : ''}">
                 <div class="mx-art" onclick="app.openCharModal('${char.id}')" title="Edit ${char.name}">
                     ${char.image ? `
                     <img class="mx-avatar" src="${char.image}" alt="${char.name}" onerror="this.remove()">` : (char.classImage ? `<img src="${char.classImage}" style="${this.getCharImgStyle(char)}">` : '')}

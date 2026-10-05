@@ -646,6 +646,12 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .ja-ctrl input[type=number] { width: 64px; height: 26px; padding: 0 6px; background: #020617; border: 1px solid #334155; color: #f8fafc; font: 600 13px "IBM Plex Mono", monospace; text-align: right; }
 .ja-ctrl input[type=range] { width: 180px; accent-color: #818cf8; }
 .ja-ctrl em { font-style: normal; color: #64748b; }
+.ja-kind { display: flex; }
+.ja-kind button { height: 26px; padding: 0 12px; border: 1px solid #334155; background: #020617; color: #94a3b8; font-size: 12px; }
+.ja-kind button + button { border-left: 0; }
+.ja-kind button.is-on { background: #1e1b4b; border-color: #6366f1; color: #f8fafc; font-weight: 700; }
+.ja-kind button:disabled { color: #334155; cursor: not-allowed; }
+.ja-ill { flex: none; font: 700 9px "IBM Plex Mono", monospace; font-style: normal; letter-spacing: .06em; color: #a5b4fc; }
 .ja-full-stage { position: relative; display: inline-block; overflow: hidden; background: #0a1124; border: 1px solid #1e293b; }
 .ja-full-stage img { display: block; opacity: .85; }
 .ja-frame { position: absolute; border: 2px solid #facc15; box-shadow: 0 0 0 9999px #02061799; pointer-events: none; }
