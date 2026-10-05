@@ -310,7 +310,7 @@ const scouter = (() => {
         if (!page) {
             veil = document.createElement('div');
             veil.id = 'sc-overlay';
-            veil.className = 'fixed inset-0 z-[200] flex items-start justify-center bg-black/70 p-3 overflow-y-auto';
+            veil.className = 'modal modal-open bg-slate-950/80 z-[200]';
             veil.addEventListener('click', (ev) => { if (ev.target === veil) close(); });
             document.body.appendChild(veil);
         }
@@ -352,37 +352,95 @@ const scouter = (() => {
         const { char, e } = cur;
         const info = classInfo(e.form.classId);
         const portrait = char ? ((char.image && char.image.startsWith('http')) ? char.image : (char.classImage || '')) : (info ? info.path : '');
-        veil.innerHTML = `<div class="sc-modal">
-            <div class="sc-bar">
-                <div class="sc-bar-who">
-                    ${portrait ? `<img src="${esc(portrait)}" alt="">` : ''}
-                    <b>${esc(char ? char.name : '仮入力')}</b>
-                    <span>Scouter</span>
-                </div>
-                <nav class="sc-tabs">
-                    <button data-sc="tab" data-tab="input" class="${cur.tab !== 'result' ? 'on' : ''}"><i data-lucide="pencil-line"></i>入力</button>
-                    <button data-sc="tab" data-tab="result" class="${cur.tab === 'result' ? 'on' : ''}"><i data-lucide="gauge"></i>結果</button>
-                </nav>
-                <div class="sc-bar-act">
-                    <button data-sc="file" title="ステータス画面のスクショを読み取る（貼り付け・ドロップでも可）"><i data-lucide="image"></i>スクショ読み取り</button>
-                    <button data-sc="live" class="${cur.live ? 'is-live' : ''}" title="ゲーム画面を共有して、ステータス画面を読み取り続ける"><i data-lucide="monitor"></i>${cur.live ? 'ライブ停止' : 'ライブ読み取り'}</button>
-                    <button data-sc="calc" class="sc-go" ${cur.busy ? 'disabled' : ''}><i data-lucide="calculator"></i>${cur.busy ? '計算中…' : '計算する'}</button>
-                </div>
-                ${cur.page ? '' : '<button data-sc="close" class="sc-x" title="閉じる"><i data-lucide="x"></i></button>'}
-                <input type="file" accept="image/*" multiple data-sc="input" hidden>
+        const result = cur.tab === 'result';
+        // ページでは入力／結果の切り替えを上部のヘッダー（#scouter-nav）に置く。モーダルでは枠のヘッダーに置く。
+        syncNav();
+        const tab = (id, icon, label) => `<button role="tab" data-sc="tab" data-tab="${id}" class="tab gap-1.5 ${(id === 'result') === result ? 'tab-active' : ''}"><i data-lucide="${icon}" class="w-3.5 h-3.5"></i>${label}</button>`;
+        const head = cur.page ? '' : `<div class="flex items-center gap-3 h-12 px-3 shrink-0 bg-base-100 border-b border-base-content/10">
+                ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-8 h-8 object-contain bg-base-300 border border-base-content/10">` : ''}
+                <b class="text-white">${esc(char ? char.name : '仮入力')}</b>
+                <span class="text-xs text-base-content/50">の Scouter</span>
+                <nav role="tablist" class="tabs tabs-box tabs-sm ml-2">${tab('input', 'pencil-line', '入力')}${tab('result', 'gauge', '結果')}</nav>
+                <button data-sc="close" class="btn btn-sm btn-ghost btn-square ml-auto" title="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>`;
+        veil.innerHTML = `<div class="sc-modal ${cur.page ? '' : 'modal-box max-w-[1400px] w-[96vw] max-h-[94vh] p-0 flex flex-col bg-base-200 border border-base-content/15'}">
+            ${head}
+            <div class="${cur.page ? '' : 'flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3'} flex flex-col gap-3">
+                ${summaryHTML(e, portrait)}
+                <div class="sc-msg ${cur.msgKind}" id="sc-msg">${esc(cur.msg)}</div>
+                ${result ? `<div class="card card-sm bg-base-100 border border-base-content/10 overflow-hidden"><div class="sc-body sc-resbody">
+                    <div class="sc-side" id="sc-result">${resultHTML(e)}</div>
+                    <div class="sc-cutpage">${cutPageHTML(e)}</div>
+                </div></div>` : `<div id="sc-reads">${readsHTML()}</div>
+                ${formHTML(e.form)}`}
             </div>
-            <div class="sc-msg ${cur.msgKind}" id="sc-msg">${esc(cur.msg)}</div>
-            ${cur.tab === 'result' ? `<div class="sc-body sc-resbody">
-                <div class="sc-side" id="sc-result">${resultHTML(e)}</div>
-                <div class="sc-cutpage">${cutPageHTML(e)}</div>
-            </div>` : `<div id="sc-reads">${readsHTML()}</div>
-            <div class="sc-form">${formHTML(e.form)}</div>`}
         </div>`;
         bindDrop(veil);
         if (window.lucide) lucide.createIcons();
     }
+    // ページのときだけ、上部ヘッダーのタブの選択を合わせる。
+    function syncNav() {
+        const nav = document.getElementById('scouter-nav');
+        if (!nav || !cur || !cur.page) return;
+        nav.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('tab-active', (b.dataset.tab === 'result') === (cur.tab === 'result')));
+    }
+    function setTab(tab) {
+        if (!cur) return;
+        cur.tab = tab;
+        renderModal();
+    }
 
-    const inp = (path, v, w = '') => `<input class="sc-in ${w}" data-k="${path}" value="${esc(v)}" inputmode="decimal" placeholder="0">`;
+    // 上の1行: 誰か・換算主ステ・ボスカットの要点・操作。結果は前回「計算する」を押したときのもの。
+    function summaryHTML(e, portrait) {
+        const r = e.result && !e.result.error ? e.result : null;
+        const label = (CLASSES[e.form.classId] || [])[1] || '';
+        const who = cur.page ? `<div class="flex items-center gap-3 shrink-0">
+                ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-10 h-10 object-contain">` : ''}
+                <div class="leading-tight whitespace-nowrap"><b class="text-white">仮入力</b><div class="text-[11px] text-base-content/50">キャラに紐付けない</div></div>
+            </div>` : '';
+        const hl = r && r.cuts ? cutHighlights(r.cuts) : [];
+        return `<div class="card bg-base-100 border border-base-content/10"><div class="flex items-center gap-5 px-4 py-2.5 flex-wrap">
+            ${who}
+            <div class="${who ? 'border-l border-base-content/10 pl-5' : ''} leading-none shrink-0">
+                <div class="text-[11px] text-base-content/50 mb-1">換算主ステ（前回の計算）</div>
+                ${r ? `<span class="font-['Saira_Condensed'] text-4xl font-bold text-warning tabular-nums">${fmt(r.b300)}</span><span class="font-['Saira_Condensed'] text-sm text-base-content/50 ml-1">${esc(label)}</span>`
+                    : '<span class="text-sm text-base-content/40">まだ計算していません</span>'}
+            </div>
+            <div class="border-l border-base-content/10 pl-5 min-w-0">
+                <div class="text-[11px] text-base-content/50 mb-1">ボスカット（ソロの目安）</div>
+                <div class="flex flex-wrap gap-1">${hl.length ? hl.map(([cls, t]) => `<span class="badge ${cls}">${esc(t)}</span>`).join('')
+                    : '<span class="text-xs text-base-content/40">「計算する」で出ます</span>'}</div>
+            </div>
+            <div class="ml-auto flex gap-1 shrink-0">
+                <button data-sc="file" class="btn btn-sm" title="ステータス画面のスクショを読み取る（貼り付け・ドロップでも可）"><i data-lucide="image" class="w-3.5 h-3.5"></i>スクショ読み取り</button>
+                <button data-sc="live" class="btn btn-sm ${cur.live ? 'btn-error btn-soft' : ''}" title="ゲーム画面を共有して、ステータス画面を読み取り続ける"><i data-lucide="monitor" class="w-3.5 h-3.5"></i>${cur.live ? 'ライブ停止' : 'ライブ読み取り'}</button>
+                <button data-sc="calc" class="btn btn-sm btn-primary" ${cur.busy ? 'disabled' : ''}><i data-lucide="calculator" class="w-3.5 h-3.5"></i>${cur.busy ? '計算中…' : '計算する'}</button>
+                <input type="file" accept="image/*" multiple data-sc="input" hidden>
+            </div>
+        </div></div>`;
+    }
+    // ボスカットの要点。ソロで行ける中で一番重いボス2つ、その次に重い「人数を足せば行ける」ボス、その次の不可のボス。
+    function cutHighlights(cuts) {
+        const name = (c) => { const b = bossOf(c.b); return `${DIFF_NAME[c.d] || c.d} ${b ? (b.short || b.ja) : c.b}`; };
+        const cls = (c) => (CUT_LABEL[c.v] || [, 'c-no'])[1];
+        const list = cuts.filter((c) => c.d !== 'Destiny' && c.d !== 'Champion');
+        const solo = list.filter((c) => cls(c).startsWith('c-solo')).sort((a, b) => b.s - a.s).slice(0, 2);
+        const top = solo.length ? solo[0].s : 0;
+        const pt = list.filter((c) => cls(c).startsWith('c-pt') && c.s > top).sort((a, b) => a.s - b.s)[0];
+        const no = list.filter((c) => cls(c) === 'c-no' && c.s > Math.max(top, pt ? pt.s : 0)).sort((a, b) => a.s - b.s)[0];
+        return [
+            ...solo.map((c) => ['badge-soft badge-success', `${name(c)} OK`]),
+            ...(pt ? [['badge-soft badge-warning', `${name(pt)} ${(CUT_LABEL[pt.v] || [pt.v])[0]}`]] : []),
+            ...(no ? [['badge-ghost', `${name(no)} —`]] : []),
+        ];
+    }
+
+    const inp = (path, v, cls = 'w-full') => `<input class="input input-xs font-mono text-right ${num(v) ? 'font-bold' : 'text-base-content/35'} ${cls}" data-k="${path}" value="${esc(v)}" inputmode="decimal" placeholder="0">`;
+    // 見出しつきのカード。count は右上の「使用 n / m」など。
+    const card = (title, small, body, count) => `<section class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
+        <div class="flex items-baseline gap-2"><h3 class="font-bold text-sm text-white">${title}</h3><span class="text-[11px] text-base-content/50">${small || ''}</span>${count ? `<span class="ml-auto badge badge-sm badge-ghost">${count}</span>` : ''}</div>
+        ${body}</div></section>`;
+    const grid4 = (html) => `<div class="grid grid-cols-4 gap-1">${html}</div>`;
 
     function formHTML(f) {
         const opts = Object.entries(window.CLASS_DATA || {}).map(([g, list]) => `<optgroup label="${esc(g)}">${
@@ -391,76 +449,87 @@ const scouter = (() => {
             const s = f[k];
             const shown = f.screen && f.screen[screenKey(k, label)];
             const fin = finalOf(s);
-            const diff = shown !== undefined && shown !== null && k !== 'atk' ? (fin === shown ? 'ok' : 'ng') : '';
+            const diff = shown !== undefined && shown !== null && k !== 'atk' ? (fin === shown ? 'text-success' : 'text-error') : 'text-base-content/40';
             return `<tr>
-                <th>${esc(label)}</th>
+                <th class="whitespace-nowrap">${esc(label)}</th>
                 <td>${inp(k + '.base', s.base)}</td><td>${inp(k + '.per', s.per)}</td><td>${inp(k + '.abs', s.abs)}</td>
-                <td class="sc-fin" data-fin="${k}">${fmt(fin)}</td>
-                <td class="sc-scr ${diff}" title="${diff === 'ng' ? '入力から出した最終値と、画面の値が合いません' : ''}">${shown !== undefined && shown !== null ? fmt(shown) : '—'}</td>
+                <td class="text-right font-mono font-bold tabular-nums" data-fin="${k}">${fmt(fin)}</td>
+                <td class="text-right font-mono tabular-nums ${diff}" title="${diff === 'text-error' ? '入力から出した最終値と、画面の値が合いません' : ''}">${shown !== undefined && shown !== null ? fmt(shown) : '—'}</td>
             </tr>`;
         }).join('');
-        return `
-            <p class="sc-note">ゲーム内の値は MapleScouter の前提の状態で入れます: 秘薬・外部バフ・ギルドスキルなし、リンクスキル装着（スタックなし）、シードリング装着、召喚獣（ソル・ヘカテなど）On、コンバットオーダーズ・シャープアイズ使用、ソウルゲージ初期化、ファミリア召喚。ボス戦で使うバフは下の「バフアイテム」で選びます。</p>
-            <section class="sc-sec">
-                <h3><i data-lucide="user-round"></i>基本</h3>
-                <div class="sc-row">
-                    <label>職業<select data-k="classId"><option value="">選択</option>${opts}</select></label>
-                    <label>Lv${inp('level', f.level, 'w-s')}</label>
-                    <label class="sc-chk"><input type="checkbox" data-k="reboot" ${f.reboot ? 'checked' : ''}>リブート（Heroic）</label>
-                    <label class="sc-chk"><input type="checkbox" data-k="genesis" ${f.genesis ? 'checked' : ''}>ジェネシス解放</label>
-                    <label class="sc-chk"><input type="checkbox" data-k="destiny" ${f.destiny ? 'checked' : ''}>デスティニー（最初の遺産）</label>
-                </div>
-            </section>
-            <section class="sc-sec">
-                <h3><i data-lucide="swords"></i>主ステータス・攻撃力 <small>STRなどにカーソルを合わせると出る [Applied Value] の値</small></h3>
-                ${f.classId ? `<table class="sc-tbl">
-                    <thead><tr><th></th><th>Base Value</th><th>% Value</th><th>% Not Applied</th><th>最終値</th><th>画面の値</th></tr></thead>
-                    <tbody>${statRows}</tbody>
-                </table>` : '<p class="sc-empty">先に職業を選んでください。</p>'}
-            </section>
-            <section class="sc-sec">
-                <h3><i data-lucide="list"></i>詳細ステータス</h3>
-                <div class="sc-detail">${DETAIL.map(([k, label, unit]) => `<label><span>${esc(label)}</span>${inp(k, f[k])}<i>${unit}</i></label>`).join('')}</div>
-            </section>
-            ${hexaHTML(f)}
-            <section class="sc-sec">
-                <h3><i data-lucide="flask-conical"></i>バフアイテム <small>ボス戦で使うもの。押すと On / Off</small></h3>
-                ${BUFFS.map((g) => `<div class="sc-bgrp"><h4>${esc(g.title)}</h4><div class="sc-tiles">${g.items.map((it) => buffTile(f, it)).join('')}</div></div>`).join('')}
-            </section>
-            <section class="sc-sec">
-                <h3><i data-lucide="link"></i>リンクスキル・シードリング <small>レベル</small></h3>
-                <div class="sc-tiles">${LINKS.filter(([, , , only]) => !only || only === f.classId).map(([k, label, icon]) => lvTile(label, icon, 'link.' + k, f.link[k])).join('')}</div>
-                <div class="sc-tiles sc-tiles-2">${SEEDS.map(([k, label, icon]) => lvTile(label, icon, 'seed.' + k, f.seed[k])).join('')}
-                    <label class="sc-tile sc-tile-lv ${num(f.wildhunterUnion) ? 'on' : ''}" title="Wild Hunter のユニオン効果（%）"><span class="sc-ico sc-ico-txt">WH</span><span class="sc-tn">Wild Hunter ユニオン</span>${inp('wildhunterUnion', f.wildhunterUnion)}</label>
-                </div>
-            </section>`;
+        const chk = (k, label) => `<label class="label text-xs text-base-content whitespace-nowrap"><input type="checkbox" class="checkbox checkbox-xs" data-k="${k}" ${f[k] ? 'checked' : ''}>${label}</label>`;
+        const basic = `<div class="flex items-center gap-x-3 gap-y-1 flex-wrap">
+                <label class="flex items-center gap-2 text-xs text-base-content/60 whitespace-nowrap">職業<select class="select select-sm w-36" data-k="classId"><option value="">選択</option>${opts}</select></label>
+                <label class="flex items-center gap-2 text-xs text-base-content/60">Lv${inp('level', f.level, 'input-sm w-16')}</label>
+                ${chk('reboot', 'リブート（Heroic）')}${chk('genesis', 'ジェネシス解放')}${chk('destiny', 'デスティニー（最初の遺産）')}
+            </div>`;
+        const main = f.classId ? `<div class="overflow-x-auto"><table class="table table-sm table-zebra border border-base-content/10 [&_th]:px-1.5 [&_td]:px-1.5">
+                <thead><tr><th></th><th class="text-right">Base Value</th><th class="text-right">% Value</th><th class="text-right">% Not Applied</th><th class="text-right">最終値</th><th class="text-right">画面の値</th></tr></thead>
+                <tbody>${statRows}</tbody>
+            </table></div>` : '<p class="text-xs text-base-content/50">先に職業を選んでください。</p>';
+        const filled = DETAIL.filter(([k]) => num(f[k])).length;
+        const detail = `<div class="grid grid-cols-2 gap-x-6 gap-y-1">${DETAIL.map(([k, label, unit]) => `<label class="flex items-center gap-2">
+                <span class="text-xs flex-1 ${num(f[k]) ? 'text-base-content/75' : 'text-base-content/40'}">${esc(label)}</span>${inp(k, f[k], 'w-20')}<span class="w-4 text-[11px] text-base-content/40">${unit}</span></label>`).join('')}</div>`;
+        const links = LINKS.filter(([, , , only]) => !only || only === f.classId);
+        const linkBody = grid4(links.map(([k, label, icon]) => lvTile(label, icon, 'link.' + k, f.link[k])).join(''))
+            + grid4(SEEDS.map(([k, label, icon]) => lvTile(label, icon, 'seed.' + k, f.seed[k])).join('')
+                + tileLv('<span class="w-6 h-6 shrink-0 grid place-items-center border border-base-content/20 text-[10px] font-bold">WH</span>', 'Wild Hunter ユニオン', 'wildhunterUnion', f.wildhunterUnion, 'Wild Hunter のユニオン効果（%）'));
+        const allBuffs = BUFFS.flatMap((g) => g.items);
+        const buffOn = allBuffs.filter((it) => buffIsOn(f, it)).length;
+        const buffBody = BUFFS.map((g) => `<div class="text-[11px] text-base-content/50 mt-1">${esc(g.title)}</div>${grid4(g.items.map((it) => buffTile(f, it)).join(''))}`).join('');
+        const note = 'ゲーム内の値は MapleScouter の前提の状態で入れます: 秘薬・外部バフ・ギルドスキルなし、リンクスキル装着（スタックなし）、シードリング装着、召喚獣（ソル・ヘカテなど）On、コンバットオーダーズ・シャープアイズ使用、ソウルゲージ初期化、ファミリア召喚。ボス戦で使うバフは「バフアイテム」で選びます。';
+        return `<div class="grid grid-cols-1 xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] gap-3 items-start">
+            <div class="flex flex-col gap-3">
+                ${card('基本・主ステータス', 'STRなどにカーソルを合わせると出る [Applied Value] の値', basic + main)}
+                ${card('詳細ステータス', '', detail, `入力済み ${filled} / ${DETAIL.length}`)}
+                ${card('リンクスキル・シードリング', 'レベル', linkBody)}
+            </div>
+            <div class="flex flex-col gap-3">
+                ${hexaHTML(f)}
+                ${card('バフアイテム', 'ボス戦で使うもの。押すと On / Off', buffBody, `使用 ${buffOn} / ${allBuffs.length}`)}
+                <div role="alert" class="alert alert-soft alert-info text-[11px] py-2 leading-relaxed">${esc(note)}</div>
+            </div>
+        </div>`;
     }
-    const img = (icon) => `<img class="sc-ico" src="${ICON}${icon}" alt="" loading="lazy">`;
-    function lvTile(label, icon, path, v) {
-        return `<label class="sc-tile sc-tile-lv ${num(v) ? 'on' : ''}" title="${esc(label)}">${img(icon)}<span class="sc-tn">${esc(label)}</span>${inp(path, v)}</label>`;
+    const img = (icon) => `<img class="w-6 h-6 shrink-0 object-contain" src="${ICON}${icon}" alt="" loading="lazy">`;
+    // レベルを入れるタイル。0 より大きいと紫で点く。
+    function tileLv(ico, label, path, v, title) {
+        const on = num(v) > 0;
+        return `<label class="btn btn-sm h-9 justify-start gap-2 px-1.5 font-normal ${on ? 'btn-soft btn-secondary' : 'btn-ghost border-base-content/10 [&_img]:grayscale [&_img]:opacity-50'}" title="${esc(title || label)}">
+            ${ico}<span class="truncate text-xs ${on ? 'text-base-content font-semibold' : 'text-base-content/45'}">${esc(label)}</span>${inp(path, v, 'w-9 px-1 ml-auto shrink-0')}</label>`;
+    }
+    function lvTile(label, icon, path, v) { return tileLv(img(icon), label, path, v); }
+    function buffIsOn(f, [k, , , opt = {}]) {
+        const d = f.doping;
+        if (opt.stat) return num(d.stat) > 0;
+        if (opt.lv !== undefined) return num((d.nobless || [])[opt.lv]) > 0;
+        return !!d[k];
     }
     function buffTile(f, [k, label, icon, opt = {}]) {
         const d = f.doping;
         if (opt.lv !== undefined || opt.stat) {
             const path = opt.stat ? 'doping.stat' : 'doping.nobless.' + opt.lv;
             const v = opt.stat ? d.stat : (d.nobless || [])[opt.lv];
-            return `<label class="sc-tile sc-tile-lv ${num(v) ? 'on' : ''}" title="${esc(label)}（0〜${opt.max}、0 で使わない）">${img(icon)}<span class="sc-tn">${esc(label)}</span>${inp(path, v)}</label>`;
+            return tileLv(img(icon), label, path, v, `${label}（0〜${opt.max}、0 で使わない）`);
         }
-        return `<button type="button" class="sc-tile ${d[k] ? 'on' : ''}" data-sc="buff" data-key="${k}" title="${esc(label)}">${img(icon)}<span class="sc-tn">${esc(label)}</span><i class="sc-onoff">${d[k] ? 'ON' : 'OFF'}</i></button>`;
+        const on = !!d[k];
+        return `<button type="button" class="btn btn-sm h-9 justify-start gap-2 px-1.5 font-normal ${on ? 'btn-soft btn-secondary' : 'btn-ghost border-base-content/10 [&_img]:grayscale [&_img]:opacity-50'}" data-sc="buff" data-key="${k}" title="${esc(label)}">
+            ${img(icon)}<span class="truncate text-xs ${on ? 'text-base-content font-semibold' : 'text-base-content/45'}">${esc(label)}</span><span class="ml-auto text-[10px] font-mono font-bold ${on ? 'text-secondary' : 'text-base-content/30'}">${on ? 'ON' : 'OFF'}</span></button>`;
     }
 
     // HEXA。手で入れる。キャラは HEXA Tracker の今のレベルをボタンで取り込める。
     function hexaHTML(f) {
         const canImport = cur && cur.char && tracker();
-        const head = `<h3><i data-lucide="hexagon"></i>HEXA <small>レベル</small>${canImport ? '<button data-sc="hexa" class="sc-mini"><i data-lucide="download"></i>HEXA Tracker から取り込む</button>' : ''}</h3>`;
         const cls = hexaClass(f.classId);
+        const used = HEXA_KEYS.filter(([, k]) => num(f.hexa[k]) > 0).length;
         const tiles = HEXA_KEYS.map(([hk, k, label]) => {
             const s = cls && cls.skills.find((x) => x.key === hk);
-            return `<label class="sc-tile sc-tile-lv ${num(f.hexa[k]) ? 'on' : ''}" title="${esc(s ? s.name : label)}">
-                ${s && s.icon ? `<img class="sc-ico" src="assets/hexa_icons/gms/${esc(s.icon)}.png" alt="" loading="lazy">` : `<span class="sc-ico sc-ico-txt">${esc(label.slice(0, 2))}</span>`}
-                <span class="sc-tn">${esc(label)}</span>${inp('hexa.' + k, f.hexa[k])}</label>`;
+            const ico = s && s.icon ? `<img class="w-6 h-6 shrink-0 object-contain" src="assets/hexa_icons/gms/${esc(s.icon)}.png" alt="" loading="lazy">`
+                : `<span class="w-6 h-6 shrink-0 grid place-items-center border border-base-content/20 text-[10px] font-bold">${esc(label.slice(0, 2))}</span>`;
+            return tileLv(ico, label, 'hexa.' + k, f.hexa[k], s ? s.name : label);
         }).join('');
-        return `<section class="sc-sec">${head}<div class="sc-tiles">${tiles}</div></section>`;
+        const imp = canImport ? '<button data-sc="hexa" class="btn btn-xs"><i data-lucide="download" class="w-3 h-3"></i>HEXA Tracker から取り込む</button>' : '';
+        return card('HEXA', 'レベル', (imp ? `<div>${imp}</div>` : '') + grid4(tiles), `使用 ${used} / ${HEXA_KEYS.length}`);
     }
     const screenKey = (k, label) => k === 'atk' ? (label === 'Magic ATT' ? 'matt' : 'att') : label.toLowerCase();
 
@@ -866,5 +935,5 @@ const scouter = (() => {
         return e && e.result && e.result.b300 > 0 ? e.result : null;
     }
 
-    return { STORAGE_KEY, init, render, open, openForCharacter, close, resultFor, buildUserStat, DEFAULT_FORM, CLASSES };
+    return { STORAGE_KEY, init, render, open, openForCharacter, close, setTab, resultFor, buildUserStat, DEFAULT_FORM, CLASSES };
 })();
