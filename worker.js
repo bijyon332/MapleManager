@@ -11,6 +11,8 @@
 //   /maplehub?name=&region=  -> MapleHub character API (needs a custom header,
 //                               so it cannot go through public CORS proxies)
 //   /api?name=               -> Nexon GMS ranking API (current level / exp snapshot)
+//   /scouter                 -> MapleScouter の換算計算（POST {userStat}）。
+//                               先方は他オリジンからの呼び出しを許していないので中継する
 //   /api/scheduler           -> Boss Scheduler の共有データ (D1)
 //                               GET  現在のスナップショットとバージョン
 //                               PUT  {version, data, updatedBy} で保存（楽観ロック）
@@ -60,6 +62,55 @@ async function handleApi(url) {
     return json(await res.json(), 200, 300); // 5分キャッシュ
   } catch (e) {
     return json({ error: e.message }, 500);
+  }
+}
+
+// MapleScouter（maplescouter.com）の換算計算。計算は先方のサーバーで行われ、
+// 本文の {userStat} に戦闘力・換算主ステ（防御率300%/380%）などが返る。
+// api-key はサイトのフロントに埋め込まれている公開キー。
+// 中継するのは計算API 1本だけにして、ほかの先方APIの踏み台にはしない。
+const SCOUTER_URL = 'https://api.maplescouter.com/api/calc/dmg';
+const SCOUTER_KEY = '01ce8bc7-43a0-4122-ae05-e23f07640b9c';
+
+async function handleScouter(request) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      }
+    });
+  }
+  if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+
+  const text = await request.text();
+  if (text.length > 64_000) return json({ error: 'データが大きすぎます' }, 413);
+  let body;
+  try { body = JSON.parse(text); }
+  catch (e) { return json({ error: 'JSONとして読めません' }, 400); }
+  if (!body || typeof body.userStat !== 'object' || !body.userStat) return json({ error: 'userStat がありません' }, 400);
+
+  try {
+    const res = await fetch(SCOUTER_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': SCOUTER_KEY,
+        'Origin': 'https://maplescouter.com',
+        'Referer': 'https://maplescouter.com/',
+        'User-Agent': UA
+      },
+      body: JSON.stringify({ userStat: body.userStat })
+    });
+    const out = await res.json().catch(() => null);
+    if (!res.ok || !out) {
+      return json({ error: (out && out.message) || `MapleScouter API returned ${res.status}` }, res.status === 430 ? 429 : 502);
+    }
+    return json(out, 200);
+  } catch (e) {
+    return json({ error: e.message }, 502);
   }
 }
 
@@ -197,6 +248,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/maplehub')      return handleMaplehub(url);
+    if (url.pathname === '/scouter')       return handleScouter(request);
     if (url.pathname === '/api/scheduler') return handleState(request, env, 'scheduler');
     if (url.pathname === '/api/community') return handleState(request, env, 'community');
     if (url.pathname === '/api')           return handleApi(url);

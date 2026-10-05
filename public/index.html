@@ -80,6 +80,11 @@
                 <i data-lucide="arrow-up-wide-narrow" class="w-5 h-5"></i>
                 <span class="nav-label">Upgrade Priority</span>
             </button>
+            <button onclick="app.switchApp('scouter')" id="app-scouter"
+                class="nav-item nav-inactive" title="Scouter（MapleScouter の換算主ステをキャラごとに）">
+                <i data-lucide="gauge" class="w-5 h-5"></i>
+                <span class="nav-label">Scouter</span>
+            </button>
             <button onclick="app.switchApp('cheatsheet')" id="app-cheatsheet"
                 class="nav-item nav-inactive" title="Cheat Sheet（ボスの必要フォース・レベル差補正の早見表）">
                 <i data-lucide="table-2" class="w-5 h-5"></i>
@@ -315,6 +320,8 @@
                 <!-- ========== CHEAT SHEET APP ========== -->
                 <!-- 中身は cheatsheet.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
                 <div id="view-cheatsheet" class="hidden-page fade-in"></div>
+                <!-- 中身は scouter.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
+                <div id="view-scouter" class="hidden-page fade-in"></div>
                 <!-- 中身は kms_videos.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
                 <div id="view-kmsvideos" class="hidden-page fade-in"></div>
                 <!-- 中身は job_art_tool.js が描く（DEV: 職業の透かしの位置合わせ）。 -->

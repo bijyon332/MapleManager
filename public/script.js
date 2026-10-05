@@ -576,6 +576,12 @@ const app = {
             scripts: ['cheatsheet.js'],
             init() { cheatsheet.init('view-cheatsheet'); }
         },
+        scouter: {
+            view: 'view-scouter',
+            scripts: ['hexa_data.js', 'hexa_tracker.js', 'scouter_reader.js', 'scouter_bosscut.js', 'scouter.js'],
+            init() { scouter.init('view-scouter'); },
+            reopen() { scouter.render(); }
+        },
         kmsvideos: {
             view: 'view-kmsvideos',
             scripts: ['kms_videos.js'],
@@ -1004,7 +1010,8 @@ const app = {
             const hexaReady = (typeof hexaTracker !== 'undefined');
             const hexaClassId = hexaReady ? hexaTracker.getCharClassId(char) : null;
             const hexaPct = hexaClassId ? hexaTracker.getProgress('char:' + char.id, hexaClassId).pct : 0;
-            let gearSaved = false;
+            let gearSaved = false, scout = null;
+            try { const sc = JSON.parse(localStorage.getItem('mapleManager_scouter_v1') || '{}')['char:' + char.id]; if (sc && sc.result && sc.result.b300 > 0) scout = sc.result; } catch (e) { /* 読めなければ未入力扱い */ }
             try { gearSaved = !!localStorage.getItem('gms-gear-priority::char:' + char.id); } catch (e) { /* 読めなければ未入力扱い */ }
 
             // Sort each section
@@ -1062,6 +1069,7 @@ const app = {
                     <div class="mx-tools">
                         ${hexaReady ? `<button onclick="hexaTracker.openForCharacter('${char.id}')" class="mx-tool mx-tool-hexa"><span class="mx-bar" style="width:${hexaPct}%"></span>${hexaClassId ? `HEXA <b>${hexaPct}%</b>` : 'HEXA 登録'}</button>` : ''}
                         <button onclick="app.openGearForCharacter('${char.id}')" class="mx-tool ${gearSaved ? 'is-on' : ''}">UPGRADE</button>
+                        <button onclick="app.openScouterForCharacter('${char.id}')" class="mx-tool mx-tool-scout ${scout ? 'is-on' : ''}" title="${scout ? `換算主ステ（防御率300%） ${scout.b300.toLocaleString()}` : 'Scouter に入力'}">${scout ? `SCOUT <b>${(scout.b300 / 10000).toFixed(1)}万</b>` : 'SCOUTER'}</button>
                     </div>
                 </div>
             </div>`;
@@ -1073,6 +1081,11 @@ const app = {
     async openGearForCharacter(cid) {
         try { await this.loadAppAssets('gear'); } catch (e) { console.error(e); return; }
         gearPriority.openForCharacter(cid);
+    },
+    // カードの SCOUTER から、そのキャラの Scouter をモーダルで開く（HEXA・UPGRADE と同じ形）。
+    async openScouterForCharacter(cid) {
+        try { await this.loadAppAssets('scouter'); } catch (e) { console.error(e); return; }
+        scouter.openForCharacter(cid);
     },
     toggleCharDone(cid, scope = 'weekly') {
         const c = this.data.characters.find(x => x.id === cid); if (!c) return;
