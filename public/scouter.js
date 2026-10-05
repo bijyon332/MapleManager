@@ -403,7 +403,7 @@ const scouter = (() => {
             ${who}
             <div class="${who ? 'border-l border-base-content/10 pl-5' : ''} leading-none shrink-0">
                 <div class="text-[11px] text-base-content/50 mb-1">換算主ステ</div>
-                ${r ? `<div class="flex items-baseline gap-1.5">${r.b300h ? `<span class="text-xs font-bold text-secondary">HEXA</span>${big(r.b300h)}` : big(r.b300)}</div>`
+                ${r ? `<div>${big(r.b300h || r.b300)}</div>`
                     : '<span class="text-sm text-base-content/40">まだ計算していません</span>'}
             </div>
             ${at ? `<div class="border-l border-base-content/10 pl-5 leading-tight">
