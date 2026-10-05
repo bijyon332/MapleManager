@@ -44,8 +44,11 @@ const app = {
         const cls = all.find(j => j.path === char.classImage) || this.classByJobName(char.job);
         return cls ? this.jobArtOf(cls) : null;
     },
+    // f（左右反転）のときは透かしの欄ごと裏返すので、位置を left 基準にして見た目は右端からの距離のままにする
     jobArtVars(pos) {
-        return `;--wm-pos:right ${pos.x}px top ${pos.y}px;--wm-size:${pos.z}% auto`;
+        return pos.f
+            ? `;--wm-pos:left ${pos.x}px top ${pos.y}px;--wm-size:${pos.z}% auto;--wm-flip:-1;--wm-mask:to left`
+            : `;--wm-pos:right ${pos.x}px top ${pos.y}px;--wm-size:${pos.z}% auto;--wm-flip:1;--wm-mask:to right`;
     },
     // カードの角の飾り線に使うサーバー色（Tailwind の色名 → 400 の値）
     SERVER_HEX: { emerald: '#34d399', purple: '#c084fc', violet: '#a78bfa', indigo: '#818cf8', sky: '#38bdf8', cyan: '#22d3ee', teal: '#2dd4bf', amber: '#fbbf24', yellow: '#facc15', orange: '#fb923c', rose: '#fb7185', red: '#f87171', pink: '#f472b6', blue: '#60a5fa', lime: '#a3e635', green: '#4ade80' },

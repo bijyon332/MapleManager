@@ -32,8 +32,14 @@ const jobArtTool = {
     // 位置は今使っている絵のほうに保存する
     setPos(id, p) {
         const d = this.draft();
-        d[p.kind === 'illust' ? id + ':illust' : id] = { x: Math.round(p.x), y: Math.round(p.y), z: Math.round(p.z) };
+        d[p.kind === 'illust' ? id + ':illust' : id] = { x: Math.round(p.x), y: Math.round(p.y), z: Math.round(p.z), ...(p.f ? { f: 1 } : {}) };
         this.saveDraft(d);
+    },
+    toggleFlip() {
+        const p = this.pos(this.sel);
+        this.setPos(this.sel, { ...p, f: !p.f });
+        this.renderEdit();
+        this.refresh();
     },
     setKind(kind) {
         const j = this.job(this.sel);
@@ -135,6 +141,7 @@ const jobArtTool = {
                 <label>大きさ <input type="range" min="20" max="200" value="${p.z}" oninput="jobArtTool.set('z', this.value)"><input type="number" value="${p.z}" onchange="jobArtTool.set('z', this.value)"><em>%</em></label>
                 <label>右端から <input type="number" value="${p.x}" onchange="jobArtTool.set('x', this.value)"><em>px</em></label>
                 <label>上端から <input type="number" value="${p.y}" onchange="jobArtTool.set('y', this.value)"><em>px</em></label>
+                <button class="ja-btn ja-flip ${p.f ? 'is-on' : ''}" onclick="jobArtTool.toggleFlip()">左右反転</button>
                 <button class="ja-btn" onclick="jobArtTool.reset()">この職を戻す</button>
             </div>
             <div class="ja-previews">
@@ -161,7 +168,7 @@ const jobArtTool = {
         const iw = W * p.z / 100, ih = iw * (p.kind === 'illust' ? 540 / 960 : 400 / 395);
         const left = W - p.x - iw, top = p.y;
         const k = 180 / ih;
-        stage.innerHTML = `<img src="${p.src}" style="height:180px"><i class="ja-frame" style="left:${-left * k}px;top:${-top * k}px;width:${W * k}px;height:${H * k}px"></i>`;
+        stage.innerHTML = `<img src="${p.src}" style="height:180px${p.f ? ';transform:scaleX(-1)' : ''}"><i class="ja-frame" style="left:${-left * k}px;top:${-top * k}px;width:${W * k}px;height:${H * k}px"></i>`;
     },
 
     set(key, val) {
@@ -177,8 +184,10 @@ const jobArtTool = {
     refresh() {
         const p = this.pos(this.sel);
         this.root.querySelectorAll('.ja-card').forEach(c => {
-            c.style.setProperty('--wm-pos', `right ${p.x}px top ${p.y}px`);
-            c.style.setProperty('--wm-size', `${p.z}% auto`);
+            app.jobArtVars(p).split(';').filter(Boolean).forEach(kv => {
+                const i = kv.indexOf(':');
+                c.style.setProperty(kv.slice(0, i), kv.slice(i + 1));
+            });
         });
         const inputs = this.root.querySelectorAll('.ja-ctrl input');
         const vals = [p.z, p.z, p.x, p.y];
@@ -242,8 +251,8 @@ const jobArtTool = {
         const D = JOB_ART_DEFAULT, I = JOB_ART_ILLUST_DEFAULT;
         const d = this.draft();
         const key = id => /^[a-z_$][\w$]*$/i.test(id) ? id : `'${id}'`;
-        const line = (id, p) => `    ${key(id)}: { x: ${p.x}, y: ${p.y}, z: ${p.z} },`;
-        const diff = (p, b) => p.x !== b.x || p.y !== b.y || p.z !== b.z;
+        const line = (id, p) => `    ${key(id)}: { x: ${p.x}, y: ${p.y}, z: ${p.z}${p.f ? ', f: 1' : ''} },`;
+        const diff = (p, b) => p.x !== b.x || p.y !== b.y || p.z !== b.z || !!p.f;
         const jobs = this.jobs();
         const stand = jobs.map(j => ({ id: j.id, p: { ...D, ...(JOB_ART_POS[j.id] || {}), ...(d[j.id] || {}) } })).filter(({ p }) => diff(p, D));
         const illust = jobs.filter(j => j.illust).map(j => ({ id: j.id, p: { ...I, ...(JOB_ART_ILLUST_POS[j.id] || {}), ...(d[j.id + ':illust'] || {}) } })).filter(({ p }) => diff(p, I));
@@ -256,6 +265,7 @@ const jobArtTool = {
 //   x … 絵の右端をカードの右端から何px内側に置くか（マイナスではみ出す）
 //   y … 絵の上端を帯の上端から何px下に置くか（マイナスで上にはみ出す）
 //   z … 絵の横幅（カードのボス欄の幅に対する%）
+//   f … 1 なら左右反転（無ければ反転しない）
 const JOB_ART_DEFAULT = { x: ${D.x}, y: ${D.y}, z: ${D.z} };
 const JOB_ART_POS = {
 ${stand.map(r => line(r.id, r.p)).join('\n')}
