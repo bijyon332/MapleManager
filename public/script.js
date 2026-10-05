@@ -1002,10 +1002,10 @@ const app = {
         }
 
         const addCardHTML = `
-            <button type="button" onclick="app.openAddCharacterFromDashboard()" class="bg-slate-900/40 hover:bg-slate-800/60 border border-dashed border-slate-700 hover:border-indigo-500 flex flex-col items-center justify-center gap-2 transition-all w-full max-w-[32rem] text-slate-500 hover:text-indigo-300 group">
-                <div class="w-14 h-14 rounded-full bg-slate-800 group-hover:bg-indigo-600/20 border border-slate-700 group-hover:border-indigo-500 flex items-center justify-center transition-all"><i data-lucide="plus" class="w-7 h-7"></i></div>
-                <div class="text-sm font-bold">Add Character</div>
-                <div class="text-[10px] text-slate-600 group-hover:text-slate-400">Fetch from Ranking API by name</div>
+            <button type="button" onclick="app.openAddCharacterFromDashboard()" class="btn btn-dashed h-auto min-h-24 flex-col gap-1 font-normal text-slate-500 hover:text-indigo-300">
+                <i data-lucide="plus" class="w-6 h-6"></i>
+                <span class="text-sm font-bold">Add Character</span>
+                <span class="text-[10px]">Fetch from Ranking API by name</span>
             </button>`;
 
         c.innerHTML = activeChars.map(char => {
@@ -1023,9 +1023,8 @@ const app = {
             const hexaReady = (typeof hexaTracker !== 'undefined');
             const hexaClassId = hexaReady ? hexaTracker.getCharClassId(char) : null;
             const hexaPct = hexaClassId ? hexaTracker.getProgress('char:' + char.id, hexaClassId).pct : 0;
-            let gearSaved = false, scout = null;
+            let scout = null;
             try { const sc = JSON.parse(localStorage.getItem('mapleManager_scouter_v1') || '{}')['char:' + char.id]; if (sc && sc.result && sc.result.b300 > 0) scout = sc.result; } catch (e) { /* 読めなければ未入力扱い */ }
-            try { gearSaved = !!localStorage.getItem('gms-gear-priority::char:' + char.id); } catch (e) { /* 読めなければ未入力扱い */ }
 
             // Sort each section
             const wkSorted = wB.sort((a, b) => b.effectiveMeso - a.effectiveMeso);
@@ -1056,11 +1055,10 @@ const app = {
                 <div class="mx-art" onclick="app.openCharModal('${char.id}')" title="Edit ${char.name}">
                     ${char.image ? `
                     <img class="mx-avatar" src="${char.image}" alt="${char.name}" onerror="this.remove()">` : (char.classImage ? `<img src="${char.classImage}" style="${this.getCharImgStyle(char)}">` : '')}
-                    <span class="mx-role mx-role-${(char.role || '').toLowerCase()}">${char.role}</span>
+                    ${char.role ? `<span class="mx-role badge badge-xs font-mono font-bold ${char.role === 'MAIN' ? 'badge-warning' : char.role === 'SUB' ? 'badge-info' : 'badge-neutral'}">${char.role}</span>` : ''}
                     <div class="mx-id">
-                        <div class="mx-lv">Lv.${char.level || '?'}</div>
+                        <div class="mx-lvjob"><span class="mx-lv">Lv.${char.level || '?'}</span><span class="mx-job">${char.job || '—'}</span></div>
                         <h3 class="mx-name">${char.name}</h3>
-                        <div class="mx-job">${char.job || '—'}</div>
                     </div>
                 </div>
                 <div class="mx-main">
@@ -1081,9 +1079,9 @@ const app = {
                         ${wkSorted.length ? `<div class="mx-grid">${tiles(wkSorted, 14)}</div>${isWeeklyDone ? completeMark : ''}` : '<div class="mx-none mx-none-wk">週ボスなし</div>'}
                     </div>
                     <div class="mx-tools">
-                        ${hexaReady ? `<button onclick="hexaTracker.openForCharacter('${char.id}')" class="mx-tool mx-tool-hexa"><span class="mx-bar" style="width:${hexaPct}%"></span>${hexaClassId ? `HEXA <b>${hexaPct}%</b>` : 'HEXA 登録'}</button>` : ''}
-                        <button onclick="app.openGearForCharacter('${char.id}')" class="mx-tool ${gearSaved ? 'is-on' : ''}">UPGRADE</button>
-                        <button onclick="app.openScouterForCharacter('${char.id}')" class="mx-tool mx-tool-scout ${scout ? 'is-on' : ''}" title="${scout ? `換算主ステ（防御率300%） ${scout.b300.toLocaleString()}` : 'Scouter に入力'}">${scout ? `SCOUT <b>${(scout.b300 / 10000).toFixed(1)}万</b>` : 'SCOUTER'}</button>
+                        <button onclick="hexaTracker.openForCharacter('${char.id}')" class="mx-tool mx-tool-hexa" ${hexaReady ? '' : 'disabled'}><span class="mx-bar" style="width:${hexaPct}%"></span>${hexaClassId ? `HEXA <b>${hexaPct}%</b>` : 'HEXA 登録'}</button>
+                        <button onclick="app.openGearForCharacter('${char.id}')" class="mx-tool mx-tool-up">UPGRADE</button>
+                        <button onclick="app.openScouterForCharacter('${char.id}')" class="mx-tool mx-tool-scout" title="${scout ? `換算主ステ（防御率300%） ${scout.b300.toLocaleString()}` : 'Scouter に入力'}">${scout ? `SCOUT <b>${(scout.b300 / 1000).toFixed(1)}k</b>` : 'SCOUTER'}</button>
                     </div>
                 </div>
             </div>`;

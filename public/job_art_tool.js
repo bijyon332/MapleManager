@@ -110,14 +110,14 @@ const jobArtTool = {
         return `
         <div class="mx-card ja-card ${done ? 'mx-done' : ''}" style="--sc:#34d399;--wm:url('${p.src}')${app.jobArtVars(p)}">
             <div class="mx-art"><img src="${j.path}" style="${app.getCharImgStyle({})}">
-                <span class="mx-role mx-role-main">MAIN</span>
-                <div class="mx-id"><div class="mx-lv">Lv.285</div><h3 class="mx-name">Sample</h3><div class="mx-job">${j.name}</div></div>
+                <span class="mx-role badge badge-xs badge-warning font-mono font-bold">MAIN</span>
+                <div class="mx-id"><div class="mx-lvjob"><span class="mx-lv">Lv.285</span><span class="mx-job">${j.name}</span></div><h3 class="mx-name">Sample</h3></div>
             </div>
             <div class="mx-main" data-ja-drag="1">
                 <div class="mx-top"><div class="mx-meso">21,268,095,625<small>mesos</small></div><div class="mx-count"><b>${done ? 15 : 0}</b>/15</div></div>
                 ${mo ? `<div class="mx-mo ${done ? 'is-done' : ''}"><span class="mx-mo-boss mx-d-${(mo.difficulty || '').toLowerCase()}"><span class="mx-mo-ic">${ic(mo, '', 'mx-mo-nm')}</span><span class="mx-mo-df">${mo.difficulty}</span></span>${done ? `<div class="mx-complete"><i data-lucide="check-circle-2"></i><span>COMPLETE</span></div><span class="mx-mo-meso">${Math.floor(mo.meso).toLocaleString()}</span>` : ''}</div>` : ''}
                 <div class="mx-wk ${done ? 'is-done' : ''}"><div class="mx-grid">${wk.map(b => `<div class="mx-boss mx-d-${(b.difficulty || '').toLowerCase()}"><div class="mx-boss-ic">${ic(b, '', 'mx-boss-nm')}<span class="mx-boss-df">${b.difficulty}</span></div></div>`).join('')}</div>${done ? '<div class="mx-complete"><i data-lucide="check-circle-2"></i><span>COMPLETE</span></div>' : ''}</div>
-                <div class="mx-tools"><span class="mx-tool mx-tool-hexa">HEXA <b>0%</b></span><span class="mx-tool">UPGRADE</span></div>
+                <div class="mx-tools"><span class="mx-tool mx-tool-hexa">HEXA <b>0%</b></span><span class="mx-tool mx-tool-up">UPGRADE</span><span class="mx-tool mx-tool-scout">SCOUTER</span></div>
             </div>
         </div>`;
     },

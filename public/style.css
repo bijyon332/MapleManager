@@ -424,96 +424,90 @@ tr.cm-off .cm-pb { color: #334155; cursor: default; }
 tr.cm-off .cm-pb:hover { border-color: #1e293b; color: #334155; }
 table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 
-/* ---------- Character Manager のキャラカード（立ち絵主役の版） ----------
-   左は立ち絵を大きく、その上に Lv・名前・職業。右はメル、月ボス1行、週ボス7×2、HEXA/UPGRADE。
-   月ボス1行・週ボス2行の枠は必ず取り、全カードの高さを揃える。 */
-.mx-card { --cut: 16px; position: relative; display: grid; grid-template-columns: 148px 1fr; width: 100%; max-width: 32rem; background: #0a1124; border: 1px solid #1e293b; clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%); }
-.mx-card::after { content: ""; position: absolute; top: 0; right: 0; width: var(--cut); height: var(--cut); background: linear-gradient(to bottom left, transparent calc(50% - 2px), var(--sc) calc(50% - 2px), var(--sc) 50%, transparent 50%); }
+/* ---------- Character Manager のキャラカード（v6 案、2026-10-05 bi 了承） ----------
+   左は立ち絵、下に「Lv 職業」と名前の2行。右はメル、月ボス1行、週ボス7×2、HEXA / UPGRADE / SCOUTER の帯。
+   左端にサーバー色の太線。月ボス1行・週ボス2行の枠は必ず取り、全カードの高さを揃える。 */
+.mx-card { position: relative; display: grid; grid-template-columns: 124px 1fr; width: 100%; background: #0f172a; border: 1px solid #ffffff26; overflow: hidden; }
 .mx-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--sc); z-index: 3; }
 
-.mx-art { position: relative; overflow: hidden; background: #0f1830; cursor: pointer; }
+.mx-art { position: relative; overflow: hidden; background: #0b1222; border-right: 1px solid #ffffff1a; cursor: pointer; }
 .mx-art img { filter: saturate(1.05); transition: filter .15s; }
-/* 自分のキャラ画像があるときは、職業の絵を透かしで後ろに敷き、キャラ画像を名前の上に立たせる */
 .mx-art:hover img { filter: brightness(1.15); }
 /* キャラ画像は小さいドット絵を拡大するので、pixelated だと段差が目立つ。なめらかに拡大し、
    縁に濃い影を回して輪郭を締める（.mx-art img より強い指定にする） */
-.mx-art img.mx-avatar { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); width: 134px; image-rendering: auto; filter: drop-shadow(0 0 1px #020617) drop-shadow(0 4px 6px #020617b3) saturate(1.05); }
+.mx-art img.mx-avatar { position: absolute; left: 50%; bottom: 44px; z-index: 1; transform: translateX(-50%); width: 124px; image-rendering: auto; filter: drop-shadow(0 0 1px #020617) drop-shadow(0 4px 6px #020617b3) saturate(1.05); }
 .mx-art:hover img.mx-avatar { filter: drop-shadow(0 0 1px #020617) drop-shadow(0 4px 6px #020617b3) brightness(1.15); }
-.mx-role { position: absolute; top: 6px; left: 9px; font: 700 10.5px "IBM Plex Mono", monospace; letter-spacing: .08em; color: #94a3b8; background: #020617d9; padding: 0 5px; }
-.mx-role-main { color: #fde047; } .mx-role-sub { color: #67e8f9; }
-.mx-id { position: absolute; left: 0; right: 0; bottom: 0; padding: 5px 8px 6px 11px; background: #020617e6; border-top: 1px solid var(--sc); }
-.mx-lv { font: 700 12px/1 "Saira Condensed", sans-serif; color: var(--sc); letter-spacing: .04em; }
-.mx-name { font: 800 21px/1.05 "Saira Condensed", sans-serif; color: #f8fafc; letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 2px 0 1px; }
-.mx-job { font-size: 11px; line-height: 1.2; color: #a5b4fc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mx-role { position: absolute; top: 6px; left: 8px; z-index: 2; }
+.mx-id { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 3px 8px 4px 10px; background: #020617e6; border-top: 1px solid var(--sc); }
+.mx-lvjob { display: flex; align-items: baseline; gap: 6px; line-height: 1; white-space: nowrap; }
+.mx-lv { font: 700 12px/1 "Saira Condensed", sans-serif; color: var(--sc); letter-spacing: .04em; flex: none; }
+.mx-job { font-size: 11px; line-height: 1.2; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; }
+.mx-name { font: 800 21px/1.1 "Saira Condensed", sans-serif; color: #f8fafc; letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.mx-main { display: flex; flex-direction: column; gap: 6px; padding: 8px 12px 0 12px; min-width: 0; }
-.mx-top { display: flex; align-items: flex-end; gap: 10px; }
-.mx-meso { font: 700 26px/1 "Saira Condensed", sans-serif; color: #6ee7b7; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
-.mx-meso small { font: 600 11px "Saira Condensed", sans-serif; color: #475569; margin-left: 5px; letter-spacing: .06em; }
-.mx-count { margin-left: auto; font: 600 14px/1 "Saira Condensed", sans-serif; color: #64748b; font-variant-numeric: tabular-nums; min-width: 5ch; padding-bottom: 2px; }
+.mx-main { display: flex; flex-direction: column; gap: 4px; padding: 6px 10px 0 10px; min-width: 0; }
+.mx-top { display: flex; align-items: baseline; gap: 4px; }
+.mx-meso { font: 700 26px/1 "Saira Condensed", sans-serif; color: #34d399; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+.mx-meso small { font: 600 10px "IBM Plex Sans JP", sans-serif; color: #64748b; margin-left: 4px; }
+.mx-count { margin-left: auto; font: 600 16px/1 "Saira Condensed", sans-serif; color: #94a3b8; font-variant-numeric: tabular-nums; }
 .mx-count b { color: #e2e8f0; font-weight: 700; }
+/* メルの数字は透かしの上に乗るので、濃い縁取りの影で読みやすくする */
+.mx-meso, .mx-count { text-shadow: 0 0 2px #020617, 0 0 4px #020617, 0 1px 2px #020617; }
 
-/* 月ボス：横いっぱいの細い帯。地は塗らず透かしを見せる。月の額は消し込んだときだけ右端に出す */
-.mx-mo { position: relative; display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 12px 0 6px; border: 1px solid #a1620755; cursor: pointer; }
-.mx-mo:hover { border-color: #ca8a04; }
-.mx-mo-none { padding: 0 14px; justify-content: center; border: 1px dashed #1e293b; font-size: 11px; color: #475569; cursor: default; }
+/* 月ボス：枠なしの1行（アイコン＋難易度）。消し込むと金の COMPLETE で覆い、右端に月の額 */
+.mx-mo { position: relative; display: flex; align-items: center; gap: 12px; height: 28px; padding: 0 6px; cursor: pointer; }
+.mx-mo:hover .mx-mo-ic { box-shadow: inset 0 0 0 1px #ca8a04; }
+.mx-mo-none { font-size: 11px; color: #ffffff4d; cursor: default; }
 .mx-mo-boss { display: flex; align-items: center; gap: 6px; }
-.mx-mo-ic { position: relative; width: 26px; height: 26px; background: #0a1124cc; box-shadow: inset 0 0 0 1px #a16207; display: grid; place-items: center; overflow: hidden; flex: none; }
+.mx-mo-ic { position: relative; width: 24px; height: 24px; background: #0b1222; box-shadow: inset 0 0 0 1px #334155; display: grid; place-items: center; overflow: hidden; flex: none; }
 .mx-mo-ic img { width: 100%; height: 100%; object-fit: cover; }
-.mx-mo-nm { font-size: 7.5px; line-height: 1; color: #fde68a; text-align: center; }
-.mx-mo-df { font: 700 10.5px/1 "Saira Condensed", sans-serif; color: var(--dc); letter-spacing: .06em; }
-.mx-mo-meso { margin-left: auto; font: 700 15px/1 "Saira Condensed", sans-serif; color: #facc15; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #020617; position: relative; }
-.mx-mo.is-done { border-color: transparent; outline: 2px solid #eab308; }
-.mx-mo.is-done .mx-mo-boss { opacity: .3; filter: grayscale(1); }
+.mx-mo-nm { font-size: 7.5px; line-height: 1; color: #cbd5e1; text-align: center; }
+.mx-mo-df { font: 700 11px/1 "IBM Plex Sans JP", sans-serif; color: var(--dc); }
 
-/* 消し込み済みの印：元のカードと同じ「◎ COMPLETE」を枠の真ん中に */
-.mx-complete { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; pointer-events: none; color: var(--cc, #c4b5fd); }
-.mx-complete svg { width: 18px; height: 18px; stroke-width: 2.25; }
-.mx-complete span { font: 700 16px/1 "IBM Plex Mono", monospace; letter-spacing: .28em; text-shadow: 0 1px 3px #020617; }
+/* 消し込み済み：暗い幕で上から覆い、色の枠と「◎ COMPLETE」（週＝紫、月＝金）。マス自体は薄くしない */
+.mx-complete { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 8px; pointer-events: none; color: var(--cc, #c4b5fd); background: #020617d9; border: 2px solid currentColor; }
+.mx-complete svg { width: 17px; height: 17px; stroke-width: 2.25; }
+.mx-complete span { font: 700 16px/1 "IBM Plex Mono", monospace; letter-spacing: .28em; }
 .mx-mo .mx-complete { --cc: #facc15; }
-.mx-mo .mx-complete svg { width: 15px; height: 15px; }
-.mx-mo .mx-complete span { font-size: 13px; }
+.mx-mo .mx-complete svg { width: 14px; height: 14px; }
+.mx-mo .mx-complete span { font-size: 12px; }
+.mx-mo-meso { position: absolute; right: 8px; top: 50%; z-index: 4; transform: translateY(-50%); font: 700 14px/1 "Saira Condensed", sans-serif; color: #facc15; font-variant-numeric: tabular-nums; pointer-events: none; }
+.mx-mo.is-done .mx-complete { justify-content: center; }
 .mx-lbl, .mx-none { font-size: 11px; color: #475569; }
 .mx-wk { position: relative; } /* 地は敷かず、マスの隙間には透かしが見える。マス自体は不透明 */
-.mx-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px 5px; min-height: 88px; align-content: start; } /* ボスが1行でも常に2行分の高さ */
-.mx-none-wk { height: 88px; display: grid; place-items: center; border: 1px dashed #1e293b; }
+.mx-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px 4px; min-height: 84px; align-content: start; } /* ボスが1行でも常に2行分の高さ */
+.mx-none-wk { height: 84px; display: grid; place-items: center; border: 1px dashed #1e293b; }
 .mx-boss { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; }
-.mx-boss-ic { position: relative; width: 100%; aspect-ratio: 1; max-width: 42px; background: #111a33; display: grid; place-items: center; overflow: hidden; }
+.mx-boss-ic { position: relative; width: 100%; aspect-ratio: 1; max-width: 40px; background: #0b1222; box-shadow: inset 0 0 0 1px #1e293b; display: grid; place-items: center; overflow: hidden; }
 .mx-boss-ic img { width: 100%; height: 100%; object-fit: cover; }
 .mx-boss-nm { font-size: 9px; line-height: 1.1; color: #cbd5e1; text-align: center; padding: 0 2px; overflow: hidden; }
 .mx-boss-ps { position: absolute; top: 0; left: 0; font: 700 9px "IBM Plex Mono"; font-style: normal; color: #93c5fd; background: #020617cc; padding: 0 2px; }
-.mx-boss-df { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; padding: 6px 0 2px; text-align: center; font: 700 9.5px/1 "Saira Condensed", sans-serif; letter-spacing: .04em; color: var(--dc, #64748b); white-space: nowrap; background: linear-gradient(transparent, #020617e6 55%); text-shadow: 0 1px 1px #020617; }
+.mx-boss-df { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; padding: 6px 0 2px; text-align: center; font: 700 8.5px/1 "IBM Plex Mono", monospace; color: var(--dc, #64748b); white-space: nowrap; background: linear-gradient(transparent, #020617e6 55%); }
 /* 難易度の色線は画像より手前に引く（画像に隠れないように） */
 .mx-boss-ic::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; z-index: 2; background: var(--dc, #334155); }
 .mx-boss-more .mx-boss-ic::after { display: none; }
 .mx-d-easy { --dc: #94a3b8; } .mx-d-normal { --dc: #22d3ee; } .mx-d-hard { --dc: #fb7185; } .mx-d-chaos { --dc: #facc15; } .mx-d-extreme { --dc: #f43f5e; }
 .mx-boss-more .mx-boss-ic { font: 700 13px "Saira Condensed"; color: #e2e8f0; box-shadow: inset 0 0 0 1px #334155; }
-.mx-wk[onclick]:hover .mx-boss-ic { background: #16213f; }
-
-/* 週ボスの消し込み済み：紫の枠で囲み、マスを沈めて COMPLETE。枠は月ボスと同じ outline 2px（左右の線がそろう） */
-.mx-wk.is-done { outline: 2px solid #a78bfa; }
-/* 沈めるのはマスの中身だけ。マスの地は不透明のままにして、透かしが透けないようにする */
-.mx-wk.is-done .mx-boss-ic { background: #0c1328; }
-.mx-wk.is-done .mx-boss-ic > *, .mx-wk.is-done .mx-boss-ic::after { opacity: .22; filter: grayscale(1); }
-.mx-wk.is-done .mx-boss-more .mx-boss-ic { color: #e2e8f038; }
+.mx-wk[onclick]:hover .mx-boss-ic { box-shadow: inset 0 0 0 1px #475569; }
 .mx-wk .mx-complete span { font-size: 17px; }
 
-.mx-tools { display: flex; margin: 2px -12px 0; border-top: 1px solid #1e293b; }
-.mx-tool { position: relative; flex: 1; height: 24px; font: 600 12px "Saira Condensed", sans-serif; letter-spacing: .08em; color: #64748b; text-align: center; }
-.mx-tool + .mx-tool { border-left: 1px solid #1e293b; }
-.mx-tool:hover { color: #e2e8f0; background: #111a33; }
-.mx-tool b { color: #c4b5fd; margin-left: 4px; }
-.mx-tool-hexa { color: #a78bfa; }
-.mx-tool.is-on { color: #7dd3fc; }
-.mx-bar { position: absolute; left: 0; top: 0; height: 2px; background: #8b5cf6; }
+/* 下の帯：最初から HEXA＝紫、UPGRADE＝水色、SCOUTER＝琥珀で色を付ける（入力済みかどうかで色は変えない） */
+.mx-tools { display: grid; grid-template-columns: repeat(3, 1fr); margin: auto -10px 0; border-top: 1px solid #ffffff1a; background: #0b1222; }
+.mx-tool { position: relative; height: 24px; font: 500 11px "IBM Plex Mono", monospace; letter-spacing: .1em; text-align: center; white-space: nowrap; }
+.mx-tool + .mx-tool { border-left: 1px solid #ffffff1a; }
+.mx-tool b { margin-left: 6px; font-weight: 700; }
+.mx-tool-hexa { color: #a78bfa; background: #a78bfa1a; } .mx-tool-hexa:hover { background: #a78bfa33; }
+.mx-tool-up { color: #38bdf8; background: #38bdf81a; } .mx-tool-up:hover { background: #38bdf833; }
+.mx-tool-scout { color: #fbbf24; background: #fbbf241a; } .mx-tool-scout:hover { background: #fbbf2433; }
+.mx-bar { position: absolute; left: 0; bottom: 0; height: 2px; background: #a78bfa; }
 
-/* 全部消し込んだカードは地と名前を沈める。キャラ画像はグレーにしない（bi 指定） */
-.mx-done { background: #060b18; }
+/* 全部消し込んだカードは地と名前を沈める。キャラ画像・サーバー色の線・透かしはそのまま（bi 指定） */
+.mx-done { border-color: #ffffff10; }
+.mx-done > .mx-main { background: #0b1222; }
 .mx-done .mx-name { color: #94a3b8; }
 
-/* 職業の絵を右側の欄全体の後ろに透かしで敷く（右寄せ）。ボスのマスは不透明なので隙間にだけ見える */
+/* 職業の絵を右側の欄全体の後ろに透かしで敷く（右寄せ、左ほど薄く）。ボスのマスは不透明なので隙間にだけ見える */
 .mx-main { position: relative; isolation: isolate; }
-.mx-main::before { content: ""; position: absolute; left: 0; right: 0; top: 0; bottom: 0; z-index: -1; background: var(--wm) var(--wm-pos, right -20px top -30px) / var(--wm-size, 62% auto) no-repeat; opacity: .45; filter: grayscale(.2); transform: scaleX(var(--wm-flip, 1)); }
+.mx-main::before { content: ""; position: absolute; left: 0; right: 0; top: 0; bottom: 0; z-index: -1; background: var(--wm) var(--wm-pos, right -20px top -30px) / var(--wm-size, 62% auto) no-repeat; opacity: .45; filter: grayscale(.2); transform: scaleX(var(--wm-flip, 1)); -webkit-mask-image: linear-gradient(var(--wm-mask, to right), transparent 0, #000 55%); mask-image: linear-gradient(var(--wm-mask, to right), transparent 0, #000 55%); }
 
 /* DEV: Job Art Position（job_art_tool.js） */
 .ja { display: flex; flex-direction: column; gap: 12px; }
@@ -540,7 +534,7 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .ja-state { font-size: 12px; color: #94a3b8; }
 .ja-previews { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 14px; }
 .ja-cap { font-size: 11px; color: #64748b; margin-bottom: 4px; }
-.ja-card { width: 520px; }
+.ja-card { width: 440px; }  /* 1600px 幅の画面でダッシュボードに3列並んだときのカード幅 */
 .ja-card .mx-main { cursor: grab; touch-action: none; user-select: none; }
 .ja-card .mx-main:active { cursor: grabbing; }
 .ja-ctrl { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin: 0 0 12px; padding: 8px 10px; border: 1px solid #1e293b; font-size: 12px; color: #94a3b8; }
@@ -562,24 +556,6 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .ja-export-head { display: flex; justify-content: space-between; padding: 4px 8px; font-size: 12px; color: #94a3b8; background: #020617; border-bottom: 1px solid #1e293b; }
 .ja-copied { color: #6ee7b7; }
 .ja-export textarea { width: 100%; background: #020617; color: #e2e8f0; font: 12px/1.5 "IBM Plex Mono", monospace; padding: 8px; border: 0; resize: vertical; }
-/* カードの厚み：縁取りと面の段差（上辺に光、下辺を厚く暗く、立ち絵の列を一段明るく、足元に影） */
-.mx-card { border: 1px solid #475569; border-top-color: #64748b; border-bottom: 3px solid #020617; }
-.mx-art { background: linear-gradient(#1b2a52, #0f1833 75%); box-shadow: inset -1px 0 0 #334155, inset 1px 1px 0 #ffffff12; }
-.mx-main { box-shadow: inset 0 1px 0 #ffffff12; }
-.mx-art::after { content: ""; position: absolute; left: 50%; bottom: 56px; width: 110px; height: 16px; transform: translateX(-50%); background: radial-gradient(closest-side, #000000d9, transparent); }
-.mx-art img.mx-avatar { z-index: 1; }
-.mx-id { z-index: 2; }
-/* 下の帯：HEXA はうっすら紫、UPGRADE はうっすら水色の地 */
-.mx-tools { background: #070c1a; }
-.mx-tool-hexa { background: #8b5cf61f; }
-.mx-tool-hexa:hover { background: #8b5cf633; }
-.mx-tool:not(.mx-tool-hexa) { background: #38bdf617; }
-.mx-tool:not(.mx-tool-hexa):hover { background: #38bdf62b; }
-/* メルの数字は透かしの上に乗るので、濃い縁取りの影で読みやすくし、透かしは左側（数字の側）を薄くする */
-.mx-meso, .mx-count { text-shadow: 0 0 2px #020617, 0 0 4px #020617, 0 1px 2px #020617; }
-.mx-meso small { color: #64748b; }
-.mx-main::before { -webkit-mask-image: linear-gradient(var(--wm-mask, to right), transparent 0, #000 55%); mask-image: linear-gradient(var(--wm-mask, to right), transparent 0, #000 55%); }
-/* 左右反転（Job Art Position の f）: 欄ごと裏返すので、位置は left 基準で置き、左ほど薄くするマスクも向きを逆にしておく */
 
 /* KMS Videos: 見出しの下の入力欄と、系統ごとの表の段組み */
 .kmsv-ctl { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #94a3b8; white-space: nowrap; }
@@ -591,11 +567,7 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .kmsv-link { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #a5b4fc; word-break: break-all; }
 .kmsv-link:hover { color: #fff; text-decoration: underline; }
 
-/* Scouter: カードの帯（うっすら琥珀）と、一覧・モーダル */
-.mx-tool.mx-tool-scout { background: #f59e0b14; }
-.mx-tool.mx-tool-scout:hover { background: #f59e0b29; }
-.mx-tool.mx-tool-scout.is-on { color: #fcd34d; }
-.mx-tool.mx-tool-scout b { color: #fbbf24; }
+/* Scouter: 一覧・モーダル */
 .sc-empty { font-size: 11px; color: #64748b; }
 .sc-inline .sc-modal { max-width: none; margin-top: 0; }
 
