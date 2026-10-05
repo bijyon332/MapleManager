@@ -390,27 +390,26 @@ const scouter = (() => {
         renderModal();
     }
 
-    // 上の1行: 誰か・換算主ステ・ボスカットの要点・操作。結果は前回「計算する」を押したときのもの。
+    // 上の1行: 誰か・換算主ステ（HEXA換算も）・前回の計算日時・操作。結果は前回「計算する」を押したときのもの。
     function summaryHTML(e, portrait) {
         const r = e.result && !e.result.error ? e.result : null;
-        const label = (CLASSES[e.form.classId] || [])[1] || '';
         const who = cur.page ? `<div class="flex items-center gap-3 shrink-0">
                 ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-10 h-10 object-contain">` : ''}
                 <div class="leading-tight whitespace-nowrap"><b class="text-white">仮入力</b><div class="text-[11px] text-base-content/50">キャラに紐付けない</div></div>
             </div>` : '';
-        const hl = r && r.cuts ? cutHighlights(r.cuts) : [];
+        const big = (v) => `<span class="font-['Saira_Condensed'] text-4xl font-bold text-warning tabular-nums">${fmt(v)}</span>`;
+        const at = r && r.at ? r.at.replace('T', ' ').slice(0, 16) : '';
         return `<div class="card bg-base-100 border border-base-content/10"><div class="flex items-center gap-5 px-4 py-2.5 flex-wrap">
             ${who}
             <div class="${who ? 'border-l border-base-content/10 pl-5' : ''} leading-none shrink-0">
-                <div class="text-[11px] text-base-content/50 mb-1">換算主ステ（前回の計算）</div>
-                ${r ? `<span class="font-['Saira_Condensed'] text-4xl font-bold text-warning tabular-nums">${fmt(r.b300)}</span><span class="font-['Saira_Condensed'] text-sm text-base-content/50 ml-1">${esc(label)}</span>`
+                <div class="text-[11px] text-base-content/50 mb-1">換算主ステ（防御率300%）</div>
+                ${r ? `<div class="flex items-baseline gap-4">${big(r.b300)}${r.b300h ? `<span class="flex items-baseline gap-1.5"><span class="text-xs font-bold text-secondary">HEXA</span>${big(r.b300h)}</span>` : ''}</div>`
                     : '<span class="text-sm text-base-content/40">まだ計算していません</span>'}
             </div>
-            <div class="border-l border-base-content/10 pl-5 min-w-0">
-                <div class="text-[11px] text-base-content/50 mb-1">ボスカット（ソロの目安）</div>
-                <div class="flex flex-wrap gap-1">${hl.length ? hl.map(([cls, t]) => `<span class="badge ${cls}">${esc(t)}</span>`).join('')
-                    : '<span class="text-xs text-base-content/40">「計算する」で出ます</span>'}</div>
-            </div>
+            ${at ? `<div class="border-l border-base-content/10 pl-5 leading-tight">
+                <div class="text-[11px] text-base-content/50">前回の計算</div>
+                <div class="font-mono text-xs text-base-content/70">${esc(at)}</div>
+            </div>` : ''}
             <div class="ml-auto flex gap-1 shrink-0">
                 <button data-sc="file" class="btn btn-sm" title="ステータス画面のスクショを読み取る（貼り付け・ドロップでも可）"><i data-lucide="image" class="w-3.5 h-3.5"></i>スクショ読み取り</button>
                 <button data-sc="live" class="btn btn-sm ${cur.live ? 'btn-error btn-soft' : ''}" title="ゲーム画面を共有して、ステータス画面を読み取り続ける"><i data-lucide="monitor" class="w-3.5 h-3.5"></i>${cur.live ? 'ライブ停止' : 'ライブ読み取り'}</button>
@@ -418,21 +417,6 @@ const scouter = (() => {
                 <input type="file" accept="image/*" multiple data-sc="input" hidden>
             </div>
         </div></div>`;
-    }
-    // ボスカットの要点。ソロで行ける中で一番重いボス2つ、その次に重い「人数を足せば行ける」ボス、その次の不可のボス。
-    function cutHighlights(cuts) {
-        const name = (c) => { const b = bossOf(c.b); return `${DIFF_NAME[c.d] || c.d} ${b ? (b.short || b.ja) : c.b}`; };
-        const cls = (c) => (CUT_LABEL[c.v] || [, 'c-no'])[1];
-        const list = cuts.filter((c) => c.d !== 'Destiny' && c.d !== 'Champion');
-        const solo = list.filter((c) => cls(c).startsWith('c-solo')).sort((a, b) => b.s - a.s).slice(0, 2);
-        const top = solo.length ? solo[0].s : 0;
-        const pt = list.filter((c) => cls(c).startsWith('c-pt') && c.s > top).sort((a, b) => a.s - b.s)[0];
-        const no = list.filter((c) => cls(c) === 'c-no' && c.s > Math.max(top, pt ? pt.s : 0)).sort((a, b) => a.s - b.s)[0];
-        return [
-            ...solo.map((c) => ['badge-soft badge-success', `${name(c)} OK`]),
-            ...(pt ? [['badge-soft badge-warning', `${name(pt)} ${(CUT_LABEL[pt.v] || [pt.v])[0]}`]] : []),
-            ...(no ? [['badge-ghost', `${name(no)} —`]] : []),
-        ];
     }
 
     const inp = (path, v, cls = 'w-full') => `<input class="input input-xs font-mono text-right ${num(v) ? 'font-bold' : 'text-base-content/35'} ${cls}" data-k="${path}" value="${esc(v)}" inputmode="decimal" placeholder="0">`;
@@ -638,7 +622,6 @@ const scouter = (() => {
                 <tr><th>換算戦闘力</th><td>${fmt(r.xp)}</td></tr>
                 <tr><th>戦闘力（計算）</th><td>${fmt(r.cp)}</td></tr>
                 ${cpGame ? `<tr><th>戦闘力（画面）</th><td>${fmt(cpGame)}</td></tr>` : ''}
-                <tr><th>計算日時</th><td>${esc((r.at || '').replace('T', ' ').slice(0, 16))}</td></tr>
             </table>
             ${rows.length && base ? `<h3>スペック効率 <small>${esc(label)}いくつ分か</small></h3>
             <table class="sc-kv sc-eff">${rows.map(([n, v]) => `<tr><th>${esc(n)}</th><td>${esc(label)} <b>${(v / base).toFixed(2)}</b></td></tr>`).join('')}</table>` : ''}
