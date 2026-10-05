@@ -16,7 +16,7 @@ Cloudflare Worker + 静的アセットとして配信している。ビルド工
 | Tools | Character Manager | `planner` | `public/script.js` |
 | Tools | HEXA Tracker | `hexa` | `public/hexa_tracker.js` |
 | Tools | Upgrade Priority | `gear` | `public/gear_priority.js`（サイドバーは仮の入力。キャラごとの入力は Character Manager のカードの UPGRADE から開く）、`public/gear_reader.js`（ゲーム画面のスクショ・ライブ共有から装備のツールチップを読む。Tesseract.js を jsDelivr から読み込む） |
-| Tools | Scouter | `scouter` | `public/scouter.js`（MapleScouter の換算主ステをキャラごとに保存。計算は先方のサーバーで、Worker の `/scouter` が中継。キャラごとの入力は Character Manager のカードの SCOUTER からも開ける。HEXA は HEXA Tracker の進捗を使う。バフ・リンク・シードのアイコンは `public/assets/scouter/`）、`public/scouter_bosscut.js`（ボスカット。MapleScouter の結果ページと同じ表と式）、`public/scouter_reader.js`（ステータス画面とSTRなどのツールチップをスクショ・ライブ共有から読む。Tesseract.js を jsDelivr から読み込む） |
+| Tools | Scouter | `scouter` | `public/scouter.js`（MapleScouter の換算主ステをキャラごとに保存。計算は先方のサーバーで、Worker の `/scouter` が中継。キャラごとの入力は Character Manager のカードの SCOUTER からも開ける。HEXA は手入力で、HEXA Tracker から取り込める。バフ・リンク・シードのアイコンは `public/assets/scouter/`）、`public/scouter_bosscut.js`（ボスカット。MapleScouter の結果ページと同じ表と式）、`public/scouter_reader.js`（ステータス画面とSTRなどのツールチップをスクショ・ライブ共有から読む。Tesseract.js を jsDelivr から読み込む） |
 | Tools | Cheat Sheet | `cheatsheet` | `public/cheatsheet.js` |
 | Tools | KMS Videos | `kmsvideos` | `public/kms_videos.js` |
 | Monitoring | EXP Tracker | `ranks` | `public/ranks.js` |

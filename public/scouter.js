@@ -320,14 +320,13 @@ const scouter = (() => {
         if (!e.form.level && char && char.level) e.form.level = String(char.level);
         close();
         cur = { id, char, e, reads: null, busy: false, live: null, msg: '', msgKind: '' };
-        syncHexa();
         const veil = document.createElement('div');
         veil.id = 'sc-overlay';
         veil.className = 'fixed inset-0 z-[200] flex items-start justify-center bg-black/70 p-3 overflow-y-auto';
         veil.addEventListener('click', (ev) => { if (ev.target === veil) close(); });
         document.body.appendChild(veil);
         bindModal(veil);   // veil は閉じるまで同じ要素なので、ここで1回だけ付ける
-        cur.esc = (ev) => { if (ev.key === 'Escape' && !document.getElementById('hexa-modal-overlay')) close(); };
+        cur.esc = (ev) => { if (ev.key === 'Escape') close(); };
         document.addEventListener('keydown', cur.esc);
         cur.paste = (ev) => {
             const item = [...((ev.clipboardData && ev.clipboardData.items) || [])].find((x) => x.type.startsWith('image/'));
@@ -455,25 +454,10 @@ const scouter = (() => {
         return `<button type="button" class="sc-tile ${d[k] ? 'on' : ''}" data-sc="buff" data-key="${k}" title="${esc(label)}">${img(icon)}<span class="sc-tn">${esc(label)}</span><i class="sc-onoff">${d[k] ? 'ON' : 'OFF'}</i></button>`;
     }
 
-    // HEXA。キャラは HEXA Tracker の進捗をそのまま使う（ここでは編集しない）。仮入力だけ手で入れる。
+    // HEXA。手で入れる。キャラは HEXA Tracker の今のレベルをボタンで取り込める。
     function hexaHTML(f) {
-        const head = (extra) => `<h3><i data-lucide="hexagon"></i>HEXA ${extra}</h3>`;
-        if (cur && cur.char) {
-            const lk = linkedHexa();
-            if (!lk) {
-                return `<section class="sc-sec">${head('<small>HEXA Tracker と連動</small>')}
-                    <p class="sc-empty">HEXA Tracker にこのキャラの職業が登録されていません。<button data-sc="hexa" class="sc-mini"><i data-lucide="hexagon"></i>HEXA Tracker で登録</button></p></section>`;
-            }
-            const tiles = HEXA_KEYS.map(([hk, k, label]) => {
-                const s = lk.cls.skills.find((x) => x.key === hk);
-                const lv = num(f.hexa[k]);
-                return `<span class="sc-tile sc-tile-hx ${lv ? 'on' : ''}" title="${esc(s ? s.name : label)}">
-                    ${s && s.icon ? `<img class="sc-ico" src="assets/hexa_icons/gms/${esc(s.icon)}.png" alt="" loading="lazy">` : `<span class="sc-ico sc-ico-txt">${esc(label.slice(0, 2))}</span>`}
-                    <span class="sc-tn">${esc(label)}</span><b>${lv}</b></span>`;
-            }).join('');
-            return `<section class="sc-sec">${head(`<small>HEXA Tracker の今のレベル</small><button data-sc="hexa" class="sc-mini"><i data-lucide="pencil"></i>HEXA Tracker で編集</button>`)}
-                <div class="sc-tiles">${tiles}</div></section>`;
-        }
+        const canImport = cur && cur.char && tracker();
+        const head = `<h3><i data-lucide="hexagon"></i>HEXA <small>レベル</small>${canImport ? '<button data-sc="hexa" class="sc-mini"><i data-lucide="download"></i>HEXA Tracker から取り込む</button>' : ''}</h3>`;
         const cls = hexaClass(f.classId);
         const tiles = HEXA_KEYS.map(([hk, k, label]) => {
             const s = cls && cls.skills.find((x) => x.key === hk);
@@ -481,7 +465,7 @@ const scouter = (() => {
                 ${s && s.icon ? `<img class="sc-ico" src="assets/hexa_icons/gms/${esc(s.icon)}.png" alt="" loading="lazy">` : `<span class="sc-ico sc-ico-txt">${esc(label.slice(0, 2))}</span>`}
                 <span class="sc-tn">${esc(label)}</span>${inp('hexa.' + k, f.hexa[k])}</label>`;
         }).join('');
-        return `<section class="sc-sec">${head('<small>レベル</small>')}<div class="sc-tiles">${tiles}</div></section>`;
+        return `<section class="sc-sec">${head}<div class="sc-tiles">${tiles}</div></section>`;
     }
     const screenKey = (k, label) => k === 'atk' ? (label === 'Magic ATT' ? 'matt' : 'att') : label.toLowerCase();
 
@@ -600,7 +584,7 @@ const scouter = (() => {
             else if (k === 'calc') calc();
             else if (k === 'file') veil.querySelector('[data-sc="input"]').click();
             else if (k === 'live') toggleLive();
-            else if (k === 'hexa') editHexa();
+            else if (k === 'hexa') importHexa();
             else if (k === 'buff') toggleBuff(t.dataset.key);
             else if (k === 'cuts') { cur.allCuts = !cur.allCuts; renderModal(); }
             else if (k === 'apply') applyReads();
@@ -647,52 +631,28 @@ const scouter = (() => {
         });
     }
 
-    /* ---------- HEXA Tracker と連動 ---------- */
-    // キャラの HEXA は HEXA Tracker に保存してある今のレベルを使う。開いたとき・計算するとき・
-    // HEXA Tracker を閉じたときに読み直す。
-    function linkedHexa() {
+    /* ---------- HEXA Tracker から ---------- */
+    function importHexa() {
         const ht = tracker();
-        if (!ht || !cur || !cur.char) return null;
+        if (!ht || !cur || !cur.char) return;
         ht.ensureLoaded();
         const classId = ht.getCharClassId(cur.char);
         const cls = classId && hexaClass(classId);
-        if (!cls) return null;
-        const saved = ht.data['char:' + cur.char.id] || {};
-        return { ht, cls, levels: saved.levels || {} };
-    }
-    function syncHexa() {
-        const lk = linkedHexa();
-        if (!lk) return false;
-        const f = cur.e.form;
+        const saved = ht.data['char:' + cur.char.id];
+        if (!cls || !saved || !saved.levels) { setMsg('HEXA Tracker にこのキャラの入力がありません。', 'err'); return; }
         for (const [hk, k] of HEXA_KEYS) {
-            const s = lk.cls.skills.find((x) => x.key === hk);
-            f.hexa[k] = String(s ? Math.max(lk.ht.minLevel(s), lk.levels[hk] || 0) : 0);
+            const s = cls.skills.find((x) => x.key === hk);
+            cur.e.form.hexa[k] = String(s ? Math.max(ht.minLevel(s), saved.levels[hk] || 0) : 0);
         }
         save();
-        return true;
-    }
-    function editHexa() {
-        const ht = tracker();
-        if (!ht || !cur || !cur.char) return;
-        const mine = cur;
-        ht.openForCharacter(cur.char.id);
-        // HEXA Tracker の画面はこの上に重なる。閉じられたら読み直す。
-        const obs = new MutationObserver(() => {
-            if (document.getElementById('hexa-modal-overlay')) return;
-            obs.disconnect();
-            if (cur !== mine) return;
-            syncHexa();
-            renderModal();
-            setMsg('HEXA Tracker のレベルを読み直しました。', 'ok');
-        });
-        obs.observe(document.body, { childList: true });
+        renderModal();
+        setMsg('HEXA Tracker の今のレベルを取り込みました。', 'ok');
     }
 
     /* ---------- 計算 ---------- */
     async function calc() {
         if (!cur || cur.busy) return;
         const e = cur.e, f = e.form;
-        syncHexa();
         if (!CLASSES[f.classId]) { setMsg('職業を選んでください。', 'err'); return; }
         if (!num(f.main.base)) { setMsg(`${CLASSES[f.classId][1]} の Base Value を入れてください。`, 'err'); return; }
         cur.busy = true;
