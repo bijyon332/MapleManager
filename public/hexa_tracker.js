@@ -456,8 +456,7 @@ const hexaTracker = {
             const btn = document.getElementById('hnav-' + id);
             if (!btn) continue;
             const on = this.page === id;
-            btn.classList.toggle('nav-active', on);
-            btn.classList.toggle('nav-inactive', !on);
+            btn.classList.toggle('tab-active', on);
         }
     },
 

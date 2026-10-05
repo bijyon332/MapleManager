@@ -437,8 +437,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
                 const b = document.getElementById('cnav-' + id);
                 if (!b) continue;
                 const on = this.state.ui.tab === id;
-                b.classList.toggle('nav-active', on);
-                b.classList.toggle('nav-inactive', !on);
+                b.classList.toggle('tab-active', on);
             }
         },
 

@@ -93,100 +93,6 @@ body {
     color: #fff;
 }
 
-/* ---------- 左サイドバー ----------
-   #sidebar.collapsed でアイコンだけ（幅56px）、無ければアイコン + 名前（幅232px）。
-   開閉は app.toggleSidebar()。アイコンの位置は両状態で同じなので、畳んでも
-   アイコンが横に動かない。 */
-#sidebar {
-    width: 232px;
-    transition: width 0.15s ease;
-}
-#sidebar.collapsed {
-    width: 56px;
-}
-.sidebar-head {
-    padding: 0 14px;
-    gap: 10px;
-}
-.nav-item {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    width: calc(100% - 16px);
-    height: 40px;
-    margin: 0 8px;
-    padding: 0 10px;
-    border-radius: 0.75rem;
-    flex-shrink: 0;
-    transition: background-color 0.15s, color 0.15s, opacity 0.15s;
-}
-.nav-item > svg {
-    flex-shrink: 0;
-}
-.nav-label {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: 13px;
-    font-weight: 600;
-}
-.nav-group {
-    margin: 10px 8px 2px;
-    padding: 0 10px;
-    height: 16px;
-    display: flex;
-    align-items: center;
-}
-.nav-group:first-child {
-    margin-top: 0;
-}
-.nav-group-label {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: #64748b;
-    white-space: nowrap;
-}
-.nav-group-dev .nav-group-label {
-    color: rgba(245, 158, 11, 0.7);
-}
-/* 開発中アプリの印。アイコンの右上に付ける（両状態で同じ位置）。 */
-.dev-dot {
-    position: absolute;
-    top: 6px;
-    left: 28px;
-    width: 6px;
-    height: 6px;
-    border-radius: 9999px;
-    background: #f59e0b;
-}
-.sidebar-icon-open { display: none; }
-#sidebar.collapsed .sidebar-icon-open { display: block; }
-#sidebar.collapsed .sidebar-icon-close { display: none; }
-#sidebar.collapsed .nav-label { display: none; }
-/* 畳んだときのグループ見出しは細い区切り線だけ。 */
-#sidebar.collapsed .nav-group {
-    height: 1px;
-    margin: 8px 10px;
-    padding: 0;
-    background: rgba(51, 65, 85, 0.7);
-}
-#sidebar.collapsed .nav-group:first-child { display: none; }
-#sidebar.collapsed .nav-group-label { display: none; }
-
-/* In-development apps: dim only while NOT selected. switchApp() toggles
-   nav-inactive on/off, so the selected dev app loses this class and no dim rule
-   applies (defaults to full opacity) — avoids any specificity/cascade-layer
-   fight over overriding a base .dev-app opacity. */
-.dev-app.nav-inactive {
-    opacity: 0.45;
-}
-.dev-app.nav-inactive:hover {
-    opacity: 1;
-}
-
 .nav-inactive {
     color: #94a3b8;
 }
@@ -463,26 +369,13 @@ body {
 /* 等幅の数字。桁が変わっても横の並びがずれないようにする。 */
 .font-mono, .tabular-nums { font-variant-numeric: tabular-nums; }
 
-/* サイドバー: 選択中は左に藍の縦線、グループ見出しの右に細い罫線。 */
-#sidebar .nav-item { border-radius: 0; margin: 0; width: 100%; padding: 0 16px; height: 34px; border-left: 2px solid transparent; }
-#sidebar .nav-item.nav-active { background: linear-gradient(90deg, rgba(99, 102, 241, 0.25), rgba(99, 102, 241, 0.05)); border-left-color: #6366f1; }
-#sidebar .nav-item.nav-active > svg { color: #a5b4fc; }
-#sidebar .nav-group { gap: 8px; margin: 12px 8px 2px; }
-#sidebar .nav-group::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, #1e293b, transparent); }
-#sidebar.collapsed .nav-group::after { display: none; }
-#sidebar .dev-dot { left: 30px; }
 
-/* 上部バーのタブ（アプリ内の画面切り替え）。下線で選択中を示す。 */
+/* 旧来のタブ（HEXA モーダルの上部でだけ使用。PR 4 で daisyUI に移す）。下線で選択中を示す。 */
 .htab { display: flex; align-items: center; gap: 5px; padding: 0 8px; font-size: 12px; font-weight: 600; border-bottom: 2px solid transparent; white-space: nowrap; transition: color 0.15s, background-color 0.15s; }
 .htab.nav-active { color: #fff; border-bottom-color: #6366f1; background: linear-gradient(180deg, transparent 40%, rgba(99, 102, 241, 0.18)); }
 .htab.nav-active svg { color: #a5b4fc; }
 .htab.nav-inactive:hover { background: transparent; color: #e2e8f0; }
-header { box-shadow: inset 0 -1px 0 rgba(99, 102, 241, 0.25); }
 
-/* 上部バーの収入欄 */
-.mm-hstat { display: flex; align-items: center; gap: 6px; padding: 0 8px; border-left: 1px solid #1e293b; white-space: nowrap; flex-shrink: 0; }
-.mm-hstat:first-child { border-left: 0; }
-.mm-hstat-v { min-width: 6ch; text-align: right; }
 
 /* 表（Characters の一覧など）。行を詰め、偶数行を少し明るくする。 */
 .mm-table { border: 1px solid #1e293b; border-collapse: collapse; background: #0f172a; font-size: 13px; }
@@ -490,12 +383,6 @@ header { box-shadow: inset 0 -1px 0 rgba(99, 102, 241, 0.25); }
 .mm-table td { padding: 0 8px; height: 36px; border-bottom: 1px solid #172036; white-space: nowrap; }
 .mm-table tbody tr:nth-child(even) { background: #0c1428; }
 .mm-table tbody tr:hover { background: #18223a; }
-.mm-hstat-srv { border-bottom: 2px solid transparent; transition: opacity 0.15s, background-color 0.15s; }
-.mm-hstat-full { min-width: 14ch; text-align: left; }
-.mm-hstat-cry { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 7ch; height: 34px; padding: 0 4px; border-width: 1px; border-style: solid; }
-.mm-seg { padding: 1px 5px; font-size: 11px; font-weight: 600; color: #64748b; border: 1px solid #334155; }
-.mm-seg + .mm-seg { border-left: 0; }
-.mm-seg-on { color: #e2e8f0; background: #312e81; border-color: #4f46e5; }
 
 /* Community Members の「未割り当て」の件数 */
 .cm-nav-badge { background: #fbbf24; color: #241a00; font-size: 9.5px; font-weight: 700; font-family: "IBM Plex Mono", ui-monospace, monospace; padding: 0 4px; line-height: 14px; }
@@ -854,6 +741,9 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .sc-bctbl .df-easy { color: #9ca3af; } .sc-bctbl .df-normal { color: #22d3ee; } .sc-bctbl .df-hard { color: #f87171; }
 .sc-bctbl .df-chaos { color: #ca8a04; } .sc-bctbl .df-extreme { color: #ef4444; }
 
+/* 上部バーの収入欄のサーバー枠（左線の色はサーバー色のユーティリティで付ける）。 */
+.mm-srv { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px 0 10px; border: 1px solid color-mix(in oklab, var(--color-base-content) 15%, transparent); border-left-width: 3px; background: var(--color-base-200); white-space: nowrap; flex-shrink: 0; transition: opacity 0.15s; }
+.mm-srv-v { min-width: 14ch; text-align: right; font: 700 18px/1 "Saira Condensed", sans-serif; letter-spacing: 0.02em; color: #e2e8f0; font-variant-numeric: tabular-nums; }
 }
 
 /* legacy の外（ユーティリティより強い）。Tailwind 3 のとき ID 付きの指定で font-mono に勝っていたもの。 */
@@ -863,3 +753,44 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 #view-exp-sim select {
     font-family: 'Courier New', monospace;
 }
+
+/* ===== daisyUI の部品の調整（legacy の外） =====
+   daisyUI の部品の指定は utilities レイヤーの中にあり legacy より強いので、上書きはここ（レイヤーの外）に書く。 */
+/* ---------- 左サイドバー（daisyUI の menu） ----------
+   #sidebar.collapsed でアイコンだけ（幅56px）、無ければアイコン + 名前（幅232px）。
+   開閉は app.toggleSidebar()。アイコンの横位置（左から18px）は両状態で同じなので、畳んでも動かない。
+   選択中は daisyUI の menu-active（switchApp が付け外しする）。 */
+#sidebar { width: 232px; transition: width 0.15s ease; }
+#sidebar.collapsed { width: 56px; }
+.sidebar-head { padding: 0 14px; gap: 10px; }
+#sidebar .menu { padding: 6px; font-size: 13px; }
+#sidebar .menu .nav-item { position: relative; gap: 12px; padding-inline: 12px; height: 34px; flex-wrap: nowrap; }
+#sidebar .menu .nav-item > svg { flex-shrink: 0; }
+#sidebar .menu .nav-item:not(.menu-active) { color: #94a3b8; }
+#sidebar .menu .nav-item:not(.menu-active):hover { color: #e2e8f0; }
+#sidebar .menu .menu-active { color: #fff; }
+#sidebar .menu .menu-active > svg { color: #a5b4fc; }
+#sidebar .menu-title { padding: 10px 12px 2px; white-space: nowrap; }
+#sidebar .menu-title:first-child { padding-top: 2px; }
+#sidebar .menu-title.nav-group-dev { color: rgba(245, 158, 11, 0.7); }
+.nav-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 開発中アプリ: 選択していないときは薄く、アイコンの右上に琥珀の点。 */
+#sidebar .dev-app:not(.menu-active) { opacity: 0.45; }
+#sidebar .dev-app:not(.menu-active):hover { opacity: 1; }
+.dev-dot { position: absolute; top: 5px; left: 28px; width: 6px; height: 6px; border-radius: 9999px; background: #f59e0b; }
+.sidebar-icon-open { display: none; }
+#sidebar.collapsed .sidebar-icon-open { display: block; }
+#sidebar.collapsed .sidebar-icon-close { display: none; }
+#sidebar.collapsed .nav-label { display: none; }
+/* 畳んだときのグループ見出しは細い区切り線だけ。 */
+#sidebar.collapsed .menu-title { font-size: 0; height: 1px; padding: 0; margin: 8px 4px; background: rgba(51, 65, 85, 0.7); }
+#sidebar.collapsed .menu-title:first-child { display: none; }
+
+/* ---------- 上部バーのタブ（daisyUI の tabs-box） ----------
+   選択中は tab-active（各アプリの JS が付け外しする）。地より一段明るくし、アイコンを藍に。 */
+header .tabs-box { background: var(--color-base-200); padding: 3px; }
+header .tabs-box > .tab { color: #94a3b8; font-weight: 600; }
+header .tabs-box > .tab:hover { color: #e2e8f0; }
+header .tabs-box > .tab-active { --tab-bg: var(--color-neutral); color: #fff; }
+header .tabs-box > .tab-active svg { color: #a5b4fc; }
+
