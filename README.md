@@ -16,6 +16,7 @@ Cloudflare Worker + 静的アセットとして配信している。ビルド工
 | Tools | Character Manager | `planner` | `public/script.js` |
 | Tools | HEXA Tracker | `hexa` | `public/hexa_tracker.js` |
 | Tools | Upgrade Priority | `gear` | `public/gear_priority.js`（サイドバーは仮の入力。キャラごとの入力は Character Manager のカードの UPGRADE から開く）、`public/gear_reader.js`（ゲーム画面のスクショ・ライブ共有から装備のツールチップを読む。Tesseract.js を jsDelivr から読み込む） |
+| Tools | Scouter | `scouter` | `public/scouter.js`（MapleScouter の換算主ステをキャラごとに保存。計算は先方のサーバーで、Worker の `/scouter` が中継。キャラごとの入力は Character Manager のカードの SCOUTER からも開ける）、`public/scouter_reader.js`（ステータス画面とSTRなどのツールチップをスクショ・ライブ共有から読む。Tesseract.js を jsDelivr から読み込む） |
 | Tools | Cheat Sheet | `cheatsheet` | `public/cheatsheet.js` |
 | Tools | KMS Videos | `kmsvideos` | `public/kms_videos.js` |
 | Monitoring | EXP Tracker | `ranks` | `public/ranks.js` |
@@ -51,6 +52,7 @@ Community Members / Party Builder / Character Manager / EXP Tracker の4つが�
 | ルート | 内容 |
 | --- | --- |
 | `GET /maplehub?name=&region=na\|eu` | MapleHub のキャラAPI中継（専用ヘッダが要るのでブラウザから直接叩けない） |
+| `POST /scouter` | MapleScouter（api.maplescouter.com/api/calc/dmg）の換算計算の中継。本文は `{userStat}`。先方は他オリジンからの呼び出しを許していないので中継する。非公開APIなので先方の都合で動かなくなることがある |
 | `GET /api?name=` | Nexon GMS ランキングAPI中継（現在レベルとEXPのスナップショット） |
 | `GET/PUT /api/community` | コミュニティ名簿の共有スナップショット |
 | `GET/PUT /api/scheduler` | 週ボスの希望とPT編成 |
