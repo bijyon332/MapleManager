@@ -527,70 +527,63 @@ const hexaTracker = {
         const isBreak = this.rankStep === 'break';
 
         const steps = this.RANK_STEPS.map(s => `<button onclick="hexaTracker.setRankStep('${s.key}')"
-            class="px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${this.rankStep === s.key ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}">${s.label}</button>`).join('');
+            class="join-item btn btn-sm ${this.rankStep === s.key ? 'btn-secondary' : 'text-base-content/60'}">${s.label}</button>`).join('');
 
         let list = '';
         rows.forEach((r, i) => {
             const medal = i === 0 ? '#fcd34d' : i === 1 ? '#cbd5e1' : i === 2 ? '#d97706' : null;
-            list += `<button onclick="hexaTracker.openForClass('${r.id}')"
-                class="w-full flex items-center gap-3 px-2.5 py-0.5 text-left transition-colors hover:bg-slate-800/70 ${i % 2 ? 'bg-slate-950/50' : ''}">
-                <span class="w-7 text-right text-xs font-bold tabular-nums shrink-0" style="color:${medal || '#64748b'}">${i + 1}</span>
-                <img src="${r.path}" class="w-7 h-7 object-contain shrink-0" loading="lazy" alt="">
-                <span class="w-56 shrink-0 min-w-0 flex items-baseline gap-2">
-                    <span class="text-xs text-slate-200 truncate">${this.escHtml(r.name)}</span>
-                    <span class="text-[10px] text-slate-500 truncate">${this.escHtml(r.group)}</span>
-                </span>
-                <span class="flex-1 min-w-0 hidden sm:block">
-                    <span class="block h-1.5 bg-slate-800 overflow-hidden">
-                        <span class="block h-full" style="width:${(r.frag / maxFrag * 100).toFixed(1)}%;background:linear-gradient(90deg,#7c3aed,#a78bfa)"></span>
-                    </span>
-                </span>
-                <span class="w-24 text-right text-xs font-bold tabular-nums text-violet-300 shrink-0">${Math.round(r.frag).toLocaleString()}</span>
-                <span class="w-16 text-right text-xs tabular-nums text-amber-300 shrink-0">${Math.round(r.erda).toLocaleString()}</span>
-                <span class="w-20 text-right text-xs tabular-nums text-emerald-300 shrink-0" title="この地点の最終ダメージ（全取得時 +${r.fdMax.toFixed(1)}%）">+${r.fd.toFixed(1)}%</span>
-                ${isBreak ? `<span class="w-12 text-right text-[10px] tabular-nums text-slate-500 shrink-0" title="全取得FDに対する到達率">${r.share.toFixed(0)}%</span>` : ''}
-            </button>`;
+            list += `<tr onclick="hexaTracker.openForClass('${r.id}')" class="cursor-pointer hover:bg-base-200/70">
+                <td class="text-right font-bold tabular-nums" style="color:${medal || '#64748b'}">${i + 1}</td>
+                <td><div class="flex items-center gap-2 min-w-0">
+                    <img src="${r.path}" class="w-7 h-7 object-contain shrink-0" loading="lazy" alt="">
+                    <span class="font-bold text-white truncate">${this.escHtml(r.name)}</span>
+                    <span class="text-[10px] text-base-content/50 truncate">${this.escHtml(r.group)}</span>
+                </div></td>
+                <td class="hidden sm:table-cell"><progress class="progress progress-secondary h-1.5 w-full block" value="${(r.frag / maxFrag * 100).toFixed(1)}" max="100"></progress></td>
+                <td class="text-right font-bold tabular-nums text-violet-300">${Math.round(r.frag).toLocaleString()}</td>
+                <td class="text-right tabular-nums text-amber-300">${Math.round(r.erda).toLocaleString()}</td>
+                <td class="text-right tabular-nums text-emerald-300" title="この地点の最終ダメージ（全取得時 +${r.fdMax.toFixed(1)}%）">+${r.fd.toFixed(1)}%</td>
+                ${isBreak ? `<td class="text-right text-[11px] tabular-nums text-base-content/50" title="全取得FDに対する到達率">${r.share.toFixed(0)}%</td>` : ''}
+            </tr>`;
         });
 
         const fastest = rows[0], slowest = rows[rows.length - 1];
-        return `<div class="max-w-6xl">
-            <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
-                <div>
-                    <h2 class="text-lg font-bold text-white flex items-center gap-2 leading-tight">
-                        <i data-lucide="trophy" class="w-4 h-4 text-amber-300"></i>HEXA効率ランキング
-                    </h2>
-                    <p class="text-[11px] text-slate-500 mt-0.5">
-                        ${isBreak
-                            ? 'コスパの分岐点（1レベルの効率が全体平均まで落ちる地点）に必要なソルエルダフラグメントが少ない順です。'
-                            : `全取得時の最終ダメージの${this.rankStep}%に到達するまでに必要なソルエルダフラグメントが少ない順です。`}
-                    </p>
+        return `<div class="max-w-6xl flex flex-col gap-3">
+            <section class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <h2 class="font-bold text-sm text-white flex items-center gap-1.5">
+                            <i data-lucide="trophy" class="w-4 h-4 text-amber-300"></i>HEXA効率ランキング
+                        </h2>
+                        <p class="text-[11px] text-base-content/50">
+                            ${isBreak
+                                ? 'コスパの分岐点（1レベルの効率が全体平均まで落ちる地点）に必要なソルエルダフラグメントが少ない順です。'
+                                : `全取得時の最終ダメージの${this.rankStep}%に到達するまでに必要なソルエルダフラグメントが少ない順です。`}
+                        </p>
+                    </div>
+                    <div class="join shrink-0">${steps}</div>
                 </div>
-                <div class="inline-flex flex-wrap rounded-lg bg-slate-900 p-0.5 border border-slate-700">${steps}</div>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 mb-2 px-1">
-                <span>${rows.length}職</span>
-                <span>最少 <span class="text-slate-200 font-bold">${this.escHtml(fastest.name)}</span>
-                    <span class="text-violet-300 tabular-nums font-bold">${Math.round(fastest.frag).toLocaleString()}</span> 欠片</span>
-                <span>最多 <span class="text-slate-200 font-bold">${this.escHtml(slowest.name)}</span>
-                    <span class="text-violet-300 tabular-nums font-bold">${Math.round(slowest.frag).toLocaleString()}</span> 欠片</span>
-                <span class="text-slate-600">差 ${Math.round(slowest.frag - fastest.frag).toLocaleString()} 欠片（${(slowest.frag / Math.max(1, fastest.frag)).toFixed(1)}倍）</span>
-            </div>
-
-            <div class="bg-slate-900 border border-slate-800 py-1">
-                <div class="flex items-center gap-3 px-2.5 pb-1.5 mb-1 border-b border-slate-800 text-[9px] uppercase tracking-wider text-slate-500 font-bold">
-                    <span class="w-7 text-right shrink-0">#</span>
-                    <span class="w-7 shrink-0"></span>
-                    <span class="w-56 shrink-0">職業</span>
-                    <span class="flex-1 hidden sm:block"></span>
-                    <span class="w-24 text-right shrink-0">必要欠片</span>
-                    <span class="w-16 text-right shrink-0">エルダ</span>
-                    <span class="w-20 text-right shrink-0">到達FD</span>
-                    ${isBreak ? '<span class="w-12 text-right shrink-0">到達率</span>' : ''}
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-base-content/60 pt-2 border-t border-base-content/10">
+                    <span class="badge badge-sm badge-ghost">${rows.length}職</span>
+                    <span>最少 <span class="text-white font-bold">${this.escHtml(fastest.name)}</span>
+                        <span class="text-violet-300 tabular-nums font-bold">${Math.round(fastest.frag).toLocaleString()}</span> 欠片</span>
+                    <span>最多 <span class="text-white font-bold">${this.escHtml(slowest.name)}</span>
+                        <span class="text-violet-300 tabular-nums font-bold">${Math.round(slowest.frag).toLocaleString()}</span> 欠片</span>
+                    <span class="text-base-content/40">差 ${Math.round(slowest.frag - fastest.frag).toLocaleString()} 欠片（${(slowest.frag / Math.max(1, fastest.frag)).toFixed(1)}倍）</span>
                 </div>
-                ${list}
+            </div></section>
+
+            <div class="card bg-base-100 border border-base-content/10 overflow-x-auto">
+                <table class="table table-sm [&_td]:py-0.5">
+                    <thead><tr class="text-[11px] text-base-content/50">
+                        <th class="w-10 text-right">#</th><th class="w-72">職業</th><th class="hidden sm:table-cell"></th>
+                        <th class="w-24 text-right">必要欠片</th><th class="w-16 text-right">エルダ</th><th class="w-20 text-right">到達FD</th>
+                        ${isBreak ? '<th class="w-14 text-right">到達率</th>' : ''}
+                    </tr></thead>
+                    <tbody>${list}</tbody>
+                </table>
             </div>
-            <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
+            <p class="text-[11px] text-base-content/40 leading-relaxed">
                 未強化の盤面から、「最終ダメージ / 欠片」が最大の順に振った場合の必要量です。
                 行をクリックすると、その職業のトラッカーが開きます。
                 消費リソースは正確な値、最終ダメージはノード係数からの推定値です。
@@ -613,35 +606,33 @@ const hexaTracker = {
                 const p = this.getProgress(cls.id, cls.id);
                 const started = p.fragSpent > 0;
                 cards += `<button onclick="hexaTracker.openForClass('${cls.id}')"
-                    class="flex items-center gap-2 px-1.5 py-1 rounded-none border text-left transition-colors ${started ? 'bg-slate-900 border-violet-800/60 hover:border-violet-500' : 'bg-slate-900/60 border-slate-800 hover:border-slate-600'}">
-                    <img src="${cls.path}" class="w-9 h-9 object-contain shrink-0" loading="lazy" alt="">
+                    class="flex items-center gap-2 px-1.5 h-[52px] border text-left transition-colors ${started ? 'bg-secondary/10 border-secondary/40 hover:border-secondary' : 'bg-base-200 border-base-content/10 hover:border-base-content/30'}">
+                    <img src="${cls.path}" class="w-9 h-9 object-contain shrink-0 ${started ? '' : 'opacity-60'}" loading="lazy" alt="">
                     <div class="flex-1 min-w-0">
-                        <div class="text-[13px] font-bold text-slate-100 truncate">${this.escHtml(cls.name)}</div>
+                        <div class="text-[13px] font-bold ${started ? 'text-white' : 'text-base-content/60'} truncate">${this.escHtml(cls.name)}</div>
                         ${started
-                            ? `<div class="text-[10px] text-emerald-300 tabular-nums">+${p.fdNow.toFixed(1)}% <span class="text-slate-600">/ +${p.fdMax.toFixed(1)}%</span></div>
-                               <div class="h-1 bg-slate-800 rounded-full overflow-hidden mt-1">
-                                   <div class="h-full rounded-full" style="width:${p.pct}%;background:linear-gradient(90deg,#7c3aed,#8b5cf6)"></div>
-                               </div>`
-                            : `<div class="text-[10px] text-slate-600">未入力</div>`}
+                            ? `<div class="text-[10px] text-emerald-300 tabular-nums">+${p.fdNow.toFixed(1)}% <span class="text-base-content/40">/ +${p.fdMax.toFixed(1)}%</span></div>
+                               <progress class="progress progress-secondary h-1 w-full block mt-1" value="${p.pct}" max="100"></progress>`
+                            : `<div class="text-[10px] text-base-content/40">未入力</div>`}
                     </div>
                     ${started ? `<span class="text-[11px] font-bold tabular-nums text-violet-300 shrink-0">${p.pct}%</span>` : ''}
                 </button>`;
             }
 
-            html += `<div class="mb-3">
-                <div class="flex items-baseline gap-2 px-1 mb-1">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">${this.escHtml(label)}</span>
-                    <span class="text-[10px] text-slate-600">${hexaClasses.length}職</span>
+            html += `<div>
+                <div class="flex items-baseline gap-2 mb-1">
+                    <h3 class="font-bold text-xs text-base-content/70">${this.escHtml(label)}</h3>
+                    <span class="text-[10px] text-base-content/40">${hexaClasses.length}職</span>
                 </div>
                 <div class="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-1">${cards}</div>
             </div>`;
         }
-        return `<div>
-            <div class="flex items-baseline gap-3 mb-2">
-                <h2 class="text-lg font-bold text-white leading-tight">HEXAトラッカー</h2>
-                <p class="text-[11px] text-slate-500">職業カードをクリックすると、進捗入力・効率順・効率カーブを開けます。</p>
+        return `<div class="flex flex-col gap-3">
+            <div class="flex items-baseline gap-3">
+                <h2 class="font-bold text-sm text-white">HEXAトラッカー</h2>
+                <p class="text-[11px] text-base-content/50">職業カードをクリックすると、進捗入力・効率順・効率カーブを開けます。</p>
             </div>
-            ${html}
+            <section class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-3">${html}</div></section>
         </div>`;
     },
 
