@@ -1,3 +1,24 @@
+/* 全体を legacy レイヤーに入れる（順番は index.html で宣言）。Tailwind のユーティリティがここより勝つので、
+   Tailwind 3 のときと同じく class に書いた px-6 などが効く。どうしても勝たせたい指定はファイル末尾の legacy の外に書く。 */
+@layer legacy {
+/* daisyUI 5 のテーマ maple（2026-10-05 bi 了承の案）。紺黒の地・藍の差し色、影と粒状感なし、角 0.25rem。
+   daisyUI の部品（btn / card / tabs など）はこの変数で色と形が決まる。 */
+[data-theme="maple"] {
+    /* color-scheme: dark は付けない。付けるとチェックボックスや日付の暦アイコンなどブラウザ標準の部品が暗色に変わる（見た目を変えない PR 1 の範囲外）。 */
+    --color-base-100: #0f172a; --color-base-200: #0b1222; --color-base-300: #020617; --color-base-content: #e2e8f0;
+    --color-primary: #6366f1; --color-primary-content: #ffffff;
+    --color-secondary: #a78bfa; --color-secondary-content: #1e1b4b;
+    --color-accent: #34d399; --color-accent-content: #022c22;
+    --color-neutral: #1e293b; --color-neutral-content: #cbd5e1;
+    --color-info: #38bdf8; --color-info-content: #082f49;
+    --color-success: #34d399; --color-success-content: #022c22;
+    --color-warning: #fbbf24; --color-warning-content: #451a03;
+    --color-error: #f87171; --color-error-content: #450a0a;
+    --radius-selector: 0.25rem; --radius-field: 0.25rem; --radius-box: 0.25rem;
+    --size-selector: 0.21875rem; --size-field: 0.21875rem;
+    --border: 1px; --depth: 0; --noise: 0;
+}
+
 body {
     background-color: #0f172a;
     color: #e2e8f0;
@@ -313,12 +334,6 @@ body {
     border-color: #ef4444;
 }
 
-#view-exp-sim input[type="date"],
-#view-exp-sim input[type="number"],
-#view-exp-sim input[type="text"],
-#view-exp-sim select {
-    font-family: 'Courier New', monospace;
-}
 
 #view-exp-sim input[type="date"]::-webkit-calendar-picker-indicator {
     filter: invert(0.7);
@@ -838,3 +853,13 @@ table.cm-boss th.cm-num { min-width: 9rem; white-space: nowrap; }
 .sc-bc-bar span { display: block; height: 100%; background: var(--cc); }
 .sc-bctbl .df-easy { color: #9ca3af; } .sc-bctbl .df-normal { color: #22d3ee; } .sc-bctbl .df-hard { color: #f87171; }
 .sc-bctbl .df-chaos { color: #ca8a04; } .sc-bctbl .df-extreme { color: #ef4444; }
+
+}
+
+/* legacy の外（ユーティリティより強い）。Tailwind 3 のとき ID 付きの指定で font-mono に勝っていたもの。 */
+#view-exp-sim input[type="date"],
+#view-exp-sim input[type="number"],
+#view-exp-sim input[type="text"],
+#view-exp-sim select {
+    font-family: 'Courier New', monospace;
+}

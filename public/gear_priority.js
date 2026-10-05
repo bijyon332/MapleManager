@@ -590,7 +590,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
 color:var(--mu);margin:0 0 4px;display:flex;align-items:center;gap:8px}
 .gp .eyebrow::after{content:"";flex:1;height:1px;background:var(--ln)}
 .gp section{margin-bottom:12px}
-.gp .card{background:var(--sf);border:1px solid var(--ln);border-radius:0;padding:8px 10px}
+.gp .gp-card{background:var(--sf);border:1px solid var(--ln);border-radius:0;padding:8px 10px}
 .gp .wcard{display:flex;flex-wrap:wrap;align-items:end;gap:6px 20px}
 .gp .grid6{display:grid;grid-template-columns:repeat(9,92px);gap:6px}
 .gp label,.gp-veil label{display:block;font-size:10.5px;color:var(--mu);margin-bottom:2px}
@@ -607,22 +607,22 @@ letter-spacing:normal;text-transform:none;margin-bottom:0}
 .gp-veil .chk{display:flex;align-items:center;gap:7px;color:var(--tx);font-size:12.5px;cursor:pointer;
 letter-spacing:normal;text-transform:none}
 .gp-veil .chk.mb{margin-bottom:14px}
-.gp .btn,.gp-veil .btn{background:transparent;color:var(--mu);border:1px solid #334155;border-radius:0;
+.gp .gp-btn,.gp-veil .gp-btn{background:transparent;color:var(--mu);border:1px solid #334155;border-radius:0;
 padding:2px 10px;font-size:11.5px;cursor:pointer;font-family:inherit}
-.gp .btn:hover,.gp-veil .btn:hover{border-color:var(--acc);color:#c7d2fe}
-.gp .step{display:grid;grid-template-columns:40px 1fr 84px 62px;gap:10px;align-items:center;
+.gp .gp-btn:hover,.gp-veil .gp-btn:hover{border-color:var(--acc);color:#c7d2fe}
+.gp .gp-step{display:grid;grid-template-columns:40px 1fr 84px 62px;gap:10px;align-items:center;
 padding:4px 10px 4px 6px;border-bottom:1px solid var(--ln)}
-.gp .step:nth-child(even){background:#0c1428}
-.gp .step:last-child{border-bottom:none}
+.gp .gp-step:nth-child(even){background:#0c1428}
+.gp .gp-step:last-child{border-bottom:none}
 .gp .fold{background:transparent;color:var(--mu);border:1px solid #334155;border-radius:0;
 padding:1px 6px;margin-left:6px;font-size:11px;font-family:ui-monospace,monospace;cursor:pointer;
 vertical-align:1px;white-space:nowrap}
 .gp .fold:hover{border-color:var(--acc);color:#c7d2fe}
-.gp .step.grp .rk{font-size:12.5px}
-.gp .step.child{background:rgba(0,0,0,.18);border-bottom-style:dashed;padding-left:26px}
-.gp .step.child .rk,.gp .step.child .who,.gp .step.child .what{font-size:11.5px}
-.gp .step.child .num,.gp .step.child .eff{font-size:12px;color:var(--mu)}
-.gp .step.child .meter{display:none}
+.gp .gp-step.grp .rk{font-size:12.5px}
+.gp .gp-step.child{background:rgba(0,0,0,.18);border-bottom-style:dashed;padding-left:26px}
+.gp .gp-step.child .rk,.gp .gp-step.child .who,.gp .gp-step.child .what{font-size:11.5px}
+.gp .gp-step.child .num,.gp .gp-step.child .eff{font-size:12px;color:var(--mu)}
+.gp .gp-step.child .meter{display:none}
 .gp .rk{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:var(--mu);text-align:right;font-variant-numeric:tabular-nums}
 .gp .who{font-size:11px;color:var(--mu)}
 .gp .what{font-size:13.5px;line-height:1.35}
@@ -645,14 +645,14 @@ vertical-align:1px;white-space:nowrap}
 .gp .tgt summary:focus-visible{outline:1px solid var(--ln)}
 .gp .tgt .alt{font-size:11px;color:var(--mu)}
 .gp .star b{color:var(--gold)} .gp .pot b{color:var(--cyan)} .gp .flame b{color:#4ade80}
-.gp .step.big b{color:var(--violet)}
+.gp .gp-step.big b{color:var(--violet)}
 .gp .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;text-align:right;font-size:14px;font-weight:600;color:#fff;line-height:1.25}
 .gp .eff{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;text-align:right;font-size:12px;color:#cbd5e1;line-height:1.25}
 .gp .sm{font-size:10.5px}
 .gp .meter{height:2px;margin-top:3px;background:var(--ln);overflow:hidden}
 .gp .meter i{display:block;height:100%}
 .gp .star .meter i{background:var(--gold)} .gp .pot .meter i{background:var(--cyan)} .gp .flame .meter i{background:#4ade80}
-.gp .step.big .meter i{background:var(--violet)}
+.gp .gp-step.big .meter i{background:var(--violet)}
 .gp .legend{display:flex;gap:4px 14px;font-size:11px;color:var(--mu);margin-bottom:4px;flex-wrap:wrap}
 .gp .dot{display:inline-block;width:8px;height:8px;margin-right:5px}
 .gp .empty{color:var(--mu);padding:14px 10px;text-align:center}
@@ -761,7 +761,7 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
 .gp-veil .pick .pl{font-size:10.5px;color:var(--mu);font-family:"IBM Plex Mono",monospace}
 .gp .rd{margin-top:8px;padding-top:6px;border-top:1px solid var(--ln)}
 .gp .rdbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-.gp .rdbar .btn.live{border-color:var(--red);color:var(--red);font-weight:700}
+.gp .rdbar .gp-btn.live{border-color:var(--red);color:var(--red);font-weight:700}
 .gp .rdstat{display:flex;align-items:center;gap:6px;margin-left:auto;font-size:11px;color:var(--mu)}
 .gp .rdstat select{width:auto;padding:1px 4px;font-size:12px}
 .gp .rdmsg{margin:4px 0 0;font-size:11px;color:var(--mu)}
@@ -781,7 +781,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
 .gp .read .rx:hover{color:var(--red)}
 .gp .readfoot{display:flex;gap:6px;justify-content:flex-end;padding:5px 6px}
 .gp.drop .rd{outline:1px dashed var(--acc);outline-offset:2px}
-@media(max-width:640px){.gp .step{grid-template-columns:26px 1fr;row-gap:2px}
+@media(max-width:640px){.gp .gp-step{grid-template-columns:26px 1fr;row-gap:2px}
 .gp .num,.gp .eff{text-align:left;grid-column:2}}
 `;
 
@@ -1024,7 +1024,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
 
     <section>
         <p class="eyebrow">スコア重み</p>
-        <div class="card wcard">
+        <div class="gp-card wcard">
             <div class="grid6">${weights}</div>
             <div class="opts">
                 <label class="chk"><input type="checkbox" data-gp="opt" data-key="ssf" ${o.ssf ? 'checked' : ''}>シャイニングスターフォース</label>
@@ -1058,19 +1058,19 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
     <div class="cols">
     <section>
         <p class="eyebrow">装備</p>
-        <div class="card">
+        <div class="gp-card">
             <div class="rackbar">
                 <span>クリックで詳細を入力。チェックを外した部位は計算から除外します。</span>
                 <span class="rackbtns">
-                    <button type="button" class="btn" data-gp="all-on">すべて有効</button>
-                    <button type="button" class="btn" data-gp="all-off">すべて無効</button>
+                    <button type="button" class="gp-btn" data-gp="all-on">すべて有効</button>
+                    <button type="button" class="gp-btn" data-gp="all-off">すべて無効</button>
                 </span>
             </div>
             <div class="gridwrap"><div id="gp-rack" class="slots"></div></div>
             <div class="rd">
                 <div class="rdbar">
-                    <button type="button" class="btn" data-gp="rd-file">スクショから読み取る</button>
-                    <button type="button" class="btn" data-gp="rd-live">ライブ読み取り</button>
+                    <button type="button" class="gp-btn" data-gp="rd-file">スクショから読み取る</button>
+                    <button type="button" class="gp-btn" data-gp="rd-live">ライブ読み取り</button>
                     <input type="file" accept="image/*" multiple hidden data-gp="rd-input">
                     <span class="rdstat">${this.statPicks()}</span>
                 </div>
@@ -1089,7 +1089,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
             <span><i class="dot" style="background:#b18cf7"></i>武器・補助武器・エンブレムの潜在</span>
             <span>バーは1スコアあたりの単価（対数）。長いほど割高。</span>
         </div>
-        <div class="card" style="padding:0"><div id="gp-plan-list"></div></div>
+        <div class="gp-card" style="padding:0"><div id="gp-plan-list"></div></div>
         <p class="note">スターフォースは破壊で★が戻るため、0→18・18→20・20→21・21→22、以降は1★ずつをひとまとまりとして扱い、その区切りまで到達する期待額を出しています（再登坂込み、予備装備は0メソ扱い）。潜在はKMSの行ごとの確率（Lv160以上は値+1%）で3行の組み合わせを全部数え、今の3行の合計スコアを上回るまで回す期待個数と、上回ったときの平均スコアで見ています。転生は黒転生（結果を選べる）で同じように、今を上回るまでの期待回数で見ています。</p>
     </section>
     </div>
@@ -1262,8 +1262,8 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
                 </div>`;
             }).join('');
             el.innerHTML = `<div class="reads">${rows}
-                <div class="readfoot"><button type="button" class="btn danger" data-gp="rd-clear">すべて捨てる</button>
-                <button type="button" class="btn primary" data-gp="rd-apply">${this.reads.length}件を反映して保存</button></div></div>`;
+                <div class="readfoot"><button type="button" class="gp-btn danger" data-gp="rd-clear">すべて捨てる</button>
+                <button type="button" class="gp-btn primary" data-gp="rd-apply">${this.reads.length}件を反映して保存</button></div></div>`;
         },
         applyReads() {
             for (const r of this.reads) {
@@ -1537,7 +1537,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
                 else groups.push({ sig, steps: [{ ...s, rank: i + 1 }] });
             });
 
-            const row = (s, cls, rank, cost, cum, extra) => `<div class="step ${s.kind} ${s.big ? 'big' : ''} ${cls}">
+            const row = (s, cls, rank, cost, cum, extra) => `<div class="gp-step ${s.kind} ${s.big ? 'big' : ''} ${cls}">
                 <div class="rk">${rank}</div>
                 <div>
                     <div class="who">${esc(s.name)}・Lv${s.level}</div>
@@ -1625,7 +1625,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
             const cell = (it) => `<button type="button" class="pick ${d.item === it.id ? 'on' : ''}" data-gp="m-pick" data-item="${it.id}" title="${esc(it.name)}">
                 ${iconImg(it.id, 32)}<span class="pn">${esc(it.name)}</span><span class="pl">Lv${it.level}</span></button>`;
             return `<div class="eq-head"><h2>${esc(SLOTS[d.id].label)}の装備を選ぶ</h2>
-                    <button type="button" class="btn" data-gp="m-unpick">戻る</button></div>
+                    <button type="button" class="gp-btn" data-gp="m-unpick">戻る</button></div>
                 <div class="picks">
                     <button type="button" class="pick ${d.item ? '' : 'on'}" data-gp="m-pick" data-item="">
                         ${iconImg(null, 32)}<span class="pn">指定なし</span><span class="pl">Lvは手で選ぶ</span></button>
@@ -1719,7 +1719,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
                         <h2>${esc(it ? it.name : s.label)}</h2>
                         <p>${esc(s.label)} · ${lvFixed ? `Lv${L}` : `<select class="lv" data-gp="m-level" aria-label="装備Lv">${levels}</select>`}${star ? '' : ' · スタフォ不可'}</p>
                     </div>
-                    ${pickable ? '<button type="button" class="btn" data-gp="m-picker">装備を選ぶ</button>' : ''}
+                    ${pickable ? '<button type="button" class="gp-btn" data-gp="m-picker">装備を選ぶ</button>' : ''}
                 </div>
                 ${star ? `<div class="stars"><div class="srun">${stars}</div><div class="sside"><span class="snum">${d.star}★</span><button type="button" class="st0" data-gp="m-star" data-star="0" title="0★に戻す">0★に戻す</button></div></div>` : ''}
 
@@ -1744,8 +1744,8 @@ ${grades}
                 </div>
                 <div class="foot">
                     <span class="grow"></span>
-                    <button type="button" class="btn" data-gp="m-cancel">キャンセル</button>
-                    <button type="button" class="btn primary" data-gp="m-save">保存</button>
+                    <button type="button" class="gp-btn" data-gp="m-cancel">キャンセル</button>
+                    <button type="button" class="gp-btn primary" data-gp="m-save">保存</button>
                 </div>`;
         },
 

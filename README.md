@@ -2,7 +2,7 @@
 
 MapleStory (GMS) の身内向け管理ツール。週ボスのPT編成、コミュニティ名簿、育成計画をひとつの画面にまとめたもの。
 
-Cloudflare Worker + 静的アセットとして配信している。ビルド工程は無く、`public/` に置いた素の HTML / JS / CSS がそのまま配られる。Tailwind・Chart.js・lucide は CDN から読む。
+Cloudflare Worker + 静的アセットとして配信している。ビルド工程は無く、`public/` に置いた素の HTML / JS / CSS がそのまま配られる。Tailwind 4（ブラウザ内でコンパイルする `@tailwindcss/browser`）・daisyUI 5・Chart.js・lucide は CDN から読む。daisyUI のテーマ `maple` は `public/style.css` の先頭にある。
 
 ## 画面の構成
 
