@@ -390,26 +390,20 @@ const scouter = (() => {
         renderModal();
     }
 
-    // 上の1行: 誰か・換算主ステ（HEXA換算も）・前回の計算日時・操作。結果は前回「計算する」を押したときのもの。
+    // 上の1行: 誰か・前回の計算日時・操作。換算主ステは結果タブに出すのでここには出さない。
     function summaryHTML(e, portrait) {
         const r = e.result && !e.result.error ? e.result : null;
         const who = cur.page ? `<div class="flex items-center gap-3 shrink-0">
                 ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-10 h-10 object-contain">` : ''}
                 <div class="leading-tight whitespace-nowrap"><b class="text-white">仮入力</b><div class="text-[11px] text-base-content/50">キャラに紐付けない</div></div>
             </div>` : '';
-        const big = (v) => `<span class="font-['Saira_Condensed'] text-4xl font-bold text-warning tabular-nums">${fmt(v)}</span>`;
         const at = r && r.at ? r.at.replace('T', ' ').slice(0, 16) : '';
         return `<div class="card bg-base-100 border border-base-content/10"><div class="flex items-center gap-5 px-4 py-2.5 flex-wrap">
             ${who}
-            <div class="${who ? 'border-l border-base-content/10 pl-5' : ''} leading-none shrink-0">
-                <div class="text-[11px] text-base-content/50 mb-1">換算主ステ</div>
-                ${r ? `<div>${big(r.b300h || r.b300)}</div>`
-                    : '<span class="text-sm text-base-content/40">まだ計算していません</span>'}
-            </div>
-            ${at ? `<div class="border-l border-base-content/10 pl-5 leading-tight">
+            <div class="${who ? 'border-l border-base-content/10 pl-5' : ''} leading-tight">
                 <div class="text-[11px] text-base-content/50">前回の計算</div>
-                <div class="font-mono text-xs text-base-content/70">${esc(at)}</div>
-            </div>` : ''}
+                ${at ? `<div class="font-mono text-xs text-base-content/70">${esc(at)}</div>` : '<div class="text-xs text-base-content/40">まだ計算していません</div>'}
+            </div>
             <div class="ml-auto flex gap-1 shrink-0">
                 <button data-sc="file" class="btn btn-sm" title="ステータス画面のスクショを読み取る（貼り付け・ドロップでも可）"><i data-lucide="image" class="w-3.5 h-3.5"></i>スクショ読み取り</button>
                 <button data-sc="live" class="btn btn-sm ${cur.live ? 'btn-error btn-soft' : ''}" title="ゲーム画面を共有して、ステータス画面を読み取り続ける"><i data-lucide="monitor" class="w-3.5 h-3.5"></i>${cur.live ? 'ライブ停止' : 'ライブ読み取り'}</button>
