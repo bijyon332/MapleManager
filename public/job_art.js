@@ -1,9 +1,11 @@
 // ダッシュボードのキャラカードに敷く職業の絵（透かし）の、職業ごとの位置と大きさ。
-// 値は DEV の Job Art Position で調整して「書き出す」でコピーしたものを貼る。
+// 値は DEV の Job Art Position で調整して「書き出す」でコピーしたものを貼る（このファイルの中身を丸ごと置き換える）。
+// 絵は立ち絵（CharacterIcon.png）か KMS の職業イラスト（Illust.webp、class_data.js の illust）を職ごとに選ぶ。
 // キーは class_data.js の id。載っていない職は DEFAULT を使う。
 //   x … 絵の右端をカードの右端から何px内側に置くか（マイナスではみ出す）
 //   y … 絵の上端を帯の上端から何px下に置くか（マイナスで上にはみ出す）
 //   z … 絵の横幅（カードのボス欄の幅に対する%）
+//   f … 1 なら左右反転（無ければ反転しない）
 const JOB_ART_DEFAULT = { x: -20, y: -30, z: 62 };
 const JOB_ART_POS = {
     archmagefp: { x: -52, y: -120, z: 100 },
@@ -60,3 +62,11 @@ const JOB_ART_POS = {
     erellight: { x: -60, y: -124, z: 114 },
     sia: { x: -76, y: -106, z: 92 },
 };
+
+// イラストを使うときの位置と大きさ（立ち絵とは別に持つ。意味は上と同じ）
+const JOB_ART_ILLUST_DEFAULT = { x: 0, y: -40, z: 100 };
+const JOB_ART_ILLUST_POS = {
+};
+
+// 透かしにイラストを使う職（載っていない職は立ち絵）
+const JOB_ART_USE_ILLUST = [];
