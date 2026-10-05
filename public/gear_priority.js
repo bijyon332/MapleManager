@@ -580,62 +580,25 @@ color:var(--tx);
 font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;font-size:13px;line-height:1.5;}
 .gp{padding:0 0 24px}
 .gp *,.gp-veil *{box-sizing:border-box}
-.gp .wrap{max-width:1480px}
-.gp .head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:0 0 10px}
-.gp .cols{display:grid;grid-template-columns:minmax(0,11fr) minmax(0,12fr);gap:12px;align-items:start}
-@media(max-width:1100px){.gp .cols{grid-template-columns:1fr}}
-.gp h1{font-size:18px;font-weight:700;margin:0;color:#fff}
-.gp .sub{color:var(--mu);margin:0;font-size:11.5px}
-.gp .eyebrow{font-size:11px;font-weight:600;letter-spacing:.06em;
-color:var(--mu);margin:0 0 4px;display:flex;align-items:center;gap:8px}
-.gp .eyebrow::after{content:"";flex:1;height:1px;background:var(--ln)}
-.gp section{margin-bottom:12px}
-.gp .gp-card{background:var(--sf);border:1px solid var(--ln);border-radius:0;padding:8px 10px}
-.gp .wcard{display:flex;flex-wrap:wrap;align-items:end;gap:6px 20px}
-.gp .grid6{display:grid;grid-template-columns:repeat(9,92px);gap:6px}
-.gp label,.gp-veil label{display:block;font-size:10.5px;color:var(--mu);margin-bottom:2px}
-.gp input,.gp select,.gp-veil input,.gp-veil select{width:100%;background:var(--bg);color:var(--tx);
+.gp-veil label{display:block;font-size:10.5px;color:var(--mu);margin-bottom:2px}
+.gp .read select,.gp-veil input,.gp-veil select{width:100%;background:var(--bg);color:var(--tx);
 border:1px solid #334155;border-radius:0;padding:3px 6px;font-size:13px;
 font-variant-numeric:tabular-nums;font-family:"IBM Plex Mono",ui-monospace,monospace;color-scheme:dark}
-.gp select option,.gp-veil select option{background:var(--sf);color:var(--tx)}
-.gp input:focus,.gp select:focus,.gp-veil input:focus,.gp-veil select:focus{outline:1px solid var(--acc);
+.gp-veil select option{background:var(--sf);color:var(--tx)}
+.gp .read select:focus,.gp-veil input:focus,.gp-veil select:focus{outline:1px solid var(--acc);
 outline-offset:0;border-color:var(--acc)}
-.gp .opts{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:end;padding-left:20px;border-left:1px solid var(--ln)}
-.gp .chk{display:flex;align-items:center;gap:7px;color:var(--tx);font-size:12.5px;cursor:pointer;
-letter-spacing:normal;text-transform:none;margin-bottom:0}
-.gp .chk input,.gp-veil .chk input{width:14px;height:14px;accent-color:var(--acc)}
+.gp-veil .chk input{width:14px;height:14px;accent-color:var(--acc)}
 .gp-veil .chk{display:flex;align-items:center;gap:7px;color:var(--tx);font-size:12.5px;cursor:pointer;
 letter-spacing:normal;text-transform:none}
 .gp-veil .chk.mb{margin-bottom:14px}
 .gp .gp-btn,.gp-veil .gp-btn{background:transparent;color:var(--mu);border:1px solid #334155;border-radius:0;
 padding:2px 10px;font-size:11.5px;cursor:pointer;font-family:inherit}
 .gp .gp-btn:hover,.gp-veil .gp-btn:hover{border-color:var(--acc);color:#c7d2fe}
-.gp .gp-step{display:grid;grid-template-columns:40px 1fr 84px 62px;gap:10px;align-items:center;
-padding:4px 10px 4px 6px;border-bottom:1px solid var(--ln)}
-.gp .gp-step:nth-child(even){background:#0c1428}
-.gp .gp-step:last-child{border-bottom:none}
-.gp .fold{background:transparent;color:var(--mu);border:1px solid #334155;border-radius:0;
-padding:1px 6px;margin-left:6px;font-size:11px;font-family:ui-monospace,monospace;cursor:pointer;
-vertical-align:1px;white-space:nowrap}
-.gp .fold:hover{border-color:var(--acc);color:#c7d2fe}
-.gp .gp-step.grp .rk{font-size:12.5px}
-.gp .gp-step.child{background:rgba(0,0,0,.18);border-bottom-style:dashed;padding-left:26px}
-.gp .gp-step.child .rk,.gp .gp-step.child .who,.gp .gp-step.child .what{font-size:11.5px}
-.gp .gp-step.child .num,.gp .gp-step.child .eff{font-size:12px;color:var(--mu)}
-.gp .gp-step.child .meter{display:none}
-.gp .rk{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:var(--mu);text-align:right;font-variant-numeric:tabular-nums}
-.gp .who{font-size:11px;color:var(--mu)}
-.gp .what{font-size:13.5px;line-height:1.35}
-.gp .what b{font-weight:600}
 .gp .cube{font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:3px;vertical-align:-2px}
 .gp .cube img{width:16px;height:16px;image-rendering:pixelated}
 .gp .cube.red{color:#7dd3fc}
 .gp .cube.black{color:#c4b5fd}
-.gp .sale .salerow{display:flex;align-items:center;gap:6px;height:30px}
-.gp .sale .salerow input[type=number]{width:52px}
-.gp .sale .pct{font-size:12px;color:var(--mu)}
 .gp .tgt{font-size:12px;line-height:1.4;margin-top:2px}
-.gp .tgt .tl{font-size:10.5px;color:var(--mu);border:1px solid var(--ln);padding:0 4px;margin-right:6px}
 .gp .tgt b{font-weight:600}
 .gp .tgt summary{list-style:none;cursor:pointer}
 .gp .tgt summary::-webkit-details-marker{display:none}
@@ -644,44 +607,11 @@ vertical-align:1px;white-space:nowrap}
 .gp .tgt[open] .more::after{content:" ▴"}
 .gp .tgt summary:focus-visible{outline:1px solid var(--ln)}
 .gp .tgt .alt{font-size:11px;color:var(--mu)}
-.gp .star b{color:var(--gold)} .gp .pot b{color:var(--cyan)} .gp .flame b{color:#4ade80}
-.gp .gp-step.big b{color:var(--violet)}
-.gp .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;text-align:right;font-size:14px;font-weight:600;color:#fff;line-height:1.25}
-.gp .eff{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;text-align:right;font-size:12px;color:#cbd5e1;line-height:1.25}
-.gp .sm{font-size:10.5px}
-.gp .meter{height:2px;margin-top:3px;background:var(--ln);overflow:hidden}
-.gp .meter i{display:block;height:100%}
-.gp .star .meter i{background:var(--gold)} .gp .pot .meter i{background:var(--cyan)} .gp .flame .meter i{background:#4ade80}
-.gp .gp-step.big .meter i{background:var(--violet)}
-.gp .legend{display:flex;gap:4px 14px;font-size:11px;color:var(--mu);margin-bottom:4px;flex-wrap:wrap}
-.gp .dot{display:inline-block;width:8px;height:8px;margin-right:5px}
-.gp .empty{color:var(--mu);padding:14px 10px;text-align:center}
-.gp .rackbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;
-color:var(--mu);font-size:11px;margin-bottom:6px}
-.gp .rackbtns{display:flex;gap:6px}
-.gp .gridwrap{overflow-x:auto}
-.gp .slots{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;min-width:440px}
-.gp .slot{position:relative}
-.gp .slot-btn{width:100%;height:100%;display:flex;flex-direction:column;align-items:flex-start;gap:1px;
-background:var(--sf2);border:1px solid var(--ln);border-radius:0;padding:4px 18px 4px 6px;
-cursor:pointer;text-align:left;font-family:inherit;color:var(--tx)}
-.gp .slot-btn:hover{border-color:var(--acc)}
-.gp .slot-btn:focus-visible{outline:1px solid var(--acc);outline-offset:1px}
-.gp .slot.off .slot-btn{opacity:.38}
-.gp .slot.inert .slot-btn{opacity:.38;border-style:dashed}
-.gp .slot .nm{font-size:12px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.gp .slot .st{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;line-height:1.35;color:var(--mu);
-font-variant-numeric:tabular-nums;white-space:nowrap}
-.gp .slot .st em{font-style:normal;color:var(--gold)}
-.gp .slot .st i{font-style:normal;color:var(--cyan)}
-.gp .slot .pin{font-weight:400;color:var(--bg);background:var(--mu);padding:0 3px;margin-left:2px}
-.gp .sw{position:absolute;top:5px;right:4px;margin:0;line-height:0}
-.gp .sw input{width:13px;height:13px;accent-color:var(--acc);cursor:pointer}
 .gp-veil{position:fixed;inset:0;background:rgba(8,9,16,.72);display:flex;align-items:center;
 justify-content:center;padding:20px;z-index:50}
-.gp-veil .modal{background:var(--sf);border:1px solid #334155;border-top:2px solid var(--acc);border-radius:0;width:100%;
+.gp-veil .gp-dlg{background:var(--sf);border:1px solid #334155;border-top:2px solid var(--acc);border-radius:0;width:100%;
 max-width:420px;padding:14px 16px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
-.gp-veil .modal h2{font-size:15px;margin:0 0 10px;font-weight:700}
+.gp-veil .gp-dlg h2{font-size:15px;margin:0 0 10px;font-weight:700}
 .gp-veil .fld{margin-bottom:12px}
 .gp-veil .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .gp-veil .foot{display:flex;gap:8px;margin-top:18px}
@@ -689,17 +619,13 @@ max-width:420px;padding:14px 16px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
 .gp .primary,.gp-veil .primary{background:#4f46e5;color:#fff;border-color:#6366f1;font-weight:700}
 .gp .primary:hover,.gp-veil .primary:hover{background:#6366f1;color:#fff;border-color:#818cf8}
 .gp .danger:hover,.gp-veil .danger:hover{border-color:var(--red);color:var(--red)}
-.gp input:disabled,.gp select:disabled,.gp-veil input:disabled,.gp-veil select:disabled{opacity:.5;cursor:not-allowed}
-@media(prefers-reduced-motion:no-preference){.gp-veil .modal{animation:gp-pop .16s ease-out}}
+.gp-veil input:disabled,.gp-veil select:disabled{opacity:.5;cursor:not-allowed}
+@media(prefers-reduced-motion:no-preference){.gp-veil .gp-dlg{animation:gp-pop .16s ease-out}}
 @keyframes gp-pop{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
 .gp .note,.gp-veil .note{color:#64748b;font-size:11px;margin-top:6px}
-.gp .slot-btn{flex-direction:row;align-items:center;gap:5px;padding-left:4px}
-.gp .tile-ico{flex:0 0 26px;height:26px;display:flex;align-items:center;justify-content:center}
-.gp .tile-body{display:flex;flex-direction:column;min-width:0;gap:1px}
-.gp .slot .st u{text-decoration:none;color:#4ade80}
 .gp .ico,.gp-veil .ico{image-rendering:pixelated;object-fit:contain;display:block}
 .gp .ico.none,.gp-veil .ico.none{display:block;border:1px dashed #334155;background:transparent}
-.gp-veil .modal.eq{max-width:440px;padding:12px 14px;max-height:calc(100vh - 40px);overflow:auto}
+.gp-veil .gp-dlg.eq{max-width:440px;padding:12px 14px;max-height:calc(100vh - 40px);overflow:auto}
 .gp-veil .eq-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .gp-veil .eq-head h2{margin:0;font-size:15px}
 .gp-veil .eq-head > h2{flex:1}
@@ -759,11 +685,6 @@ text-align:left;background:var(--sf2);border:1px solid var(--ln);padding:3px 6px
 .gp-veil .pick.on{border-color:var(--acc);background:#1e1b4b}
 .gp-veil .pick .pn{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gp-veil .pick .pl{font-size:10.5px;color:var(--mu);font-family:"IBM Plex Mono",monospace}
-.gp .rd{margin-top:8px;padding-top:6px;border-top:1px solid var(--ln)}
-.gp .rdbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-.gp .rdbar .gp-btn.live{border-color:var(--red);color:var(--red);font-weight:700}
-.gp .rdstat{display:flex;align-items:center;gap:6px;margin-left:auto;font-size:11px;color:var(--mu)}
-.gp .rdstat select{width:auto;padding:1px 4px;font-size:12px}
 .gp .rdmsg{margin:4px 0 0;font-size:11px;color:var(--mu)}
 .gp .rdmsg.err{color:var(--red)}
 .gp .rdmsg.ok{color:#4ade80}
@@ -781,8 +702,6 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
 .gp .read .rx:hover{color:var(--red)}
 .gp .readfoot{display:flex;gap:6px;justify-content:flex-end;padding:5px 6px}
 .gp.drop .rd{outline:1px dashed var(--acc);outline-offset:2px}
-@media(max-width:640px){.gp .gp-step{grid-template-columns:26px 1fr;row-gap:2px}
-.gp .num,.gp .eff{text-align:left;grid-column:2}}
 `;
 
     const STORAGE_KEY = 'gms-gear-priority';
@@ -1011,89 +930,73 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
 
         buildHTML() {
             const { w, o, limit } = this.state;
-            const weights = WEIGHT_FIELDS.map(([k, lb]) => `
-                <div>
-                    <label for="gp-w-${k}">${esc(lb)}</label>
-                    <input id="gp-w-${k}" type="number" min="0" step="any" value="${w[k]}" data-gp="weight" data-key="${k}">
-                </div>`).join('');
+            // 小見出しつきの入力欄。daisyUI の fieldset で見出しと欄を縦に並べる。
+            const field = (label, input, cls) => `<fieldset class="fieldset p-0 ${cls || ''}"><legend class="fieldset-legend py-0.5 text-[11px] font-normal text-base-content/60 whitespace-nowrap">${label}</legend>${input}</fieldset>`;
+            const chk = (key, label) => `<label class="label text-xs text-base-content"><input type="checkbox" class="checkbox checkbox-xs" data-gp="opt" data-key="${key}" ${o[key] ? 'checked' : ''}>${label}</label>`;
+            const weights = WEIGHT_FIELDS.map(([k, lb]) => field(`<label for="gp-w-${k}">${esc(lb)}</label>`,
+                `<input id="gp-w-${k}" class="input input-xs font-mono w-full" type="number" min="0" step="any" value="${w[k]}" data-gp="weight" data-key="${k}">`)).join('');
+            const legend = (st, label) => `<span class="badge badge-sm badge-ghost"><span class="status status-${st}"></span>${label}</span>`;
 
             return `<style>${CSS}</style>
-<div class="gp"><div class="wrap">
-    <div class="head"><h1>Upgrade Priority</h1>
-    <p class="sub">いま持っている装備を入れると、次に伸ばすべき順番をメソ効率順に並べます。リブート／シャイニングスターフォース前提、潜在はレジェンダリー基準。${this.storageKey ? '' : '<br>ここはキャラに紐づかない仮の入力です。キャラごとの入力は Character Manager のカードの「UPGRADE」から開きます。'}</p></div>
+<div class="gp">
+    <div class="flex items-baseline gap-3 mb-3 flex-wrap"><h1 class="text-lg font-bold text-white">Upgrade Priority</h1>
+    <p class="text-xs text-base-content/50 leading-relaxed">いま持っている装備を入れると、次に伸ばすべき順番をメソ効率順に並べます。リブート／シャイニングスターフォース前提、潜在はレジェンダリー基準。${this.storageKey ? '' : '<br>ここはキャラに紐づかない仮の入力です。キャラごとの入力は Character Manager のカードの「UPGRADE」から開きます。'}</p></div>
 
-    <section>
-        <p class="eyebrow">スコア重み</p>
-        <div class="gp-card wcard">
-            <div class="grid6">${weights}</div>
-            <div class="opts">
-                <label class="chk"><input type="checkbox" data-gp="opt" data-key="ssf" ${o.ssf ? 'checked' : ''}>シャイニングスターフォース</label>
-                <label class="chk"><input type="checkbox" data-gp="opt" data-key="safeguard" ${o.safeguard ? 'checked' : ''}>15-17★で破壊防止</label>
-                <label class="chk"><input type="checkbox" data-gp="opt" data-key="starCatch" ${o.starCatch ? 'checked' : ''}>スターキャッチ</label>
-                <div style="width:170px">
-                    <label for="gp-plan">18★以降のモード（既定）</label>
-                    <select id="gp-plan" data-gp="planName">
-                        ${Object.keys(PLANS).map((k) => `<option value="${k}" ${o.planName === k ? 'selected' : ''}>${esc(PLAN_LABEL[k])}</option>`).join('')}
-                    </select>
-                </div>
-                <div style="width:96px">
-                    <label for="gp-flame-price">黒転生 1回（M）</label>
-                    <input id="gp-flame-price" type="number" min="0" step="0.1" value="${(o.flamePrice || 3e6) / 1e6}" data-gp="flamePrice">
-                </div>
-                <div class="sale">
-                    <label for="gp-sale-pct">キューブの割引</label>
-                    <span class="salerow">
-                        <label class="chk"><input type="checkbox" data-gp="opt" data-key="cubeSale" ${o.cubeSale ? 'checked' : ''}>ブラックフライデー</label>
-                        <input id="gp-sale-pct" type="number" min="0" max="100" step="1" value="${o.cubeSalePct ?? 25}" data-gp="cubeSalePct" aria-label="割引率（%）" ${o.cubeSale ? '' : 'disabled'}><span class="pct">%引き</span>
-                    </span>
-                </div>
-                <div style="width:70px">
-                    <label for="gp-limit">読む手数</label>
-                    <input id="gp-limit" type="number" min="1" max="80" value="${limit}" data-gp="limit">
+    <div class="grid grid-cols-1 xl:grid-cols-[11fr_12fr] gap-3 items-start">
+    <div class="flex flex-col gap-3 xl:sticky xl:top-0">
+        <div class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
+            <div class="flex items-center gap-2">
+                <h2 class="card-title text-sm whitespace-nowrap">装備</h2>
+                <span class="text-[11px] text-base-content/50">クリックで詳細を入力。チェックを外した部位は計算から除外します。</span>
+                <div class="join ml-auto shrink-0">
+                    <button type="button" class="btn btn-xs join-item" data-gp="all-on">すべて有効</button>
+                    <button type="button" class="btn btn-xs join-item" data-gp="all-off">すべて無効</button>
                 </div>
             </div>
-        </div>
-    </section>
-
-    <div class="cols">
-    <section>
-        <p class="eyebrow">装備</p>
-        <div class="gp-card">
-            <div class="rackbar">
-                <span>クリックで詳細を入力。チェックを外した部位は計算から除外します。</span>
-                <span class="rackbtns">
-                    <button type="button" class="gp-btn" data-gp="all-on">すべて有効</button>
-                    <button type="button" class="gp-btn" data-gp="all-off">すべて無効</button>
-                </span>
-            </div>
-            <div class="gridwrap"><div id="gp-rack" class="slots"></div></div>
-            <div class="rd">
-                <div class="rdbar">
-                    <button type="button" class="gp-btn" data-gp="rd-file">スクショから読み取る</button>
-                    <button type="button" class="gp-btn" data-gp="rd-live">ライブ読み取り</button>
+            <div class="overflow-x-auto"><div id="gp-rack" class="grid grid-cols-5 gap-1 min-w-[440px]"></div></div>
+            <div class="rd pt-2 border-t border-base-content/10">
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" class="btn btn-sm" data-gp="rd-file">スクショから読み取る</button>
+                    <button type="button" class="btn btn-sm" data-gp="rd-live">ライブ読み取り</button>
                     <input type="file" accept="image/*" multiple hidden data-gp="rd-input">
-                    <span class="rdstat">${this.statPicks()}</span>
+                    <span class="rdstat ml-auto flex items-center gap-2 text-xs text-base-content/50 whitespace-nowrap">${this.statPicks()}</span>
                 </div>
                 <p class="rdmsg" data-rd="msg">ゲームで装備にカーソルを合わせたスクショを、Ctrl+V かドラッグでも渡せます。</p>
                 <div id="gp-reads"></div>
             </div>
-        </div>
-    </section>
+        </div></div>
 
-    <section>
-        <p class="eyebrow">この順で伸ばす</p>
-        <div class="legend">
-            <span><i class="dot" style="background:#f4b942"></i>スターフォース</span>
-            <span><i class="dot" style="background:#48d6c8"></i>潜在</span>
-            <span><i class="dot" style="background:#4ade80"></i>転生</span>
-            <span><i class="dot" style="background:#b18cf7"></i>武器・補助武器・エンブレムの潜在</span>
-            <span>バーは1スコアあたりの単価（対数）。長いほど割高。</span>
-        </div>
-        <div class="gp-card" style="padding:0"><div id="gp-plan-list"></div></div>
-        <p class="note">スターフォースは破壊で★が戻るため、0→18・18→20・20→21・21→22、以降は1★ずつをひとまとまりとして扱い、その区切りまで到達する期待額を出しています（再登坂込み、予備装備は0メソ扱い）。潜在はKMSの行ごとの確率（Lv160以上は値+1%）で3行の組み合わせを全部数え、今の3行の合計スコアを上回るまで回す期待個数と、上回ったときの平均スコアで見ています。転生は黒転生（結果を選べる）で同じように、今を上回るまでの期待回数で見ています。</p>
-    </section>
+        <div class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
+            <h2 class="card-title text-sm">スコア重み</h2>
+            <div class="grid grid-cols-5 gap-1.5">${weights}</div>
+            <div class="pt-2 border-t border-base-content/10 flex flex-col gap-2">
+                <div class="flex flex-wrap gap-x-4 gap-y-1 whitespace-nowrap">
+                    ${chk('ssf', 'シャイニングスターフォース')}${chk('safeguard', '15-17★で破壊防止')}${chk('starCatch', 'スターキャッチ')}
+                </div>
+                <div class="grid grid-cols-[minmax(0,1.3fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_auto] gap-x-3 items-end whitespace-nowrap">
+                    ${field('<label for="gp-plan">18★以降のモード（既定）</label>', `<select id="gp-plan" class="select select-xs w-full" data-gp="planName">
+                        ${Object.keys(PLANS).map((k) => `<option value="${k}" ${o.planName === k ? 'selected' : ''}>${esc(PLAN_LABEL[k])}</option>`).join('')}
+                    </select>`)}
+                    ${field('<label for="gp-flame-price">黒転生 1回（M）</label>', `<input id="gp-flame-price" class="input input-xs font-mono w-full" type="number" min="0" step="0.1" value="${(o.flamePrice || 3e6) / 1e6}" data-gp="flamePrice">`)}
+                    ${field('<label for="gp-limit">読む手数</label>', `<input id="gp-limit" class="input input-xs font-mono w-full" type="number" min="1" max="80" value="${limit}" data-gp="limit">`)}
+                    ${field('<label for="gp-sale-pct">キューブの割引</label>', `<div class="flex items-center gap-1.5">${chk('cubeSale', 'ブラックフライデー')}
+                        <input id="gp-sale-pct" class="input input-xs font-mono w-12" type="number" min="0" max="100" step="1" value="${o.cubeSalePct ?? 25}" data-gp="cubeSalePct" aria-label="割引率（%）" ${o.cubeSale ? '' : 'disabled'}><span class="text-xs text-base-content/50">%引き</span></div>`)}
+                </div>
+            </div>
+        </div></div>
     </div>
-</div></div>
+
+    <div class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
+            <h2 class="card-title text-sm">この順で伸ばす</h2>
+            ${legend('warning', 'スターフォース')}${legend('info', '潜在')}${legend('success', '転生')}${legend('secondary', '武器・補助武器・エンブレムの潜在')}
+            <span class="text-[11px] text-base-content/50">バーは1スコアあたりの単価（対数）。長いほど割高。</span>
+        </div>
+        <ul id="gp-plan-list" class="-mx-1"></ul>
+        <p class="text-[11px] text-base-content/40 leading-relaxed">スターフォースは破壊で★が戻るため、0→18・18→20・20→21・21→22、以降は1★ずつをひとまとまりとして扱い、その区切りまで到達する期待額を出しています（再登坂込み、予備装備は0メソ扱い）。潜在はKMSの行ごとの確率（Lv160以上は値+1%）で3行の組み合わせを全部数え、今の3行の合計スコアを上回るまで回す期待個数と、上回ったときの平均スコアで見ています。転生は黒転生（結果を選べる）で同じように、今を上回るまでの期待回数で見ています。</p>
+    </div></div>
+    </div>
+</div>
 <div id="gp-modal-host"></div>`;
         },
 
@@ -1177,9 +1080,9 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
         },
         statPicks() {
             const st = this.rdStats();
-            const sel = (key, val, opts) => `<select data-gp="rd-stat" data-key="${key}">${opts.map(([v, lb]) => `<option value="${v}" ${v === val ? 'selected' : ''}>${lb}</option>`).join('')}</select>`;
+            const sel = (key, val, opts) => `<select class="select select-xs w-[4.5rem]" data-gp="rd-stat" data-key="${key}">${opts.map(([v, lb]) => `<option value="${v}" ${v === val ? 'selected' : ''}>${lb}</option>`).join('')}</select>`;
             const stats = Object.entries(STAT_JP);
-            return `メイン${sel('rdMain', st.main, stats)}サブ${sel('rdSub', st.sub, stats)}${sel('rdAtt', st.att, [['att', '攻撃力'], ['matt', '魔力']])}`;
+            return `メイン${sel('rdMain', st.main, stats)}サブ${sel('rdSub', st.sub, stats)}${sel('rdAtt', st.att, [['att', '攻撃力'], ['matt', '魔力']]).replace('w-[4.5rem]', 'w-20')}`;
         },
         msg(text, kind) {
             const el = this.root.querySelector('[data-rd="msg"]');
@@ -1333,7 +1236,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
             const b = this.root.querySelector('[data-gp="rd-live"]');
             if (!b) return;
             b.textContent = this.live ? 'ライブ読み取りを止める' : 'ライブ読み取り';
-            b.classList.toggle('live', !!this.live);
+            b.classList.toggle('btn-error', !!this.live);
         },
         async liveTick() {
             const L = this.live;
@@ -1476,26 +1379,25 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
                 const L = FIXED_LV[s.part] || v.level;
                 const scored = v.grade ? v.lines.filter((ln) => POT_OPTS[ln.k]).length : 0;
                 const pot = v.grade && scored
-                    ? `<i style="color:${GRADE_COLOR[v.grade]}" title="${GRADE_EN[v.grade]} ${scored}行">潜在${v.grade}</i>`
-                    : '<i>潜在なし</i>';
+                    ? `<i class="not-italic" style="color:${GRADE_COLOR[v.grade]}" title="${GRADE_EN[v.grade]} ${scored}行">潜在${v.grade}</i>`
+                    : '<i class="not-italic text-info">潜在なし</i>';
                 const lit = flameScore(v.flame, this.state.w) > 0;
-                const flame = hasPot(id) ? (lit ? ' <u>転生</u>' : '') : (lit ? '<u>転生</u>' : '<i>転生なし</i>');
-                const line1 = `Lv${L}` + (hasStar(id) ? ` · <em>${v.star}★</em>` : '');
-                const line2 = (hasPot(id) ? pot : '') + flame + (hasStar(id) && v.mode ? ` <b class="pin">${esc(v.mode)}</b>` : '');
+                const flame = hasPot(id) ? (lit ? ' <u class="no-underline text-success">転生</u>' : '') : (lit ? '<u class="no-underline text-success">転生</u>' : '<i class="not-italic text-info">転生なし</i>');
+                const line1 = `Lv${L}` + (hasStar(id) ? ` · <em class="not-italic text-warning">${v.star}★</em>` : '');
+                const line2 = (hasPot(id) ? pot : '') + flame + (hasStar(id) && v.mode ? ` <b class="font-normal text-base-100 bg-base-content/60 px-0.5">${esc(v.mode)}</b>` : '');
                 const name = it ? it.name : s.label;
-                return `<div class="slot ${v.on && !covered ? '' : 'off'} ${inert ? 'inert' : ''}">
-                    <button type="button" class="slot-btn" data-gp="edit" data-id="${id}" title="${esc(name)}" ${covered ? 'disabled' : ''}>
-                        <span class="tile-ico">${iconImg(v.item, 26)}</span>
-                        <span class="tile-body">
-                            <span class="nm">${esc(s.label)}</span>
-                            ${covered ? '<span class="st">上が一体型</span>'
-                            : inert ? '<span class="st">計算対象外</span>'
-                            : `<span class="st">${line1}</span><span class="st">${line2}</span>`}
+                const st = 'font-mono text-[10.5px] leading-snug text-base-content/55 whitespace-nowrap';
+                return `<div class="relative ${v.on && !covered ? '' : 'opacity-40'}">
+                    <button type="button" class="flex gap-1.5 items-center w-full h-full p-1 pr-5 text-left bg-base-200 border border-base-content/10 rounded-box hover:border-primary/60 cursor-pointer ${inert ? 'border-dashed' : ''}" data-gp="edit" data-id="${id}" title="${esc(name)}" ${covered ? 'disabled' : ''}>
+                        <span class="w-7 h-7 shrink-0 grid place-items-center">${iconImg(v.item, 26)}</span>
+                        <span class="flex flex-col min-w-0">
+                            <b class="text-xs truncate">${esc(s.label)}</b>
+                            ${covered ? `<span class="${st}">上が一体型</span>`
+                            : inert ? `<span class="${st}">計算対象外</span>`
+                            : `<span class="${st}">${line1}</span><span class="${st}">${line2}</span>`}
                         </span>
                     </button>
-                    <label class="sw" title="${esc(s.label)}を計算に含める">
-                        <input type="checkbox" data-gp="toggle" data-id="${id}" ${v.on && !covered ? 'checked' : ''} ${inert ? 'disabled' : ''}>
-                    </label>
+                    <input type="checkbox" class="checkbox checkbox-xs absolute top-1 right-1" title="${esc(s.label)}を計算に含める" data-gp="toggle" data-id="${id}" ${v.on && !covered ? 'checked' : ''} ${inert ? 'disabled' : ''}>
                 </div>`;
             }).join('')).join('');
         },
@@ -1505,7 +1407,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
             if (s.kind !== 'pot' || !s.pot) return '';
             const t = potTarget(s.pot.key, s.unit, s.pot.L, this.state.w, s.pot.thr);
             if (!t) return '';
-            const head = `<span class="tl">目標</span><b>${esc(t.min)}</b> <span class="who">狙うと期待${countText(t.rolls)}個</span>`;
+            const head = `<span class="badge badge-xs badge-ghost mr-1.5">目標</span><b class="font-semibold text-base-content/85">${esc(t.min)}</b> <span class="text-base-content/50">狙うと期待${countText(t.rolls)}個</span>`;
             if (!t.count) return `<div class="tgt">${head}</div>`;
             // The other combinations stay folded until asked for.
             const list = t.others.map((o) => `${esc(o.label)} ${pctText(o.share)}`).join('、');
@@ -1517,7 +1419,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
             const el = this.root.querySelector('#gp-plan-list');
             const plan = buildPlan(this.entries(), this.state.w, this.opts(), this.state.limit);
             if (!plan.length) {
-                el.innerHTML = '<p class="empty">伸ばせる先がありません。装備を有効にするか、進捗を下げてみてください。</p>';
+                el.innerHTML = '<li class="text-base-content/50 text-center py-4">伸ばせる先がありません。装備を有効にするか、進捗を下げてみてください。</li>';
                 return;
             }
             const effs = plan.map((s) => Math.log10(s.eff));
@@ -1537,17 +1439,23 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
                 else groups.push({ sig, steps: [{ ...s, rank: i + 1 }] });
             });
 
-            const row = (s, cls, rank, cost, cum, extra) => `<div class="gp-step ${s.kind} ${s.big ? 'big' : ''} ${cls}">
-                <div class="rk">${rank}</div>
-                <div>
-                    <div class="who">${esc(s.name)}・Lv${s.level}</div>
-                    <div class="what"><b>${esc(s.label)}</b> ${s.kind === 'pot' ? `<span class="cube ${s.unit}"><img src="https://maplestory.io/api/GMS/270/item/${CUBE_ICON[s.unit]}/icon" alt="" width="16" height="16" loading="lazy" onerror="this.style.display='none'">${esc(CUBE_JP[s.unit])}</span> ` : ''}<span class="who">${esc(s.detail)}</span>${extra || ''}</div>
+            // 種類ごとの色（daisyUI のテーマ色）。大物（武器・補助武器・エンブレムの潜在）は紫。
+            const tone = (s) => s.big ? 'secondary' : s.kind === 'star' ? 'warning' : s.kind === 'flame' ? 'success' : 'info';
+            // 1位だけ大きく、藍の地と左線で「次はこれ」を示す。
+            const row = (s, cls, rank, cost, cum, extra) => {
+                const k = tone(s), top = rank === 1 && cls !== 'child', child = cls === 'child';
+                return `<li class="grid grid-cols-[40px_minmax(0,1fr)_84px_62px] gap-2.5 items-center px-2 py-1.5 border-b border-base-content/5 last:border-b-0 ${top ? 'bg-primary/10 border-l-2 border-l-primary' : child ? 'bg-base-300/40 border-dashed pl-6' : ''}">
+                <span class="font-mono text-right tabular-nums ${top ? 'text-primary font-bold text-base' : child ? 'text-base-content/40 text-[11.5px]' : 'text-base-content/45 text-[13px]'}">${rank}</span>
+                <div class="min-w-0">
+                    <div class="text-[11px] text-base-content/50">${esc(s.name)}・Lv${s.level}</div>
+                    <div class="${top ? 'text-base' : child ? 'text-[11.5px]' : 'text-[13.5px]'} leading-snug"><b class="font-semibold text-${k}">${esc(s.label)}</b> ${s.kind === 'pot' ? `<span class="cube ${s.unit}"><img src="https://maplestory.io/api/GMS/270/item/${CUBE_ICON[s.unit]}/icon" alt="" width="16" height="16" loading="lazy" onerror="this.style.display='none'">${esc(CUBE_JP[s.unit])}</span> ` : ''}<span class="text-[11px] text-base-content/50">${esc(s.detail)}</span>${extra || ''}</div>
                     ${this.targetHTML(s)}
-                    <div class="meter"><i style="width:${(8 + frac(s) * 92).toFixed(1)}%"></i></div>
+                    ${child ? '' : `<div class="h-0.5 mt-1 bg-base-content/10"><div class="h-full bg-${k}" style="width:${(8 + frac(s) * 92).toFixed(1)}%"></div></div>`}
                 </div>
-                <div class="num">${cost}<div class="who sm">累計 ${cum}</div></div>
-                <div class="eff">${fmtM(s.eff)}<div class="who sm">/スコア</div></div>
-            </div>`;
+                <div class="text-right font-mono tabular-nums leading-tight"><div class="${top ? 'text-lg' : child ? 'text-xs text-base-content/60' : 'text-sm'} font-semibold text-base-content">${cost}</div><div class="text-[10.5px] text-base-content/45">累計 ${cum}</div></div>
+                <div class="text-right font-mono tabular-nums leading-tight"><div class="text-xs text-base-content/70">${fmtM(s.eff)}</div><div class="text-[10.5px] text-base-content/45">/スコア</div></div>
+            </li>`;
+            };
 
             el.innerHTML = groups.map((g) => {
                 const n = g.steps.length, head = g.steps[0], tail = g.steps[n - 1];
@@ -1557,7 +1465,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
                 const names = g.steps.map((s) => s.name);
                 const who = n <= 3 ? names.join('・') : `${names[0]} ほか${n - 1}件`;
                 const total = g.steps.reduce((a, s) => a + s.cost, 0);
-                const fold = `<button type="button" class="fold" data-gp="fold" data-sig="${esc(g.sig)}"
+                const fold = `<button type="button" class="btn btn-xs btn-ghost font-mono px-1.5 h-5 min-h-5 border-base-content/15 ml-1" data-gp="fold" data-sig="${esc(g.sig)}"
                     aria-expanded="${open}">×${n} ${open ? '▴' : '▾'}</button>`;
                 const summary = row({ ...head, name: who }, 'grp', `${head.rank}-${tail.rank}`,
                     fmtB(total), fmtB(tail.cum), fold);
@@ -1608,7 +1516,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
             const d = this.draft;
             if (!d) { host.innerHTML = ''; return; }
             host.innerHTML = `<div class="gp-veil" data-gp="veil">
-                <div class="modal eq" role="dialog" aria-modal="true" aria-label="装備の詳細">
+                <div class="gp-dlg eq" role="dialog" aria-modal="true" aria-label="装備の詳細">
                     ${d.picking ? this.pickerHTML(d) : this.detailHTML(d)}
                 </div>
             </div>`;
@@ -1871,22 +1779,21 @@ ${grades}
 
         const veil = document.createElement('div');
         veil.id = 'gp-char-overlay';
-        // 上の余白は枠の外側（mt-4）に持つ。スクロール側に上の余白があると、固定したヘッダーの上に中身が透けて見える。
-        veil.className = 'fixed inset-0 z-[45] bg-black/70 flex items-start justify-center px-4 pb-4 overflow-y-auto';
+        // ヘッダーは枠に固定し、スクロールは中身（data-x="root"）だけにする。
+        veil.className = 'modal modal-open bg-slate-950/80 z-[45]';
         const portrait = (char.image && char.image.startsWith('http')) ? char.image : (char.classImage || '');
         veil.innerHTML = `
-<div class="w-full max-w-[1400px] mt-4 bg-slate-950 border border-slate-700 shadow-2xl">
-    <div class="sticky top-0 z-10 flex items-center gap-3 h-11 pl-3 border-b border-slate-800 bg-slate-900">
-        ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-8 h-8 object-cover bg-slate-950">` : ''}
-        <span class="text-sm font-bold text-white">${esc(char.name)}</span>
-        <span class="text-[11px] font-mono text-slate-400">${char.level ? `Lv.${esc(char.level)}` : ''}</span>
-        <span class="text-[11px] text-indigo-300">${esc(char.job || '')}</span>
-        <span class="text-[11px] text-slate-500">のUpgrade Priority</span>
-        <div class="flex-1"></div>
-        <button type="button" data-x="close" title="閉じる（Esc）" class="w-11 h-full border-l border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center">
-            <i data-lucide="x" class="w-5 h-5"></i></button>
+<div class="modal-box max-w-[1400px] w-[96vw] max-h-[94vh] p-0 flex flex-col bg-base-200 border border-base-content/15">
+    <div class="flex items-center gap-3 h-12 px-3 shrink-0 bg-base-100 border-b border-base-content/10">
+        ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-8 h-8 object-cover bg-base-300 border border-base-content/10">` : ''}
+        <span class="font-bold text-white">${esc(char.name)}</span>
+        <span class="text-xs font-mono text-base-content/50">${char.level ? `Lv.${esc(char.level)}` : ''}</span>
+        <span class="text-xs text-indigo-300">${esc(char.job || '')}</span>
+        <span class="text-xs text-base-content/50">のUpgrade Priority</span>
+        <button type="button" data-x="close" title="閉じる（Esc）" class="btn btn-sm btn-ghost btn-square ml-auto">
+            <i data-lucide="x" class="w-4 h-4"></i></button>
     </div>
-    <div data-x="root" class="px-4 pt-3"></div>
+    <div data-x="root" class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3"></div>
 </div>`;
         document.body.appendChild(veil);
         const root = veil.querySelector('[data-x="root"]');
