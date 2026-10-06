@@ -355,27 +355,27 @@ const ranks = {
         const picked = new Set();
 
         const veil = document.createElement('div');
-        veil.className = 'fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm';
+        veil.className = 'modal modal-open bg-slate-950/80 z-50';
         veil.innerHTML = `
-<div class="bg-slate-900 border border-slate-700 w-full max-w-5xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh]">
-    <div class="p-4 border-b border-slate-800 flex items-center gap-3 bg-slate-950">
+<div class="modal-box max-w-5xl w-full p-0 flex flex-col max-h-[88vh] bg-base-100 border border-base-content/15">
+    <div class="px-4 py-3 border-b border-base-content/10 flex items-center gap-3">
         <div>
-            <h3 class="text-white font-bold text-base leading-tight">名簿から追加</h3>
-            <p class="text-[11px] text-slate-500 mt-0.5">追加したいキャラを選んでください（${cands.length}体が未追加・${this.pickedRegion.toUpperCase()}）</p>
+            <h3 class="text-white font-bold text-sm leading-tight">名簿から追加</h3>
+            <p class="text-[11px] text-base-content/50 mt-0.5">追加したいキャラを選んでください（${cands.length}体が未追加・${this.pickedRegion.toUpperCase()}）</p>
         </div>
         <div class="flex-1"></div>
         <input type="search" data-x="q" placeholder="キャラ名 / 職 / メンバーで絞り込み"
-            class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-indigo-500 w-64">
-        <button type="button" data-x="close" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            class="input input-sm w-64">
+        <button type="button" data-x="close" class="btn btn-sm btn-ghost btn-square"><i data-lucide="x" class="w-4 h-4"></i></button>
     </div>
     <div data-x="grid" class="flex-1 overflow-y-auto custom-scrollbar p-4 grid gap-2"
         style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr));align-content:start"></div>
-    <div class="p-3 border-t border-slate-800 bg-slate-950 flex items-center gap-2">
-        <button type="button" data-x="all" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-2 rounded-lg text-xs font-medium">表示中をすべて選択</button>
-        <button type="button" data-x="none" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-2 rounded-lg text-xs font-medium">選択を解除</button>
-        <span data-x="status" class="text-[11px] text-slate-500 ml-1"></span>
+    <div class="px-4 py-2.5 border-t border-base-content/10 flex items-center gap-2">
+        <button type="button" data-x="all" class="btn btn-sm">表示中をすべて選択</button>
+        <button type="button" data-x="none" class="btn btn-sm">選択を解除</button>
+        <span data-x="status" class="text-[11px] text-base-content/50 ml-1"></span>
         <div class="flex-1"></div>
-        <button type="button" data-x="add" class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5">
+        <button type="button" data-x="add" class="btn btn-sm btn-primary">
             <i data-lucide="plus" class="w-3.5 h-3.5"></i><span data-x="add-label">追加</span>
         </button>
     </div>
@@ -390,8 +390,8 @@ const ranks = {
                 ? `<img src="${esc(c.imgURL)}" alt="" loading="lazy" class="absolute inset-0 w-full h-full object-contain">`
                 : '<div class="absolute inset-0 flex items-center justify-center text-slate-700"><i data-lucide="user" class="w-6 h-6"></i></div>';
             return `<button type="button" data-cid="${c.id}"
-    class="text-left flex gap-3 p-2.5 rounded-xl border transition-colors ${on ? 'border-indigo-500 bg-indigo-500/10' : 'border-slate-700 bg-slate-800/60 hover:border-slate-600'}">
-    <span class="relative w-16 h-16 rounded-lg bg-slate-950 border border-slate-700 overflow-hidden shrink-0">${face}</span>
+    class="text-left flex gap-3 p-2 border transition-colors ${on ? 'border-indigo-500 bg-indigo-500/10' : 'border-base-content/10 bg-base-200 hover:border-base-content/30'}">
+    <span class="relative w-14 h-14 bg-base-300 overflow-hidden shrink-0">${face}</span>
     <span class="min-w-0 flex-1">
         <span class="block text-[13px] font-bold text-white truncate">${esc(c.name)}</span>
         <span class="block text-[11px] text-slate-400">${c.level ? 'Lv.' + c.level : 'Lv.--'}${c.job ? ' · ' + esc(c.job) : ''}</span>
@@ -435,8 +435,8 @@ const ranks = {
         // 押したカードと下のボタンだけを塗り替える。
         const paintCard = (btn) => {
             const on = picked.has(btn.dataset.cid);
-            btn.className = 'text-left flex gap-3 p-2.5 rounded-xl border transition-colors '
-                + (on ? 'border-indigo-500 bg-indigo-500/10' : 'border-slate-700 bg-slate-800/60 hover:border-slate-600');
+            btn.className = 'text-left flex gap-3 p-2 border transition-colors '
+                + (on ? 'border-indigo-500 bg-indigo-500/10' : 'border-base-content/10 bg-base-200 hover:border-base-content/30');
             const box = btn.lastElementChild;
             box.className = 'shrink-0 self-start w-4 h-4 rounded border '
                 + (on ? 'bg-indigo-500 border-indigo-500' : 'border-slate-600')
@@ -568,7 +568,7 @@ const ranks = {
         const byDate = this._hasDateRange();
         document.querySelectorAll('.ranks-range-btn').forEach(btn => {
             const active = !byDate && parseInt(btn.dataset.range, 10) === this.selectedRange;
-            btn.className = `ranks-range-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all ${active ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}${byDate ? ' opacity-50' : ''}`;
+            btn.className = `ranks-range-btn join-item btn btn-xs ${active ? 'bg-indigo-600 border-indigo-600 text-white' : 'text-base-content/60'}${byDate ? ' opacity-50' : ''}`;
         });
 
         const f = document.getElementById('ranks-date-from');
@@ -594,13 +594,13 @@ const ranks = {
     renderModeButtons() {
         document.querySelectorAll('.ranks-mode-btn').forEach(btn => {
             const active = btn.dataset.mode === this.yMode;
-            btn.className = `ranks-mode-btn px-2.5 py-1 rounded text-[11px] font-bold transition-all ${active ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`;
+            btn.className = `ranks-mode-btn join-item btn btn-xs ${active ? 'bg-indigo-600 border-indigo-600 text-white' : 'text-base-content/60'}`;
         });
     },
     renderRegionButtons() {
         document.querySelectorAll('.ranks-region-btn').forEach(btn => {
             const active = btn.dataset.region === this.pickedRegion;
-            btn.className = `ranks-region-btn px-3 py-1.5 rounded text-[11px] font-bold transition-all ${active ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`;
+            btn.className = `ranks-region-btn join-item btn btn-sm ${active ? 'bg-indigo-600 border-indigo-600 text-white' : 'text-base-content/60'}`;
         });
     },
 
@@ -900,7 +900,7 @@ const ranks = {
     _colBg(col, which) {
         const active = this.sortKey === col.key && col.sortable !== false;
         if (active) return this.ACTIVE_BG[which];
-        return col.group ? this.GROUP_BG[col.group][which] : (which === 'head' ? 'bg-slate-800/40' : '');
+        return col.group ? this.GROUP_BG[col.group][which] : '';
     },
 
     // Sort value accessor. Returns null for "no data" (always sorted last).
@@ -989,13 +989,13 @@ const ranks = {
             return this.sortDir === 'desc' ? vb - va : va - vb;
         });
 
-        head.innerHTML = '<tr class="border-b border-slate-700">' + this.BOARD_COLUMNS.map(col => {
+        head.innerHTML = '<tr>' + this.BOARD_COLUMNS.map(col => {
             const sortable = col.sortable !== false;
             const active = this.sortKey === col.key;
             const arrow = active ? (this.sortDir === 'desc' ? ' ▼' : ' ▲') : '';
             const alignCls = col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left';
-            const textCls = active ? 'text-indigo-300' : 'text-slate-400';
-            return `<th data-sort="${sortable ? col.key : ''}" class="px-2 py-1.5 text-[11px] font-semibold whitespace-nowrap ${alignCls} ${this._colBg(col, 'head')} ${textCls} ${sortable ? 'cursor-pointer select-none hover:text-white' : ''}">${col.label}${arrow}</th>`;
+            const textCls = active ? 'text-indigo-300' : 'text-base-content/60';
+            return `<th data-sort="${sortable ? col.key : ''}" class="text-[11px] font-semibold whitespace-nowrap ${alignCls} ${this._colBg(col, 'head')} ${textCls} ${sortable ? 'cursor-pointer select-none hover:text-white' : ''}">${col.label}${arrow}</th>`;
         }).join('') + '</tr>';
 
         this.boardOrder = rows.map(row => row.key);
@@ -1046,11 +1046,11 @@ const ranks = {
 
         const tds = this.BOARD_COLUMNS.map(col => {
             const alignCls = col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left';
-            return `<td class="px-2 py-1 align-middle ${alignCls} ${this._colBg(col, 'cell')}">${inner[col.key]}</td>`;
+            return `<td class="py-1 align-middle ${alignCls} ${this._colBg(col, 'cell')}">${inner[col.key]}</td>`;
         }).join('');
 
         return `
-            <tr data-key="${this._escape(key)}" class="border-b border-slate-800 cursor-pointer transition-colors ${expanded ? 'bg-slate-800/60' : 'hover:bg-slate-800/30'}">
+            <tr data-key="${this._escape(key)}" class="cursor-pointer transition-colors ${expanded ? 'bg-base-200' : 'hover:bg-base-200/60'}">
                 ${tds}
             </tr>`;
     },
@@ -1060,58 +1060,55 @@ const ranks = {
     _charCellInner(r, info, s) {
         const imgUrl = this._fixImgUrl(info.img);
         const img = imgUrl
-            ? `<img src="${this._escape(imgUrl)}" alt="" class="w-16 h-16 object-contain object-bottom shrink-0 -my-2" loading="lazy">`
-            : `<div class="w-16 h-16 rounded-lg bg-slate-800 flex items-center justify-center shrink-0"><i data-lucide="user" class="w-6 h-6 text-slate-600"></i></div>`;
+            ? `<img src="${this._escape(imgUrl)}" alt="" class="w-12 h-12 object-contain object-bottom shrink-0 -my-1" loading="lazy">`
+            : `<div class="w-12 h-12 bg-base-300 flex items-center justify-center shrink-0"><i data-lucide="user" class="w-5 h-5 text-base-content/30"></i></div>`;
 
         const pct = (s.expPct != null) ? Math.max(0, Math.min(100, s.expPct)) : null;
         const lvTxt = s.level != null
-            ? `<span class="text-sm font-bold text-white">Lv.${s.level}</span>${s.expPct != null ? ` <span class="text-xs font-bold text-indigo-300">${s.expPct.toFixed(2)}%</span>` : ''}`
-            : '<span class="text-sm font-bold text-amber-400">データなし</span>';
+            ? `<span class="font-bold text-white font-mono">Lv.${s.level}</span>${s.expPct != null ? ` <span class="font-bold text-indigo-300 font-mono">${s.expPct.toFixed(2)}%</span>` : ''}`
+            : '<span class="font-bold text-amber-400">データなし</span>';
         const sub = [info.job, info.world].filter(Boolean).join(' · ');
-        const bar = pct != null
-            ? `<div class="mt-1.5 h-2 w-full rounded-full bg-slate-800/80 overflow-hidden shadow-inner">
-                   <div class="h-full rounded-full bg-gradient-to-r from-indigo-500 via-blue-500 to-sky-400" style="width:${pct.toFixed(2)}%"></div>
-               </div>`
-            : '';
+        const bar = pct != null ? `<progress class="progress progress-primary h-1 w-full block mt-1" value="${pct.toFixed(2)}" max="100"></progress>` : '';
 
         return `
-            <div class="flex items-center gap-3 min-w-[220px]">
+            <div class="flex items-center gap-2.5 min-w-[230px]">
                 ${img}
                 <div class="min-w-0 flex-1">
-                    <div class="text-base font-bold text-white truncate leading-tight">${this._escape(r.name)}
-                        <span class="text-[10px] uppercase tracking-wider text-slate-500 ml-1">${r.region}</span>
+                    <div class="flex items-baseline gap-1.5 leading-tight">
+                        <span class="text-sm font-bold text-white truncate">${this._escape(r.name)}</span>
+                        <span class="text-[10px] uppercase tracking-wider text-base-content/40">${r.region}</span>
+                        <span class="ml-auto text-xs whitespace-nowrap">${lvTxt}</span>
                     </div>
-                    <div class="leading-tight mt-0.5">${lvTxt}</div>
-                    ${sub ? `<div class="text-[11px] text-slate-500 truncate">${this._escape(sub)}</div>` : ''}
+                    ${sub ? `<div class="text-[11px] text-base-content/50 truncate leading-tight">${this._escape(sub)}</div>` : ''}
                     ${bar}
                 </div>
             </div>`;
     },
 
     _expInner(v, s) {
-        if (v == null) return '<span class="text-slate-600 text-sm">—</span>';
+        if (v == null) return '<span class="text-base-content/30">—</span>';
         const pct = s.tnl ? (v / s.tnl) * 100 : null;
         return `<div class="text-sm font-bold text-white font-mono whitespace-nowrap">${this._fmtExp(v)}</div>
-                <div class="text-xs text-slate-400">${pct != null ? pct.toFixed(2) + '%' : '—'}</div>`;
+                <div class="text-[11px] text-base-content/50">${pct != null ? pct.toFixed(2) + '%' : '—'}</div>`;
     },
 
     _predInner(p) {
-        if (!p) return '<span class="text-slate-600 text-sm">—</span>';
+        if (!p) return '<span class="text-base-content/30">—</span>';
         return `<div class="text-sm font-bold text-white font-mono whitespace-nowrap">${this._fmtDate(p.date)}</div>
-                <div class="text-xs text-slate-400">${p.days}日後</div>`;
+                <div class="text-[11px] text-base-content/50">${p.days}日後</div>`;
     },
 
     // Reached characters are not ranked, so show only a muted "到達済" (no position).
     _reachInner(eta, rank) {
-        if (!eta) return '<span class="text-slate-600 text-sm">—</span>';
-        if (eta.reached) return '<span class="text-xs font-bold text-slate-500">到達済</span>';
+        if (!eta) return '<span class="text-base-content/30">—</span>';
+        if (eta.reached) return '<span class="text-xs font-bold text-base-content/40">到達済</span>';
         return `<div class="text-base font-black text-amber-300 whitespace-nowrap leading-tight">${rank != null ? rank + '位' : '—'}</div>
-                <div class="text-xs text-slate-400 whitespace-nowrap">${this._fmtDate(eta.date)} · ${eta.days}日後</div>`;
+                <div class="text-[11px] text-base-content/50 whitespace-nowrap">${this._fmtDate(eta.date)} · ${eta.days}日後</div>`;
     },
 
     _delInner(key) {
         return `<button type="button" data-del="${this._escape(key)}" title="削除"
-                    class="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors">
+                    class="btn btn-ghost btn-xs btn-square text-base-content/40 hover:text-rose-400">
                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                 </button>`;
     },
@@ -1132,7 +1129,7 @@ const ranks = {
         if (!m) {
             m = document.createElement('div');
             m.id = 'ranks-detail-modal';
-            m.className = 'fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4';
+            m.className = 'modal modal-open bg-slate-950/80 z-50';
             m.addEventListener('click', e => { if (e.target === m) this.closeDetail(); });
             document.body.appendChild(m);
             this._detailKeyHandler = e => {
@@ -1144,44 +1141,44 @@ const ranks = {
         }
 
         const seg = (attr, val, label, on) => `
-            <button type="button" ${attr}="${val}" class="px-2.5 py-1 text-[11px] font-bold ${on ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}">${label}</button>`;
+            <button type="button" ${attr}="${val}" class="join-item btn btn-xs ${on ? 'bg-indigo-600 border-indigo-600 text-white' : 'text-base-content/60'}">${label}</button>`;
         const navBtn = (d, icon, title) => `
-            <button type="button" data-detail-step="${d}" title="${title}" class="w-7 h-7 flex items-center justify-center border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500"><i data-lucide="${icon}" class="w-4 h-4"></i></button>`;
+            <button type="button" data-detail-step="${d}" title="${title}" class="btn btn-sm btn-square"><i data-lucide="${icon}" class="w-4 h-4"></i></button>`;
         const pos = this.boardOrder.indexOf(key);
         const imgUrl = this._fixImgUrl(info.img);
         const sub = [info.job, info.world].filter(Boolean).join(' · ');
         const lv = s.level != null ? `Lv.${s.level}${s.expPct != null ? ` ${s.expPct.toFixed(2)}%` : ''}` : 'データなし';
 
         m.innerHTML = `
-<div class="bg-slate-900 border border-slate-700 w-full max-w-4xl shadow-2xl flex flex-col">
-    <div class="flex items-center gap-3 px-3 py-2 border-b border-slate-800 bg-slate-950">
+<div class="modal-box max-w-4xl w-full p-0 flex flex-col bg-base-100 border border-base-content/15">
+    <div class="flex items-center gap-3 px-3 py-2 border-b border-base-content/10">
         ${imgUrl ? `<img src="${this._escape(imgUrl)}" alt="" class="w-10 h-10 object-contain object-bottom shrink-0">` : ''}
         <div class="min-w-0">
             <div class="flex items-baseline gap-2">
                 <span class="text-base font-bold text-white truncate">${this._escape(r.name)}</span>
-                <span class="text-[10px] uppercase tracking-wider text-slate-500">${r.region}</span>
-                <span class="font-mono text-xs text-indigo-300">${lv}</span>
+                <span class="text-[10px] uppercase tracking-wider text-base-content/40">${r.region}</span>
+                <span class="font-mono text-xs font-bold text-indigo-300">${lv}</span>
             </div>
-            ${sub ? `<div class="text-[11px] text-slate-500 truncate">${this._escape(sub)}</div>` : ''}
+            ${sub ? `<div class="text-[11px] text-base-content/50 truncate">${this._escape(sub)}</div>` : ''}
         </div>
         <div class="flex-1"></div>
         ${navBtn(-1, 'chevron-left', '前のキャラ（←）')}
-        <span class="font-mono text-[11px] text-slate-500 w-12 text-center">${pos + 1}/${this.boardOrder.length}</span>
+        <span class="font-mono text-[11px] text-base-content/50 w-12 text-center">${pos + 1}/${this.boardOrder.length}</span>
         ${navBtn(1, 'chevron-right', '次のキャラ（→）')}
-        <button type="button" data-detail-close title="閉じる（Esc）" class="ml-2 text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        <button type="button" data-detail-close title="閉じる（Esc）" class="btn btn-sm btn-ghost btn-square ml-1"><i data-lucide="x" class="w-4 h-4"></i></button>
     </div>
-    <div class="flex items-center gap-3 flex-wrap px-3 py-2 border-b border-slate-800">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">グラフ</span>
-        <div class="flex border border-slate-700">
+    <div class="flex items-center gap-2 flex-wrap px-3 py-2 border-b border-base-content/10">
+        <span class="text-[11px] text-base-content/50">グラフ</span>
+        <div class="join">
             ${seg('data-detail-mode', 'level', 'レベル推移', this.detailMode === 'level')}${seg('data-detail-mode', 'exp', '獲得経験値', this.detailMode === 'exp')}
         </div>
-        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-2">期間</span>
-        <div class="flex border border-slate-700">
+        <span class="text-[11px] text-base-content/50 ml-2">期間</span>
+        <div class="join">
             ${[7, 14, 30, 90].map(n => seg('data-detail-range', n, `${n}d`, this.detailRange === n)).join('')}
         </div>
     </div>
     <div class="relative h-[340px] p-3">
-        ${c && Array.isArray(c.labels) ? '<canvas id="ranks-detail-canvas"></canvas>' : '<div class="h-full flex items-center justify-center text-xs text-slate-500">データがありません</div>'}
+        ${c && Array.isArray(c.labels) ? '<canvas id="ranks-detail-canvas"></canvas>' : '<div class="h-full flex items-center justify-center text-xs text-base-content/50">データがありません</div>'}
     </div>
 </div>`;
 
@@ -1289,7 +1286,7 @@ const ranks = {
         if (!wrap) return;
 
         if (this.roster.length === 0) {
-            wrap.innerHTML = '<div class="text-[11px] text-slate-500 italic px-1 py-2">キャラクターがいません。上の検索バーから追加してください。</div>';
+            wrap.innerHTML = '<div class="text-[11px] text-base-content/50 px-1 py-2">キャラクターがいません。上の検索バーから追加してください。</div>';
             return;
         }
 
@@ -1303,20 +1300,20 @@ const ranks = {
             const imgUrl = this._fixImgUrl(info.img);
             const img = imgUrl
                 ? `<img src="${this._escape(imgUrl)}" alt="" class="w-9 h-9 object-contain object-bottom shrink-0" loading="lazy">`
-                : `<div class="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center shrink-0"><i data-lucide="user" class="w-4 h-4 text-slate-600"></i></div>`;
+                : `<div class="w-9 h-9 bg-base-300 flex items-center justify-center shrink-0"><i data-lucide="user" class="w-4 h-4 text-base-content/30"></i></div>`;
             const lvTxt = info.level != null
                 ? `Lv.${info.level}${Number.isFinite(info.expPct) ? ` (${info.expPct.toFixed(2)}%)` : ''}`
                 : 'データなし';
             return `
                 <button type="button" data-key="${this._escape(key)}"
-                        class="ranks-trend-item w-full flex items-center gap-2.5 rounded-lg border px-2.5 py-2 transition-all text-left ${selected ? 'bg-indigo-600/20 border-indigo-500/60' : 'bg-slate-800/40 border-slate-700/60 hover:border-slate-500 opacity-60 hover:opacity-100'}">
-                    <span class="w-2 h-2 rounded-full shrink-0" style="background:${selected ? color : '#475569'}"></span>
+                        class="ranks-trend-item w-full flex items-center gap-2 border px-2 py-1 transition-colors text-left ${selected ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-base-200 border-base-content/10 hover:border-base-content/30 opacity-60 hover:opacity-100'}">
+                    <span class="w-1 self-stretch shrink-0" style="background:${selected ? color : '#475569'}"></span>
                     ${img}
                     <div class="flex-1 min-w-0">
                         <div class="text-xs font-bold text-white truncate">${this._escape(r.name)}
-                            <span class="text-[9px] uppercase tracking-wider text-slate-500 ml-1">${r.region}</span>
+                            <span class="text-[9px] uppercase tracking-wider text-base-content/40 ml-1">${r.region}</span>
                         </div>
-                        <div class="text-[10px] text-slate-400">${lvTxt}</div>
+                        <div class="text-[10px] text-base-content/60 font-mono">${lvTxt}</div>
                     </div>
                     ${selected ? '<i data-lucide="check" class="w-3.5 h-3.5 text-indigo-400 shrink-0"></i>' : ''}
                 </button>`;
@@ -1334,7 +1331,7 @@ const ranks = {
         if (!text) { el.classList.add('hidden'); el.textContent = ''; return; }
         el.classList.remove('hidden');
         const palette = { warn: 'text-amber-400', err: 'text-rose-400', ok: 'text-emerald-400', info: 'text-slate-400' };
-        el.className = `mt-2 text-[11px] font-medium ${palette[kind] || palette.info}`;
+        el.className = `text-[11px] font-medium ${palette[kind] || palette.info}`;
         el.textContent = text;
     },
 
