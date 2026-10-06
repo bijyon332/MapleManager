@@ -1032,7 +1032,8 @@ const app = {
             const wkSorted = wB.sort((a, b) => b.effectiveMeso - a.effectiveMeso);
             const isWeeklyDone = !!p.charDone;
             const isMonthlyDone = !!p.charMonthlyDone;
-            const countAll = (isWeeklyDone ? wkSorted.length : 0) + (isMonthlyDone ? mB.length : 0);
+            // 分数は週ボス（結晶）だけ。月ボスは結晶の数に入らないので数えない。
+            const countAll = isWeeklyDone ? wkSorted.length : 0;
             const allDone = (wkSorted.length + mB.length > 0) && (!wkSorted.length || isWeeklyDone) && (!mB.length || isMonthlyDone);
 
             // 月ボス1行・週ボス2行の枠は必ず取り、全カードの高さを揃える。
@@ -1066,7 +1067,7 @@ const app = {
                 <div class="mx-main">
                     <div class="mx-top">
                         <div class="mx-meso" title="週の収入（上位${charLimit}体）">${Math.floor(localMaxTotal).toLocaleString()}<small>mesos</small></div>
-                        <div class="mx-count"><b>${countAll}</b>/${wkSorted.length + mB.length}</div>
+                        <div class="mx-count"><b>${countAll}</b>/${wkSorted.length}</div>
                     </div>
                     ${mB.length ? `
                     <div class="mx-mo ${isMonthlyDone ? 'is-done' : ''}" onclick="app.toggleCharDone('${char.id}','monthly')" title="${isMonthlyDone ? 'クリックで消し込みを解除' : 'クリックで月ボスを消し込む'}">
@@ -1635,7 +1636,7 @@ const app = {
         const label = d => d.charAt(0) + d.slice(1).toLowerCase();
         const items = [];
         ['WEEKLY', 'MONTHLY'].forEach(type => this.getBossGroups(type).forEach(g => items.push({ type, g })));
-        if (!items.length) { body.innerHTML = '<div class="col-span-2 text-center text-slate-500 text-xs py-8">No bosses</div>'; this.updateBossConfigCounter(); return; }
+        if (!items.length) { body.innerHTML = '<div class="text-center text-slate-500 text-xs py-8">No bosses</div>'; this.updateBossConfigCounter(); return; }
         const row = ({ type, g }) => {
             const key = `${type}:${g.name}`;
             const on = !!this.bcSelected[key];
@@ -1675,8 +1676,7 @@ const app = {
             }).join('');
             return `<table class="ed-boss"><thead><tr><th></th><th class="text-left">ボス</th><th class="text-right px-2">結晶</th><th class="text-right px-2">獲得メル</th><th class="text-left px-1.5">難易度</th><th class="text-left pl-1.5">人数</th></tr></thead><tbody>${rows}</tbody></table>`;
         };
-        const half = Math.ceil(items.length / 2);
-        body.innerHTML = `<div>${table(items.slice(0, half))}</div><div class="border-l border-base-content/10 pl-3">${table(items.slice(half))}</div>`;
+        body.innerHTML = table(items);
         this.updateBossConfigCounter();
     },
 

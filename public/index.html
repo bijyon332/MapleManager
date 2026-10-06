@@ -455,7 +455,7 @@
     <!-- Edit Character（daisyUI の modal。2026-10-05 bi 了承の案）。
          上に職画像＋基本情報2段＋メモ、下にボス一覧を左右2列（全行がスクロールなしで収まる）。 -->
     <div id="char-modal" class="modal modal-open hidden bg-slate-950/80 z-50">
-        <div class="modal-box max-w-none w-[96vw] max-h-[94vh] p-0 flex flex-col bg-base-100 border border-base-content/15">
+        <div class="modal-box max-w-[96vw] w-[1012px] max-h-[94vh] p-0 flex flex-col bg-base-100 border border-base-content/15">
             <div class="flex items-center gap-2 px-4 h-11 border-b border-base-content/10 shrink-0">
                 <h3 class="font-bold text-white" id="modal-title">Edit Character</h3>
                 <span id="modal-subtitle" class="text-xs text-slate-500"></span>
@@ -552,9 +552,9 @@
                     </div>
                 </div>
 
-                <!-- ボス一覧（左右2列）。難易度を押すと登録、同じ難易度をもう一度押すと解除。
+                <!-- ボス一覧（1列、はみ出す分はスクロール）。難易度を押すと登録、同じ難易度をもう一度押すと解除。
                      結晶は人数で割る前の価格、獲得メルは結晶 ÷ PT人数。 -->
-                <div id="bc-grid" class="flex-1 min-h-0 overflow-y-auto custom-scrollbar grid grid-cols-2 gap-x-4 px-3 py-1 items-start"></div>
+                <div id="bc-grid" class="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-3 pb-1"></div>
 
                 <div class="flex items-center gap-5 px-4 h-12 border-t border-base-content/10 shrink-0 bg-base-200">
                     <span class="text-[11px] font-bold text-violet-400">WEEKLY <span id="bc-counter" class="font-mono text-sm text-white ml-1">0/14</span></span>
