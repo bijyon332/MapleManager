@@ -7,8 +7,9 @@
 //     on a single Chart.js chart (level / delta / cumulative EXP / daily EXP).
 //     The window is the last N days, or an explicit date range.
 //
-// Data source: MapleHub (maplehub.app) keeps ~90 days of daily snapshots for
-// every ranked character in its own backend DB. We fetch it through our own
+// Data source: MapleHub (maplehub.app) keeps daily snapshots for every ranked
+// character in its own backend DB (the response format changed in 2026-10 and
+// now returns a shorter window, so refreshed data is merged into the local cache). We fetch it through our own
 // Cloudflare Pages Function proxy (/maplehub?name=...&region=...) which adds the
 // required `X-MapleHub-Request: true` header and CORS.
 //
@@ -532,7 +533,7 @@ const ranks = {
                 if (!parsed.labels.length) { missed.push(char.name); continue; }
                 const canonicalName = (parsed.charInfo && parsed.charInfo.name) || char.name;
                 const key = `${region}:${canonicalName.toLowerCase()}`;
-                this.cache[key] = { ...parsed, importedAt: Date.now() };
+                this._storeParsed(key, parsed);
                 if (!this.roster.some(r => this._key(r) === key)) this.roster.push({ name: canonicalName, region });
                 if (Array.isArray(this.selectedKeys) && !this.selectedKeys.includes(key)) this.selectedKeys.push(key);
                 ok++;
@@ -626,7 +627,7 @@ const ranks = {
 
             const canonicalName = (parsed.charInfo && parsed.charInfo.name) || typedName;
             const cacheKey = `${region}:${canonicalName.toLowerCase()}`;
-            this.cache[cacheKey] = { ...parsed, importedAt: Date.now() };
+            this._storeParsed(cacheKey, parsed);
 
             const existing = this.roster.findIndex(r => r.region === region && r.name.toLowerCase() === canonicalName.toLowerCase());
             if (existing === -1) this.roster.push({ name: canonicalName, region });
@@ -659,7 +660,7 @@ const ranks = {
             try {
                 const parsed = await this._fetchCharacter(r.name, r.region);
                 if (parsed.labels.length) {
-                    this.cache[this._key(r)] = { ...parsed, importedAt: Date.now() };
+                    this._storeParsed(this._key(r), parsed);
                     ok++;
                 } else { fail++; }
             } catch (_) { fail++; }
@@ -682,7 +683,7 @@ const ranks = {
         for (const r of stale) {
             try {
                 const parsed = await this._fetchCharacter(r.name, r.region);
-                if (parsed.labels.length) this.cache[this._key(r)] = { ...parsed, importedAt: Date.now() };
+                if (parsed.labels.length) this._storeParsed(this._key(r), parsed);
             } catch (_) { /* keep old data */ }
         }
         this.saveCache();
@@ -696,8 +697,8 @@ const ranks = {
         const res = await fetch(url, { cache: 'no-cache' });
         let data;
         try { data = await res.json(); } catch (_) { data = null; }
-        if (!res.ok || !data || data.error) {
-            throw new Error((data && data.error) || `HTTP ${res.status}`);
+        if (!res.ok || !data || data.error || data.success === false) {
+            throw new Error((data && (data.error || data.message)) || `HTTP ${res.status}`);
         }
         return this._parseApiResponse(data);
     },
@@ -723,9 +724,101 @@ const ranks = {
     /* ---------- API parsing ---------- */
 
     // MapleHub /api/character response → { labels, values, expDaily, charInfo }.
-    // The time series lives under additionalData.graphData; the fallback endpoint
-    // may expose it at the top level, so accept either.
+    // 2026-10 から応答の形が { success, data: { character, expHistory, levelHistory } }
+    // に変わった。旧形式（additionalData.graphData）も念のため読めるようにしておく。
     _parseApiResponse(data) {
+        if (data && data.data && (data.data.character || data.data.expHistory || data.data.levelHistory)) {
+            return this._parseApiResponseV2(data.data);
+        }
+        return this._parseApiResponseV1(data);
+    },
+
+    // 新形式。expHistory = [{ date:'2026-10-05', exp(その日の獲得EXP), level }]、
+    // levelHistory = [{ date, level, exp(レベル内EXP), expPercent }]。日付で突き合わせる。
+    _parseApiResponseV2(d) {
+        const tnl = (typeof tnlData !== 'undefined') ? tnlData : {};
+        const byDate = {};
+        const at = (date) => (byDate[date] = byDate[date] || {});
+        (Array.isArray(d.levelHistory) ? d.levelHistory : []).forEach(r => {
+            if (r && this._isDate(r.date)) Object.assign(at(r.date), { lv: Number(r.level), within: Number(r.exp), pct: Number(r.expPercent) });
+        });
+        (Array.isArray(d.expHistory) ? d.expHistory : []).forEach(r => {
+            if (!r || !this._isDate(r.date)) return;
+            const e = at(r.date);
+            e.gain = Number(r.expExact != null ? r.expExact : r.exp);
+            if (!Number.isFinite(e.lv)) e.lv = Number(r.level);
+        });
+        const dates = Object.keys(byDate).sort();
+        // 先頭の日は前日が無いので獲得EXPが 0 で入ってくる。実際の値ではないので空にする。
+        if (dates.length && byDate[dates[0]].gain === 0) byDate[dates[0]].gain = null;
+
+        const fracLevel = (e) => {
+            if (!Number.isFinite(e.lv)) return null;
+            const need = tnl[e.lv];
+            if (need && Number.isFinite(e.within)) return e.lv + Math.min(e.within / need, 0.9999);
+            if (Number.isFinite(e.pct)) return e.lv + Math.min(e.pct / 100, 0.9999);
+            return e.lv;
+        };
+        const labels   = dates.map(dt => this._dateToLabel(dt));
+        const values   = dates.map(dt => fracLevel(byDate[dt]));
+        const expDaily = dates.map(dt => Number.isFinite(byDate[dt].gain) ? byDate[dt].gain : null);
+
+        const ch = d.character || {};
+        const lastE = dates.length ? byDate[dates[dates.length - 1]] : {};
+        const level = Number(ch.level) || (Number.isFinite(lastE.lv) ? lastE.lv : null);
+        const within = Number.isFinite(Number(ch.exp)) ? Number(ch.exp) : (Number.isFinite(lastE.within) ? lastE.within : null);
+        let expPct = Number.isFinite(Number(ch.expPercent)) ? Number(ch.expPercent) : null;
+        if (level && tnl[level] && Number.isFinite(within)) expPct = (within / tnl[level]) * 100;
+
+        const charInfo = {
+            name: ch.name || null,
+            level,
+            expPct,
+            withinExp: within,
+            world: ch.world || null,
+            job: ch.job || null,
+            img: this._fixImgUrl(ch.imageUrl)
+        };
+        return { labels, values, expDaily, charInfo };
+    },
+
+    // 'YYYY-MM-DD' → 旧形式と同じ "M/D" ラベル（キャッシュと推移グラフの突き合わせがこの形なので揃える）。
+    _dateToLabel(dt) {
+        const [, m, d] = dt.split('-').map(Number);
+        return `${m}/${d}`;
+    },
+
+    // 取り込んだ系列を手元のキャッシュと日付で合わせて保存する。MapleHub が返す
+    // 期間が手元より短くなっても、過去の日次データを失わないため。重なる日は新しい方を使う。
+    MAX_DAYS: 180,
+    _storeParsed(key, parsed) {
+        const prev = this.cache[key];
+        let merged = parsed;
+        if (prev && Array.isArray(prev.labels) && prev.labels.length) {
+            const rows = {};
+            const put = (c) => {
+                this._labelDates(c.labels).forEach((dt, i) => {
+                    if (!dt) return;
+                    const old = rows[dt] || {};
+                    const v = c.values ? c.values[i] : null, e = c.expDaily ? c.expDaily[i] : null;
+                    rows[dt] = { v: v ?? old.v ?? null, e: e ?? old.e ?? null };
+                });
+            };
+            put(prev);
+            put(parsed);
+            const dates = Object.keys(rows).sort().slice(-this.MAX_DAYS);
+            merged = {
+                ...parsed,
+                labels:   dates.map(dt => this._dateToLabel(dt)),
+                values:   dates.map(dt => rows[dt].v ?? null),
+                expDaily: dates.map(dt => rows[dt].e ?? null)
+            };
+        }
+        this.cache[key] = { ...merged, importedAt: Date.now() };
+    },
+
+    // 旧形式。時系列は additionalData.graphData（fallback では最上位）にある。
+    _parseApiResponseV1(data) {
         const g = (data.additionalData && data.additionalData.graphData) || data.graphData || {};
         const labels    = Array.isArray(g.labels)    ? g.labels.slice()    : [];
         const levelData = Array.isArray(g.levelData) ? g.levelData         : [];
