@@ -108,7 +108,7 @@ const kmsVideos = {
                 <h1 class="text-[18px] font-bold text-white">KMS Videos</h1>
                 <span class="text-xs text-slate-500">KMSの職業ごとの YouTube 検索リンク（${total}職）。押すと検索結果が新しいタブで開きます。</span>
             </div>
-            <div id="kmsv-controls" class="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2 mb-3 border border-slate-800 bg-slate-900/60"></div>
+            <div id="kmsv-controls" class="flex flex-wrap items-center gap-x-5 gap-y-2 px-3 py-2 mb-3 bg-base-100 border border-base-content/10 rounded-box"></div>
             <div id="kmsv-list"></div>
             <p class="text-[10px] text-slate-500 mt-1">after: と OR は YouTube の公式ヘルプに無い演算子で、効かないことがあります。
                 効いていないときは OR統合をオフにするか、アップロード日「今年」＋新しい順で投稿日を確かめてください。</p>`;
@@ -148,13 +148,13 @@ const kmsVideos = {
         const s = this.state;
         const opts = (list, cur) => list.map(o => `<option value="${this.esc(o.value)}" ${o.value === cur ? 'selected' : ''}>${o.label}</option>`).join('');
         nav.innerHTML = `
-            <label class="kmsv-ctl">この日以降<input type="date" id="kmsv-after" value="${s.after}"></label>
-            <label class="kmsv-ctl cursor-pointer -ml-2"><input type="checkbox" id="kmsv-nodate" ${s.noDate ? 'checked' : ''}>指定なし</label>
-            <label class="kmsv-ctl">キーワード<select id="kmsv-keyword">${opts(this.KEYWORDS, s.keyword)}</select>
-                <input type="text" id="kmsv-custom" placeholder="自由入力" value="${this.esc(s.custom)}" class="w-28"></label>
-            <label class="kmsv-ctl">アップロード日<select id="kmsv-upload">${opts(this.UPLOAD, s.upload)}</select></label>
-            <label class="kmsv-ctl cursor-pointer"><input type="checkbox" id="kmsv-or" ${s.orMode ? 'checked' : ''}>OR統合</label>
-            <label class="kmsv-ctl cursor-pointer"><input type="checkbox" id="kmsv-sort" ${s.sortDate ? 'checked' : ''}>新しい順</label>`;
+            <label class="kmsv-ctl">この日以降<input type="date" id="kmsv-after" value="${s.after}" class="input input-sm w-36"></label>
+            <label class="kmsv-ctl cursor-pointer -ml-2"><input type="checkbox" id="kmsv-nodate" class="checkbox checkbox-xs" ${s.noDate ? 'checked' : ''}>指定なし</label>
+            <label class="kmsv-ctl">キーワード<select id="kmsv-keyword" class="select select-sm w-44">${opts(this.KEYWORDS, s.keyword)}</select>
+                <input type="text" id="kmsv-custom" placeholder="自由入力" value="${this.esc(s.custom)}" class="input input-sm w-28"></label>
+            <label class="kmsv-ctl">アップロード日<select id="kmsv-upload" class="select select-sm w-28">${opts(this.UPLOAD, s.upload)}</select></label>
+            <label class="kmsv-ctl cursor-pointer"><input type="checkbox" id="kmsv-or" class="checkbox checkbox-xs" ${s.orMode ? 'checked' : ''}>OR統合</label>
+            <label class="kmsv-ctl cursor-pointer"><input type="checkbox" id="kmsv-sort" class="checkbox checkbox-xs" ${s.sortDate ? 'checked' : ''}>新しい順</label>`;
         const bind = (id, key, prop = 'value') => nav.querySelector(id).addEventListener('input', e => {
             this.state[key] = e.target[prop];
             this.save();
@@ -178,7 +178,7 @@ const kmsVideos = {
             const rows = g.jobs.map(job => {
                 const links = this.queries(job).map(q =>
                     `<a href="${this.url(q)}" target="_blank" rel="noopener" class="kmsv-link">${this.esc(q)}</a>`).join('');
-                return `<tr class="border-t border-slate-800">
+                return `<tr class="border-t border-base-content/10">
                     <td class="px-2 py-1 whitespace-nowrap align-top w-[46%]">
                         <span class="text-slate-100 font-bold">${job[0]}</span>
                         <span class="text-slate-500 text-[10px] ml-1">${job[1] || job[2].join('・')}</span>
@@ -186,8 +186,8 @@ const kmsVideos = {
                     <td class="px-2 py-1">${links}</td>
                 </tr>`;
             }).join('');
-            return `<section class="border border-slate-800 bg-slate-900/60 break-inside-avoid mb-3">
-                <h2 class="px-2 py-1 text-xs font-bold text-indigo-300 border-b border-slate-700 flex justify-between">
+            return `<section class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden break-inside-avoid mb-3">
+                <h2 class="px-2.5 py-1.5 text-sm font-bold text-indigo-300 bg-base-200 border-b border-base-content/10 flex justify-between">
                     <span>${g.name}</span><span class="text-slate-500 font-normal tabular-nums">${g.jobs.length}</span>
                 </h2>
                 <table class="w-full text-[12px]"><tbody>${rows}</tbody></table>

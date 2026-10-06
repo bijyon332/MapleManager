@@ -115,9 +115,9 @@ const cheatsheet = {
     },
 
     card(title, sub, body) {
-        return `<section class="bg-slate-900/60 border border-slate-800 rounded-lg p-3">
+        return `<section class="bg-base-100 border border-base-content/10 rounded-box p-3">
             <div class="flex items-baseline gap-2 mb-2 flex-wrap">
-                <h2 class="text-xs font-bold text-white">${title}</h2>
+                <h2 class="text-sm font-bold text-white">${title}</h2>
                 ${sub ? `<span class="text-[10px] text-slate-500">${sub}</span>` : ''}
             </div>
             ${body}
@@ -179,24 +179,24 @@ const cheatsheet = {
         const sub = ['Lv', '必要', '最大'];
         const head = `<tr>
                 <th rowspan="2" class="text-left px-1.5 font-bold align-bottom">ボス</th>
-                ${cols.map(c => `<th colspan="3" class="text-center px-1 font-bold text-slate-400 border-l border-slate-800">${c.label}</th>`).join('')}
+                ${cols.map(c => `<th colspan="3" class="text-center px-1 font-bold text-slate-400 border-l border-base-content/10">${c.label}</th>`).join('')}
             </tr>
             <tr>${cols.map(() => sub.map((s, i) =>
-                `<th class="text-right px-1 pb-1 font-normal ${i === 0 ? 'border-l border-slate-800' : ''}">${s}</th>`).join('')).join('')}</tr>`;
-        const rows = list.map(b => `<tr class="border-t border-slate-800">
+                `<th class="text-right px-1 pb-1 font-normal ${i === 0 ? 'border-l border-base-content/10' : ''}">${s}</th>`).join('')).join('')}</tr>`;
+        const rows = list.map(b => `<tr class="border-t border-base-content/10">
             <td class="px-1.5 py-1 whitespace-nowrap">
                 <span class="text-slate-100 font-bold text-[12px]">${b.boss}</span>
                 <span class="text-slate-500 ml-1">入場${b.entry}</span>${b.sub ? `<div class="text-[10px] text-slate-500 leading-3">${b.sub}</div>` : ''}
             </td>
             ${cols.map(col => {
                 const c = b[col.key];
-                if (!c) return `<td colspan="3" class="px-1.5 py-1 text-center text-slate-700 border-l border-slate-800">—</td>`;
+                if (!c) return `<td colspan="3" class="px-1.5 py-1 text-center text-slate-700 border-l border-base-content/10">—</td>`;
                 return cells.call(this, c).map((v, i) =>
-                    `<td class="px-1 py-1 text-right ${i === 0 ? 'border-l border-slate-800' : ''}">${v}</td>`).join('');
+                    `<td class="px-1 py-1 text-right ${i === 0 ? 'border-l border-base-content/10' : ''}">${v}</td>`).join('');
             }).join('')}
         </tr>`).join('');
         return `<div class="overflow-x-auto"><table class="w-full text-[12px] tabular-nums">
-            <thead class="text-[10px] text-slate-500 border-b border-slate-700">${head}</thead><tbody>${rows}</tbody>
+            <thead class="text-[10px] text-slate-500 border-b border-base-content/20">${head}</thead><tbody>${rows}</tbody>
         </table></div>`;
     },
 
@@ -325,23 +325,23 @@ const cheatsheet = {
         const cols = this.COLS;
         const head = `<tr>
                 <th rowspan="2" class="text-left px-1.5 font-bold align-bottom">ボス</th>
-                ${cols.map(c => `<th colspan="2" class="text-center px-1 font-bold text-slate-400 border-l border-slate-800">${c.label}</th>`).join('')}
+                ${cols.map(c => `<th colspan="2" class="text-center px-1 font-bold text-slate-400 border-l border-base-content/10">${c.label}</th>`).join('')}
             </tr>
-            <tr>${cols.map(() => `<th class="text-right px-1.5 pb-1 font-normal border-l border-slate-800">ソロ</th>
+            <tr>${cols.map(() => `<th class="text-right px-1.5 pb-1 font-normal border-l border-base-content/10">ソロ</th>
                 <th class="text-right px-1.5 pb-1 font-normal">1人分</th>`).join('')}</tr>`;
-        const rows = list.map(b => `<tr class="border-t border-slate-800">
+        const rows = list.map(b => `<tr class="border-t border-base-content/10">
             <td class="px-1.5 py-0.5 whitespace-nowrap"><span class="text-slate-100 font-bold">${b.name}</span>
                 <span class="text-[10px] text-slate-500 ml-1">${b.party}人</span>${b.monthly ? '<span class="ml-1 text-[10px] text-rose-300">月</span>' : ''}${b.unknown ? '<span class="ml-1 text-[10px] text-amber-400" title="上のボスの表に要求フォースが無いので、オーセンティックの先頭に仮置きしている">要求未登録</span>' : ''}</td>
             ${cols.map(c => {
                 const x = b[c.key];
-                if (!x) return '<td colspan="2" class="px-1.5 py-0.5 text-center text-slate-700 border-l border-slate-800">—</td>';
-                return `<td class="px-1.5 py-0.5 text-right border-l border-slate-800" title="${x.meso.toLocaleString()}">
+                if (!x) return '<td colspan="2" class="px-1.5 py-0.5 text-center text-slate-700 border-l border-base-content/10">—</td>';
+                return `<td class="px-1.5 py-0.5 text-right border-l border-base-content/10" title="${x.meso.toLocaleString()}">
                         ${x.chaos ? '<span class="text-[10px] text-slate-500 mr-1">C</span>' : ''}<b class="text-amber-300">${this.fmtM(x.meso)}</b></td>
                     <td class="px-1.5 py-0.5 text-right text-slate-300" title="${Math.floor(x.meso / b.party).toLocaleString()}">${this.fmtM(x.meso / b.party)}</td>`;
             }).join('')}
         </tr>`).join('');
         return `<table class="w-full text-[12px] tabular-nums">
-            <thead class="text-[10px] text-slate-500 border-b border-slate-700">${head}</thead><tbody>${rows}</tbody></table>`;
+            <thead class="text-[10px] text-slate-500 border-b border-base-content/20">${head}</thead><tbody>${rows}</tbody></table>`;
     },
 
     renderCrystal() {
@@ -360,7 +360,7 @@ const cheatsheet = {
             `<a href="${s.url}" target="_blank" rel="noopener" class="text-indigo-300 hover:text-indigo-200 underline decoration-slate-700">${s.label}</a>`).join('<span class="text-slate-700"> / </span>');
         return `<div class="max-w-[1500px] mx-auto space-y-3">
             <div class="flex items-baseline gap-3 flex-wrap">
-                <h1 class="text-base font-bold text-white">Cheat Sheet</h1>
+                <h1 class="text-[18px] font-bold text-white">Cheat Sheet</h1>
                 <span class="text-[11px] text-slate-500">GMS基準（2026-09-24 時点）</span>
             </div>
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 items-start">
