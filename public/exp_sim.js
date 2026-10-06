@@ -21,7 +21,7 @@ const expSim = {
         items.forEach(r => {
             const lbl = document.createElement('label');
             lbl.className = 'exp-cb-item';
-            lbl.innerHTML = `<input type="checkbox" id="${idPrefix}${r.id}" checked><span>${r.name}</span><span class="exp-lv-tag">${r.lv}+</span>`;
+            lbl.innerHTML = `<input type="checkbox" class="checkbox checkbox-xs" id="${idPrefix}${r.id}" checked><span>${r.name}</span><span class="exp-lv-tag">${r.lv}+</span>`;
             grid.appendChild(lbl);
         });
         return grid;
@@ -109,10 +109,10 @@ const expSim = {
         rowEl.className = 'exp-potion-row';
         rowEl.id = `exp-potion-${rowId}`;
         rowEl.innerHTML = `
-        <select id="exp-pt-type-${rowId}">${rowOpts}</select>
-        <input type="number" id="exp-pt-qty-${rowId}" value="${qty}" min="1" max="99">
-        <input type="date" id="exp-pt-dead-${rowId}" value="${deadline}">
-        <button class="exp-del-btn" onclick="document.getElementById('exp-potion-${rowId}').remove()">
+        <select id="exp-pt-type-${rowId}" class="select select-sm font-mono">${rowOpts}</select>
+        <input type="number" class="input input-sm font-mono" id="exp-pt-qty-${rowId}" value="${qty}" min="1" max="99">
+        <input type="date" class="input input-sm font-mono" id="exp-pt-dead-${rowId}" value="${deadline}">
+        <button class="btn btn-ghost btn-sm btn-square exp-del-btn" onclick="document.getElementById('exp-potion-${rowId}').remove()">
             <i data-lucide="x" class="w-3 h-3"></i>
         </button>`;
         document.getElementById('exp-potionRows').appendChild(rowEl);
@@ -136,8 +136,8 @@ const expSim = {
         evEl.className = 'exp-event-row';
         evEl.id = `exp-mev-${evId}`;
         evEl.innerHTML = `
-        <input type="date" id="exp-mev-date-${evId}" value="${dateVal}">
-        <button class="exp-del-btn" onclick="document.getElementById('exp-mev-${evId}').remove()">
+        <input type="date" class="input input-sm font-mono" id="exp-mev-date-${evId}" value="${dateVal}">
+        <button class="btn btn-ghost btn-sm btn-square exp-del-btn" onclick="document.getElementById('exp-mev-${evId}').remove()">
             <i data-lucide="x" class="w-3 h-3"></i>
         </button>`;
         document.getElementById('exp-monpaEventRows').appendChild(evEl);
@@ -472,7 +472,7 @@ const expSim = {
             <td class="font-mono">Lv.${e.lv}</td>
             <td>
                 <div class="flex items-center gap-2">
-                    <div class="flex-1 h-1 bg-slate-700 rounded overflow-hidden min-w-[60px]">
+                    <div class="flex-1 h-1 bg-base-content/10 rounded overflow-hidden min-w-[60px]">
                         <div class="h-full rounded bg-gradient-to-r from-indigo-500 to-indigo-400" style="width:${Math.min(parseFloat(e.pct), 100)}%"></div>
                     </div>
                     <span class="font-mono text-xs text-slate-300 min-w-[48px] text-right">${e.pct}%</span>

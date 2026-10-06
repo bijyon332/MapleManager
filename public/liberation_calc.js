@@ -53,13 +53,13 @@ function createLiberationCalc(cfg) {
             const stageOpts = c.stages.map(s => `<option value="${s.id}">${s.label}</option>`).join('');
             const passRow = c.hasPass ? `
                 <div class="lc-field">
-                    <label class="lc-check"><input type="checkbox" id="lc-pass-active"><span>${c.passLabel}を適用</span></label>
-                    <input type="date" id="lc-pass-end" class="lc-input" title="${c.passLabel}適用期限">
+                    <label class="lc-check"><input type="checkbox" class="checkbox checkbox-xs" id="lc-pass-active"><span>${c.passLabel}を適用</span></label>
+                    <input type="date" id="lc-pass-end" class="input input-sm lc-input" title="${c.passLabel}適用期限">
                 </div>` : '';
             const areaRow = c.secondaryCurrency ? `
                 <div class="lc-field">
                     <label>デイリークエスト地域</label>
-                    <select id="lc-area" class="lc-input">
+                    <select id="lc-area" class="select select-sm lc-input">
                         ${c.secondaryCurrency.dailySources.map(a => `<option value="${a.id}">${a.label} (${c.secondaryCurrency.label} ${a.rate}個/日)</option>`).join('')}
                     </select>
                 </div>` : '';
@@ -70,16 +70,16 @@ function createLiberationCalc(cfg) {
                 <tr data-boss="${b.id}">
                     <td class="lc-boss-name">${b.label}${b.monthly ? '<span class="lc-monthly-tag">月間</span>' : ''}</td>
                     <td>
-                        <select class="lc-diff-sel" data-boss="${b.id}">
+                        <select class="select select-sm lc-diff-sel" data-boss="${b.id}">
                             <option value="">討伐しない</option>
                             ${diffOpts}
                         </select>
                     </td>
                     <td>
-                        <input type="number" class="lc-party-inp" data-boss="${b.id}" min="1" max="${b.partyMax}" value="1">
+                        <input type="number" class="input input-sm lc-party-inp" data-boss="${b.id}" min="1" max="${b.partyMax}" value="1">
                     </td>
                     <td class="lc-center">
-                        <input type="checkbox" class="lc-cleared-chk" data-boss="${b.id}">
+                        <input type="checkbox" class="checkbox checkbox-xs lc-cleared-chk" data-boss="${b.id}">
                     </td>
                     <td class="lc-num lc-gain-cell" data-boss="${b.id}">0</td>
                 </tr>`;
@@ -93,51 +93,36 @@ function createLiberationCalc(cfg) {
                 .lc-header p { color: #8b98ad; font-size: 11.5px; margin: 0; }
                 .lc-cols { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 8px; align-items: start; }
                 @media (max-width: 1000px) { .lc-cols { grid-template-columns: 1fr; } }
-                .lc-card { background: #0f172a; border: 1px solid #1e293b; border-radius: 0; padding: 8px 10px; margin-bottom: 8px; }
-                .lc-result { border-top: 2px solid #6366f1; }
-                .lc-sec-label {
+                .lc-card { background: var(--color-base-100); border: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent); border-radius: var(--radius-box); padding: 8px 10px; margin-bottom: 8px; }
+                                .lc-sec-label {
                     font-size: 11px; font-weight: 600; color: #8b98ad; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;
                 }
-                .lc-sec-label::after { content: ''; flex: 1; height: 1px; background: #1e293b; }
+                .lc-sec-label::after { content: ''; flex: 1; height: 1px; background: color-mix(in oklab, var(--color-base-content) 10%, transparent); }
                 .lc-settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px 10px; }
                 .lc-field { display: flex; flex-direction: column; gap: 2px; }
                 .lc-field label { font-size: 10.5px; color: #8b98ad; font-weight: 600; }
-                .lc-input, select.lc-input {
-                    background: #020617; border: 1px solid #334155; border-radius: 0; color: #e2e8f0;
-                    font-size: 12.5px; padding: 3px 6px; outline: none; font-family: inherit;
-                }
-                .lc-input:focus { border-color: #6366f1; }
-                .lc-input option, .lc-diff-sel option { background: #0f172a; color: #e2e8f0; }
+                .lc-input { width: 100%; }
                 .lc-input::-webkit-calendar-picker-indicator { filter: invert(0.8); }
-                .lc-diff-sel, .lc-party-inp {
-                    background: #020617; border: 1px solid #334155; border-radius: 0; color: #e2e8f0;
-                    font-size: 12px; padding: 2px 5px; outline: none; font-family: inherit;
-                }
-                .lc-diff-sel:focus, .lc-party-inp:focus { border-color: #6366f1; }
-                .lc-diff-sel:disabled, .lc-party-inp:disabled { opacity: 0.5; }
                 .lc-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #e2e8f0; cursor: pointer; margin-bottom: 2px; }
-                .lc-check input { accent-color: #6366f1; }
-                .lc-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+                                .lc-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
                 .lc-table th {
-                    background: #0f172a; color: #64748b; font-weight: 600; font-size: 11px;
-                    padding: 4px 8px; text-align: left; border-bottom: 1px solid #334155; white-space: nowrap;
+                    color: #64748b; font-weight: 600; font-size: 11px;
+                    padding: 4px 8px; text-align: left; border-bottom: 1px solid color-mix(in oklab, var(--color-base-content) 20%, transparent); white-space: nowrap;
                 }
-                .lc-table td { padding: 2px 8px; height: 30px; border-bottom: 1px solid #172036; vertical-align: middle; }
-                .lc-table tbody tr:nth-child(even) { background: #0c1428; }
-                .lc-boss-name { font-weight: 700; color: #f5a623; white-space: nowrap; }
-                .lc-monthly-tag { margin-left: 5px; font-size: 9px; background: #3a2d5c; color: #c9a8ff; padding: 0 4px; border-radius: 0; }
+                .lc-table td { padding: 2px 8px; height: 32px; border-bottom: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent); vertical-align: middle; }
+                                .lc-boss-name { font-weight: 700; color: #f5a623; white-space: nowrap; }
+                .lc-monthly-tag { margin-left: 5px; font-size: 9px; background: #3a2d5c; color: #c9a8ff; padding: 0 4px; border-radius: var(--radius-selector); }
                 .lc-diff-sel { width: 100%; min-width: 90px; }
-                .lc-party-inp { width: 44px; text-align: center; font-family: "IBM Plex Mono", ui-monospace, monospace; }
+                .lc-party-inp { width: 48px; text-align: center; font-family: "IBM Plex Mono", ui-monospace, monospace; }
                 .lc-center { text-align: center; }
-                .lc-center input { accent-color: #6366f1; }
-                .lc-num { text-align: right; font-weight: 700; color: #f5a623; font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+                                .lc-num { text-align: right; font-weight: 700; color: #f5a623; font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
                 .lc-result-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13px; align-items: baseline; }
                 .lc-result-label { color: #8b98ad; font-size: 11px; }
                 .lc-result-val { font-weight: 700; color: #e2e8f0; font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
                 .lc-result-val.big { font-size: 20px; line-height: 1.2; color: #a5b4fc; }
                 .lc-note { font-size: 10.5px; color: #64748b; margin-top: 6px; line-height: 1.5; }
                 .lc-tier-list { display: flex; flex-direction: column; gap: 0; margin-top: 8px; font-size: 12px; }
-                .lc-tier-list .row { display: flex; justify-content: space-between; border-bottom: 1px solid #172036; padding: 2px 0; font-variant-numeric: tabular-nums; }
+                .lc-tier-list .row { display: flex; justify-content: space-between; border-bottom: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent); padding: 2px 0; font-variant-numeric: tabular-nums; }
             </style>
             <div class="lc-wrapper">
                 <div class="lc-header">
@@ -150,15 +135,15 @@ function createLiberationCalc(cfg) {
                     <div class="lc-settings-grid">
                         <div class="lc-field">
                             <label>計算開始日</label>
-                            <input type="date" id="lc-start-date" class="lc-input">
+                            <input type="date" id="lc-start-date" class="input input-sm lc-input">
                         </div>
                         <div class="lc-field">
                             <label>現在の進行ボス</label>
-                            <select id="lc-stage" class="lc-input">${stageOpts}</select>
+                            <select id="lc-stage" class="select select-sm lc-input">${stageOpts}</select>
                         </div>
                         <div class="lc-field">
                             <label>保有${c.currencyLabel} (最大 ${c.maxHold.toLocaleString()})</label>
-                            <input type="number" id="lc-holdings" class="lc-input" min="0" max="${c.maxHold}" value="0">
+                            <input type="number" id="lc-holdings" class="input input-sm lc-input" min="0" max="${c.maxHold}" value="0">
                         </div>
                         ${areaRow}
                         ${passRow}
