@@ -94,8 +94,8 @@
 
     let toastTimer = 0;
     function toast(msg, kind) {
-        $$(".toast").forEach((t) => t.remove());
-        const t = el("div", { class: "toast" + (kind ? " " + kind : ""), role: "status", text: msg });
+        $$(".sb-toast").forEach((t) => t.remove());
+        const t = el("div", { class: "sb-toast" + (kind ? " " + kind : ""), role: "status", text: msg });
         document.body.appendChild(t);
         clearTimeout(toastTimer);
         toastTimer = setTimeout(() => t.remove(), 2600);
@@ -518,6 +518,7 @@
 
     const diffLabel   = (d) => (window.DIFFICULTY_LABEL || {})[d] || d || "";
     const diffLabelJa = (d) => (window.DIFFICULTY_LABEL_JA || {})[d] || d || "";
+    const diffLabelEn = (d) => (window.DIFFICULTY_LABEL || {})[d] || d || "";
     const diffClass   = (d) => (window.DIFFICULTY_BADGE_CLASS || {})[d] || "badge-easy";
     const diffColor   = (d) => DIFF_COLOR[d] || "#334155";
 
@@ -556,7 +557,7 @@
         const conflict = seasonParties().find((p) =>
             p.id !== party.id && p.bossId === party.bossId && p.slots.includes(charId));
         if (conflict) {
-            return { ok: false, reason: bossById(conflict.bossId).name + " " + diffLabelJa(conflict.difficulty)
+            return { ok: false, reason: bossById(conflict.bossId).name + " " + diffLabelEn(conflict.difficulty)
                 + (conflict.isSolo ? " の" + SOLO_LABEL + " に入っています" : " に配置済みです") };
         }
         return { ok: true };
@@ -676,7 +677,7 @@
             el("span", { class: "spacer" }),
             nameInput,
             el("button", {
-                class: "btn btn-primary", onclick: () => addMember(nameInput.value)
+                class: "btn btn-sm btn-primary", onclick: () => addMember(nameInput.value)
             }, icon("user-plus"), "メンバーを追加")
         ));
 
@@ -743,7 +744,7 @@
 
         wrap.appendChild(el("div", { class: "crumb" },
             el("button", {
-                class: "btn", onclick: () => { state.ui.editorMemberId = null; saveState(); render(); }
+                class: "btn btn-sm", onclick: () => { state.ui.editorMemberId = null; saveState(); render(); }
             }, icon("arrow-left"), "メンバー一覧"),
             el("span", { class: "player-dot", style: "background:" + memberColor(me) + ";color:" + memberColor(me) }),
             el("span", { class: "who", text: displayName(me) })
@@ -756,7 +757,7 @@
             el("span", { class: "sub", text: "戦闘力とHEXAは「1.2億」「9800万」のような入力を受け付けます" }),
             el("span", { class: "spacer" }),
             el("button", {
-                class: "btn btn-primary", onclick: () => {
+                class: "btn btn-sm btn-primary", onclick: () => {
                     const c = {
                         id: uid("c"), name: "新しいキャラ", jobId: "",
                         combatPower: 0, hexa: 0, note: "", isActive: true, updatedAt: now()
@@ -789,12 +790,12 @@
                 })),
             el("label", { class: "check", style: "align-self:flex-end;padding-bottom:6px" },
                 el("input", {
-                    type: "checkbox", checked: me.isActive,
+                    type: "checkbox", class: "checkbox checkbox-xs", checked: me.isActive,
                     onchange: (e) => { me.isActive = e.target.checked; saveState(); render(); }
                 }), "活動中"),
             el("span", { class: "spacer" }),
             el("button", {
-                class: "btn btn-ghost btn-danger", onclick: async () => {
+                class: "btn btn-ghost btn-sm btn-danger", onclick: async () => {
                     if (!await confirmDialog(displayName(me) + " と、そのキャラ・希望・PT配置をすべて削除します。よろしいですか？")) return;
                     const ids = me.characters.map((c) => c.id);
                     state.wishes = state.wishes.filter((w) => !ids.includes(w.characterId));
@@ -872,11 +873,11 @@
             }, c.isMain ? "メイン" : "サブ"),
             el("label", { class: "check" },
                 el("input", {
-                    type: "checkbox", checked: c.isActive,
+                    type: "checkbox", class: "checkbox checkbox-xs", checked: c.isActive,
                     onchange: (e) => { c.isActive = e.target.checked; saveState(); render(); }
                 }), "使用中"),
             el("button", {
-                class: "btn btn-ghost btn-danger btn-icon", title: "このキャラを削除",
+                class: "btn btn-ghost btn-xs btn-square btn-danger", title: "このキャラを削除",
                 onclick: async () => {
                     if (!await confirmDialog(c.name + " を削除します。希望とPT配置も消えます。")) return;
                     state.wishes = state.wishes.filter((w) => w.characterId !== c.id);
@@ -950,9 +951,9 @@
                 const on = !!wishOf(c.id, b.id, d);
                 chips.appendChild(el("button", {
                     class: "chip" + (on ? " on" : ""), "data-d": d,
-                    title: b.name + " " + diffLabelJa(d) + (on ? "：行きたい" : "：希望なし"),
+                    title: b.name + " " + diffLabelEn(d) + (on ? "：行きたい" : "：希望なし"),
                     onclick: () => { toggleWish(member, c.id, b.id, d); saveState(); render(); }
-                }, diffLabelJa(d), on && el("span", { class: "mark", text: "✓" })));
+                }, diffLabelEn(d), on && el("span", { class: "mark", text: "✓" })));
             });
             row.appendChild(chips);
 
@@ -961,7 +962,7 @@
             const picked = b.difficulties.some((d) => wishOf(c.id, b.id, d));
             row.appendChild(el("div", {
                 class: "wr-state" + (placed ? " placed" : (picked ? " on" : "")),
-                text: placed ? diffLabelJa(placed.difficulty) + "に配置" : (picked ? "希望あり" : "—")
+                text: placed ? diffLabelEn(placed.difficulty) + " に配置" : (picked ? "希望あり" : "—")
             }));
             rows.appendChild(row);
         });
@@ -1020,14 +1021,14 @@
                 class: "diff-btn" + (d === state.ui.difficulty ? " active" : ""),
                 title: "希望者 " + cands + "人 / PT " + partiesOf(b.id, d).length,
                 onclick: () => { state.ui.difficulty = d; state.ui.selectedCharId = null; saveState(); render(); }
-            }, diffLabelJa(d), el("span", { class: "dcount", text: partiesOf(b.id, d).length + "PT・希望" + cands })));
+            }, diffLabelEn(d), el("span", { class: "dcount", text: partiesOf(b.id, d).length + "PT・希望" + cands })));
         });
         bar.appendChild(diffs);
 
         bar.appendChild(el("span", { class: "spacer" }));
         bar.appendChild(el("span", { class: "bar-label", text: "最大 " + b.maxMembers + "人" }));
         bar.appendChild(el("button", {
-            class: "btn btn-primary", onclick: () => {
+            class: "btn btn-sm btn-primary", onclick: () => {
                 const list = partiesOf(state.ui.bossId, state.ui.difficulty);
                 state.parties.push({
                     id: uid("p"), seasonId: currentSeason().id,
@@ -1101,7 +1102,7 @@
         const rows = candidateRows(b.id, d);
         const list = el("div", { class: "cand-list" });
         if (!rows.length) {
-            list.appendChild(el("div", { class: "empty-state", text: b.name + " " + diffLabelJa(d) + " に希望を出している人がいません。" }));
+            list.appendChild(el("div", { class: "empty-state", text: b.name + " " + diffLabelEn(d) + " に希望を出している人がいません。" }));
         }
         rows.forEach(({ c, m, elsewhere, upper }) => {
             const card = el("div", {
@@ -1130,8 +1131,8 @@
                     c.name,
                     !c.isMain && el("span", { class: "role-tag", text: "サブ" })),
                 el("div", { class: "cand-meta", text: displayName(m) + (classById(c.jobId) ? " / " + classById(c.jobId).name : "") }),
-                upper && el("div", {}, el("span", { class: "upper-badge", text: diffLabelJa(upper) + " にも希望" })),
-                elsewhere && el("div", { class: "cand-meta warn", text: diffLabelJa(elsewhere.difficulty) + " の " + (elsewhere.label || "PT") + " に配置済み" })
+                upper && el("div", {}, el("span", { class: "upper-badge", text: diffLabelEn(upper) + " にも希望" })),
+                elsewhere && el("div", { class: "cand-meta warn", text: diffLabelEn(elsewhere.difficulty) + " の " + (elsewhere.label || "PT") + " に配置済み" })
             ));
             card.appendChild(cpBlock(c));
             list.appendChild(card);
@@ -1348,7 +1349,7 @@
                 onchange: (e) => { p.memo = e.target.value; saveState(); render(); }
             }),
             el("button", {
-                class: "btn btn-ghost btn-danger btn-icon", title: "このPTを削除",
+                class: "btn btn-ghost btn-xs btn-square btn-danger", title: "このPTを削除",
                 onclick: async () => {
                     if (p.slots.length && !await confirmDialog((p.label || "このPT") + " を削除します。よろしいですか？")) return;
                     state.parties = state.parties.filter((x) => x.id !== p.id);
@@ -1442,7 +1443,7 @@
             el("span", { class: "spacer" }),
             !VIEW_ONLY && el("label", { class: "check" },
                 el("input", {
-                    type: "checkbox", checked: ui.includeDraft,
+                    type: "checkbox", class: "checkbox checkbox-xs", checked: ui.includeDraft,
                     onchange: (e) => { ui.includeDraft = e.target.checked; saveState(); render(); }
                 }), "下書きも表示"),
             !VIEW_ONLY && el("button", { class: "btn btn-xs", onclick: copyShareLink },
@@ -2014,15 +2015,15 @@
                 bossList().map((b) => el("option", { value: b.id, selected: ui.outBossId === b.id, text: b.name }))),
             el("label", { class: "check" },
                 el("input", {
-                    type: "checkbox", checked: ui.includeCp,
+                    type: "checkbox", class: "checkbox checkbox-xs", checked: ui.includeCp,
                     onchange: (e) => { ui.includeCp = e.target.checked; saveState(); render(); }
                 }), "戦闘力・HEXAを含める"),
             !VIEW_ONLY && el("label", { class: "check" },
                 el("input", {
-                    type: "checkbox", checked: ui.includeDraft,
+                    type: "checkbox", class: "checkbox checkbox-xs", checked: ui.includeDraft,
                     onchange: (e) => { ui.includeDraft = e.target.checked; saveState(); render(); }
                 }), "下書きも含める"),
-            el("button", { class: "btn btn-primary", onclick: () => copyText(buildText()) }, icon("copy"), "コピー")
+            el("button", { class: "btn btn-sm btn-primary", onclick: () => copyText(buildText()) }, icon("copy"), "コピー")
         ));
         panel.appendChild(el("div", { class: "panel-body" },
             el("textarea", { class: "out-text", readonly: true }, buildText())));

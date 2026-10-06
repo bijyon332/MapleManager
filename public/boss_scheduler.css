@@ -1,9 +1,39 @@
 /* =========================================================
  *  Boss Scheduler — embedded in MapleManager (iframe)
  *  週ボスPT編成: ①メンバーと希望 / ②編成編集 / ③ダッシュボード
- *  Design goal: compact / information-dense dark UI.
+ *  本体と同じ daisyUI 5（テーマ maple）。ボタンは daisyUI の btn をそのまま使い、
+ *  ここでは独自の部品（PTカード・希望の行など）を同じ色と角で描く。
+ *  このファイルはレイヤーの外なので daisyUI より強い（badge など名前が重なる所はここが勝つ）。
  *  Class names kept in sync with boss_scheduler.js + HTML.
  * ========================================================= */
+
+/* daisyUI 5 のテーマ maple（style.css と同じ値。変えるときは両方） */
+[data-theme="maple"] {
+    --color-base-100: #0f172a; --color-base-200: #0b1222; --color-base-300: #020617; --color-base-content: #e2e8f0;
+    --color-primary: #6366f1; --color-primary-content: #ffffff;
+    --color-secondary: #a78bfa; --color-secondary-content: #1e1b4b;
+    --color-accent: #34d399; --color-accent-content: #022c22;
+    --color-neutral: #1e293b; --color-neutral-content: #cbd5e1;
+    --color-info: #38bdf8; --color-info-content: #082f49;
+    --color-success: #34d399; --color-success-content: #022c22;
+    --color-warning: #fbbf24; --color-warning-content: #451a03;
+    --color-error: #f87171; --color-error-content: #450a0a;
+    --radius-selector: 0.25rem; --radius-field: 0.25rem; --radius-box: 0.25rem;
+    --size-selector: 0.21875rem; --size-field: 0.21875rem;
+    --border: 1px; --depth: 0; --noise: 0;
+}
+
+/* ここだけで使う色。線は文字色の薄め（daisyUI の border-base-content/10 と同じ考え方）。 */
+:root {
+    --line: rgb(226 232 240 / 0.10);
+    --line-strong: rgb(226 232 240 / 0.20);
+    --muted: rgb(226 232 240 / 0.50);
+    --faint: rgb(226 232 240 / 0.35);
+    --r: 0.25rem;
+    --role-main: #6366f1;
+    --role-sub: #f59e0b;
+    --role-sub-text: #fcd34d;
+}
 
 /* === Base === */
 body {
@@ -14,27 +44,24 @@ body {
 
 ::-webkit-scrollbar          { width: 7px; height: 7px; }
 ::-webkit-scrollbar-track    { background: #0f172a; }
-::-webkit-scrollbar-thumb    { background: #334155; border-radius: 2px; }
+::-webkit-scrollbar-thumb    { background: #334155; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
 .title-font { font-family: "Orbitron", sans-serif; letter-spacing: 0.06em; }
 
-.tab-active   { border-bottom: 2px solid #6366f1; color: #fff; background: rgba(99, 102, 241, 0.10); }
-.tab-inactive { color: #64748b; border-bottom: 2px solid transparent; }
-
-/* === Badges === */
+/* === Badges（難易度）。daisyUI の badge と名前が重なるので、大きさまでここで決める === */
 .badge {
-    display: inline-flex; align-items: center;
-    font-size: 9px; font-weight: 700; letter-spacing: 0.05em;
-    padding: 1px 6px; border-radius: 2px; text-transform: uppercase;
-    line-height: 1.5;
+    display: inline-flex; align-items: center; height: auto; gap: 0;
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.05em;
+    padding: 1px 6px; border-radius: var(--r); text-transform: uppercase;
+    line-height: 1.5; white-space: nowrap;
 }
-.badge-easy    { background-color: #374151; color: #9ca3af; border: 1px solid #4b5563; }
-.badge-normal  { background-color: #0e7490; color: #cffafe; border: 1px solid #22d3ee; }
-.badge-hard    { background-color: #991b1b; color: #fecaca; border: 1px solid #f87171; }
-.badge-chaos   { background-color: #282206; color: #facc15; border: 1px solid #ca8a04; }
-.badge-extreme { background-color: #450a0a; color: #f87171; border: 1px solid #ef4444; }
-.badge-soft    { background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; text-transform: none; }
+.badge-easy    { background-color: #1f2937; color: #d1d5db; border: 1px solid #4b5563; }
+.badge-normal  { background-color: #083344; color: #67e8f9; border: 1px solid #0e7490; }
+.badge-hard    { background-color: #3f0d0d; color: #fca5a5; border: 1px solid #b91c1c; }
+.badge-chaos   { background-color: #282206; color: #fde047; border: 1px solid #a16207; }
+.badge-extreme { background-color: #450a0a; color: #f87171; border: 1px solid #dc2626; }
+.badge-soft    { background-color: transparent; color: #94a3b8; border: 1px solid var(--line-strong); text-transform: none; }
 .badge-warn    { background-color: #3b0d22; color: #fda4af; border: 1px solid #9f1239; text-transform: none; }
 .badge-ok      { background-color: #052e1b; color: #6ee7b7; border: 1px solid #047857; text-transform: none; }
 
@@ -44,117 +71,92 @@ body {
 }
 
 /* === メイン / サブ === */
-:root {
-    --role-main: #6366f1;
-    --role-sub: #f59e0b;
-    --role-sub-text: #fcd34d;
-}
 /* 一覧に混ざるサブを見分けるための小さな札。色だけに頼らないための併記。 */
 .role-tag {
     display: inline-block; margin-left: 5px; padding: 0 4px;
     font-size: 9px; font-weight: 700; line-height: 1.5;
-    color: var(--role-sub-text); background: transparent; border: 1px solid var(--role-sub); border-radius: 0;
+    color: var(--role-sub-text); background: transparent; border: 1px solid var(--role-sub); border-radius: var(--r);
     vertical-align: middle;
 }
 /* キャラカードのメイン／サブ切り替え */
 .role-pill {
-    font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;
-    padding: 2px 8px; border-radius: 2px; cursor: pointer; flex-shrink: 0;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+    height: 22px; padding: 0 9px; border-radius: var(--r); cursor: pointer; flex-shrink: 0;
     background: transparent; border: 1px solid var(--role-sub); color: var(--role-sub-text);
 }
-.role-pill:hover { background: #111827; }
+.role-pill:hover { background: rgb(245 158 11 / 0.10); }
 .role-pill.main {
-    background: transparent; border-color: var(--role-main); color: #c7d2fe; cursor: default;
+    background: #4f46e5; border-color: #4f46e5; color: #fff; cursor: default;
 }
 .char-card.main { border-left: 3px solid var(--role-main); }
 .char-card.sub  { border-left: 3px solid var(--role-sub); }
 
-/* === Form controls === */
-input, select, textarea {
-    background: #020617;
-    border: 1px solid #1e293b;
+/* === Form controls（daisyUI の input-sm と同じ見た目）。:where で強さを0にし、下の個別の指定が勝つようにする === */
+:where(input:not([type="checkbox"]):not([type="file"]), select, textarea) {
+    background: #0f172a;
+    border: 1px solid var(--line-strong);
     color: #e2e8f0;
-    border-radius: 2px;
-    padding: 5px 8px;
+    border-radius: var(--r);
+    padding: 0 8px;
+    height: 28px;
     font-size: 12px;
     font-family: inherit;
     outline: none;
     transition: border-color 0.15s, background 0.15s;
 }
-input:focus, select:focus, textarea:focus { border-color: #6366f1; background: #0f172a; }
-input::placeholder { color: #475569; }
-select option { background: #020617; }
-textarea { line-height: 1.65; resize: vertical; }
-input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; cursor: pointer; }
-
-/* === Buttons === */
-.btn {
-    background: #1e293b; color: #e2e8f0; border: 1px solid #334155;
-    padding: 5px 11px; border-radius: 2px; font-size: 12px; font-weight: 600;
-    cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
-    line-height: 1;
+select {
+    appearance: none; padding-right: 24px; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 7px center; background-size: 12px;
 }
-.btn:hover  { background: #334155; border-color: #475569; }
-.btn:active { transform: scale(0.97); }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-primary { background: #4f46e5; border-color: #6366f1; color: #fff; }
-.btn-primary:hover { background: #6366f1; border-color: #818cf8; }
-.btn-ghost { background: transparent; border-color: #1e293b; color: #94a3b8; }
-.btn-ghost:hover { background: #0f172a; color: #e2e8f0; }
+textarea { height: auto; padding: 6px 8px; line-height: 1.65; resize: vertical; }
+input:focus, select:focus, textarea:focus { border-color: #6366f1; }
+input::placeholder, textarea::placeholder { color: #475569; }
+select option { background: #0f172a; }
+
+/* daisyUI の btn に足すもの */
 .btn-danger { color: #fca5a5; }
-.btn-danger:hover { color: #ef4444; border-color: #ef4444; background: #1a0d0d; }
-.btn-icon { padding: 5px; }
-.btn-xs { padding: 3px 7px; font-size: 11px; }
+.btn-danger:hover { color: #f87171; background: rgb(248 113 113 / 0.10); }
 
 /* === Shared bits === */
 .empty-state {
     padding: 1.25rem 1rem; text-align: center;
-    border: 1px dashed #1e293b; border-radius: 2px;
-    color: #475569; font-size: 12px;
+    border: 1px dashed var(--line-strong); border-radius: var(--r);
+    color: #64748b; font-size: 12px;
 }
 .col-header {
-    font-size: 10px; font-weight: 700;
-    color: #64748b; text-transform: uppercase; letter-spacing: 0.1em;
+    font-size: 11px; font-weight: 700;
+    color: var(--muted);
     margin-bottom: 6px;
 }
-.hint { font-size: 11px; color: #475569; line-height: 1.6; margin: 0 0 8px; }
+.hint { font-size: 11px; color: #64748b; line-height: 1.6; margin: 0 0 8px; }
 .spacer { flex: 1; }
 .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.field { display: flex; flex-direction: column; gap: 3px; font-size: 10px; font-weight: 700;
-         color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; }
+.field { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 500; color: var(--muted); }
 .check { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #94a3b8; cursor: pointer; }
-.mono { font-family: monospace; }
+.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
 
 /* === App bar (season + data) === */
 .app-bar {
-    display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
-    padding: 6px 14px;
-    background: #0b1220;
-    border-bottom: 1px solid #1e293b;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 6px 16px;
+    background: #0b1222;
+    border-bottom: 1px solid var(--line);
 }
-.app-bar .season-name {
-    font-size: 12px; font-weight: 700; color: #cbd5e1;
-    background: transparent; border: 1px dashed transparent; padding: 3px 7px; border-radius: 2px;
-    min-width: 150px;
+/* シーズン名・キャラ名・PT名は書き換えられるので、ほかの入力欄と同じ枠を付けたまま太字にする */
+.app-bar .season-name { font-size: 13px; font-weight: 700; color: #f1f5f9; min-width: 170px; }
+.app-bar .season-label { font-size: 11px; color: var(--muted); }
+.app-bar .app-stats {
+    font-size: 11px; color: #64748b; font-family: "IBM Plex Mono", ui-monospace, monospace;
 }
-.app-bar .season-name:hover { border-color: #334155; }
-.app-bar .season-name:focus { border-color: #6366f1; border-style: solid; background: #0f172a; }
-.app-bar .season-label {
-    font-size: 9px; font-weight: 700; color: #475569;
-    text-transform: uppercase; letter-spacing: 0.12em;
-}
-.app-bar .stat {
-    font-size: 10.5px; color: #64748b; font-family: monospace;
-}
-.app-bar .stat strong { color: #a5b4fc; font-weight: 700; }
+.app-bar .app-stats strong { color: #a5b4fc; font-weight: 700; }
 
 /* 共有DBとの同期状態 */
 .sync-badge {
     display: inline-flex; align-items: center; gap: 5px;
-    padding: 3px 9px; border-radius: 2px; cursor: pointer;
-    font-size: 10.5px; font-weight: 700; font-family: monospace;
-    background: #0f172a; border: 1px solid #1e293b; color: #64748b;
+    height: 28px; padding: 0 10px; border-radius: var(--r); cursor: pointer;
+    font-size: 11px; font-weight: 600;
+    background: transparent; border: 1px solid var(--line-strong); color: #94a3b8;
     transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 .sync-badge:hover { border-color: #475569; color: #cbd5e1; }
@@ -164,341 +166,328 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .sync-badge.needkey  { background: #150f04; border-color: var(--role-sub); color: var(--role-sub-text); }
 .sync-badge.error    { background: #1a0d0d; border-color: #7f1d1d; color: #fca5a5; }
 
-/* === Panel === */
+/* === Panel（daisyUI の card card-sm と同じ地・線・角） === */
 .panel {
-    background: #0f172a; border: 1px solid #1e293b; border-radius: 2px;
+    background: #0f172a; border: 1px solid var(--line); border-radius: var(--r);
     margin-bottom: 12px;
 }
 .panel-head {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    padding: 9px 12px; border-bottom: 1px solid #1e293b;
+    padding: 10px 14px 0;
 }
-.panel-head h2 { font-size: 13px; font-weight: 700; color: #f1f5f9; margin: 0; }
+.panel-head h2 { font-size: 14px; font-weight: 700; color: #f1f5f9; margin: 0; }
 .panel-head .sub { font-size: 11px; color: #64748b; }
-.panel-body { padding: 11px 12px; }
+.panel-body { padding: 10px 14px 14px; }
 
 /* === Boss chips (selector / filter) === */
 .boss-chip-list { display: flex; flex-wrap: wrap; gap: 4px; }
 .boss-chip {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 3px 9px 3px 4px;
-    background: #0b1220; border: 1px solid #1e293b; border-radius: 2px;
-    cursor: pointer; font-size: 12px; font-weight: 600; color: #cbd5e1;
-    line-height: 1.4;
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 30px; padding: 0 10px 0 4px;
+    background: transparent; border: 1px solid var(--line-strong); border-radius: var(--r);
+    cursor: pointer; font-size: 12px; font-weight: 600; color: #94a3b8;
     transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
-.boss-chip:hover { background: #131c2e; border-color: #334155; color: #fff; }
-.boss-chip.active {
-    background: color-mix(in srgb, var(--boss-color, #6366f1) 18%, #0b1220);
-    border-color: var(--boss-color, #6366f1);
-    color: #fff;
-}
+.boss-chip:hover { background: rgb(226 232 240 / 0.05); color: #fff; }
+/* 選んだボスは本体の切り替えボタンと同じく藍で塗る */
+.boss-chip.active { background: #4f46e5; border-color: #4f46e5; color: #fff; }
 .boss-chip .chip-count {
-    font-size: 9.5px; font-family: monospace; color: #64748b;
-    background: #020617; padding: 0 5px; border-radius: 2px;
+    font-size: 10px; font-family: "IBM Plex Mono", ui-monospace, monospace; color: #94a3b8;
+    background: rgb(226 232 240 / 0.08); padding: 0 5px; border-radius: var(--r);
 }
-.boss-chip.active .chip-count { color: #c7d2fe; }
+.boss-chip.active .chip-count { color: #fff; background: rgb(255 255 255 / 0.18); }
 
 .boss-icon {
-    width: 32px; height: 32px; border-radius: 2px;
+    width: 32px; height: 32px; border-radius: var(--r);
     display: flex; align-items: center; justify-content: center;
     background: color-mix(in srgb, var(--boss-color, #6366f1) 18%, #0f172a);
     color: var(--boss-color, #6366f1);
     border: 1px solid color-mix(in srgb, var(--boss-color, #6366f1) 35%, #1e293b);
     overflow: hidden; flex-shrink: 0;
 }
-.boss-icon.sm { width: 22px; height: 22px; border-radius: 2px; }
+.boss-icon.sm { width: 22px; height: 22px; }
 .boss-icon img {
     width: 100%; height: 100%; object-fit: contain; padding: 2px;
     image-rendering: -webkit-optimize-contrast;
 }
 
-/* === Difficulty selector (builder) === */
-.diff-select { display: flex; gap: 4px; flex-wrap: wrap; }
+/* === Difficulty selector (builder)。join と同じく隙間なしで並べる === */
+.diff-select { display: inline-flex; flex-wrap: wrap; }
 .diff-btn {
-    background: #0b1220; border: 1px solid #1e293b; color: #94a3b8;
-    border-radius: 2px; padding: 4px 10px; font-size: 11.5px; font-weight: 700;
-    cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+    background: transparent; border: 1px solid var(--line-strong); color: #94a3b8;
+    height: 30px; padding: 0 12px; font-size: 12px; font-weight: 700;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+    margin-left: -1px; border-radius: 0;
 }
-.diff-btn:hover { border-color: #334155; color: #e2e8f0; }
-.diff-btn.active { background: #1e1b4b; border-color: #6366f1; color: #fff; }
-.diff-btn .dcount { font-size: 9.5px; font-family: monospace; color: #64748b; }
+.diff-btn:first-child { margin-left: 0; border-radius: var(--r) 0 0 var(--r); }
+.diff-btn:last-child  { border-radius: 0 var(--r) var(--r) 0; }
+.diff-btn:only-child  { border-radius: var(--r); }
+.diff-btn:hover { background: rgb(226 232 240 / 0.05); color: #e2e8f0; }
+.diff-btn.active { background: #4f46e5; border-color: #4f46e5; color: #fff; position: relative; }
+.diff-btn .dcount { font-size: 10px; font-weight: 500; font-family: "IBM Plex Mono", ui-monospace, monospace; color: #64748b; }
 .diff-btn.active .dcount { color: #c7d2fe; }
 
 /* =========================================================
  *  ① メンバーと希望
  * ========================================================= */
-.member-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.member-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; }
 .member-card {
-    text-align: left; background: #0b1220;
-    border: 1px solid #1e293b; border-left: 3px solid var(--member-color, #6366f1);
-    border-radius: 2px; padding: 9px 11px;
-    display: flex; flex-direction: column; gap: 4px; cursor: pointer;
+    text-align: left; background: #0b1222;
+    border: 1px solid var(--line); border-left: 3px solid var(--member-color, #6366f1);
+    border-radius: var(--r); padding: 8px 11px;
+    display: flex; flex-direction: column; gap: 3px; cursor: pointer;
     transition: background 0.12s, border-color 0.12s;
 }
-.member-card:hover { background: #131c2e; border-color: #475569; border-left-color: var(--member-color, #6366f1); }
+.member-card:hover { background: #131c2e; border-color: var(--line-strong); border-left-color: var(--member-color, #6366f1); }
 .member-card.inactive { opacity: 0.5; border-left-color: #334155; }
 .mc-name { font-size: 14px; font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 6px; }
-.mc-stats { display: flex; gap: 8px; flex-wrap: wrap; font-size: 11px; color: #94a3b8; font-family: monospace; }
+.mc-stats { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11px; color: #94a3b8; font-family: "IBM Plex Mono", ui-monospace, monospace; }
 .mc-stats .warn { color: #fda4af; }
-.mc-cp { font-size: 10.5px; color: #64748b; font-family: monospace; }
+.mc-cp { font-size: 11px; color: #64748b; font-family: "IBM Plex Mono", ui-monospace, monospace; }
 
 .crumb { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
 .crumb .who { font-size: 16px; font-weight: 700; color: #f1f5f9; }
 
-.char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 9px; }
+.char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 8px; }
 .char-card {
-    background: #020617; border: 1px solid #1e293b; border-radius: 2px; padding: 9px 10px;
+    background: #0b1222; border: 1px solid var(--line); border-radius: var(--r); padding: 9px 10px;
 }
 .char-card.inactive { opacity: 0.5; }
-.cc-top { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
-.cc-name {
-    flex: 1; min-width: 0; font-size: 13.5px; font-weight: 700; color: #f1f5f9;
-    background: transparent; border: 1px dashed transparent; padding: 2px 5px; border-radius: 2px;
-}
-.cc-name:hover { border-color: #334155; }
-.cc-name:focus { border-color: #6366f1; border-style: solid; background: #0f172a; }
+.cc-top { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+.cc-name { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 700; color: #f1f5f9; }
 .cc-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .cc-fields .wide { grid-column: 1 / -1; }
 .cc-fields input, .cc-fields select { width: 100%; }
-.cc-foot { display: flex; align-items: center; gap: 8px; margin-top: 7px; flex-wrap: wrap; }
-.cc-ranks { font-size: 10px; color: #475569; }
-.cc-ranks a { color: #64748b; }
+.cc-foot { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.cc-ranks { font-size: 10.5px; color: #64748b; }
+.cc-ranks a { color: #94a3b8; }
 .cc-ranks a:hover { color: #a5b4fc; text-decoration: underline; }
 .char-icon {
-    width: 30px; height: 30px; border-radius: 2px;
-    background: #0b1220; border: 1px solid #1e293b;
+    width: 30px; height: 30px; border-radius: var(--r);
+    background: #0f172a; border: 1px solid var(--line);
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0; overflow: hidden;
 }
 .char-icon img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
 
-/* --- キャラ切り替えタブ --- */
-.char-tabs { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
+/* --- キャラ切り替えタブ（本体の切り替えボタンと同じ: 選んだものだけ藍で塗る） --- */
+.char-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
 .char-tab {
-    background: #0b1220; border: 1px solid #1e293b; color: #cbd5e1;
-    border-radius: 2px; padding: 5px 11px; font-size: 12px; font-weight: 700;
+    background: transparent; border: 1px solid var(--line-strong); color: #94a3b8;
+    border-radius: var(--r); height: 30px; padding: 0 11px 0 5px; font-size: 12px; font-weight: 700;
     cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
 }
-.char-tab:hover { border-color: #475569; color: #fff; }
-.char-tab[aria-pressed="true"] { background: #1e1b4b; border-color: #6366f1; color: #fff; }
+.char-tab:hover { background: rgb(226 232 240 / 0.05); color: #fff; }
+.char-tab[aria-pressed="true"] { background: #4f46e5; border-color: #4f46e5; color: #fff; }
 .char-tab .icon {
-    width: 20px; height: 20px; border-radius: 2px; flex-shrink: 0; overflow: hidden;
+    width: 20px; height: 20px; border-radius: var(--r); flex-shrink: 0; overflow: hidden;
     background: #020617; display: flex; align-items: center; justify-content: center;
 }
 .char-tab .icon img { width: 100%; height: 100%; object-fit: contain; }
-.char-tab .ct-sub { font-size: 10px; font-weight: 600; color: #64748b; font-family: monospace; }
-.char-tab[aria-pressed="true"] .ct-sub { color: #a5b4fc; }
+.char-tab .ct-sub { font-size: 10px; font-weight: 500; color: #64748b; font-family: "IBM Plex Mono", ui-monospace, monospace; }
+.char-tab[aria-pressed="true"] .ct-sub { color: #c7d2fe; }
 
-/* --- ボス行 × 難易度チップ --- */
+/* --- ボス行 × 難易度チップ（表と同じく行を線で区切る） --- */
 .wish-summary {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    font-size: 11.5px; color: #94a3b8; margin-bottom: 8px;
+    font-size: 12px; color: #94a3b8; margin-bottom: 6px;
 }
-.wish-rows { border: 1px solid #1e293b; border-radius: 2px; overflow: hidden; }
+.wish-rows { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
 .wish-row {
-    display: flex; align-items: center; gap: 11px; flex-wrap: wrap;
-    padding: 7px 10px; background: #020617; border-bottom: 1px solid #0f172a;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 5px 10px; border-bottom: 1px solid var(--line);
 }
 .wish-row:last-child { border-bottom: 0; }
-.wish-row:nth-child(even) { background: #060c1c; }
-.wish-row:hover { background: #0b1220; }
+.wish-row:hover { background: rgb(226 232 240 / 0.03); }
 .wr-boss { display: flex; align-items: center; gap: 8px; min-width: 178px; }
 .wr-boss-name { font-size: 13px; font-weight: 700; color: #e2e8f0; line-height: 1.25; }
-.wr-cap { display: block; font-size: 10px; color: #475569; font-family: monospace; font-weight: 400; }
-.wr-chips { display: flex; gap: 5px; flex-wrap: wrap; flex: 1; }
+.wr-cap { display: block; font-size: 10px; color: #64748b; font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 400; }
+.wr-chips { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
 .chip {
     display: inline-flex; align-items: center; gap: 5px;
-    padding: 4px 12px; border-radius: 0;
-    border: 1px solid #1e293b; background: #0b1220;
-    font-size: 11.5px; font-weight: 700; color: #64748b; cursor: pointer;
+    height: 28px; padding: 0 12px; border-radius: var(--r);
+    border: 1px solid var(--line-strong); background: transparent;
+    font-size: 12px; font-weight: 700; color: #64748b; cursor: pointer;
     transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
-.chip:hover { border-color: #475569; color: #e2e8f0; }
-/* 選んだ難易度は、塗りつぶさずに枠と文字を難易度色にし、地だけ薄く色を敷く。 */
-.chip.on[data-d="EASY"]    { color: #d1d5db; border-color: #6b7280; background: color-mix(in srgb, #6b7280 16%, #0b1220); }
-.chip.on[data-d="NORMAL"]  { color: #67e8f9; border-color: #22d3ee; background: color-mix(in srgb, #22d3ee 12%, #0b1220); }
-.chip.on[data-d="HARD"]    { color: #fca5a5; border-color: #f87171; background: color-mix(in srgb, #f87171 12%, #0b1220); }
-.chip.on[data-d="CHAOS"]   { color: #fde047; border-color: #facc15; background: color-mix(in srgb, #facc15 12%, #0b1220); }
-.chip.on[data-d="EXTREME"] { color: #f87171; border-color: #ef4444; background: color-mix(in srgb, #ef4444 12%, #0b1220); }
+.chip:hover { background: rgb(226 232 240 / 0.05); color: #e2e8f0; }
+/* 選んだ難易度は枠と文字を難易度色にし、地に同じ色を薄く敷く（ベタ塗りは周りから浮くので避ける）。 */
+.chip.on[data-d="EASY"]    { color: #e5e7eb; border-color: #9ca3af; background: rgb(156 163 175 / 0.18); }
+.chip.on[data-d="NORMAL"]  { color: #67e8f9; border-color: #22d3ee; background: rgb(34 211 238 / 0.14); }
+.chip.on[data-d="HARD"]    { color: #fca5a5; border-color: #f87171; background: rgb(248 113 113 / 0.14); }
+.chip.on[data-d="CHAOS"]   { color: #fde047; border-color: #facc15; background: rgb(250 204 21 / 0.14); }
+.chip.on[data-d="EXTREME"] { color: #f87171; border-color: #ef4444; background: rgb(239 68 68 / 0.16); }
 .chip .mark { font-size: 11px; line-height: 1; }
-.wr-state { font-size: 10px; color: #475569; font-family: monospace; min-width: 82px; text-align: right; }
+.wr-state { font-size: 11px; color: #475569; min-width: 82px; text-align: right; }
 .wr-state.on { color: #6ee7b7; }
-.wr-state.placed { color: #a5b4fc; }
+.wr-state.placed { color: #a5b4fc; font-weight: 700; }
 
 /* =========================================================
  *  ② 編成編集
  * ========================================================= */
 .builder-bar {
-    display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
-    background: #0f172a; border: 1px solid #1e293b; border-radius: 2px;
-    padding: 7px 9px; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap;
+    background: #0f172a; border: 1px solid var(--line); border-radius: var(--r);
+    padding: 8px 10px; margin-bottom: 10px;
 }
-.builder-bar .bar-label {
-    font-size: 10px; font-weight: 700; color: #64748b;
-    text-transform: uppercase; letter-spacing: 0.08em;
-}
-.builder-sep { width: 1px; align-self: stretch; background: #1e293b; margin: 0 2px; }
+.builder-bar .bar-label { font-size: 11px; color: var(--muted); }
+/* ボスの列と難易度の列の区切り。ここで折り返して難易度を2段目の頭に置く。 */
+.builder-sep { flex-basis: 100%; height: 0; }
 
-.builder { display: grid; grid-template-columns: 265px minmax(0, 1fr); gap: 12px; align-items: start; }
+.builder { display: grid; grid-template-columns: 265px minmax(0, 1fr); gap: 10px; align-items: start; }
 @media (max-width: 900px) { .builder { grid-template-columns: 1fr; } }
 
 .cand-pane {
-    background: #0f172a; border: 1px solid #1e293b; border-radius: 2px;
-    padding: 9px; position: sticky; top: 4px;
+    background: #0f172a; border: 1px solid var(--line); border-radius: var(--r);
+    padding: 10px; position: sticky; top: 4px;
 }
 .cand-list { display: flex; flex-direction: column; gap: 3px; max-height: 58vh; overflow-y: auto; padding-right: 3px; }
 .cand {
     display: flex; align-items: center; gap: 7px;
-    padding: 5px 7px; background: #0b1220;
-    border: 1px solid #1e293b; border-left: 3px solid #334155;
-    border-radius: 2px; cursor: grab; user-select: none; flex-shrink: 0;
+    padding: 5px 7px; background: #0b1222;
+    border: 1px solid var(--line); border-left: 3px solid #334155;
+    border-radius: var(--r); cursor: grab; user-select: none; flex-shrink: 0;
     transition: background 0.12s, border-color 0.12s, opacity 0.12s;
 }
-.cand:hover { background: #131c2e; border-color: #475569; }
+.cand:hover { background: #131c2e; border-color: var(--line-strong); }
 .cand:active { cursor: grabbing; }
 /* メイン=藍 / サブ=琥珀 */
 .cand.main { border-left-color: var(--role-main); }
 .cand.sub  { border-left-color: var(--role-sub); }
 .cand.sub .cand-name { color: var(--role-sub-text); }
-.cand.selected { background: #131c2e; border-color: #6366f1; border-left-color: #6366f1; }
-.cand.sub.selected { border-color: var(--role-sub); border-left-color: var(--role-sub); }
+.cand.selected { background: #1e1b4b; border-color: #6366f1; border-left-color: #6366f1; }
+.cand.sub.selected { background: #1c1405; border-color: var(--role-sub); border-left-color: var(--role-sub); }
 .cand.dragging { opacity: 0.4; }
 .cand.placed-elsewhere { opacity: 0.45; cursor: default; }
 .cand .icon {
-    width: 22px; height: 22px; border-radius: 2px; flex-shrink: 0; overflow: hidden;
+    width: 22px; height: 22px; border-radius: var(--r); flex-shrink: 0; overflow: hidden;
     background: #020617; display: flex; align-items: center; justify-content: center;
 }
 .cand .icon img { width: 100%; height: 100%; object-fit: contain; }
 .cand-main { flex: 1; min-width: 0; }
 .cand-name { font-size: 12.5px; font-weight: 700; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cand-meta { font-size: 10px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cand-meta { font-size: 10.5px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cand-meta.warn { color: #fda4af; }
-.cand-cp { text-align: right; flex-shrink: 0; font-family: monospace; }
-.cand-cp .cp { font-size: 11px; font-weight: 700; color: #a5b4fc; }
-.cand-cp .hx { font-size: 9.5px; color: #64748b; }
+.cand-cp { text-align: right; flex-shrink: 0; font-family: "IBM Plex Mono", ui-monospace, monospace; }
+.cand-cp .cp { font-size: 11.5px; font-weight: 700; color: #a5b4fc; }
+.cand-cp .hx { font-size: 10px; color: #64748b; }
 .upper-badge {
-    display: inline-block; font-size: 9px; font-weight: 700;
+    display: inline-block; font-size: 9.5px; font-weight: 700;
     color: #fda4af; background: #3b0d22; border: 1px solid #9f1239;
-    border-radius: 2px; padding: 0 4px; margin-top: 2px;
+    border-radius: var(--r); padding: 0 4px; margin-top: 2px;
 }
 .drop-back {
-    margin-top: 7px; padding: 8px; text-align: center;
-    border: 1px dashed #1e293b; border-radius: 2px;
-    font-size: 10.5px; color: #475569;
+    margin-top: 8px; padding: 8px; text-align: center;
+    border: 1px dashed var(--line-strong); border-radius: var(--r);
+    font-size: 11px; color: #64748b;
 }
 .drop-back.hot { border-color: #22c55e; border-style: solid; color: #6ee7b7; background: rgba(34,197,94,0.08); }
 
-.party-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(285px, 1fr)); gap: 10px; align-items: start; }
+.party-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(285px, 1fr)); gap: 8px; align-items: start; }
 .party-card {
-    background: #0f172a; border: 1px solid #1e293b;
-    border-left: 4px solid var(--diff-color, #334155);
-    border-radius: 2px; overflow: hidden;
+    background: #0f172a; border: 1px solid var(--line);
+    border-top: 3px solid var(--diff-color, #334155);
+    border-radius: var(--r); overflow: hidden;
     transition: border-color 0.15s, opacity 0.15s;
 }
 .party-card.blocked { opacity: 0.38; }
 .party-card.hot { border-color: #22c55e; box-shadow: 0 0 0 1px #22c55e inset; }
 .party-head {
     display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
-    padding: 7px 9px; border-bottom: 1px solid #1e293b; background: #0b1220;
+    padding: 6px 8px 2px;
 }
-.party-name-input {
-    width: 82px; font-size: 12px; font-weight: 700; color: #e2e8f0;
-    background: transparent; border: 1px dashed transparent; padding: 2px 5px; border-radius: 2px;
-}
-.party-name-input:hover { border-color: #334155; }
-.party-name-input:focus { border-color: #6366f1; border-style: solid; background: #0f172a; }
-.party-count { font-size: 10.5px; font-family: monospace; color: #64748b; }
-.party-count.full { color: #6ee7b7; }
+.party-name-input { width: 82px; height: 26px; font-size: 13px; font-weight: 700; color: #f1f5f9; }
+.party-count { font-size: 11px; font-family: "IBM Plex Mono", ui-monospace, monospace; color: #64748b; }
+.party-count.full { color: #6ee7b7; font-weight: 700; }
+/* 公開／下書きの切り替え。公開中は緑で塗り、下書きは枠だけ。 */
 .pill {
-    font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-    padding: 2px 8px; border-radius: 2px; cursor: pointer;
-    background: #1e293b; border: 1px solid #334155; color: #94a3b8;
+    font-size: 11px; font-weight: 700;
+    height: 24px; padding: 0 10px; border-radius: var(--r); cursor: pointer;
+    background: transparent; border: 1px solid var(--line-strong); color: #94a3b8;
 }
 .pill:hover { border-color: #475569; color: #e2e8f0; }
-.pill.published { background: transparent; border-color: #047857; color: #6ee7b7; }
+.pill.published { background: #059669; border-color: #059669; color: #fff; }
 
 /* --slot-h: 空きスロットを埋まっているスロット（アイコン＋キャラ名＋メンバー名の
    2行ぶん）と同じ高さに揃える。PTごとに枠の位置がずれると人数が読み取りにくい。 */
-.slots { list-style: none; margin: 0; padding: 5px 6px; display: flex; flex-direction: column; gap: 2px; --slot-h: 50px; }
-.slot { display: flex; align-items: center; gap: 6px; padding: 4px 5px; border-radius: 2px; min-height: var(--slot-h); }
-.slot.filled { background: #020617; border: 1px solid #1e293b; cursor: grab; }
+.slots { list-style: none; margin: 0; padding: 4px 8px 6px; display: flex; flex-direction: column; gap: 3px; --slot-h: 44px; }
+.slot { display: flex; align-items: center; gap: 6px; padding: 3px 5px; border-radius: var(--r); min-height: var(--slot-h); }
+.slot.filled { background: #0b1222; border: 1px solid var(--line); cursor: grab; }
 .slot.filled:active { cursor: grabbing; }
 .slot.filled.dragging { opacity: 0.4; }
 /* メイン=藍 / サブ=琥珀。左端の線と名前の色で見分ける（バッジは色に頼らない保険）*/
 .slot.filled.main { border-left: 3px solid var(--role-main); }
 .slot.filled.sub  { border-left: 3px solid var(--role-sub); }
 .slot.filled.sub .slot-name { color: var(--role-sub-text); }
-.slot.empty { border: 1px dashed #1e293b; color: #475569; font-size: 11px; }
-.slot-no { font-size: 9.5px; color: #475569; font-family: monospace; width: 12px; text-align: right; flex-shrink: 0; }
+.slot.empty { border: 1px dashed var(--line); color: #475569; font-size: 11px; }
+.slot-no { font-size: 10px; color: #475569; font-family: "IBM Plex Mono", ui-monospace, monospace; width: 12px; text-align: right; flex-shrink: 0; }
 .slot .icon {
-    width: 22px; height: 22px; border-radius: 2px; flex-shrink: 0; overflow: hidden;
-    background: #0b1220; display: flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: var(--r); flex-shrink: 0; overflow: hidden;
+    background: #020617; display: flex; align-items: center; justify-content: center;
 }
 .slot .icon img { width: 100%; height: 100%; object-fit: contain; }
 .slot-body { flex: 1; min-width: 0; line-height: 1.25; }
-.slot-name { font-size: 12.5px; font-weight: 600; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot-name { font-size: 12.5px; font-weight: 700; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .slot-name a { color: inherit; }
 .slot-name a:hover { color: #a5b4fc; text-decoration: underline; }
-.slot-owner { font-size: 10px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.slot-cp { text-align: right; flex-shrink: 0; font-family: monospace; }
-.slot-cp .cp { font-size: 11px; font-weight: 700; color: #a5b4fc; }
-.slot-cp .hx { font-size: 9.5px; color: #64748b; }
+.slot-owner { font-size: 10.5px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot-cp { text-align: right; flex-shrink: 0; font-family: "IBM Plex Mono", ui-monospace, monospace; }
+.slot-cp .cp { font-size: 11.5px; font-weight: 700; color: #a5b4fc; }
+.slot-cp .hx { font-size: 10px; color: #64748b; }
 .slot-x {
     background: none; border: 0; color: #475569; cursor: pointer; flex-shrink: 0;
-    width: 18px; height: 18px; border-radius: 2px;
+    width: 20px; height: 20px; border-radius: var(--r);
     display: flex; align-items: center; justify-content: center;
 }
-.slot-x:hover { color: #ef4444; background: #1e293b; }
+.slot-x:hover { color: #f87171; background: rgb(248 113 113 / 0.10); }
 .add-here {
-    font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 2px;
-    background: #4f46e5; border: 1px solid #6366f1; color: #fff; cursor: pointer;
+    font-size: 11px; font-weight: 700; height: 22px; padding: 0 9px; border-radius: var(--r);
+    background: #4f46e5; border: 1px solid #4f46e5; color: #fff; cursor: pointer;
 }
 .add-here:hover { background: #6366f1; }
-.block-reason { font-size: 10.5px; color: #fda4af; padding: 0 10px 7px; }
+.block-reason { font-size: 11px; color: #fda4af; padding: 0 10px 7px; }
 .party-foot {
     display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
-    padding: 6px 9px; border-top: 1px solid #1e293b;
-    font-size: 10.5px; color: #64748b; font-family: monospace;
+    padding: 6px 8px; border-top: 1px solid var(--line);
+    font-size: 11px; color: #64748b; font-family: "IBM Plex Mono", ui-monospace, monospace;
 }
 .party-foot strong { color: #a5b4fc; font-weight: 700; }
 .party-memo {
-    flex: 1; min-width: 110px; font-family: inherit; font-size: 11px;
-    background: transparent; border: 1px dashed #1e293b; padding: 2px 6px; border-radius: 2px;
+    flex: 1; min-width: 110px; height: 24px; font-family: inherit; font-size: 11px;
+    padding: 0 6px;
 }
-.party-memo:focus { border-color: #6366f1; border-style: solid; background: #0f172a; }
 
 /* =========================================================
  *  ③ ダッシュボード
  * ========================================================= */
 .dash-hero {
     background: #0f172a;
-    border: 1px solid #1e293b; border-radius: 0;
-    padding: 12px 14px; margin-bottom: 12px;
+    border: 1px solid var(--line); border-radius: var(--r);
+    padding: 10px 14px 14px; margin-bottom: 12px;
 }
-.dash-hero-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 9px; }
-.dash-hero-head h2 { font-size: 13px; font-weight: 700; color: #f1f5f9; margin: 0; }
-.mine-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(245px, 1fr)); gap: 8px; }
+.dash-hero-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.dash-hero-head h2 { font-size: 14px; font-weight: 700; color: #f1f5f9; margin: 0; }
+.mine-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(245px, 1fr)); gap: 6px; }
 .mine {
-    background: #020617; border: 1px solid #1e293b;
+    background: #0b1222; border: 1px solid var(--line);
     border-left: 3px solid var(--diff-color, #334155);
-    border-radius: 2px; padding: 8px 10px;
+    border-radius: var(--r); padding: 8px 10px;
 }
 .mine-boss { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: #f1f5f9; }
 .mine-who { font-size: 11px; color: #94a3b8; margin-top: 3px; }
-.mine-mates { font-size: 10.5px; color: #64748b; margin-top: 4px; line-height: 1.5; }
-.mine-memo { font-size: 10.5px; color: #a5b4fc; margin-top: 4px; }
-.hero-empty { font-size: 11.5px; color: #64748b; }
+.mine-mates { font-size: 11px; color: #64748b; margin-top: 4px; line-height: 1.5; }
+.mine-memo { font-size: 11px; color: #a5b4fc; margin-top: 4px; }
+.hero-empty { font-size: 12px; color: #64748b; }
 
 /* Boss card (編成全体) */
 /* ボスカードは縦に積む。1ボス=1行なので、PT枠を横に広く使える。 */
-.boss-grid { display: flex; flex-direction: column; gap: 10px; }
+.boss-grid { display: flex; flex-direction: column; gap: 8px; }
 .boss-card {
-    /* 地は他のパネルと同じ紺黒。ボスの色は上端の線だけで出す。 */
-    background: #0f172a;
-    border: 1px solid #1e293b;
-    border-top: 2px solid var(--boss-color, #6366f1);
-    border-radius: 2px; padding: 10px 11px;
+    /* 地は一段沈めた色。ボスの色は左端の線で出す。 */
+    background: #0b1222;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--boss-color, #6366f1);
+    border-radius: var(--r); padding: 9px 11px;
 }
 .boss-card.empty { opacity: 0.55; }
 .boss-card.empty:hover { opacity: 1; }
@@ -507,12 +496,12 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 .boss-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #f1f5f9; }
 .boss-title-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .boss-subtitle {
-    font-size: 10.5px; color: #64748b; font-family: monospace; margin-top: 1px;
+    font-size: 11px; color: #64748b; font-family: "IBM Plex Mono", ui-monospace, monospace; margin-top: 1px;
     display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
 }
 .boss-empty-hint {
-    text-align: center; font-size: 11px; color: #475569; font-style: italic;
-    padding: 8px; border: 1px dashed #1e293b; border-radius: 2px;
+    text-align: center; font-size: 11px; color: #475569;
+    padding: 8px; border: 1px dashed var(--line); border-radius: var(--r);
 }
 /* PTカードは左から右へ並べる。段数は定員で決める:
    6人PTは1段、3人PTは2段（PT1の下にPT2、その右にPT3…と列単位で埋まる）。
@@ -525,7 +514,7 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
     grid-template-rows: auto;
     grid-auto-columns: var(--pt-card-w);
     justify-content: start;
-    gap: 7px;
+    gap: 6px;
     align-items: start;
     overflow-x: auto;
     padding-bottom: 2px;
@@ -538,60 +527,63 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
     }
 }
 .party-mini {
-    min-width: 0; background: #020617; border: 1px solid #1e293b;
-    border-radius: 2px; padding: 7px; display: flex; flex-direction: column; gap: 3px;
+    min-width: 0; background: #0f172a; border: 1px solid var(--line);
+    border-radius: var(--r); padding: 6px; display: flex; flex-direction: column; gap: 3px;
 }
 .party-mini-head {
     display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
-    padding-bottom: 5px; border-bottom: 1px solid #1e293b; margin-bottom: 3px;
+    padding: 0 1px 3px;
 }
 .party-mini-letter {
     font-family: "Orbitron", sans-serif; font-size: 10px; font-weight: 700;
-    background: #1e293b; color: #cbd5e1; padding: 1px 5px; border-radius: 2px;
+    background: rgb(226 232 240 / 0.10); color: #cbd5e1; padding: 1px 5px; border-radius: var(--r);
 }
-.party-mini-name { font-size: 11.5px; font-weight: 600; color: #cbd5e1; flex: 1; min-width: 0;
+.party-mini-name { font-size: 12px; font-weight: 700; color: #e2e8f0; flex: 1; min-width: 0;
                    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .party-mini-members { display: flex; flex-direction: column; gap: 2px; min-height: 24px; }
 .party-mini-member {
     display: flex; align-items: center; gap: 6px;
-    padding: 3px 5px; background: #0f172a; border: 1px solid #1e293b; border-radius: 2px;
+    padding: 3px 5px; background: #0b1222; border: 1px solid var(--line); border-radius: var(--r);
 }
 .party-mini-member.sub { border-left: 3px solid var(--role-sub); }
 .party-mini-member.sub .pmm-name { color: var(--role-sub-text); }
-.party-mini-member.vacant { border-style: dashed; border-color: #3b0d22; background: #0b1220; }
+.party-mini-member.vacant { border-style: dashed; border-color: rgb(253 164 175 / 0.25); background: transparent; }
 .party-mini-member .mini-icon {
-    width: 20px; height: 20px; border-radius: 2px; background: #020617;
+    width: 20px; height: 20px; border-radius: var(--r); background: #020617;
     display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
 }
 .party-mini-member .mini-icon img { width: 100%; height: 100%; object-fit: contain; }
 .party-mini-member .pmm-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden;
                                text-overflow: ellipsis; color: #e2e8f0; font-size: 12px; font-weight: 500; }
-.party-mini-member .pmm-owner { font-size: 10px; color: #64748b; flex-shrink: 0; max-width: 84px;
+.party-mini-member .pmm-owner { font-size: 10.5px; color: #64748b; flex-shrink: 0; max-width: 84px;
                                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.party-mini-member .pmm-cp { color: #a5b4fc; font-family: monospace; font-weight: 700; font-size: 11px; flex-shrink: 0; }
+.party-mini-member .pmm-cp { color: #a5b4fc; font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 700; font-size: 11px; flex-shrink: 0; }
 .party-mini-member .pmm-vacant { flex: 1; font-size: 11px; color: #fda4af; font-weight: 700; }
 .party-mini-member.me { border-color: #6366f1; background: #1e1b4b; }
-.party-mini-memo { font-size: 10px; color: #64748b; border-top: 1px solid #1e293b; padding-top: 4px; }
-.party-mini-total { font-size: 10px; color: #64748b; font-family: monospace; margin-left: auto; padding-top: 3px; }
+.party-mini-memo { font-size: 10.5px; color: #64748b; border-top: 1px solid var(--line); padding-top: 4px; }
+.party-mini-total { font-size: 10.5px; color: #64748b; font-family: "IBM Plex Mono", ui-monospace, monospace; margin-left: auto; padding-top: 3px; }
 .party-mini-total strong { color: #a5b4fc; font-weight: 700; }
 
 /* 空き枠 / 未配置 */
 .gap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; align-items: start; }
-.gap-list { display: flex; flex-direction: column; gap: 3px; max-height: 46vh; overflow-y: auto; padding-right: 3px; }
+.gap-list { display: flex; flex-direction: column; max-height: 46vh; overflow-y: auto;
+            border: 1px solid var(--line); border-radius: var(--r); }
+/* 未配置の人は表と同じく線で区切った行にする（1行ずつ箱にすると縦に長くなる） */
 .gap-row {
     display: flex; align-items: center; gap: 7px;
-    padding: 5px 7px; background: #020617; border: 1px solid #1e293b; border-radius: 2px;
+    padding: 4px 8px; border-bottom: 1px solid var(--line);
     font-size: 12px; flex-shrink: 0;
 }
-.gap-row:hover { border-color: #475569; }
+.gap-row:last-child { border-bottom: 0; }
+.gap-row:hover { background: rgb(226 232 240 / 0.03); }
 .gap-row .gr-name { font-weight: 700; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gap-row .gr-sub { font-size: 10.5px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gap-row .gr-cp { font-size: 10.5px; font-family: monospace; color: #a5b4fc; flex-shrink: 0; }
+.gap-row .gr-sub { font-size: 11px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gap-row .gr-cp { font-size: 11px; font-family: "IBM Plex Mono", ui-monospace, monospace; color: #a5b4fc; flex-shrink: 0; }
 
 /* テキスト出力 */
 .out-text {
-    width: 100%; min-height: 230px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 11.5px; background: #020617;
+    width: 100%; min-height: 230px; font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px; background: #0b1222;
 }
 
 /* データ入出力モーダル */
@@ -599,43 +591,40 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 @media (max-width: 820px) { .io-grid { grid-template-columns: 1fr; } }
 .io-grid textarea {
     width: 100%; min-height: 190px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
 }
 
-/* === Modals === */
-.modal-bg {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 50;
-    display: flex; align-items: center; justify-content: center; padding: 1rem;
-}
-.modal-bg.hidden { display: none; }
+/* === Modals（daisyUI の modal / modal-box。中の区切りはここで描く） === */
+.modal.modal-open { background-color: rgb(2 6 23 / 0.8); }
 /* 確認ダイアログは他のモーダル（データ画面など）の上に出す */
-#confirm-modal { z-index: 70; }
-.modal {
-    background: #0f172a; border: 1px solid #1e293b; border-radius: 2px;
-    width: 100%; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden;
+#confirm-modal { z-index: 1000; }
+.modal-box.sb-modal {
+    padding: 0; width: 100%; max-height: 92vh;
+    display: flex; flex-direction: column; overflow: hidden;
+    background: #0f172a; border: 1px solid var(--line-strong);
 }
 .modal-head {
-    padding: 11px 15px; border-bottom: 1px solid #1e293b;
+    padding: 11px 16px 0;
     display: flex; align-items: center; justify-content: space-between;
 }
-.modal-title { font-size: 13px; font-weight: 700; color: #f1f5f9; }
-.modal-body { padding: 12px 15px; overflow-y: auto; flex: 1; }
+.modal-title { font-size: 14px; font-weight: 700; color: #f1f5f9; }
+.modal-body { padding: 10px 16px; overflow-y: auto; flex: 1; }
 .modal-foot {
-    padding: 10px 15px; border-top: 1px solid #1e293b;
-    display: flex; gap: 7px; justify-content: flex-end; flex-wrap: wrap;
+    padding: 10px 16px; border-top: 1px solid var(--line);
+    display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap;
 }
 
-/* === Toast === */
-.toast {
+/* === Toast（daisyUI の toast と名前が重なるので sb-toast） === */
+.sb-toast {
     position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
     background: #1e293b; border: 1px solid #334155; color: #e2e8f0;
-    padding: 8px 16px; border-radius: 2px; font-size: 12px; font-weight: 600;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.5); z-index: 90;
+    padding: 8px 16px; border-radius: var(--r); font-size: 12px; font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5); z-index: 1100;
 }
-.toast.warn { background: #3b0d22; border-color: #9f1239; color: #fecdd3; }
-.toast.ok   { background: #052e1b; border-color: #047857; color: #a7f3d0; }
+.sb-toast.warn { background: #3b0d22; border-color: #9f1239; color: #fecdd3; }
+.sb-toast.ok   { background: #052e1b; border-color: #047857; color: #a7f3d0; }
 @media (prefers-reduced-motion: no-preference) {
-    .toast { animation: rise 0.16s ease-out; }
+    .sb-toast { animation: rise 0.16s ease-out; }
     @keyframes rise {
         from { opacity: 0; transform: translate(-50%, 6px); }
         to   { opacity: 1; transform: translate(-50%, 0); }
@@ -652,55 +641,55 @@ input[type="checkbox"] { accent-color: #6366f1; width: 13px; height: 13px; curso
 
 /* === 画像出力プレビュー === */
 .image-preview-box {
-    background: #020617; border: 1px solid #1e293b; border-radius: 2px;
+    background: #020617; border: 1px solid var(--line); border-radius: var(--r);
     padding: 8px; max-height: 66vh; overflow: auto;
 }
 .image-preview-box img { display: block; width: 100%; height: auto; }
 
 /* === ソロ消化枠（編成編集） === */
 .solo-card {
-    margin-top: 10px;
-    background: #0b1220; border: 1px dashed #334155; border-radius: 2px;
+    margin-top: 8px;
+    background: #0f172a; border: 1px dashed var(--line-strong); border-radius: var(--r);
     padding: 9px 10px;
     transition: border-color 0.15s, opacity 0.15s;
 }
 .solo-card.hot { border-color: #22c55e; border-style: solid; background: rgba(34,197,94,0.06); }
 .solo-card.blocked { opacity: 0.45; }
 .solo-head { display: flex; align-items: center; gap: 7px; color: #94a3b8; margin-bottom: 7px; }
-.solo-title { font-size: 12px; font-weight: 700; color: #cbd5e1; }
-.solo-count { font-size: 10.5px; font-family: monospace; color: #64748b; }
-.solo-empty { font-size: 11px; color: #475569; line-height: 1.6; }
-.solo-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.solo-title { font-size: 13px; font-weight: 700; color: #e2e8f0; }
+.solo-count { font-size: 11px; font-family: "IBM Plex Mono", ui-monospace, monospace; color: #64748b; }
+.solo-empty { font-size: 11px; color: #64748b; line-height: 1.6; }
+.solo-list { display: flex; flex-wrap: wrap; gap: 4px; }
 .solo-chip {
     display: flex; align-items: center; gap: 6px;
     padding: 4px 6px; min-width: 190px;
-    background: #020617; border: 1px solid #1e293b; border-left: 3px solid var(--role-main);
-    border-radius: 2px; cursor: grab;
+    background: #0b1222; border: 1px solid var(--line); border-left: 3px solid var(--role-main);
+    border-radius: var(--r); cursor: grab;
 }
 .solo-chip:active { cursor: grabbing; }
 .solo-chip.dragging { opacity: 0.4; }
 .solo-chip.sub { border-left-color: var(--role-sub); }
 .solo-chip.sub .solo-name { color: var(--role-sub-text); }
 .solo-chip .icon {
-    width: 22px; height: 22px; border-radius: 2px; flex-shrink: 0; overflow: hidden;
-    background: #0b1220; display: flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: var(--r); flex-shrink: 0; overflow: hidden;
+    background: #020617; display: flex; align-items: center; justify-content: center;
 }
 .solo-chip .icon img { width: 100%; height: 100%; object-fit: contain; }
 .solo-body { flex: 1; min-width: 0; line-height: 1.25; }
-.solo-name { font-size: 12.5px; font-weight: 600; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.solo-owner { font-size: 10px; color: #64748b; }
-.solo-cp { font-size: 11px; font-family: monospace; font-weight: 700; color: #a5b4fc; flex-shrink: 0; }
+.solo-name { font-size: 12.5px; font-weight: 700; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.solo-owner { font-size: 10.5px; color: #64748b; }
+.solo-cp { font-size: 11.5px; font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 700; color: #a5b4fc; flex-shrink: 0; }
 
 /* === ソロ消化（ダッシュボード） === */
 .solo-line {
     display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
-    margin-top: 8px; padding-top: 8px; border-top: 1px dashed #1e293b;
+    margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line);
 }
 .solo-line-title { font-size: 11px; font-weight: 700; color: #94a3b8; }
 .solo-line-names { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; }
 .solo-name-chip {
     font-size: 11px; color: #cbd5e1;
-    background: #020617; border: 1px solid #1e293b; border-radius: 2px; padding: 1px 6px;
+    background: #0f172a; border: 1px solid var(--line); border-radius: var(--r); padding: 1px 6px;
 }
 .solo-name-chip.sub { color: var(--role-sub-text); border-color: #3b2708; }
 .solo-name-chip.me { border-color: #6366f1; background: #1e1b4b; }
