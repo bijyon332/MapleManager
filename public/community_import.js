@@ -134,8 +134,8 @@
     <div data-x="progress" class="note" style="display:none"></div>
     <div data-x="report" class="note" style="display:none"></div>
     <div class="foot"><span class="grow"></span>
-        <button data-x="close">閉じる</button>
-        <button class="primary" data-x="run">追加する</button>
+        <button class="btn btn-sm" data-x="close">閉じる</button>
+        <button class="btn btn-sm btn-primary" data-x="run">追加する</button>
     </div>
 </div>`;
             document.body.appendChild(veil);
@@ -217,7 +217,7 @@
             <input data-x="guild" type="text" value="Yoglet" style="width:130px"></label>
         <label class="chk"><input type="checkbox" data-x="overwrite">既存のキャラ名も上書きする</label>
         <span class="spacer" style="flex:1"></span>
-        <button data-x="load-seed">同梱のデータを読み込む</button>
+        <button class="btn btn-sm" data-x="load-seed">同梱のデータを読み込む</button>
     </div>
     <textarea data-x="sheet" placeholder="ここにスプレッドシートを貼り付け" style="min-height:200px"></textarea>
     <div data-x="progress" class="note" style="display:none"></div>
@@ -225,8 +225,8 @@
         border-radius:8px;padding:10px;margin-top:10px;font-size:11.5px;line-height:1.8"></div>
     <div class="foot">
         <span class="grow"></span>
-        <button data-x="close">閉じる</button>
-        <button class="primary" data-x="run">取り込む</button>
+        <button class="btn btn-sm" data-x="close">閉じる</button>
+        <button class="btn btn-sm btn-primary" data-x="run">取り込む</button>
     </div>
 </div>`;
             document.body.appendChild(veil);

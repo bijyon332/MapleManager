@@ -88,102 +88,92 @@
     /* ---------- styles ---------- */
     // モーダルは .cm の外（body直下）に出すので、共通ルールは .cm-veil にも効かせる。
     const CSS = `
-.cm,.cm-veil{--bg:#020617;--sf:#0f172a;--sf2:#0b1324;--ln:#1e293b;--ln2:#334155;--tx:#e2e8f0;--mu:#8b98ad;
---ac:#818cf8;--ok:#4ade80;--warn:#fbbf24;--red:#f87171;
+.cm,.cm-veil{--bg:#020617;--sf:#0f172a;--sf2:#0b1222;--ln:rgb(226 232 240 / .1);--ln2:rgb(226 232 240 / .2);--tx:#e2e8f0;--mu:#8b98ad;
+--ac:#6366f1;--ok:#4ade80;--warn:#fbbf24;--red:#f87171;--r:.25rem;
 color:var(--tx);font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;font-size:13px;line-height:1.5}
 .cm{padding:0 0 24px}
 .cm *,.cm-veil *{box-sizing:border-box}
 .cm .wrap{max-width:1480px}
 .cm .head{display:flex;align-items:baseline;gap:12px;margin:0 0 8px}
 .cm .head .cm-stat{margin-left:auto;color:var(--mu);font-size:11.5px;font-family:"IBM Plex Mono",ui-monospace,monospace;white-space:nowrap}
-.cm .meg{display:flex;align-items:center;gap:6px;flex:1 1 100%;min-width:0;padding-top:5px;border-top:1px solid var(--ln)}
+.cm .meg{display:flex;align-items:center;gap:6px;flex:1 1 100%;min-width:0;padding-top:6px;border-top:1px solid var(--ln)}
 .cm h1{font-size:18px;font-weight:700;margin:0;color:#fff;white-space:nowrap}
 .cm .sub{color:var(--mu);margin:0;font-size:11.5px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cm .spacer{flex:1}
 
-.cm input,.cm select,.cm textarea,.cm-veil input,.cm-veil select,.cm-veil textarea{
-background:var(--bg);border:1px solid var(--ln2);border-radius:0;color:var(--tx);
-padding:3px 7px;font:inherit;font-size:12.5px;outline:none;min-width:0}
+/* 入力欄は daisyUI の input-sm と同じ見た目。:where で強さを0にし、下の個別の幅指定などが勝つようにする */
+:where(.cm,.cm-veil) :where(input:not([type="checkbox"]),select,textarea){
+background:var(--sf);border:1px solid var(--ln2);border-radius:var(--r);color:var(--tx);
+height:28px;padding:0 8px;font:inherit;font-size:12px;outline:none;min-width:0}
+:where(.cm,.cm-veil) :where(select){appearance:none;padding-right:24px;cursor:pointer;
+background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+background-repeat:no-repeat;background-position:right 7px center;background-size:12px}
+:where(.cm,.cm-veil) :where(textarea){height:auto;padding:6px 8px}
 .cm input:focus,.cm select:focus,.cm textarea:focus,
 .cm-veil input:focus,.cm-veil select:focus,.cm-veil textarea:focus{border-color:var(--ac)}
 .cm input::placeholder,.cm-veil input::placeholder{color:#5b6480}
-.cm button,.cm-veil button{background:var(--sf2);border:1px solid var(--ln2);border-radius:0;
-color:var(--tx);padding:3px 9px;font:inherit;font-size:12.5px;cursor:pointer;
-display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-.cm button:hover,.cm-veil button:hover{border-color:var(--ac)}
-.cm button:disabled,.cm-veil button:disabled{opacity:.45;cursor:not-allowed}
-.cm .primary,.cm-veil .primary{background:#4f46e5;border-color:#6366f1;color:#fff;font-weight:700}
-.cm .primary:hover,.cm-veil .primary:hover{background:#6366f1}
-.cm .danger:hover,.cm-veil .danger:hover{border-color:var(--red);color:var(--red)}
-.cm .icon,.cm-veil .icon{padding:3px;border-radius:0;color:var(--mu)}
-.cm .icon:hover{color:var(--tx)}
+/* ボタンは daisyUI の btn（btn-sm / btn-xs）。削除系だけ赤く */
+.cm .btn.danger,.cm-veil .btn.danger{color:#fca5a5}
+.cm .btn.danger:hover,.cm-veil .btn.danger:hover{color:var(--red);background:rgb(248 113 113 / .1)}
+.cm .btn-square.btn-ghost{color:var(--mu)}
+.cm .btn-square.btn-ghost:hover{color:var(--tx)}
 
 .cm .bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--sf);
-border:1px solid var(--ln);border-radius:0;padding:5px 8px;margin-bottom:8px}
+border:1px solid var(--ln);border-radius:var(--r);padding:8px 10px;margin-bottom:10px}
 .cm .bar .add{display:flex;gap:6px}
 .cm .bar #cm-new-member{width:130px}
 .cm .bar #cm-new-display{width:120px}
-.cm .bar #cm-q{width:210px}
+.cm .bar #cm-q{width:220px}
 
-.cm .bar.me{margin-top:-6px;padding:7px 12px}
-.cm .bar .melabel{font-size:11px;color:var(--mu);font-weight:700}
-.cm .bar #cm-me{min-width:140px}
+.cm .bar .melabel{font-size:11px;color:var(--mu)}
+.cm .bar #cm-me{min-width:150px}
 .cm .menote{color:var(--mu);font-size:11px}
-.cm .sync{font-size:10.5px;color:var(--mu);border:1px solid var(--ln);border-radius:0;
-padding:1px 6px;white-space:nowrap;margin-left:auto}
-.cm .sync.synced{border-color:#2f5d43;color:#86efac}
-.cm .sync.saving{border-color:#4a5480;color:#c9d2f0}
-.cm .sync.local{border-color:var(--ln);color:var(--mu)}
-.cm .sync.conflict,.cm .sync.needkey,.cm .sync.error{border-color:#7a3b3b;color:#fca5a5}
+.cm .sync{font-size:11px;color:var(--mu);border:1px solid var(--ln2);border-radius:var(--r);
+padding:1px 8px;white-space:nowrap;margin-left:auto}
+.cm .sync.synced{border-color:#047857;color:#6ee7b7;background:#052e1b}
+.cm .sync.saving{border-color:#6366f1;color:#c7d2fe;background:#1e1b4b}
+.cm .sync.local{border-color:var(--ln2);color:var(--mu)}
+.cm .sync.conflict,.cm .sync.needkey,.cm .sync.error{border-color:#9f1239;color:#fecdd3;background:#3b0d22}
 
-.cm .tabs{display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--ln);margin-bottom:16px}
-.cm .tab{background:none;border:0;border-bottom:2px solid transparent;border-radius:0;
-color:var(--mu);padding:8px 14px;font-size:12.5px;font-weight:700}
-.cm .tab:hover{color:var(--tx)}
-.cm .tab.on{color:#fff;border-bottom-color:var(--ac);background:rgba(129,140,248,.08)}
-.cm .tabs .cm-stat{margin-left:auto;color:var(--mu);font-size:11.5px;font-family:ui-monospace,monospace}
-
-.cm .empty{color:var(--mu);text-align:center;padding:24px 12px;border:1px dashed var(--ln);border-radius:0}
-.cm .tab .badge{background:var(--warn);color:#241a00;border-radius:999px;font-size:9.5px;
-font-weight:700;padding:0 5px;margin-left:6px;vertical-align:1px}
-.cm .tab .badge:empty{display:none}
+.cm .empty{color:var(--mu);text-align:center;padding:24px 12px;border:1px dashed var(--ln2);border-radius:var(--r)}
 .cm .todo{margin-bottom:12px}
-.cm .todo .eyebrow{font-size:11px;font-weight:600;
-color:var(--mu);margin:0 0 4px;display:flex;align-items:center;gap:8px}
-.cm .todo .cnt{font-family:ui-monospace,monospace;letter-spacing:0;color:var(--tx);
-background:var(--sf2);border:1px solid var(--ln);border-radius:0;padding:0 6px}
+.cm .todo .eyebrow{font-size:12px;font-weight:700;
+color:var(--tx);margin:0 0 6px;display:flex;align-items:center;gap:8px}
+.cm .todo .cnt{font-family:"IBM Plex Mono",ui-monospace,monospace;color:#241a00;font-size:11px;
+background:var(--warn);border-radius:var(--r);padding:0 6px}
 .cm .todobar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
 .cm .todobar .spacer{flex:1}
 .cm .todobar select,.cm .todobar input{min-width:170px}
-.cm .cfoot select{flex:1;min-width:0;font-size:11px;padding:3px 6px}
+.cm .cfoot select{flex:1;min-width:0;font-size:11px;height:22px;padding:0 20px 0 6px}
 
-.cm .mcard{background:var(--sf);border:1px solid var(--ln);border-radius:0;margin-bottom:6px;overflow:hidden}
-.cm .mhead{display:flex;align-items:center;gap:8px;padding:4px 8px;cursor:pointer;background:#111a2e}
-.cm .mhead:hover{background:rgba(129,140,248,.05)}
+/* メンバーのカード。見出しの行とキャラのカードを1枚の枠に入れる */
+.cm .mcard{background:var(--sf);border:1px solid var(--ln);border-radius:var(--r);margin-bottom:6px;overflow:hidden}
+.cm .mhead{display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer}
+.cm .mhead:hover{background:rgb(226 232 240 / .03)}
 .cm .mdot{width:8px;height:8px;border-radius:50%;flex:none}
-.cm .mname{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none;max-width:260px}
+.cm .mname{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none;max-width:260px}
 .cm .mname .alias{font-weight:400;color:var(--mu);font-size:12px;margin-left:7px}
-.cm .mmeta{color:var(--mu);font-size:11.5px;font-family:ui-monospace,monospace;white-space:nowrap;flex:none}
+.cm .mmeta{color:var(--mu);font-size:11.5px;font-family:"IBM Plex Mono",ui-monospace,monospace;white-space:nowrap;flex:none}
 .cm .gtags{display:flex;gap:4px;flex-wrap:wrap;overflow:hidden}
-.cm .chip{background:var(--sf2);border:1px solid var(--ln2);border-radius:0;
-padding:0 6px;font-size:10.5px;color:var(--mu);white-space:nowrap;
+/* ギルド名の札 */
+.cm .chip{background:transparent;border:1px solid var(--ln2);border-radius:var(--r);
+padding:0 6px;font-size:11px;color:#94a3b8;white-space:nowrap;
 display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
-.cm .ccard .chip{background:var(--sf)}
-.cm .chip.on{border-color:#4a5480;color:#c9d2f0}
-.cm .mbtns{display:flex;gap:4px;flex:none}
+.cm .chip.on{border-color:#6366f1;color:#c7d2fe;background:rgb(99 102 241 / .12)}
+.cm .mbtns{display:flex;gap:2px;flex:none}
 .cm .caret{transition:transform .15s ease;color:var(--mu);display:inline-flex}
 .cm .mcard.closed .caret{transform:rotate(-90deg)}
 .cm .mcard.closed .cbody{display:none}
-.cm .cbody{border-top:1px solid var(--ln);padding:6px 8px 6px}
+.cm .cbody{padding:0 8px 8px}
 
 /* メンバーを開いた先はキャラのカードを並べる。キャラ画像を主役にしたいので
-   アバターは88px、その右に 名前 / Lv+職 / ギルド / 操作 を積む。 */
+   アバターを左に大きく、その右に 名前 / Lv+職 / ギルド / 操作 を積む。 */
 .cm .cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:4px}
 .cm .ccard{display:grid;grid-template-columns:56px minmax(0,1fr);gap:8px;
-background:var(--sf2);border:1px solid var(--ln);border-radius:0;padding:4px}
-.cm .ccard:hover{border-color:#4f46e5}
-.cm .cm-avatar{position:relative;width:56px;height:56px;border-radius:0;background:var(--bg);
-border:1px solid var(--ln);overflow:hidden;flex:none}
+background:var(--sf2);border:1px solid var(--ln);border-radius:var(--r);padding:5px}
+.cm .ccard:hover{border-color:var(--ln2)}
+.cm .cm-avatar{position:relative;width:56px;height:56px;border-radius:var(--r);background:var(--bg);
+overflow:hidden;flex:none}
 .cm .cm-avatar img.face{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 .cm .cm-avatar .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#3d4767}
 .cm .cinfo{display:flex;flex-direction:column;min-width:0;padding-top:1px}
@@ -192,84 +182,83 @@ border:1px solid var(--ln);overflow:hidden;flex:none}
 .cm .cmeta .job{color:var(--mu);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cm .cfoot{display:flex;align-items:center;gap:6px;margin-top:auto;min-width:0}
 .cm .cfoot .chip{min-width:0;flex:0 1 auto}
-.cm .flag{background:rgba(129,140,248,.16);color:#c7cdfb;border-radius:0;
-font-size:9.5px;padding:1px 5px;margin-left:6px;letter-spacing:.06em;vertical-align:1px}
+.cm .flag{background:#4f46e5;color:#fff;border-radius:var(--r);font-weight:700;
+font-size:9.5px;padding:1px 5px;margin-left:6px;letter-spacing:.04em;vertical-align:1px}
 .cm .lv{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--mu)}
 .cm .lv b{color:#fff;font-size:14px;font-weight:700}
 .cm .lv.none b{color:var(--warn)}
-.cm .cbtns{display:flex;gap:2px;justify-content:flex-end;margin-left:auto;flex:none}
+.cm .cbtns{display:flex;gap:0;justify-content:flex-end;margin-left:auto;flex:none}
 .cm .ccard .cbtns{opacity:.5;transition:opacity .12s ease}
 .cm .ccard:hover .cbtns,.cm .ccard:focus-within .cbtns{opacity:1}
 
-.cm .addrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;
-padding-top:6px;border-top:1px solid var(--ln)}
+.cm .addrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px}
 .cm .addrow input[data-cm="nc-name"]{width:160px}
 .cm .addrow input[data-cm="nc-guild"]{width:130px}
 .cm .addrow .hint{color:var(--mu);font-size:11px}
 
-.cm .tblwrap{overflow-x:auto;background:var(--sf);border:1px solid var(--ln);border-radius:0}
+/* キャラ一覧。daisyUI の table-sm と同じく行を線で区切る（縞は付けない） */
+.cm .tblwrap{overflow-x:auto;background:var(--sf);border:1px solid var(--ln);border-radius:var(--r)}
 .cm table{width:100%;border-collapse:collapse;min-width:840px}
 .cm th{text-align:left;font-size:11px;color:#64748b;
-font-weight:600;padding:5px 8px;border-bottom:1px solid var(--ln2);white-space:nowrap}
+font-weight:600;padding:6px 8px;border-bottom:1px solid var(--ln);white-space:nowrap}
 .cm th.sortable{cursor:pointer;user-select:none}
 .cm th.sortable:hover{color:var(--tx)}
-.cm th .dir{color:var(--ac);margin-left:3px}
-.cm td{padding:2px 8px;height:34px;border-bottom:1px solid #172036;vertical-align:middle}
-.cm tbody tr:nth-child(even){background:#0c1428}
+.cm th .dir{color:#a5b4fc;margin-left:3px}
+.cm td{padding:2px 8px;height:34px;border-bottom:1px solid var(--ln);vertical-align:middle}
 .cm tbody tr:last-child td{border-bottom:0}
-.cm tbody tr:hover{background:#18223a}
+.cm tbody tr:hover{background:rgb(11 18 34 / .6)}
 .cm td.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-weight:600;color:#fff;font-variant-numeric:tabular-nums;text-align:right}
 .cm td .who{display:flex;align-items:center;gap:7px}
 .cm .handle{color:var(--mu);font-size:10.5px;margin-left:6px}
 .cm td .who .mdot{width:7px;height:7px}
-.cm .thumb{position:relative;width:28px;height:28px;border-radius:0;background:var(--bg);
-border:1px solid var(--ln);overflow:hidden}
+.cm .thumb{position:relative;width:28px;height:28px;border-radius:var(--r);background:var(--bg);overflow:hidden}
 .cm .thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 
+/* ギルド別 */
 .cm .gwrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:6px}
-.cm .gcard{background:var(--sf);border:1px solid var(--ln);border-top:2px solid #4f46e5;border-radius:0;padding:6px 10px}
-.cm .gcard h3{margin:0 0 2px;font-size:14px;font-weight:700}
-.cm .gcard .gstat{color:var(--mu);font-size:11.5px;font-family:"IBM Plex Mono",ui-monospace,monospace;margin-bottom:4px}
-.cm .gcard ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
-.cm .gcard li{display:flex;align-items:center;gap:7px;font-size:12px}
-.cm .gcard li .lvs{margin-left:auto;font-family:ui-monospace,monospace;color:var(--mu);font-size:11.5px}
-.cm .gcard li img{width:18px;height:18px;border-radius:0;object-fit:contain;flex:none}
+.cm .gcard{background:var(--sf);border:1px solid var(--ln);border-top:3px solid #6366f1;border-radius:var(--r);padding:7px 10px 9px}
+.cm .gcard h3{margin:0 0 1px;font-size:14px;font-weight:700}
+.cm .gcard .gstat{color:var(--mu);font-size:11.5px;font-family:"IBM Plex Mono",ui-monospace,monospace;margin-bottom:5px}
+.cm .gcard ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.cm .gcard li{display:flex;align-items:center;gap:7px;font-size:12px;padding:2px 0;border-top:1px solid var(--ln)}
+.cm .gcard li .lvs{margin-left:auto;font-family:"IBM Plex Mono",ui-monospace,monospace;color:var(--mu);font-size:11.5px}
+.cm .gcard li img{width:18px;height:18px;border-radius:var(--r);object-fit:contain;flex:none}
 .cm .gcard li .who{color:var(--mu);font-size:11px}
 
-.cm-veil{position:fixed;inset:0;background:rgba(6,8,16,.74);display:flex;align-items:center;
+/* 小窓。daisyUI の modal-box と同じ地・線・角 */
+.cm-veil{position:fixed;inset:0;background:rgb(2 6 23 / .8);display:flex;align-items:center;
 justify-content:center;padding:20px;z-index:60}
 .cm-veil.top{z-index:70}
-.cm-veil .cm-modal{background:var(--sf);border:1px solid var(--ln2);border-top:2px solid #6366f1;border-radius:0;width:100%;
+.cm-veil .cm-modal{background:var(--sf);border:1px solid rgb(226 232 240 / .15);border-radius:var(--r);width:100%;
 max-width:440px;padding:14px 16px;box-shadow:0 24px 60px rgba(0,0,0,.55);max-height:88vh;overflow:auto}
 .cm-veil .cm-modal.wide{max-width:880px}
 .cm-veil h2{font-size:15px;margin:0 0 10px;font-weight:700}
-.cm-veil .fld{margin-bottom:11px}
-.cm-veil .fld label{display:block;color:var(--mu);font-size:10.5px;font-weight:600;margin-bottom:2px}
+.cm-veil .fld{margin-bottom:10px}
+.cm-veil .fld label{display:block;color:var(--mu);font-size:11px;font-weight:500;margin-bottom:3px}
 .cm-veil .fld input,.cm-veil .fld select,.cm-veil .fld textarea{width:100%}
 .cm-veil .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .cm-veil .chk{display:flex;align-items:center;gap:7px;font-size:12.5px;cursor:pointer}
 .cm-veil .chk input{width:14px;height:14px;accent-color:var(--ac)}
-.cm-veil .foot{display:flex;gap:8px;margin-top:18px;align-items:center}
+.cm-veil .foot{display:flex;gap:6px;margin-top:16px;padding-top:12px;border-top:1px solid var(--ln);align-items:center}
 .cm-veil .foot .grow{flex:1}
 .cm-veil .note{color:var(--mu);font-size:11.5px;margin:10px 0 0;line-height:1.7}
 .cm-veil .msg{font-size:12.5px;line-height:1.8;margin:0}
-.cm-veil textarea{width:100%;min-height:180px;font-family:ui-monospace,monospace;font-size:11.5px;
+.cm-veil textarea{width:100%;min-height:180px;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11.5px;
 resize:vertical;white-space:pre;overflow:auto}
 .cm-veil .io{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.cm-veil .col-h{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mu);
-font-weight:700;margin-bottom:6px}
+.cm-veil .col-h{font-size:12px;color:var(--tx);font-weight:700;margin-bottom:6px}
 .cm-veil .row{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
 @media(max-width:720px){.cm-veil .io{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:no-preference){.cm-veil .cm-modal{animation:cm-pop .16s ease-out}}
 @keyframes cm-pop{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
 
 .cm-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:80;
-background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:0;
+background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:var(--r);
 padding:9px 16px;font-size:12.5px;box-shadow:0 12px 34px rgba(0,0,0,.5);
 font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-serif}
-.cm-toast.ok{border-color:#4ade80;color:#bbf7d0}
-.cm-toast.warn{border-color:#fbbf24;color:#fde68a}
-.cm-toast.err{border-color:#f87171;color:#fecaca}
+.cm-toast.ok{border-color:#047857;color:#a7f3d0;background:#052e1b}
+.cm-toast.warn{border-color:#a16207;color:#fde68a;background:#282206}
+.cm-toast.err{border-color:#9f1239;color:#fecdd3;background:#3b0d22}
 
 @media(max-width:640px){
 .cm .cgrid{grid-template-columns:1fr}
@@ -410,14 +399,14 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
                 '<div class="add">' +
                 '<input id="cm-new-member" type="text" placeholder="Discord名" autocomplete="off" spellcheck="false">' +
                 '<input id="cm-new-display" type="text" placeholder="表示名（任意）" autocomplete="off">' +
-                '<button class="primary" data-cm="add-member"><i data-lucide="user-plus" class="w-3.5 h-3.5"></i>メンバー追加</button>' +
+                '<button class="btn btn-sm btn-primary" data-cm="add-member"><i data-lucide="user-plus" class="w-3.5 h-3.5"></i>メンバー追加</button>' +
                 '</div>' +
                 '<span class="spacer"></span>' +
                 '<input id="cm-q" type="search" placeholder="キャラ名 / Discord名 / ギルド / 職" data-cm="q" autocomplete="off">' +
                 '<select id="cm-guild" data-cm="guild-filter" title="ギルドで絞り込む"></select>' +
-                '<button data-cm="refresh-all" id="cm-refresh-all" title="登録済みキャラのレベル・職・画像を取り直す">' +
+                '<button class="btn btn-sm" data-cm="refresh-all" id="cm-refresh-all" title="登録済みキャラのレベル・職・画像を取り直す">' +
                 '<i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>全員を更新</button>' +
-                '<button data-cm="open-data"><i data-lucide="database" class="w-3.5 h-3.5"></i>データ</button>' +
+                '<button class="btn btn-sm" data-cm="open-data"><i data-lucide="database" class="w-3.5 h-3.5"></i>データ</button>' +
                 // 「自分は誰か」は名簿以外の3アプリ（Planner / Scheduler / Leaderboard）が
                 // 参照する。ここで選ぶとこの端末に覚える。
                 '<span class="meg"><span class="melabel">自分</span>' +
@@ -528,9 +517,9 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
         <div class="cfoot">
             <span class="chip${c.guild ? ' on' : ''}">${esc(c.guild || 'ギルド未設定')}</span>
             <div class="cbtns">
-                <button class="icon" data-cm="refresh-char" title="APIで取り直す"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
-                <button class="icon" data-cm="edit-char" title="編集"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
-                <button class="icon danger" data-cm="del-char" title="削除"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                <button class="btn btn-ghost btn-xs btn-square" data-cm="refresh-char" title="APIで取り直す"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
+                <button class="btn btn-ghost btn-xs btn-square" data-cm="edit-char" title="編集"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+                <button class="btn btn-ghost btn-xs btn-square danger" data-cm="del-char" title="削除"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
             </div>
         </div>
     </div>
@@ -562,9 +551,9 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
         <span class="gtags">${gs.slice(0, 4).map((g) => '<span class="chip">' + esc(g) + '</span>').join('')}${gs.length > 4 ? '<span class="chip">+' + (gs.length - 4) + '</span>' : ''}</span>
         <span class="spacer"></span>
         <span class="mbtns">
-            <button class="icon" data-cm="refresh-member" title="このメンバーのキャラを更新"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
-            <button class="icon" data-cm="edit-member" title="Discord名・表示名を編集"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
-            <button class="icon danger" data-cm="del-member" title="メンバーごと削除"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+            <button class="btn btn-ghost btn-xs btn-square" data-cm="refresh-member" title="このメンバーのキャラを更新"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
+            <button class="btn btn-ghost btn-xs btn-square" data-cm="edit-member" title="Discord名・表示名を編集"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+            <button class="btn btn-ghost btn-xs btn-square danger" data-cm="del-member" title="メンバーごと削除"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
         </span>
     </div>
     <div class="cbody">
@@ -573,7 +562,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
         <div class="addrow">
             <input type="text" data-cm="nc-name" placeholder="キャラ名" autocomplete="off" spellcheck="false">
             <input type="text" data-cm="nc-guild" placeholder="所属ギルド（任意）" list="cm-guild-list" autocomplete="off">
-            <button class="primary" data-cm="add-char"><i data-lucide="plus" class="w-3.5 h-3.5"></i>追加して取得</button>
+            <button class="btn btn-sm btn-primary" data-cm="add-char"><i data-lucide="plus" class="w-3.5 h-3.5"></i>追加して取得</button>
             <span class="hint">レベル・職・画像はキャラ名から自動取得</span>
         </div>
     </div>
@@ -611,9 +600,9 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
             <span>${esc(c.who)}${c.who !== c.discordName ? '<span class="handle">@' + esc(c.discordName) + '</span>' : ''}</span></div></td>
         <td class="num" style="color:var(--mu)">${fmtDate(c.updatedAt)}</td>
         <td><div class="cbtns">
-            <button class="icon" data-cm="refresh-char" title="APIで取り直す"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
-            <button class="icon" data-cm="edit-char" title="編集"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
-            <button class="icon danger" data-cm="del-char" title="削除"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+            <button class="btn btn-ghost btn-xs btn-square" data-cm="refresh-char" title="APIで取り直す"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
+            <button class="btn btn-ghost btn-xs btn-square" data-cm="edit-char" title="編集"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+            <button class="btn btn-ghost btn-xs btn-square danger" data-cm="del-char" title="削除"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
         </div></td>
     </tr>`).join('')}</tbody>
 </table></div>`;
@@ -637,9 +626,9 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
     ${pending.length ? `
     <div class="todobar">
         <select data-cm="pend-bulk-member">${memberOpts(me ? me.id : '')}</select>
-        <button data-cm="pend-assign-all">表示中をすべてこの人に割り当てる</button>
+        <button class="btn btn-sm" data-cm="pend-assign-all">表示中をすべてこの人に割り当てる</button>
         <span class="spacer"></span>
-        <button class="danger" data-cm="pend-clear">未割り当てをすべて削除</button>
+        <button class="btn btn-sm danger" data-cm="pend-clear">未割り当てをすべて削除</button>
     </div>
     <div class="cgrid">${pending.map((c) => `<div class="ccard" data-pid="${c.id}">
         ${this.avatar(c)}
@@ -649,7 +638,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
             <div class="cfoot">
                 <select data-cm="pend-member">${memberOpts('')}</select>
                 <div class="cbtns">
-                    <button class="icon danger" data-cm="pend-del" title="削除"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                    <button class="btn btn-ghost btn-xs btn-square danger" data-cm="pend-del" title="削除"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
                 </div>
             </div>
         </div>
@@ -667,7 +656,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
     ${byMember.size ? `
     <div class="todobar">
         <input type="text" data-cm="guild-bulk-name" placeholder="設定するギルド名" list="cm-guild-list" value="${esc(this.guilds()[0] || '')}">
-        <button data-cm="guild-fill-all">未設定のキャラすべてに入れる</button>
+        <button class="btn btn-sm" data-cm="guild-fill-all">未設定のキャラすべてに入れる</button>
     </div>
     <div class="gwrap">${Array.from(byMember.entries()).map(([mid, list]) => {
                 const m = this.memberById(mid);
@@ -677,7 +666,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
         <ul>${list.map((c) => `<li><span>${esc(c.name)}</span><span class="lvs">${c.level > 0 ? 'Lv.' + c.level : 'Lv.--'}</span></li>`).join('')}</ul>
         <div class="todobar" style="margin-top:9px">
             <input type="text" data-cm="guild-one-name" placeholder="ギルド名" list="cm-guild-list">
-            <button data-cm="guild-fill-one">この人に入れる</button>
+            <button class="btn btn-sm" data-cm="guild-fill-one">この人に入れる</button>
         </div>
     </div>`;
             }).join('')}</div>`
@@ -1043,8 +1032,8 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
     <h2>確認</h2>
     <p class="msg">${esc(message)}</p>
     <div class="foot"><span class="grow"></span>
-        <button data-x="cancel">キャンセル</button>
-        <button class="primary" data-x="ok">${esc(okLabel || 'OK')}</button>
+        <button class="btn btn-sm" data-x="cancel">キャンセル</button>
+        <button class="btn btn-sm btn-primary" data-x="ok">${esc(okLabel || 'OK')}</button>
     </div>
 </div>`, 'top');
                 const close = (v) => { document.removeEventListener('keydown', onKey); veil.remove(); resolve(v); };
@@ -1076,8 +1065,8 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
     <div class="fld"><label>メモ</label><input data-x="note" type="text" value="${esc(m.note)}" placeholder="加入日・役職など"></div>
     <div class="fld"><label>色</label><div class="row">${swatches}</div></div>
     <div class="foot"><span class="grow"></span>
-        <button data-x="cancel">キャンセル</button>
-        <button class="primary" data-x="save">保存</button>
+        <button class="btn btn-sm" data-x="cancel">キャンセル</button>
+        <button class="btn btn-sm btn-primary" data-x="save">保存</button>
     </div>
 </div>`);
             let colorIdx = m.colorIdx;
@@ -1141,10 +1130,10 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
     <label class="chk"><input type="checkbox" data-x="main" ${c.isMain ? 'checked' : ''}>メインキャラにする</label>
     <p class="note">最終取得: ${fmtDate(c.fetchedAt)}${c.level ? '' : '（ランキング未取得。レベル・職は手入力できます）'}</p>
     <div class="foot">
-        <button data-x="refetch"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>APIで取り直す</button>
+        <button class="btn btn-sm" data-x="refetch"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>APIで取り直す</button>
         <span class="grow"></span>
-        <button data-x="cancel">キャンセル</button>
-        <button class="primary" data-x="save">保存</button>
+        <button class="btn btn-sm" data-x="cancel">キャンセル</button>
+        <button class="btn btn-sm btn-primary" data-x="save">保存</button>
     </div>
 </div>`);
             const close = () => { document.removeEventListener('keydown', onKey); veil.remove(); };
@@ -1307,10 +1296,10 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
         <div>
             <div class="col-h">書き出し</div>
             <div class="row">
-                <button class="primary" data-x="dl-json"><i data-lucide="download" class="w-3.5 h-3.5"></i>JSON</button>
-                <button data-x="dl-csv"><i data-lucide="download" class="w-3.5 h-3.5"></i>CSV</button>
-                <button data-x="copy-json"><i data-lucide="copy" class="w-3.5 h-3.5"></i>コピー</button>
-                <button data-x="copy-text"><i data-lucide="copy" class="w-3.5 h-3.5"></i>Discord用テキスト</button>
+                <button class="btn btn-sm btn-primary" data-x="dl-json"><i data-lucide="download" class="w-3.5 h-3.5"></i>JSON</button>
+                <button class="btn btn-sm" data-x="dl-csv"><i data-lucide="download" class="w-3.5 h-3.5"></i>CSV</button>
+                <button class="btn btn-sm" data-x="copy-json"><i data-lucide="copy" class="w-3.5 h-3.5"></i>コピー</button>
+                <button class="btn btn-sm" data-x="copy-text"><i data-lucide="copy" class="w-3.5 h-3.5"></i>Discord用テキスト</button>
             </div>
             <textarea data-x="out" readonly>${esc(this.exportJSON())}</textarea>
         </div>
@@ -1318,18 +1307,18 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
             <div class="col-h">読み込み（管理用）</div>
             <div class="row">
                 <input type="file" data-x="file" accept="application/json">
-                <button data-x="load"><i data-lucide="upload" class="w-3.5 h-3.5"></i>貼り付けたJSONを読み込む</button>
+                <button class="btn btn-sm" data-x="load"><i data-lucide="upload" class="w-3.5 h-3.5"></i>貼り付けたJSONを読み込む</button>
             </div>
             <textarea data-x="in" placeholder="ここにJSONを貼り付けて「貼り付けたJSONを読み込む」"></textarea>
             <p class="note">読み込むと共有の名簿が置き換わります。</p>
         </div>` : ''}
     </div>
     <div class="foot">
-        ${admin ? '<button class="danger" data-x="wipe">すべて消す</button>' +
-                  '<button data-x="bulk"><i data-lucide="table" class="w-3.5 h-3.5"></i>スプレッドシートから一括登録</button>' : ''}
-        <button data-x="bulk-chars"><i data-lucide="list-plus" class="w-3.5 h-3.5"></i>キャラを一括追加</button>
+        ${admin ? '<button class="btn btn-sm danger" data-x="wipe">すべて消す</button>' +
+                  '<button class="btn btn-sm" data-x="bulk"><i data-lucide="table" class="w-3.5 h-3.5"></i>スプレッドシートから一括登録</button>' : ''}
+        <button class="btn btn-sm" data-x="bulk-chars"><i data-lucide="list-plus" class="w-3.5 h-3.5"></i>キャラを一括追加</button>
         <span class="grow"></span>
-        <button data-x="close">閉じる</button>
+        <button class="btn btn-sm" data-x="close">閉じる</button>
     </div>
 </div>`);
             const close = () => { document.removeEventListener('keydown', onKey); veil.remove(); };
