@@ -70,8 +70,8 @@ const jobArtTool = {
                     調整はこの端末に下書きとして残り、ダッシュボードにもすぐ出ます。本番に入れるときは「書き出す」でコピーして job_art.js の中身を丸ごと置き換えます。</p>
                 </div>
                 <div class="ja-actions">
-                    <button class="ja-btn ja-btn-main" onclick="jobArtTool.exportCode()">書き出す</button>
-                    <button class="ja-btn" onclick="jobArtTool.clearDrafts()">下書きを全部消す</button>
+                    <button class="btn btn-sm btn-primary" onclick="jobArtTool.exportCode()">書き出す</button>
+                    <button class="btn btn-sm" onclick="jobArtTool.clearDrafts()">下書きを全部消す</button>
                 </div>
             </div>
             <div class="ja-body">
@@ -88,7 +88,7 @@ const jobArtTool = {
             </div>
             <div class="ja-export hidden" id="ja-export">
                 <div class="ja-export-head"><span>job_art.js に貼る中身</span><span id="ja-copied" class="ja-copied"></span></div>
-                <textarea id="ja-export-text" readonly spellcheck="false"></textarea>
+                <textarea class="textarea" id="ja-export-text" readonly spellcheck="false"></textarea>
             </div>
         </div>`;
         this.renderEdit();
@@ -134,15 +134,15 @@ const jobArtTool = {
                 <span class="ja-state">${{ draft: '下書き（未書き出し）', code: 'コードに設定済み' }[st] || '既定の位置'}</span>
             </div>
             <div class="ja-ctrl">
-                <span class="ja-kind">
-                    <button class="${p.kind === 'stand' ? 'is-on' : ''}" onclick="jobArtTool.setKind('stand')">立ち絵</button>
-                    <button class="${p.kind === 'illust' ? 'is-on' : ''}" ${j.illust ? '' : 'disabled title="この職のイラストはまだありません"'} onclick="jobArtTool.setKind('illust')">イラスト</button>
+                <span class="ja-kind join">
+                    <button class="btn btn-sm join-item ${p.kind === 'stand' ? 'is-on' : ''}" onclick="jobArtTool.setKind('stand')">立ち絵</button>
+                    <button class="btn btn-sm join-item ${p.kind === 'illust' ? 'is-on' : ''}" ${j.illust ? '' : 'disabled title="この職のイラストはまだありません"'} onclick="jobArtTool.setKind('illust')">イラスト</button>
                 </span>
-                <label>大きさ <input type="range" min="20" max="200" value="${p.z}" oninput="jobArtTool.set('z', this.value)"><input type="number" value="${p.z}" onchange="jobArtTool.set('z', this.value)"><em>%</em></label>
-                <label>右端から <input type="number" value="${p.x}" onchange="jobArtTool.set('x', this.value)"><em>px</em></label>
-                <label>上端から <input type="number" value="${p.y}" onchange="jobArtTool.set('y', this.value)"><em>px</em></label>
-                <button class="ja-btn ja-flip ${p.f ? 'is-on' : ''}" onclick="jobArtTool.toggleFlip()">左右反転</button>
-                <button class="ja-btn" onclick="jobArtTool.reset()">この職を戻す</button>
+                <label>大きさ <input type="range" class="range range-xs range-primary w-[180px]" min="20" max="200" value="${p.z}" oninput="jobArtTool.set('z', this.value)"><input type="number" class="input input-sm w-[72px]" value="${p.z}" onchange="jobArtTool.set('z', this.value)"><em>%</em></label>
+                <label>右端から <input type="number" class="input input-sm w-[72px]" value="${p.x}" onchange="jobArtTool.set('x', this.value)"><em>px</em></label>
+                <label>上端から <input type="number" class="input input-sm w-[72px]" value="${p.y}" onchange="jobArtTool.set('y', this.value)"><em>px</em></label>
+                <button class="btn btn-sm ja-flip ${p.f ? 'is-on' : ''}" onclick="jobArtTool.toggleFlip()">左右反転</button>
+                <button class="btn btn-sm" onclick="jobArtTool.reset()">この職を戻す</button>
             </div>
             <div class="ja-previews">
                 <div><div class="ja-cap">未消化</div>${this.sampleCard(j, p, false)}</div>

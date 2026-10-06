@@ -99,23 +99,15 @@ const costCalc = {
                 font-size: 11px; font-weight: 600; color: #8b98ad; margin-bottom: 4px;
                 display: flex; align-items: center; gap: 8px;
             }
-            .cc-sec-label::after { content: ''; flex: 1; height: 1px; background: #1e293b; }
-            .cc-toolbar { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; margin-bottom: 8px; background: #0f172a; border: 1px solid #1e293b; }
-            .cc-tool { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-left: 1px solid #1e293b; }
+            .cc-sec-label::after { content: ''; flex: 1; height: 1px; background: color-mix(in oklab, var(--color-base-content) 10%, transparent); }
+            .cc-toolbar { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; margin-bottom: 8px; background: var(--color-base-100); border: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent); border-radius: var(--radius-box); overflow: hidden; }
+            .cc-tool { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-left: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent); }
             .cc-tool:first-child { border-left: 0; }
             .cc-global-bar-label, .cc-bulk-label { font-size: 11px; color: #8b98ad; font-weight: 600; white-space: nowrap; }
             .cc-event-checks { display: flex; gap: 0; }
-            .cc-ev-btn {
-                display: flex; align-items: center; gap: 5px;
-                background: #020617; border: 1px solid #334155; border-radius: 0; margin-left: -1px;
-                padding: 2px 9px; cursor: pointer; user-select: none;
-            }
-            .cc-ev-btn:first-child { margin-left: 0; }
-            .cc-ev-btn:hover { border-color: #6366f1; position: relative; }
-            .cc-ev-btn.active { border-color: #6366f1; background: #312e81; position: relative; }
-            .cc-ev-btn span { font-size: 12px; font-weight: 600; color: #e2e8f0; }
+            .cc-ev-btn.active { background: #4f46e5; border-color: #4f46e5; color: #fff; }
             .cc-ev-dot { display: none; }
-            .cc-live-total { margin-left: auto; display: flex; align-items: center; gap: 10px; padding: 3px 12px; border-left: 1px solid #1e293b; background: #111a2e; }
+            .cc-live-total { margin-left: auto; display: flex; align-items: center; gap: 10px; padding: 3px 12px; border-left: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent); background: var(--color-base-200); }
             .cc-live-total .lt-label { font-size: 11px; color: #8b98ad; font-weight: 600; }
             .cc-live-total .lt-val {
                 font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums;
@@ -125,13 +117,13 @@ const costCalc = {
             .cc-live-total .lt-hint { font-size: 10.5px; color: #64748b; }
             .cc-equip-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; margin-bottom: 8px; max-width: 1180px; }
             .cc-equip-card {
-                background: #0f172a; border: 1px solid #1e293b; border-radius: 0;
+                background: var(--color-base-100); border: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent); border-radius: var(--radius-box);
                 padding: 4px 5px 5px; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 2px 4px; align-items: center; align-content: start;
                 cursor: pointer; user-select: none;
             }
             .cc-equip-card:not(.inactive):hover { border-color: #6366f1; }
             .cc-equip-card.ph { background: transparent; border: none; pointer-events: none; cursor: default; }
-            .cc-equip-card.inactive { opacity: 0.3; background: #020617; }
+            .cc-equip-card.inactive { opacity: 0.3; background: var(--color-base-200); }
             .cc-equip-card select { pointer-events: auto; }
             .cc-equip-card.inactive select { pointer-events: none; }
             .cc-card-name {
@@ -142,42 +134,29 @@ const costCalc = {
             .cc-fld-lbl { font-size: 10px; color: #64748b; font-weight: 600; text-align: right; white-space: nowrap; }
             .cc-equip-card select {
                 font-size: 11.5px; padding: 1px 3px; width: 100%; cursor: pointer;
-                background: #020617; border: 1px solid #334155; border-radius: 0;
+                background: var(--color-base-200); border: 1px solid color-mix(in oklab, var(--color-base-content) 20%, transparent); border-radius: var(--radius-field);
                 color: #e2e8f0; font-family: "IBM Plex Mono", ui-monospace, monospace; outline: none;
             }
             .cc-equip-card select:focus { border-color: #6366f1; }
-            .cc-result-panel { background: #0f172a; border: 1px solid #1e293b; border-top: 2px solid #6366f1; border-radius: 0; padding: 6px 8px; }
+            .cc-result-panel { background: var(--color-base-100); border: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent); border-radius: var(--radius-box); padding: 8px 10px; }
             .cc-bk { overflow-x: auto; margin-top: 2px; }
             .cc-bk table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
             .cc-bk th {
-                background: #0f172a; color: #64748b; font-weight: 600; font-size: 11px;
-                padding: 4px 8px; text-align: left; border-bottom: 1px solid #334155; white-space: nowrap;
+                color: #64748b; font-weight: 600; font-size: 11px;
+                padding: 4px 8px; text-align: left; border-bottom: 1px solid color-mix(in oklab, var(--color-base-content) 20%, transparent); white-space: nowrap;
             }
-            .cc-bk td { padding: 3px 8px; border-bottom: 1px solid #172036; }
-            .cc-bk tbody tr:nth-child(even) td { background: #0c1428; }
-            .cc-bk tr:last-child td { border-bottom: none; }
-            .cc-bk tr:hover td { background: #18223a; }
+            .cc-bk td { padding: 3px 8px; border-bottom: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent); }
+                        .cc-bk tr:last-child td { border-bottom: none; }
+            .cc-bk tr:hover td { background: var(--color-base-200); }
             .cc-bk td.num { text-align: right; font-weight: 700; color: #f5a623; font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
             .cc-bk td.sub { color: #8b98ad; font-size: 11px; }
             .cc-bk td.tot { text-align: right; font-weight: 700; color: #fb923c; font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
-            .cc-bk tfoot td { background: #111a2e; font-weight: 700; padding: 5px 8px; border-top: 1px solid #334155; font-size: 12.5px; }
+            .cc-bk tfoot td { background: var(--color-base-200); font-weight: 700; padding: 5px 8px; border-top: 1px solid color-mix(in oklab, var(--color-base-content) 20%, transparent); font-size: 12.5px; }
             .cc-bk tfoot td.tot { color: #f5a623; font-size: 15px; }
             .cc-empty-msg { color: #8b98ad; font-size: 12.5px; padding: 8px 0; }
-            .cc-show-detail-btn {
-                display: block; width: 100%; padding: 4px;
-                background: #0f172a; border: 1px solid #1e293b; border-radius: 0;
-                color: #8b98ad; font-family: inherit; font-size: 12px; font-weight: 700;
-                cursor: pointer; margin-bottom: 8px;
-            }
-            .cc-show-detail-btn:hover { border-color: #6366f1; color: #e2e8f0; }
-            .cc-bulk-btn {
-                padding: 2px 9px; border-radius: 0; border: 1px solid #334155;
-                background: #020617; color: #e2e8f0; font-family: inherit;
-                font-size: 11.5px; font-weight: 700; cursor: pointer; white-space: nowrap;
-            }
+            .cc-show-detail-btn { margin-bottom: 8px; color: #8b98ad; }
             .cc-bulk-btn.sf:hover  { border-color: #f5a623; color: #f5a623; }
             .cc-bulk-btn.pot:hover { border-color: #6366f1; color: #a5b4fc; }
-            @media (max-width: 900px) { .cc-equip-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
         </style>
         <div class="cc-wrapper">
             <div class="cc-header">
@@ -187,23 +166,23 @@ const costCalc = {
             <div class="cc-toolbar">
                 <div class="cc-tool">
                     <span class="cc-global-bar-label">Event</span>
-                    <div class="cc-event-checks" id="cc-event-checks">
-                        <div class="cc-ev-btn active" data-val="none"><div class="cc-ev-dot"></div><span>None</span></div>
-                        <div class="cc-ev-btn" data-val="meso30"><div class="cc-ev-dot"></div><span>meso -30%</span></div>
-                        <div class="cc-ev-btn" data-val="boom30"><div class="cc-ev-dot"></div><span>boom -30%</span></div>
-                        <div class="cc-ev-btn" data-val="both"><div class="cc-ev-dot"></div><span>both</span></div>
+                    <div class="cc-event-checks join" id="cc-event-checks">
+                        <button type="button" class="btn btn-sm join-item cc-ev-btn active" data-val="none">None</button>
+                        <button type="button" class="btn btn-sm join-item cc-ev-btn" data-val="meso30">meso -30%</button>
+                        <button type="button" class="btn btn-sm join-item cc-ev-btn" data-val="boom30">boom -30%</button>
+                        <button type="button" class="btn btn-sm join-item cc-ev-btn" data-val="both">both</button>
                     </div>
                 </div>
                 <div class="cc-tool">
                     <span class="cc-bulk-label">一括 ★</span>
-                    <button class="cc-bulk-btn sf" id="cc-bulk-sf18">18&#9733;</button>
-                    <button class="cc-bulk-btn sf" id="cc-bulk-sf21">21&#9733;</button>
-                    <button class="cc-bulk-btn sf" id="cc-bulk-sf22">22&#9733;</button>
+                    <button class="btn btn-sm cc-bulk-btn sf" id="cc-bulk-sf18">18&#9733;</button>
+                    <button class="btn btn-sm cc-bulk-btn sf" id="cc-bulk-sf21">21&#9733;</button>
+                    <button class="btn btn-sm cc-bulk-btn sf" id="cc-bulk-sf22">22&#9733;</button>
                 </div>
                 <div class="cc-tool">
                     <span class="cc-bulk-label">一括 潜在</span>
-                    <button class="cc-bulk-btn pot" id="cc-bulk-pot-first">2ライン</button>
-                    <button class="cc-bulk-btn pot" id="cc-bulk-pot-third">3ライン</button>
+                    <button class="btn btn-sm cc-bulk-btn pot" id="cc-bulk-pot-first">2ライン</button>
+                    <button class="btn btn-sm cc-bulk-btn pot" id="cc-bulk-pot-third">3ライン</button>
                 </div>
                 <div class="cc-live-total">
                     <div class="lt-label">合計（期待値）</div>
@@ -212,7 +191,7 @@ const costCalc = {
             </div>
             <div class="cc-sec-label">装備</div>
             <div class="cc-equip-grid" id="cc-equip-grid"></div>
-            <button class="cc-show-detail-btn" id="cc-toggle-detail">&#9660; Show Breakdown</button>
+            <button class="btn btn-sm btn-block cc-show-detail-btn" id="cc-toggle-detail">&#9660; Show Breakdown</button>
             <div class="cc-result-panel" id="cc-result-panel" style="display:none">
                 <div class="cc-sec-label">Cost Breakdown</div>
                 <div class="cc-bk" id="cc-breakdown"></div>
