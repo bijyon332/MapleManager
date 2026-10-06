@@ -365,7 +365,8 @@ const scouter = (() => {
             </div>`;
         veil.innerHTML = `<div class="sc-modal ${cur.page ? '' : 'modal-box max-w-[1400px] w-[96vw] max-h-[94vh] p-0 flex flex-col bg-base-200 border border-base-content/15'}">
             ${head}
-            <div class="${cur.page ? '' : 'flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3'} flex flex-col gap-3">
+            <!-- 中の枠は縮ませない（overflow-hidden のカードが枠の高さまで縮んで、下が切れてスクロールできなくなる） -->
+            <div class="${cur.page ? '' : 'flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3'} flex flex-col gap-3 [&>*]:shrink-0">
                 ${summaryHTML(e, portrait)}
                 <div class="sc-msg ${cur.msgKind}" id="sc-msg">${esc(cur.msg)}</div>
                 ${result ? `<div class="card card-sm bg-base-100 border border-base-content/10 overflow-hidden"><div class="sc-body sc-resbody">
