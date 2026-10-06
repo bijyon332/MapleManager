@@ -114,7 +114,7 @@ const jobArtTool = {
                 <div class="mx-id"><div class="mx-lvjob"><span class="mx-lv">Lv.285</span><span class="mx-job">${j.name}</span></div><h3 class="mx-name">Sample</h3></div>
             </div>
             <div class="mx-main" data-ja-drag="1">
-                <div class="mx-top"><div class="mx-meso">21,268,095,625<small>mesos</small></div><div class="mx-count"><b>${done ? 15 : 0}</b>/15</div></div>
+                <div class="mx-top"><div class="mx-meso">21,268,095,625<small>mesos</small></div><div class="mx-count"><b>${done ? 14 : 0}</b>/14</div></div>
                 ${mo ? `<div class="mx-mo ${done ? 'is-done' : ''}"><span class="mx-mo-boss mx-d-${(mo.difficulty || '').toLowerCase()}"><span class="mx-mo-ic">${ic(mo, '', 'mx-mo-nm')}</span><span class="mx-mo-df">${mo.difficulty}</span></span>${done ? `<div class="mx-mo-done">${Math.floor(mo.meso).toLocaleString()}</div>` : ''}</div>` : ''}
                 <div class="mx-wk ${done ? 'is-done' : ''}"><div class="mx-grid">${wk.map(b => `<div class="mx-boss mx-d-${(b.difficulty || '').toLowerCase()}"><div class="mx-boss-ic">${ic(b, '', 'mx-boss-nm')}<span class="mx-boss-df">${b.difficulty}</span></div></div>`).join('')}</div>${done ? '<div class="mx-complete"><i data-lucide="check-circle-2"></i><span>COMPLETE</span></div>' : ''}</div>
                 <div class="mx-tools"><span class="mx-tool mx-tool-hexa">HEXA <b>0%</b></span><span class="mx-tool mx-tool-up">UPGRADE</span><span class="mx-tool mx-tool-scout">SCOUTER</span></div>
