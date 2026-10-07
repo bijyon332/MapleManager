@@ -1567,13 +1567,12 @@ const app = {
     // ========== Boss Config Modal (MapleHub style) ==========
     DIFF_ORDER: ['EASY', 'NORMAL', 'HARD', 'CHAOS', 'EXTREME'],
 
-    // MapleHub CDN boss image slug mapping (key: boss.name)
     // マスが狭いので、長いボス名は画像が読めないときの表示用に縮める。
-    // ボスの画像は boss_master.js の image（MapleHub のスラグ）。無ければ英語名から作る。
+    // ボスの画像は boss_master.js の image（public/assets/bosses/ のファイル名）。無ければ英語名から作る。
     getBossImageUrl(bossName) {
         const m = bossByEn(bossName);
         const slug = (m && m.image) || (bossName || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-        return slug ? `https://cdn.maplehub.app/bosses/${slug}.webp` : '';
+        return slug ? `assets/bosses/${slug}.webp` : '';
     },
 
     getBossGroups(type) {

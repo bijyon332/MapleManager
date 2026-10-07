@@ -8,15 +8,15 @@
 // 実体は boss_master.js（全アプリ共通）。ここでは Party Builder に出すボス（party があるもの）を
 // Party Builder の形に並べ替えるだけ。
 // difficulties: 易しい順。難易度の高さはこの配列内の位置で決まる（ボスをまたいだ比較はしない）。
-// image: MapleHub CDN slug。読み込みに失敗したら icon(lucide) + color にフォールバックする。
+// image: public/assets/bosses/ のファイル名（拡張子なし）。読み込みに失敗したら icon(lucide) + color にフォールバックする。
 const BOSS_DATA = BOSS_MASTER.filter(b => b.party).map(b => ({
     id: b.party.id, name: b.short || b.ja, difficulties: b.party.difficulties,
     maxMembers: b.maxMembers, color: b.party.color, icon: b.party.icon, image: b.image
 }));
 
-// MapleHub CDN base URL
-const BOSS_IMAGE_BASE = "https://cdn.maplehub.app/bosses/";
-// image が "http..." で始まればそのまま返し、それ以外はMapleHub CDNのスラグとして解釈
+// ボス画像は自前で持つ（MapleHub CDN から弾かれるようになったため）
+const BOSS_IMAGE_BASE = "assets/bosses/";
+// image が "http..." で始まればそのまま返し、それ以外は assets/bosses/ のファイル名として解釈
 function bossImageUrl(boss) {
     if (!boss || !boss.image) return "";
     if (/^https?:\/\//i.test(boss.image)) return boss.image;

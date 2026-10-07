@@ -11,7 +11,7 @@
  *    shortEn      : 英語の短い表記（Character Manager のボスのマスで画像が無いとき）。無ければ en。
  *    aliases      : 資料や過去のデータで使われていた別の表記。
  *    maxMembers   : 最大人数。
- *    image        : MapleHub CDN のスラグ（https://cdn.maplehub.app/bosses/{image}.webp）。
+ *    image        : public/assets/bosses/{image}.webp のファイル名（元は MapleHub CDN のスラグ）。
  *    force        : 'arc'（アーケイン）/ 'sac'（オーセンティック）/ 'none'（要求フォースなし）。
  *                   無い場合は未登録（Cheat Sheet の結晶表で「要求未登録」と出る）。
  *    entry        : 入場Lv。forceNote: Cheat Sheet でボス名の横に出す補足。
