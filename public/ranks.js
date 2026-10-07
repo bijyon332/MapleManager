@@ -739,8 +739,13 @@ const ranks = {
         const tnl = (typeof tnlData !== 'undefined') ? tnlData : {};
         const byDate = {};
         const at = (date) => (byDate[date] = byDate[date] || {});
+        const provisional = new Set();
+        // 当日分（provisional）は途中経過なので使わない。翌日に確定値で入る。
         (Array.isArray(d.levelHistory) ? d.levelHistory : []).forEach(r => {
             if (r && this._isDate(r.date)) Object.assign(at(r.date), { lv: Number(r.level), within: Number(r.exp), pct: Number(r.expPercent) });
+        });
+        (Array.isArray(d.expHistory) ? d.expHistory : []).forEach(r => {
+            if (r && r.provisional && this._isDate(r.date)) provisional.add(r.date);
         });
         (Array.isArray(d.expHistory) ? d.expHistory : []).forEach(r => {
             if (!r || !this._isDate(r.date)) return;
@@ -748,7 +753,7 @@ const ranks = {
             e.gain = Number(r.expExact != null ? r.expExact : r.exp);
             if (!Number.isFinite(e.lv)) e.lv = Number(r.level);
         });
-        const dates = Object.keys(byDate).sort();
+        const dates = Object.keys(byDate).filter(dt => !provisional.has(dt)).sort();
         // 先頭の日は前日が無いので獲得EXPが 0 で入ってくる。実際の値ではないので空にする。
         if (dates.length && byDate[dates[0]].gain === 0) byDate[dates[0]].gain = null;
 

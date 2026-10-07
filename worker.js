@@ -8,8 +8,8 @@
 // assets binding (env.ASSETS), which serves index.html / *.js / images as before.
 //
 // Routes:
-//   /maplehub?name=&region=  -> MapleHub character API (needs a custom header,
-//                               so it cannot go through public CORS proxies)
+//   /maplehub?name=&region=  -> 日次EXPの推移（MapleBot、予備で MapleHub）。先方が
+//                               他オリジンを弾くので公開CORSプロキシは使えない
 //   /api?name=               -> Nexon GMS ranking API (current level / exp snapshot)
 //   /scouter                 -> MapleScouter の換算計算（POST {userStat}）。
 //                               先方は他オリジンからの呼び出しを許していないので中継する
@@ -25,30 +25,39 @@ function json(body, status, cacheSeconds) {
   return new Response(JSON.stringify(body), { status, headers });
 }
 
-// MapleHub keeps ~90 days of daily snapshots for every ranked character. The
-// endpoint returns 403 unless the X-MapleHub-Request header is present, which is
-// why this must be proxied server-side rather than fetched from the browser.
+// 日次EXPの推移。MapleBot（maplebot.io）が約90日分の日次スナップショットを持っていて、
+// 2026-10 以降の MapleHub と同じ形式 { success, data: { character, expHistory, levelHistory } }
+// を返す。MapleBot は自サイト以外からの呼び出しを Origin/Referer で弾くので、ここで
+// Referer を付けて中継する。MapleHub は 2026-10-07 から Cloudflare の Bot 対策で
+// サーバーから取れなくなったが、外れたときのために予備として残す。
 async function handleMaplehub(url) {
   const name = url.searchParams.get('name');
   const region = (url.searchParams.get('region') || 'na').toLowerCase();
   if (!name) return json({ error: 'Character name is required' }, 400);
   if (region !== 'na' && region !== 'eu') return json({ error: "region must be 'na' or 'eu'" }, 400);
 
-  const headers = { 'X-MapleHub-Request': 'true', 'User-Agent': UA, 'Accept': 'application/json' };
-  const primary  = `https://maplehub.app/api/character/?characterName=${encodeURIComponent(name)}&region=${region}`;
-  const fallback = `https://maplehub.app/api/character-fallback/?characterName=${encodeURIComponent(name)}&region=${region}&_t=${Date.now()}`;
+  const q = encodeURIComponent(name);
+  const sources = [
+    { url: `https://maplebot.io/api/character/${q}?region=${region}`,
+      headers: { 'Referer': 'https://maplebot.io/', 'User-Agent': UA, 'Accept': 'application/json' } },
+    { url: `https://maplehub.app/api/character/?characterName=${q}&region=${region}`,
+      headers: { 'X-MapleHub-Request': 'true', 'User-Agent': UA, 'Accept': 'application/json' } },
+    { url: `https://maplehub.app/api/character-fallback/?characterName=${q}&region=${region}&_t=${Date.now()}`,
+      headers: { 'X-MapleHub-Request': 'true', 'User-Agent': UA, 'Accept': 'application/json' } },
+  ];
 
-  try {
-    let res = await fetch(primary, { headers });
-    if (!res.ok) {
-      const res2 = await fetch(fallback, { headers });
-      if (!res2.ok) return json({ error: `MapleHub API returned ${res.status}` }, res.status);
-      res = res2;
+  let firstError = null;
+  for (const src of sources) {
+    try {
+      const res = await fetch(src.url, { headers: src.headers });
+      const data = res.ok ? await res.json().catch(() => null) : null;
+      if (data && data.success !== false) return json(data, 200, 1800); // 30分キャッシュ(日次更新)
+      if (!firstError) firstError = { status: res.ok ? 502 : res.status, message: (data && data.error) || `EXP history API returned ${res.status}` };
+    } catch (e) {
+      if (!firstError) firstError = { status: 502, message: e.message };
     }
-    return json(await res.json(), 200, 1800); // 30分キャッシュ(日次更新)
-  } catch (e) {
-    return json({ error: e.message }, 500);
   }
+  return json({ error: firstError.message }, firstError.status);
 }
 
 // Nexon GMS ranking (NA) - current level / within-level exp snapshot.
