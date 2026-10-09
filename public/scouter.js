@@ -408,7 +408,8 @@ const scouter = (() => {
     // 上の1行: 誰か・前回の計算日時・操作。換算主ステは結果タブに出すのでここには出さない。
     function summaryHTML(e, portrait) {
         const tab = cur.tab || 'input';
-        // ハイパータブはハイパーの計算、入力タブは換算の計算。結果タブには計算ボタンを出さない。
+        // ハイパータブはハイパーの計算、入力タブは換算の計算。結果タブには計算・読み取りのボタンを出さない
+        // （ライブ読み取り中だけ、止められるように停止ボタンを残す）。
         const r = tab === 'hyper' ? e.hyperRun : (e.result && !e.result.error ? e.result : null);
         const who = cur.page ? `<div class="flex items-center gap-3 shrink-0">
                 ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-10 h-10 object-contain">` : ''}
@@ -422,8 +423,8 @@ const scouter = (() => {
                 ${at ? `<div class="font-mono text-xs text-base-content/70">${esc(at)}</div>` : '<div class="text-xs text-base-content/40">まだ計算していません</div>'}
             </div>
             <div class="ml-auto flex gap-1 shrink-0">
-                <button data-sc="file" class="btn btn-sm" title="ステータス画面のスクショを読み取る（貼り付け・ドロップでも可）"><i data-lucide="image" class="w-3.5 h-3.5"></i>スクショ読み取り</button>
-                <button data-sc="live" class="btn btn-sm ${cur.live ? 'btn-error btn-soft' : ''}" title="ゲーム画面を共有して、ステータス画面を読み取り続ける"><i data-lucide="monitor" class="w-3.5 h-3.5"></i>${cur.live ? 'ライブ停止' : 'ライブ読み取り'}</button>
+                ${tab !== 'result' || cur.live ? `<button data-sc="file" class="btn btn-sm ${tab === 'result' ? 'hidden' : ''}" title="ステータス画面のスクショを読み取る（貼り付け・ドロップでも可）"><i data-lucide="image" class="w-3.5 h-3.5"></i>スクショ読み取り</button>
+                <button data-sc="live" class="btn btn-sm ${cur.live ? 'btn-error btn-soft' : ''}" title="ゲーム画面を共有して、ステータス画面を読み取り続ける"><i data-lucide="monitor" class="w-3.5 h-3.5"></i>${cur.live ? 'ライブ停止' : 'ライブ読み取り'}</button>` : ''}
                 ${tab === 'input' ? `<button data-sc="calc" class="btn btn-sm btn-primary" ${cur.busy ? 'disabled' : ''}><i data-lucide="calculator" class="w-3.5 h-3.5"></i>${cur.busy ? '計算中…' : '計算する'}</button>` : ''}
                 ${tab === 'hyper' ? `<button data-sc="hcalc" class="btn btn-sm btn-primary" ${cur.busy ? 'disabled' : ''}><i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>${cur.busy ? '計算中…' : 'ハイパーを計算する'}</button>` : ''}
                 <input type="file" accept="image/*" multiple data-sc="input" hidden>
