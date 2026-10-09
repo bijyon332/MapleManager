@@ -343,7 +343,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
         allChars() {
             return this.state.members.flatMap((m) => m.characters.map((c) => Object.assign({}, c, {
                 memberId: m.id, discordName: m.discordName,
-                who: m.displayName || m.discordName, colorIdx: m.colorIdx
+                who: CS().label(m), colorIdx: m.colorIdx
             })));
         },
         guilds() {
@@ -359,7 +359,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
             else if (guild && c.guild !== guild) return false;
             const t = q.trim().toLowerCase();
             if (!t) return true;
-            return [c.name, c.guild, c.job, c.discordName, c.who, c.note]
+            return [c.name, c.guild, c.job, c.who, c.note]
                 .some((v) => String(v || '').toLowerCase().includes(t));
         },
         // 名簿カードの並びは一覧タブのソート設定とは切り離す。名簿は「その人の手駒」を
@@ -402,7 +402,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
                 '<button class="btn btn-sm btn-primary" data-cm="add-member"><i data-lucide="user-plus" class="w-3.5 h-3.5"></i>メンバー追加</button>' +
                 '</div>' +
                 '<span class="spacer"></span>' +
-                '<input id="cm-q" type="search" placeholder="キャラ名 / Discord名 / ギルド / 職" data-cm="q" autocomplete="off">' +
+                '<input id="cm-q" type="search" placeholder="キャラ名 / 表示名 / ギルド / 職" data-cm="q" autocomplete="off">' +
                 '<select id="cm-guild" data-cm="guild-filter" title="ギルドで絞り込む"></select>' +
                 '<button class="btn btn-sm" data-cm="refresh-all" id="cm-refresh-all" title="登録済みキャラのレベル・職・画像を取り直す">' +
                 '<i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>全員を更新</button>' +
@@ -472,7 +472,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
             if (meSel) {
                 meSel.innerHTML = '<option value="">（未選択）</option>' +
                     this.state.members.map((m) =>
-                        `<option value="${m.id}" ${me && me.id === m.id ? 'selected' : ''}>${esc(CS().labelWithHandle(m))}</option>`).join('');
+                        `<option value="${m.id}" ${me && me.id === m.id ? 'selected' : ''}>${esc(CS().label(m))}</option>`).join('');
             }
             if (meNote) {
                 meNote.textContent = me
@@ -534,7 +534,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
             const filtering = !!(this.state.ui.q.trim() || this.state.ui.guild);
             const cards = this.state.members.map((m) => {
                 const chars = m.characters.map((c) => Object.assign({}, c, {
-                    discordName: m.discordName, who: m.displayName || m.discordName
+                    discordName: m.discordName, who: CS().label(m)
                 }));
                 const shown = this.sortForRoster(chars.filter((c) => this.matches(c)));
                 // 絞り込み中に1体も残らないメンバーはカードごと隠す。
@@ -546,13 +546,13 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
     <div class="mhead" data-cm="toggle">
         <span class="caret"><i data-lucide="chevron-down" class="w-4 h-4"></i></span>
         <span class="mdot" style="background:${this.color(m)}"></span>
-        <span class="mname">${esc(m.displayName || m.discordName)}${m.displayName ? '<span class="alias">@' + esc(m.discordName) + '</span>' : ''}</span>
+        <span class="mname">${esc(CS().label(m))}</span>
         <span class="mmeta">${m.characters.length}キャラ${max ? ' / 最高 Lv.' + max : ''}</span>
         <span class="gtags">${gs.slice(0, 4).map((g) => '<span class="chip">' + esc(g) + '</span>').join('')}${gs.length > 4 ? '<span class="chip">+' + (gs.length - 4) + '</span>' : ''}</span>
         <span class="spacer"></span>
         <span class="mbtns">
             <button class="btn btn-ghost btn-xs btn-square" data-cm="refresh-member" title="このメンバーのキャラを更新"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
-            <button class="btn btn-ghost btn-xs btn-square" data-cm="edit-member" title="Discord名・表示名を編集"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+            <button class="btn btn-ghost btn-xs btn-square" data-cm="edit-member" title="表示名・メモを編集"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
             <button class="btn btn-ghost btn-xs btn-square danger" data-cm="del-member" title="メンバーごと削除"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
         </span>
     </div>
@@ -597,7 +597,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
         <td>${esc(c.job || '—')}</td>
         <td>${esc(c.guild || '—')}</td>
         <td><div class="who"><span class="mdot" style="background:${COLORS[(c.colorIdx || 0) % COLORS.length]}"></span>
-            <span>${esc(c.who)}${c.who !== c.discordName ? '<span class="handle">@' + esc(c.discordName) + '</span>' : ''}</span></div></td>
+            <span>${esc(c.who)}</span></div></td>
         <td class="num" style="color:var(--mu)">${fmtDate(c.updatedAt)}</td>
         <td><div class="cbtns">
             <button class="btn btn-ghost btn-xs btn-square" data-cm="refresh-char" title="APIで取り直す"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
@@ -618,7 +618,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
 
             const memberOpts = (sel) => '<option value="">（割り当て先を選ぶ）</option>' +
                 this.state.members.map((m) =>
-                    `<option value="${m.id}" ${sel === m.id ? 'selected' : ''}>${esc(CS().labelWithHandle(m))}</option>`).join('');
+                    `<option value="${m.id}" ${sel === m.id ? 'selected' : ''}>${esc(CS().label(m))}</option>`).join('');
 
             const me = cs && cs.me();
             const secA = `<section class="todo">
@@ -763,7 +763,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
                     if (CS()) CS().setMe(t.value);
                     this.renderMeBar();
                     const m = this.memberById(t.value);
-                    this.toast(m ? `自分を ${m.displayName || m.discordName} にしました` : '自分の指定を外しました', 'ok');
+                    this.toast(m ? `自分を ${CS().label(m)} にしました` : '自分の指定を外しました', 'ok');
                 }
             });
 
@@ -820,12 +820,12 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
             const m = this.memberById(mid);
             if (!m) return;
             const ok = await this.confirm(
-                `${m.displayName || m.discordName} をキャラ ${m.characters.length} 体ごと削除します。よろしいですか？`, '削除する');
+                `${CS().label(m)} をキャラ ${m.characters.length} 体ごと削除します。よろしいですか？`, '削除する');
             if (!ok) return;
             this.state.members = this.state.members.filter((x) => x.id !== mid);
             this.save();
             this.render();
-            this.toast(`${m.displayName || m.discordName} を削除しました`, 'ok');
+            this.toast(`${CS().label(m)} を削除しました`, 'ok');
         },
 
         /* ================= 未割り当ての後始末 ================= */
@@ -1060,8 +1060,8 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
     style="width:22px;height:22px;padding:0;border-radius:50%;background:${c};border:2px solid ${i === m.colorIdx ? '#fff' : 'transparent'}"></button>`).join('');
             const veil = this.openVeil(`<div class="cm-modal">
     <h2>メンバーの編集</h2>
-    <div class="fld"><label>Discord名（識別用）</label><input data-x="discord" type="text" value="${esc(m.discordName)}" spellcheck="false"></div>
-    <div class="fld"><label>表示名（各ツールに出る呼び名／未設定ならDiscord名）</label><input data-x="display" type="text" value="${esc(m.displayName)}"></div>
+    <div class="fld"><label>Discord名（識別用・非表示）</label><input data-x="discord" type="text" value="${ADMIN ? esc(m.discordName) : ''}" placeholder="変えるときだけ入力（今の名前は表示しません）" spellcheck="false"></div>
+    <div class="fld"><label>表示名（各ツールに出る呼び名）</label><input data-x="display" type="text" value="${esc(m.displayName)}"></div>
     <div class="fld"><label>メモ</label><input data-x="note" type="text" value="${esc(m.note)}" placeholder="加入日・役職など"></div>
     <div class="fld"><label>色</label><div class="row">${swatches}</div></div>
     <div class="foot"><span class="grow"></span>
@@ -1085,8 +1085,8 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
                     });
                 } else if (b.dataset.x === 'cancel') close();
                 else if (b.dataset.x === 'save') {
-                    const name = veil.querySelector('[data-x="discord"]').value.trim();
-                    if (!name) { this.toast('Discord名は必須です', 'warn'); return; }
+                    // 空欄なら今のDiscord名のまま（他人に見えないよう欄には出していない）。
+                    const name = veil.querySelector('[data-x="discord"]').value.trim() || m.discordName;
                     if (this.state.members.some((x) => x.id !== m.id && x.discordName.toLowerCase() === name.toLowerCase())) {
                         this.toast('同じDiscord名がすでにあります', 'warn'); return;
                     }
@@ -1115,7 +1115,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
                     '</optgroup>')
             ).join('');
             const memberOpts = this.state.members.map((m) =>
-                `<option value="${m.id}" ${m.id === hit.member.id ? 'selected' : ''}>${esc(CS().labelWithHandle(m))}</option>`).join('');
+                `<option value="${m.id}" ${m.id === hit.member.id ? 'selected' : ''}>${esc(CS().label(m))}</option>`).join('');
 
             const veil = this.openVeil(`<div class="cm-modal">
     <h2>キャラクターの編集</h2>
@@ -1215,18 +1215,25 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
         },
 
         /* ================= data in/out ================= */
+        // Discord名はログインがなく誰でも見られるため、普段の書き出しには載せない（暫定対応）。
+        // 名簿を丸ごと戻すバックアップには要るので、管理用（?admin=1）のときだけ含める。
         exportJSON() {
-            return JSON.stringify({ version: VERSION, members: this.state.members }, null, 2);
+            const members = ADMIN ? this.state.members
+                : this.state.members.map(({ discordName, ...rest }) => rest);
+            return JSON.stringify({ version: VERSION, members }, null, 2);
         },
 
         exportCSV() {
             const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-            const head = ['Discord名', '表示名', 'キャラ名', 'ギルド', 'レベル', '職', 'メイン', '最終更新'];
+            const head = ['表示名', 'キャラ名', 'ギルド', 'レベル', '職', 'メイン', '最終更新'];
+            if (ADMIN) head.unshift('Discord名');
             const lines = [head.map(q).join(',')];
             this.state.members.forEach((m) => {
                 m.characters.forEach((c) => {
-                    lines.push([m.discordName, m.displayName, c.name, c.guild, c.level || '',
-                        c.job, c.isMain ? 'main' : '', fmtDate(c.updatedAt)].map(q).join(','));
+                    const row = [CS().label(m), c.name, c.guild, c.level || '',
+                        c.job, c.isMain ? 'main' : '', fmtDate(c.updatedAt)];
+                    if (ADMIN) row.unshift(m.discordName);
+                    lines.push(row.map(q).join(','));
                 });
             });
             return '﻿' + lines.join('\r\n');   // Excel向けにBOM付き
@@ -1236,10 +1243,8 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
             const all = this.allChars();
             const out = [`■ コミュニティ名簿（${this.state.members.length}人 / ${all.length}キャラ）`, ''];
             this.state.members.forEach((m) => {
-                // 貼る先がDiscordなので、表示名のあとに @Discord名 も残しておく。
-                out.push(m.displayName && m.displayName !== m.discordName
-                    ? `${m.displayName}（@${m.discordName}）`
-                    : `@${m.discordName}`);
+                // 以前は @Discord名 も添えていたが、誰でも書き出せるので表示名だけにする。
+                out.push(CS().label(m));
                 if (!m.characters.length) { out.push('  ・（キャラ未登録）'); }
                 m.characters.slice().sort((a, b) => (b.level || 0) - (a.level || 0)).forEach((c) => {
                     const bits = [c.name];

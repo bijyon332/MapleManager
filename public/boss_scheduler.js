@@ -513,7 +513,7 @@
     }
     const wishOf = (characterId, bossId, difficulty) => state.wishes.find((w) =>
         w.characterId === characterId && w.bossId === bossId && w.difficulty === difficulty);
-    const displayName = (m) => (m ? (m.displayName || m.discordName) : "?");
+    const displayName = (m) => (m ? (CS() ? CS().label(m) : (m.displayName || "?")) : "?");
     const memberColor = (m) => (m ? MEMBER_COLORS[(m.colorIdx || 0) % MEMBER_COLORS.length] : "#475569");
 
     const diffLabel   = (d) => (window.DIFFICULTY_LABEL || {})[d] || d || "";
@@ -771,12 +771,13 @@
 
         const body = el("div", { class: "panel-body" });
         body.appendChild(el("div", { class: "row", style: "margin-bottom:10px" },
-            el("label", { class: "field" }, "Discord名（識別用）",
+            // Discord名は誰でも見られるため欄に出さない（暫定対応）。空欄なら今のまま。
+            el("label", { class: "field" }, "Discord名（識別用・非表示）",
                 el("input", {
-                    type: "text", value: me.discordName, style: "width:170px",
+                    type: "text", value: "", placeholder: "変えるときだけ入力", style: "width:170px",
                     onchange: (e) => {
                         const v = e.target.value.trim();
-                        if (!v) { toast("Discord名は必須です", "warn"); render(); return; }
+                        if (!v) return;
                         if (state.members.some((x) => x.id !== me.id && x.discordName === v)) {
                             toast("同じDiscord名が既にあります", "warn"); render(); return;
                         }
@@ -785,7 +786,7 @@
                 })),
             el("label", { class: "field" }, "表示名（画面に出る名前）",
                 el("input", {
-                    type: "text", value: me.displayName || "", placeholder: "未設定ならDiscord名", style: "width:150px",
+                    type: "text", value: me.displayName || "", placeholder: "未設定ならメインキャラ名", style: "width:150px",
                     onchange: (e) => { me.displayName = e.target.value.trim(); saveState(); render(); }
                 })),
             el("label", { class: "check", style: "align-self:flex-end;padding-bottom:6px" },
