@@ -40,7 +40,7 @@
         'キネシス': 'kinesis', 'シア': 'sia', 'シャドー': 'shadower',
         'ゼノン': 'xenon', 'ゼロ': 'zero', 'ソルマス': 'dawnwarrior',
         'ハヤト': 'hayato', 'バトルメイジ': 'battlemage', 'ミハエル': 'mihile',
-        'ララ': 'lara', 'リン': 'lynn', 'レン': 'ren', '聖魔(カンナ)': 'kanna',
+        'ララ': 'lara', 'リン': 'lynn', 'レテ': 'lethe', 'レン': 'ren', '聖魔(カンナ)': 'kanna',
         'BM': '', 'BaM': '', 'CBM': '', 'レン/エリル': ''
     };
 

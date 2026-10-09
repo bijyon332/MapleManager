@@ -34,6 +34,7 @@ const hexaTracker = {
         NOVA: 'Nova', FLORA: 'Flora', ANIMA: 'Anima',
         FRIENDSWORLD: 'Friendship World', TRANSCENDENT: 'Transcendent',
         SENGOKU: 'Sengoku', JIANGHU: 'Jianghu', SHINE: 'Shine',
+        ASMODIAN: 'Asmodian',
     },
 
     page: 'ranking',        // 'ranking' | 'tracker'
