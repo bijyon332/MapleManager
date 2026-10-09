@@ -542,7 +542,7 @@ body {
 .sc-bc-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: #0f172a; }
 .sc-bc-bar span { display: block; height: 100%; background: var(--cc); }
 .sc-bctbl .df-easy { color: #9ca3af; } .sc-bctbl .df-normal { color: #22d3ee; } .sc-bctbl .df-hard { color: #f87171; }
-.sc-bctbl .df-chaos { color: #ca8a04; } .sc-bctbl .df-extreme { color: #ef4444; }
+.sc-bctbl .df-chaos { color: #ca8a04; } .sc-bctbl .df-extreme { color: #ef4444; } .sc-bctbl .df-destiny { color: #e879f9; } .sc-bctbl .df-champion { color: #fbbf24; }
 
 /* 上部バーの収入欄のサーバー枠（左線の色はサーバー色のユーティリティで付ける）。 */
 .mm-srv { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px 0 10px; border: 1px solid color-mix(in oklab, var(--color-base-content) 15%, transparent); border-left-width: 3px; background: var(--color-base-200); white-space: nowrap; flex-shrink: 0; transition: opacity 0.15s; }
