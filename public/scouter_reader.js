@@ -154,49 +154,155 @@
     }
 
     /* ---------- the hover tooltip ---------- */
+    // The tooltip gives each number twice: in [Applied Value] ("Base Value : 4012",
+    // "% Value : 89%", "% Value Not Applied : 0"), and again as the lines under
+    // [Base Value] / [% Value] / [% Value Not Applied], which add up to it.
+    // The mouse cursor sits on the tooltip and often hides a label or a colon, and a
+    // half-hidden colon reads as "1" (": 89%" → "189%"), so both places are read and
+    // checked against each other.
+    const KINDS = ['base', 'per', 'abs'];
+    // "[% Value Not Applied]", "Base Value]" (a bracket is often lost), "[Applied Value]".
+    function headOf(t) {
+        if (!/Valu\w*\s*\]|Appl\w*\s*\]|^\W*\[\s*(Base|%|Appl|Valu)/i.test(t)) return null;
+        if (/Not\s*Appl/i.test(t)) return 'abs';
+        if (/%/.test(t)) return 'per';
+        if (/Base/i.test(t)) return 'base';
+        if (/Appl/i.test(t)) return 'applied';
+        return 'unknown';
+    }
+    // The number on a "Name : 123" line. Without a colon, a leading "1" may be the colon.
+    function itemOf(t) {
+        const fix = (x) => x.replace(/[oO](?=[\d.,%])|(?<=[\d.,])[oO]/g, '0').replace(/(?<=\d)[lI|](?=\d)/g, '1');
+        const strs = (x) => fix(x).match(/\d[\d,]*(?:\.\d+)?/g) || [];
+        const val = (x) => Number(x.replace(/,/g, ''));
+        if (/:/.test(t)) {
+            const m = strs(t.split(/:/).slice(1).join(':'));
+            return m.length ? { n: val(m[0]) } : null;
+        }
+        const m = strs(t.split(/Valu\w*|Appl\w*/i).pop());
+        if (!m.length) return null;
+        const x = m[m.length - 1];
+        const alt = /^1[\d,]/.test(x) ? val(x.slice(1).replace(/^,/, '')) : undefined;
+        return { n: val(x), alt };
+    }
+    // Every total the lines can make, trying each doubtful "1" both ways.
+    function sumsOf(items) {
+        let sums = new Set([0]);
+        for (const it of items) {
+            const next = new Set();
+            for (const s of sums) { next.add(s + it.n); if (it.alt !== undefined) next.add(s + it.alt); }
+            sums = next.size > 256 ? new Set([...next].slice(0, 256)) : next;
+        }
+        return sums;
+    }
+    // Floats from "12.5%" lines add up with rounding noise.
+    const same = (a, b) => Math.abs(a - b) < 0.05;
+    // Candidates for one number, most likely first: an [Applied Value] reading the lines
+    // agree with, then the [Applied Value] reading, then what a whole block adds up to.
+    function candsOf(applied, sec) {
+        const a = applied ? [applied.n, applied.alt].filter((v) => v !== undefined) : [];
+        const sums = sec && sec.items.length ? [...sumsOf(sec.items)].map((v) => Math.round(v * 100) / 100) : [];
+        const hits = a.filter((c) => sums.some((s) => same(s, c)));
+        const out = [];
+        for (const v of [...hits, ...a, ...(sec && sec.closed ? sums : [])]) if (!out.some((o) => same(o, v))) out.push(v);
+        // Only the lines, and they can add up more than one way: not to be taken unchecked.
+        out.sure = a.length > 0 || out.length === 1;
+        return out;
+    }
+    // The stat window shows the result: floor(Base × (1 + %/100)) + Not Applied.
+    const finalOf = (b, p, a) => Math.floor(b * (1 + p / 100) + 1e-6) + a;
+    function settle(t, shown) {
+        const c = { base: t.cands.base, per: t.cands.per, abs: t.cands.abs.length ? t.cands.abs : [0] };
+        let best = null;
+        if (shown > 0 && c.base.length) {
+            const pers = c.per.length ? c.per : [];
+            for (let i = 0; i < c.base.length; i++) for (let k = 0; k < c.abs.length; k++) {
+                for (let j = 0; j < pers.length; j++) {
+                    if (Math.abs(finalOf(c.base[i], pers[j], c.abs[k]) - shown) <= 1 && (!best || i + j + k < best.rank)) best = { rank: i + j + k, base: c.base[i], per: pers[j], abs: c.abs[k] };
+                }
+                // % hidden altogether: work it out from the result.
+                if (!pers.length && !best) {
+                    const p = Math.round(((shown - c.abs[k]) / c.base[i] - 1) * 100);
+                    if (p >= 0 && Math.abs(finalOf(c.base[i], p, c.abs[k]) - shown) <= 1) best = { rank: i + k, base: c.base[i], per: p, abs: c.abs[k] };
+                }
+            }
+        }
+        const first = (l) => (l.sure === false ? undefined : l[0]);
+        if (!best) best = { base: first(c.base), per: first(c.per), abs: c.abs.sure === false ? undefined : c.abs[0] };
+        // Without Base or % the read is no good (a live read then tries the next frame).
+        if (best.base === undefined || best.per === undefined || best.abs === undefined) return null;
+        return { stat: t.stat, base: best.base, per: best.per, abs: best.abs };
+    }
+
     function readTooltip(rows) {
         const lineOf = (r) => r.words.map((w) => w.t).join(' ');
-        // "Base Value : 5907" — the first one with a number (the later "[Base Value]" is a heading).
-        const baseIdx = rows.findIndex((r) => /Base\s*Valu/i.test(lineOf(r)) && numbersOf(lineOf(r).split(/Valu\w*/i)[1] || '').length);
-        if (baseIdx < 0) return null;
-        const baseRow = rows[baseIdx];
-        const bw = baseRow.words.find((w) => /^Base/i.test(w.t)) || baseRow.words[0];
-        const x0 = bw.x0 - 30, x1 = bw.x0 + 270;   // the tooltip is ~260px wide at 100% UI
-        const inBox = (r) => r.words.filter((w) => w.x0 >= x0 && w.x1 <= x1);
-        // The number after the colon; the colon itself is sometimes read as "1" or lost,
-        // so without one take the last number after "Value"/"Applied".
-        const after = (r) => {
-            const t = lineOf({ words: inBox(r) });
-            if (/:/.test(t)) return numbersOf(t.split(/:/).slice(1).join(':'));
-            const n = numbersOf(t.split(/Valu\w*|Appl\w*/i).pop());
-            return n.length ? [n[n.length - 1]] : [];
-        };
-
-        const res = { base: after(baseRow)[0] };
-        for (let i = baseIdx + 1; i < Math.min(rows.length, baseIdx + 4); i++) {
-            const t = lineOf({ words: inBox(rows[i]) });
-            if (/^\W*%\s*Valu\w*\s*Not/i.test(t) || /Not\s*Appl/i.test(t)) { if (res.abs === undefined && after(rows[i]).length) res.abs = after(rows[i])[0]; }
-            else if (/%\s*Valu/i.test(t) || /^\W*Valu/i.test(t)) { if (res.per === undefined && after(rows[i]).length) res.per = after(rows[i])[0]; }
-            if (/^\s*\[/.test(t)) break;   // next block ([Base Value])
+        // Where the tooltip is: "Base Value : 4012" (capital B — the description above
+        // says "base value" too), or else the [Applied Value] heading.
+        let at = rows.findIndex((r) => /Base\s*Valu\w*\s*[:;.]?\s*\d/.test(lineOf(r)));
+        let first = at >= 0 ? (rows[at].words.find((w) => /^Base/.test(w.t)) || rows[at].words[0]) : null;
+        let head = -1;
+        if (at < 0) {
+            head = rows.findIndex((r) => /Appl\w*\s*Valu/i.test(lineOf(r)) && !/Not/i.test(lineOf(r)));
+            if (head < 0) return null;
+            first = rows[head].words.find((w) => /Appl/i.test(w.t)) || rows[head].words[0];
         }
+        const x0 = first.x0 - 30, x1 = first.x0 + 270;   // the tooltip is ~260px wide at 100% UI
+        const textOf = (r) => r.words.filter((w) => w.x0 >= x0 && w.x1 <= x1).map((w) => w.t).join(' ');
+
+        // Line pitch inside the tooltip, from the lines below the anchor.
+        const from = at >= 0 ? at : head;
+        const ys = rows.slice(from, from + 16).filter((r) => textOf(r).trim()).map((r) => r.cy);
+        const gaps = ys.slice(1).map((y, i) => y - ys[i]).filter((g) => g > 4).sort((p, q) => p - q);
+        const pitch = gaps.length ? gaps[Math.floor(gaps.length / 2)] : 15;
+        if (at < 0) at = head + 1;
+        const baseY = head >= 0 ? rows[head].cy + pitch : rows[at].cy;
+
+        // [Applied Value]: Base, %, % Not Applied, one a line in that order. A line whose
+        // label the cursor hides is placed by its height.
+        const applied = {};
+        for (let i = head >= 0 ? head + 1 : at; i < rows.length; i++) {
+            const t = textOf(rows[i]);
+            const slot = Math.round((rows[i].cy - baseY) / pitch);
+            if (slot > 2 || (slot > 0 && headOf(t))) break;
+            const it = itemOf(t);
+            if (!it || slot < 0) continue;
+            const kind = /Not\s*Appl/i.test(t) ? 'abs' : /%\s*Valu/i.test(t) ? 'per' : /Base/.test(t) ? 'base' : KINDS[slot];
+            if (!applied[kind]) applied[kind] = it;
+        }
+
+        // The breakdown blocks below. A block counts as whole when the next heading is seen.
+        const secs = {};
+        let cur = null;
+        for (let i = at + 1; i < Math.min(rows.length, at + 40); i++) {
+            const t = textOf(rows[i]);
+            const h = headOf(t);
+            if (h) {
+                if (cur) cur.closed = true;
+                cur = KINDS.includes(h) && !secs[h] ? (secs[h] = { items: [], closed: false }) : null;
+                continue;
+            }
+            if (!cur) continue;
+            const it = itemOf(t);
+            if (it) cur.items.push(it);
+        }
+
+        const cands = {};
+        for (const k of KINDS) cands[k] = candsOf(applied[k], secs[k]);
 
         // Title: the top line of the tooltip box, above the description.
         let stat = null;
-        const above = rows.slice(Math.max(0, baseIdx - 14), baseIdx);
+        const above = rows.slice(Math.max(0, at - 14), at);
         for (const r of above) {
-            const t = lineOf({ words: inBox(r) }).trim();
+            const t = textOf(r).trim();
             const m = TITLES.find(([re]) => re.test(t));
             if (m) { stat = m[1]; break; }
         }
         if (!stat) {
-            const desc = above.map((r) => lineOf({ words: inBox(r) })).join(' ');
+            const desc = above.map(textOf).join(' ');
             const m = DESCRIBES.find(([re]) => re.test(desc));
             if (m) stat = m[1];
         }
-        if (!stat) return null;
-        if (res.per === undefined) res.per = 0;
-        if (res.abs === undefined) res.abs = 0;
-        return { stat, ...res };
+        return stat ? { stat, cands } : null;
     }
 
     /* ---------- the HYPER STATS window ---------- */
@@ -258,7 +364,10 @@
 
     function parse(words) {
         const rows = rowsOf(words);
-        return { window: readWindow(rows), tooltip: readTooltip(rows), hyper: readHyper(rows) };
+        const window = readWindow(rows);
+        const t = readTooltip(rows);
+        // The stat's own row in the window, when the tooltip has not covered it.
+        return { window, tooltip: t && settle(t, window[t.stat]), hyper: readHyper(rows) };
     }
 
     // Lines of digits read from the cut-out column → levels, by the nearest row.
