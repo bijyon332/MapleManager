@@ -385,7 +385,8 @@ const scouter = (() => {
                 ${result ? `<div class="card card-sm bg-base-100 border border-base-content/10 overflow-hidden"><div class="sc-body sc-resbody">
                     <div class="sc-side" id="sc-result">${resultHTML(e)}</div>
                     <div class="sc-cutpage">${cutPageHTML(e)}</div>
-                </div></div>` : tabNow === 'hyper' ? hyperPageHTML(e) : `<div id="sc-reads">${readsHTML()}</div>
+                </div></div>` : tabNow === 'hyper' ? hyperPageHTML(e) : `${stepsHTML(inputSteps())}
+                <div id="sc-reads">${readsHTML()}</div>
                 ${formHTML(e.form)}`}
             </div>
         </div>`;
@@ -474,7 +475,6 @@ const scouter = (() => {
             <div class="flex flex-col gap-3">
                 ${card('基本・主ステータス', 'STRなどにカーソルを合わせると出る [Applied Value] の値', basic + main)}
                 ${card('詳細ステータス', '', detail, `入力済み ${filled} / ${DETAIL.length}`)}
-                ${hyperInputHTML(f)}
                 ${card('リンクスキル・シードリング', 'レベル', linkBody)}
             </div>
             <div class="flex flex-col gap-3">
@@ -531,73 +531,64 @@ const scouter = (() => {
         const it = HY() && HY().ITEMS.find((x) => x.key === k);
         return it && it.eff && lv ? `+${it.eff(lv)}${it.unit}` : '';
     };
-    // 入力タブ: 今のレベル。0〜15 のプルダウン（マウスで選ぶ前提）。
-    function hyperInputHTML(f) {
-        if (!HY()) return '';
-        const lv = hyperLv(f);
-        const used = HY().costOf(lv), total = hyperTotal(f);
-        const left = num(f.hyperPoint);
-        const mismatch = f.hyperPoint !== '' && total && used + left !== total;
-        const opts = (v) => Array.from({ length: 16 }, (_, i) => `<option value="${i}" ${i === v ? 'selected' : ''}>${i}</option>`).join('');
-        const rows = HYPER_KEYS.map((k) => `<label class="flex items-center gap-2">
-                <span class="text-xs flex-1 truncate ${lv[k] ? 'text-base-content/75' : 'text-base-content/40'}" title="${esc(HY().ITEMS.find((x) => x.key === k).name)}">${esc(HYPER_JA[k])}</span>
-                <span class="text-[10px] font-mono text-base-content/45 w-10 text-right">${esc(effText(k, lv[k]))}</span>
-                <select class="select select-xs w-14 font-mono ${lv[k] ? 'font-bold' : 'text-base-content/35'}" data-k="hyper.${k}">${opts(lv[k])}</select></label>`).join('');
-        const note = mismatch ? `<p class="text-[11px] text-warning">画面の残り ${fmt(left)}pt と合いません（Lv${esc(f.level)} の所持 ${fmt(total)}pt − 使用 ${fmt(used)}pt = ${fmt(total - used)}pt）。Lv かレベルの読み取りを確かめてください。</p>` : '';
-        return card('ハイパーステータス', 'スクショで読み取れます', `<div class="grid grid-cols-2 gap-x-6 gap-y-1">${rows}</div>${note}`,
-            `使用 ${fmt(used)} / ${total ? fmt(total) : '—'} pt`);
-    }
-
     // ハイパー最適化タブ。
     function hyperPageHTML(e) {
         const f = e.form, o = e.hyperOpt, H = HY();
         const cls = CLASSES[f.classId];
-        const wrap = (body) => `<div class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-3">${body}</div></div>`;
-        if (!H) return wrap('<div class="sc-res-empty">読み込み中です。</div>');
-        if (!cls || !num(f.main.base) || !num(f.atk.base)) return wrap('<div class="sc-res-empty">「入力」で職業と主ステータス・攻撃力の内訳を入れると、ここに一番伸びる振り方が出ます。</div>');
+        if (!H) return '<div class="sc-res-empty">読み込み中です。</div>';
         const total = hyperTotal(f);
-        if (!total) return wrap('<div class="sc-res-empty">「入力」で Lv を入れてください（所持ポイントを Lv から出します）。</div>');
         const now = hyperLv(f);
-        const r = H.optimize(f, cls, f.classId, now, { total, locked: o.locked, pdr: o.pdr, critBuff: o.critBuff });
-        if (!r) return wrap('<div class="sc-res-empty sc-err">固定した項目だけで所持ポイントを超えています。固定を外してください。</div>');
+        const used = H.costOf(now);
+        // 計算できないときは、今のレベルの入力だけ出す（理由は右の枠に）。
+        const why = !cls || !num(f.main.base) || !num(f.atk.base) ? '「入力」で職業と主ステータス・攻撃力の内訳を入れると、一番伸びる振り方が出ます。'
+            : !total ? '「入力」で Lv を入れてください（所持ポイントを Lv から出します）。' : '';
+        const r = why ? null : H.optimize(f, cls, f.classId, now, { total, locked: o.locked, pdr: o.pdr, critBuff: o.critBuff });
+        const err = why || (r ? '' : '固定した項目だけで所持ポイントを超えています。固定を外してください。');
+        const left = num(f.hyperPoint);
+        const mismatch = f.hyperPoint !== '' && total && used + left !== total
+            ? `<p class="text-[11px] text-warning">画面の残り ${fmt(left)}pt と合いません（Lv${esc(f.level)} の所持 ${fmt(total)}pt − 使用 ${fmt(used)}pt = ${fmt(total - used)}pt）。Lv かレベルの読み取りを確かめてください。</p>` : '';
+        const opts = (v) => Array.from({ length: 16 }, (_, i) => `<option value="${i}" ${i === v ? 'selected' : ''}>${i}</option>`).join('');
         const pct = (x) => (x >= 0 ? '+' : '') + (x * 100).toFixed(2) + '%';
         const pdrBtn = (v) => `<button data-sc="hpdr" data-v="${v}" class="btn btn-xs ${num(o.pdr) === v ? 'btn-primary' : ''}">${v}%</button>`;
         const rows = HYPER_KEYS.map((k) => {
-            const a = now[k], b = r.levels[k] || 0, d = b - a;
+            const a = now[k], b = r ? (r.levels[k] || 0) : null, d = r ? b - a : 0;
             const lockOn = !!o.locked[k];
             return `<tr class="${d ? 'sc-hy-chg' : ''}">
-                <th><span class="text-base-content/85">${esc(HYPER_JA[k])}</span></th>
-                <td class="font-mono text-right ${a ? '' : 'text-base-content/30'}">${a}<small>${esc(effText(k, a))}</small></td>
-                <td class="font-mono text-right font-bold ${b ? 'text-white' : 'text-base-content/30'}">${b}<small>${esc(effText(k, b))}</small></td>
+                <th><span class="text-base-content/85" title="${esc(H.ITEMS.find((x) => x.key === k).name)}">${esc(HYPER_JA[k])}</span></th>
+                <td class="text-right whitespace-nowrap"><select class="select select-xs w-14 font-mono ${a ? 'font-bold' : 'text-base-content/35'}" data-k="hyper.${k}">${opts(a)}</select><small>${esc(effText(k, a))}</small></td>
+                <td class="font-mono text-right font-bold ${b ? 'text-white' : 'text-base-content/30'}">${r ? b : '—'}<small>${r ? esc(effText(k, b)) : ''}</small></td>
                 <td class="font-mono text-right ${d > 0 ? 'text-success font-bold' : d < 0 ? 'text-error font-bold' : 'text-base-content/25'}">${d > 0 ? '+' + d : d < 0 ? d : '·'}</td>
-                <td class="font-mono text-right text-base-content/60">${fmt(H.CUM[b])}</td>
+                <td class="font-mono text-right text-base-content/60">${r ? fmt(H.CUM[b]) : ''}</td>
                 <td class="text-center"><button data-sc="hlock" data-key="${k}" class="btn btn-xs btn-square ${lockOn ? 'btn-warning btn-soft' : 'btn-ghost text-base-content/30'}" title="${lockOn ? '固定を外す' : '今のレベルで固定する'}"><i data-lucide="${lockOn ? 'lock' : 'lock-open'}" class="w-3 h-3"></i></button></td>
             </tr>`;
         }).join('');
-        const chk = e.hyperCheck && JSON.stringify(e.hyperCheck.levels) === JSON.stringify(r.levels) ? e.hyperCheck : null;
+        const chk = r && e.hyperCheck && JSON.stringify(e.hyperCheck.levels) === JSON.stringify(r.levels) ? e.hyperCheck : null;
         const diffCell = (a, b) => a > 0 ? `${fmt(a)} → <b class="text-amber-300">${fmt(b)}</b> <small class="${b >= a ? 'text-success' : 'text-error'}">${b >= a ? '+' : ''}${fmt(b - a)}</small>` : `— → <b class="text-amber-300">${fmt(b)}</b>`;
         const scouterBox = chk ? (chk.error ? `<p class="text-xs text-error">${esc(chk.error)}</p>` : `<table class="sc-kv">
                 <tr><th>換算主ステ（300%）</th><td>${diffCell(chk.now300, chk.new300)}</td></tr>
                 <tr><th>換算主ステ（380%）</th><td>${diffCell(chk.now380, chk.new380)}</td></tr>
             </table>${chk.nowError ? `<p class="text-[11px] text-warning">今の振り方は計算できませんでした（${esc(chk.nowError.replace(/^MapleScouter が計算できませんでした: /, ''))}）。</p>` : ''}`) : '';
-        const same = HYPER_KEYS.every((k) => (r.levels[k] || 0) === now[k]);
-        return `<div class="grid grid-cols-1 xl:grid-cols-[minmax(0,7fr)_minmax(0,4fr)] gap-3 items-start">
-            ${card('おすすめの振り方', 'ボス相手のダメージが一番伸びる振り方', `<div class="overflow-x-auto"><table class="table table-sm table-zebra sc-hytbl border border-base-content/10">
-                <thead><tr><th></th><th class="text-right">今</th><th class="text-right">おすすめ</th><th class="text-right">差</th><th class="text-right">pt</th><th class="text-center">固定</th></tr></thead>
-                <tbody>${rows}</tbody>
-                <tfoot><tr><th>合計</th><td class="text-right font-mono">${fmt(H.costOf(now))}pt</td><td class="text-right font-mono font-bold text-white">${fmt(r.used)}pt</td><td></td><td class="text-right font-mono text-base-content/60">${fmt(total)}pt 中</td><td></td></tr></tfoot>
-            </table></div>`)}
-            <div class="flex flex-col gap-3">
-                ${card('伸び', same ? '今の振り方が一番です' : '今の振り方と比べたダメージ', `
+        const same = r && HYPER_KEYS.every((k) => (r.levels[k] || 0) === now[k]);
+        const gainBox = r ? card('伸び', same ? '今の振り方が一番です' : '今の振り方と比べたダメージ', `
                     <div class="sc-big"><span>ボス防御率 ${num(o.pdr)}%</span><b>${pct(num(o.pdr) === 380 ? r.gain380 : r.gain300)}</b><small>${num(o.pdr) === 380 ? '300%' : '380%'}: ${pct(num(o.pdr) === 380 ? r.gain300 : r.gain380)}</small></div>
                     <div class="flex items-center gap-2"><button data-sc="hcheck" class="btn btn-sm" ${cur.busy || same ? 'disabled' : ''}><i data-lucide="calculator" class="w-3.5 h-3.5"></i>${cur.busy ? '計算中…' : 'MapleScouter で確かめる'}</button>
                     <span class="text-[11px] text-base-content/50">今とおすすめの換算主ステを出します</span></div>
-                    ${scouterBox}`)}
+                    ${scouterBox}`) : card('伸び', '', `<div class="sc-res-empty ${why ? '' : 'sc-err'}">${esc(err)}</div>`);
+        return `${stepsHTML(['hyper'])}
+            <div id="sc-reads">${readsHTML()}</div>
+            <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,7fr)_minmax(0,4fr)] gap-3 items-start">
+            ${card('ハイパーステータス', '「今」に今のレベルを入れると、ボス相手のダメージが一番伸びる振り方を出します', `<div class="overflow-x-auto"><table class="table table-sm table-zebra sc-hytbl border border-base-content/10">
+                <thead><tr><th></th><th class="text-right">今</th><th class="text-right">おすすめ</th><th class="text-right">差</th><th class="text-right">pt</th><th class="text-center">固定</th></tr></thead>
+                <tbody>${rows}</tbody>
+                <tfoot><tr><th>合計</th><td class="text-right font-mono">${fmt(used)}pt</td><td class="text-right font-mono font-bold text-white">${r ? fmt(r.used) + 'pt' : ''}</td><td></td><td class="text-right font-mono text-base-content/60">${total ? fmt(total) + 'pt 中' : ''}</td><td></td></tr></tfoot>
+            </table></div>${mismatch}`)}
+            <div class="flex flex-col gap-3">
+                ${gainBox}
                 ${card('条件', '', `<div class="flex flex-col gap-2 text-xs">
                     <div class="flex items-center gap-2"><span class="w-32 text-base-content/60">ボス防御率</span>${pdrBtn(300)}${pdrBtn(380)}</div>
                     <label class="flex items-center gap-2"><span class="w-32 text-base-content/60">クリ率のバフ上乗せ</span><input class="input input-xs w-16 font-mono text-right" data-ho="critBuff" value="${esc(o.critBuff)}" inputmode="decimal"><span class="text-base-content/40">%</span></label>
                     <p class="text-[11px] text-base-content/50 leading-relaxed">ボス戦でステータス画面の値より上がるクリティカル率（シャープアイズを入れていない場合など）。クリティカル率が 100% に届かない分は期待値で計算します。<br>
-                    ダメージにかからない項目（一般モンスターダメージ・獲得経験値・アーケインフォースなど）は固定しない限り 0 にします。所持ポイントは Lv${esc(f.level)} から出しています（${fmt(total)}pt）。</p>
+                    ダメージにかからない項目（一般モンスターダメージ・獲得経験値・アーケインフォースなど）は固定しない限り 0 にします。${total ? `所持ポイントは Lv${esc(f.level)} から出しています（${fmt(total)}pt）。` : ''}</p>
                 </div>`)}
             </div>
         </div>`;
@@ -800,10 +791,11 @@ const scouter = (() => {
             else if (k === 'buff') toggleBuff(t.dataset.key);
             else if (k === 'tab') { cur.tab = t.dataset.tab; renderModal(); }
             else if (k === 'hlock') toggleLock(t.dataset.key);
+            else if (k === 'step') { cur.step = t.dataset.step; renderModal(); }
             else if (k === 'hpdr') { cur.e.hyperOpt.pdr = Number(t.dataset.v); save(); renderModal(); }
             else if (k === 'hcheck') checkHyper();
             else if (k === 'apply') applyReads();
-            else if (k === 'discard') { cur.reads = null; document.getElementById('sc-reads').innerHTML = ''; setMsg('読み取りを捨てました。'); }
+            else if (k === 'discard') { cur.reads = null; cur.step = null; renderModal(); setMsg('読み取りを捨てました。'); }
         });
         veil.addEventListener('change', async (ev) => {
             const t = ev.target;
@@ -919,8 +911,11 @@ const scouter = (() => {
     const SCREEN_KEYS = ['combatPower', 'str', 'dex', 'int', 'luk', 'hp', 'att', 'matt'];
 
     // 1回の読み取り結果を、溜めている読み取りに足す。新しく入った項目の数を返す。
-    function stage(res) {
+    function stage(res, only) {
         if (!cur) return 0;
+        if (only === 'hyper') res = { hyper: res.hyper };
+        else if (only === 'window') res = { window: res.window };
+        else if (only) res = { tooltip: res.tooltip && slotOf(res.tooltip.stat, cur.e.form.classId) === only ? res.tooltip : null };
         const r = cur.reads || (cur.reads = { values: {}, splits: {} });
         let n = 0;
         const w = res.window || {};
@@ -950,6 +945,64 @@ const scouter = (() => {
         const hit = statsOf(cid).find(([, label]) => label.toLowerCase() === stat);
         return hit ? hit[0] : null;
     }
+    /* ---------- 読み取りの手順 ---------- */
+    // 1回で全部は写らないので、画面ごと・ツールチップごとに段階を分けて取る。
+    // ライブ中は今の段階の値だけを受け付ける（スクショは写っているものを全部取る）。
+    function inputSteps() {
+        const f = cur ? cur.e.form : {};
+        return ['window', ...statsOf(f.classId).map(([slot]) => slot), 'atk'];
+    }
+    function stepLabel(step) {
+        const f = cur.e.form;
+        if (step === 'window') return 'ステータス画面';
+        if (step === 'hyper') return 'ハイパーステータス画面';
+        if (step === 'atk') return isMagic(f.classId) ? 'Magic ATT' : 'Attack Power';
+        const hit = statsOf(f.classId).find(([slot]) => slot === step);
+        return hit ? hit[1] : { main: '主ステ', sub: '副ステ', sub2: '第3ステ' }[step];
+    }
+    function stepHelp(step) {
+        if (step === 'window') return 'キャラクター情報のステータス画面（STAT）を開いてください。DAMAGE・BOSS DAMAGE などの一覧と Lv・Combat Power を読みます。';
+        if (step === 'hyper') return 'ステータス画面の下の「Hyper Stats」を押して、ハイパーステータス画面を開いてください。今のプリセットの各Lvと残りポイントを読みます。';
+        return `${stepLabel(step)} にカーソルを合わせて、出てくる内訳（Base Value・% Value・% Value Not Applied）が見える状態にしてください。`;
+    }
+    function stepDone(step) {
+        const r = cur && cur.reads;
+        if (!r) return false;
+        if (step === 'window') return ['dmg', 'bossDmg', 'ignoreDef', 'critical', 'criticalDmg'].filter((k) => r.values[k] !== undefined).length >= 3;
+        if (step === 'hyper') return !!r.hyper;
+        return Object.keys(r.splits).some((s) => slotOf(s, cur.e.form.classId) === step);
+    }
+    // 今の段階。ハイパータブではハイパーだけ。入力タブでは選んだものか、まだのうち最初のもの。
+    function curStep() {
+        if (!cur) return null;
+        if (cur.tab === 'hyper') return 'hyper';
+        const steps = inputSteps();
+        if (cur.step && steps.includes(cur.step)) return cur.step;
+        return steps.find((x) => !stepDone(x)) || null;
+    }
+    function stepsHTML(steps) {
+        const now = curStep();
+        const needClass = steps.length > 1 && !cur.e.form.classId;
+        const btns = steps.map((st, i) => {
+            const done = stepDone(st), on = st === now;
+            return `${i ? '<i data-lucide="chevron-right" class="w-3.5 h-3.5 text-base-content/25 shrink-0"></i>' : ''}
+                <button data-sc="step" data-step="${st}" class="btn btn-sm gap-1.5 ${on ? 'btn-primary' : done ? 'btn-soft btn-success' : 'btn-ghost border-base-content/10 text-base-content/50'}">
+                    ${done ? '<i data-lucide="check" class="w-3.5 h-3.5"></i>' : `<span class="font-mono text-[11px] opacity-70">${i + 1}</span>`}${esc(stepLabel(st))}</button>`;
+        }).join('');
+        const help = needClass ? '先に下の「職業」を選ぶと、主ステ・副ステの段階が出ます。'
+            : now ? stepHelp(now) : '全部取れました。内容を確かめて「反映して保存」を押してください。';
+        return `<div class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
+            <div class="flex items-center gap-1.5 flex-wrap"><b class="text-sm text-white mr-2">読み取りの手順</b>${btns}
+                <span class="ml-auto text-[11px] text-base-content/50">${cur.live ? 'ライブ中は今の段階の値だけ受け付けます' : 'スクショは貼り付け・ドロップでも読めます'}</span></div>
+            <p class="text-xs ${now ? 'text-base-content/80' : 'text-success'}">${now ? `<b class="text-primary">${esc(stepLabel(now))}:</b> ` : ''}${esc(help)}</p>
+        </div></div>`;
+    }
+    // 読み取りのあと、今の段階が取れていたら次のまだの段階へ。
+    function advanceStep() {
+        if (!cur || cur.tab === 'hyper') return;
+        if (cur.step && stepDone(cur.step)) cur.step = null;
+    }
+
     function readsHTML() {
         if (!cur || !cur.reads) return '';
         const { values, splits } = cur.reads;
@@ -964,15 +1017,17 @@ const scouter = (() => {
         const hy = cur.reads.hyper ? `<span><em>ハイパー</em>${esc(HYPER_KEYS.filter((k) => cur.reads.hyper.levels[k]).map((k) => `${HYPER_JA[k]} ${cur.reads.hyper.levels[k]}`).join('・') || 'すべて 0')}${cur.reads.hyper.point !== undefined ? `（残り ${cur.reads.hyper.point}pt）` : ''}</span>` : '';
         return `<div class="sc-reads">
             <div class="sc-reads-h"><b>読み取り結果</b>
-                <span>${missing.length && f.classId ? `まだ内訳がない: ${esc(missing.join('・'))}（カーソルを合わせた状態で読み取り）` : ''}</span>
+                <span>${missing.length && f.classId && cur.tab !== 'hyper' ? `まだ内訳がない: ${esc(missing.join('・'))}（カーソルを合わせた状態で読み取り）` : ''}</span>
                 <button data-sc="apply" class="sc-go">反映して保存</button><button data-sc="discard">捨てる</button></div>
             <div class="sc-reads-v">${vals}${sp}${hy}</div>
         </div>`;
     }
+    // 読み取りは入力タブとハイパータブで見せる（結果タブなら入力タブへ）。手順の表示も変わるので描き直す。
     function showReads() {
-        if (cur && cur.tab && cur.tab !== 'input') { cur.tab = 'input'; renderModal(); return; }   // 読み取りは入力タブで見せる
-        const el = document.getElementById('sc-reads');
-        if (el) el.innerHTML = readsHTML();
+        if (!cur) return;
+        if (cur.tab === 'result') cur.tab = 'input';
+        advanceStep();
+        renderModal();
     }
     function applyReads() {
         if (!cur || !cur.reads) return;
@@ -1006,6 +1061,7 @@ const scouter = (() => {
             const res = await scouterReader.read(img);
             const n = stage(res);
             showReads();
+            if (n) beep();
             setMsg(n ? '読み取りました。内容を確かめて「反映して保存」を押してください。' : 'ステータス画面・ハイパーステータス画面の値が見つかりませんでした。', n ? 'ok' : 'err');
         } catch (err) {
             console.error(err);
@@ -1039,7 +1095,7 @@ const scouter = (() => {
         stream.getVideoTracks()[0].addEventListener('ended', () => { if (cur && cur.live === L) { stopLive(); renderModal(); setMsg('画面共有が終わりました。'); } });
         L.timer = setInterval(() => liveTick(L), 600);
         renderModal();
-        setMsg('ライブ読み取り中。ステータス画面を開き、STR などにカーソルを合わせると内訳も読み取ります。');
+        setMsg('ライブ読み取り中。「読み取りの手順」の段階に沿って画面を出してください。');
     }
     function stopLive() {
         if (!cur || !cur.live) return;
@@ -1053,8 +1109,14 @@ const scouter = (() => {
         try {
             const res = await scouterReader.read(await scouterReader.pixelsOf(L.video));
             if (!cur || cur.live !== L) return;
-            const n = stage(res);
-            if (n) { beep(); showReads(); setMsg('読み取りました。ほかの項目にもカーソルを合わせられます。終わったら「反映して保存」。', 'ok'); }
+            const step = curStep();
+            if (!step) return;
+            const n = stage(res, step);
+            if (n) {
+                beep(); showReads();
+                const next = curStep();
+                setMsg(next && next !== step ? `${stepLabel(step)} を読み取りました。次は ${stepLabel(next)} です。` : next ? '読み取りました。' : '全部取れました。内容を確かめて「反映して保存」を押してください。', 'ok');
+            }
         } catch (e) {
             console.error(e);
         } finally {
