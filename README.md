@@ -1,4 +1,6 @@
-# MapleManager
+# BijyonTools
+
+リポジトリ名は MapleManager。サイト上の表示名は BijyonTools（2026-10-09 改名）。
 
 MapleStory (GMS) の身内向け管理ツール。週ボスのPT編成、コミュニティ名簿、育成計画をひとつの画面にまとめたもの。
 
