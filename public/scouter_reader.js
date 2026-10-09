@@ -7,6 +7,9 @@
 //   - the hover tooltip of STR / DEX / INT / LUK / HP / Attack Power / Magic ATT,
 //     whose [Applied Value] block gives "Base Value", "% Value" and
 //     "% Value Not Applied" — the three numbers MapleScouter wants per stat.
+//   - the HYPER STATS window: rows of "Critical Rate  [+]  Lv. 7" and "POINT 10".
+//     The single digits after "Lv." are mostly dropped in sparse-text mode, so once
+//     the rows are found the column of numbers is cut out and read again as digits.
 //
 // The whole picture is turned into black text on white (the window's text is light
 // on a mid-grey panel), enlarged 2x and handed to Tesseract.js in sparse-text mode,
@@ -196,9 +199,78 @@
         return { stat, ...res };
     }
 
+    /* ---------- the HYPER STATS window ---------- */
+    // As the window writes them (mixed case), letters only, lower case.
+    const HYPER_LABELS = [
+        ['str', 'str'], ['dex', 'dex'], ['int', 'int'], ['luk', 'luk'], ['hp', 'hp'], ['mp', 'mp'],
+        ['dftf', 'df'], ['dftfpp', 'df'], ['criticalrate', 'cr'], ['criticaldamage', 'cd'], ['ignoredefense', 'ied'],
+        ['damage', 'dmg'], ['bossdamage', 'boss'], ['normaldamage', 'normal'], ['statusresistance', 'status'],
+        ['attackpowermagicatt', 'att'], ['expobtained', 'exp'], ['arcanepower', 'arcane'],
+    ];
+    const LV_WORD = /^L?[vV][.,:]?(\d{0,2})$/;
+    function hyperLabel(ws) {
+        // Leading words may be stray marks or the edge of another window ("a EXP Obtained").
+        for (let k = 0; k < ws.length; k++) {
+            const t = ws.slice(k).map((w) => letters(w.t)).join('').toLowerCase();
+            if (!t) continue;
+            let best = null;
+            for (const [want, key] of HYPER_LABELS) {
+                const d = want.length <= 3 ? (t === want ? 0 : 9) : editDist(t, want);
+                const ok = want.length <= 3 ? d === 0 : d <= Math.floor(want.length / 4);
+                if (ok && (!best || d < best.d)) best = { d, key };
+            }
+            if (best) return best.key;
+        }
+        return null;
+    }
+    function readHyper(rows) {
+        const found = [];
+        let point;
+        for (const r of rows) {
+            const ws = r.words;
+            for (let i = 1; i < ws.length; i++) {
+                const m = ws[i].t.match(LV_WORD);
+                if (!m) continue;
+                const near = ws.slice(0, i).filter((w) => w.x1 <= ws[i].x0 && w.x0 >= ws[i].x0 - 200);
+                const key = near.length ? hyperLabel(near) : null;
+                if (!key || found.some((x) => x.key === key)) continue;
+                let lv = m[1] !== '' ? Number(m[1]) : undefined;
+                const next = ws[i + 1];
+                if (lv === undefined && next && next.x0 - ws[i].x1 < 20 && /^\d{1,2}$/.test(next.t)) lv = Number(next.t);
+                found.push({ key, cy: r.cy, x: ws[i].x0, lv: lv !== undefined && lv <= 15 ? lv : undefined });
+                break;
+            }
+            const p = ws.findIndex((w) => /^POINTS?$/i.test(w.t));
+            if (p >= 0 && ws[p + 1] && /^\d{1,4}$/.test(ws[p + 1].t) && point === undefined) point = Number(ws[p + 1].t);
+        }
+        if (found.length < 5) return null;
+        // One window: keep the rows that share the most common "Lv." column.
+        const xs = found.map((f) => Math.round(f.x / 8));
+        const mode = xs.sort((a, b) => xs.filter((v) => v === b).length - xs.filter((v) => v === a).length)[0];
+        const rowsIn = found.filter((f) => Math.abs(f.x / 8 - mode) <= 1.5).sort((a, b) => a.cy - b.cy);
+        if (rowsIn.length < 5) return null;
+        const gaps = rowsIn.slice(1).map((f, i) => f.cy - rowsIn[i].cy).sort((a, b) => a - b);
+        const mid = gaps[Math.floor(gaps.length / 2)];
+        const pitch = mid > 10 ? mid : 22;   // 22px a row at 100% UI
+        const x = rowsIn.reduce((s, f) => s + f.x, 0) / rowsIn.length;
+        return { rows: rowsIn, pitch, x, point };
+    }
+
     function parse(words) {
         const rows = rowsOf(words);
-        return { window: readWindow(rows), tooltip: readTooltip(rows) };
+        return { window: readWindow(rows), tooltip: readTooltip(rows), hyper: readHyper(rows) };
+    }
+
+    // Lines of digits read from the cut-out column → levels, by the nearest row.
+    function hyperLevels(h, lines) {
+        const levels = {};
+        for (const f of h.rows) {
+            const ln = lines.filter((l) => Math.abs(l.cy - f.cy) <= h.pitch / 2).sort((a, b) => Math.abs(a.cy - f.cy) - Math.abs(b.cy - f.cy))[0];
+            const n = ln && /^\d{1,2}$/.test(ln.t) ? Number(ln.t) : undefined;
+            const lv = n !== undefined && n <= 15 ? n : f.lv;
+            if (lv !== undefined) levels[f.key] = lv;
+        }
+        return levels;
     }
 
     /* ---------- the whole pipeline ---------- */
@@ -248,7 +320,47 @@
         for (const b of data.blocks || []) for (const p of b.paragraphs || []) for (const l of p.lines || []) for (const x of l.words || []) {
             words.push({ t: x.text, x0: x.bbox.x0 / SCALE, y0: x.bbox.y0 / SCALE, x1: x.bbox.x1 / SCALE, y1: x.bbox.y1 / SCALE });
         }
-        return parse(words);
+        const res = parse(words);
+        if (res.hyper) {
+            const h = res.hyper;
+            let lines = [];
+            try { lines = await readDigits(w, img, h); } catch (e) { console.error(e); }
+            res.hyper = { levels: hyperLevels(h, lines), point: h.point };
+        }
+        return res;
+    }
+
+    // The numbers after "Lv." (16〜46px to the right of it at 100% UI), as one column of digits.
+    const DIGIT_SCALE = 3;
+    async function readDigits(w, img, h) {
+        const s = h.pitch / 22;
+        const x0 = Math.max(0, Math.round(h.x + 16 * s)), x1 = Math.min(img.width, Math.round(h.x + 46 * s));
+        const y0 = Math.max(0, Math.round(h.rows[0].cy - h.pitch / 2)), y1 = Math.min(img.height, Math.round(h.rows[h.rows.length - 1].cy + h.pitch / 2));
+        if (x1 <= x0 || y1 <= y0) return [];
+        const c = document.createElement('canvas');
+        c.width = x1 - x0; c.height = y1 - y0;
+        const ctx = c.getContext('2d');
+        const out = ctx.createImageData(c.width, c.height);
+        for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+            const i = ((y0 + y) * img.width + x0 + x) * 4, o = (y * c.width + x) * 4;
+            const v = (0.3 * img.data[i] + 0.59 * img.data[i + 1] + 0.11 * img.data[i + 2]) > LIGHT ? 0 : 255;
+            out.data[o] = out.data[o + 1] = out.data[o + 2] = v; out.data[o + 3] = 255;
+        }
+        ctx.putImageData(out, 0, 0);
+        const big = document.createElement('canvas');
+        big.width = c.width * DIGIT_SCALE; big.height = c.height * DIGIT_SCALE;
+        big.getContext('2d').drawImage(c, 0, 0, big.width, big.height);
+        await w.setParameters({ tessedit_pageseg_mode: '6', tessedit_char_whitelist: '0123456789' });
+        try {
+            const { data } = await w.recognize(big, {}, { blocks: true });
+            const lines = [];
+            for (const b of data.blocks || []) for (const p of b.paragraphs || []) for (const l of p.lines || []) {
+                lines.push({ t: l.text.trim(), cy: y0 + (l.bbox.y0 + l.bbox.y1) / 2 / DIGIT_SCALE });
+            }
+            return lines;
+        } finally {
+            await w.setParameters({ tessedit_pageseg_mode: '11', tessedit_char_whitelist: '' });
+        }
     }
 
     // Pixels of an image file / blob / video frame.
@@ -264,7 +376,7 @@
         return { width: w, height: h, data: id.data };
     }
 
-    const api = { parse, rowsOf, numbersOf, read, pixelsOf, getWorker };
+    const api = { parse, rowsOf, numbersOf, hyperLevels, read, pixelsOf, getWorker };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.scouterReader = api;
 })(typeof window !== 'undefined' ? window : globalThis);
