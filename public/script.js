@@ -1026,7 +1026,7 @@ const app = {
             const hexaClassId = hexaReady ? hexaTracker.getCharClassId(char) : null;
             const hexaPct = hexaClassId ? hexaTracker.getProgress('char:' + char.id, hexaClassId).pct : 0;
             let scout = null;
-            try { const sc = JSON.parse(localStorage.getItem('mapleManager_scouter_v1') || '{}')['char:' + char.id]; if (sc && sc.result && sc.result.b300 > 0) scout = sc.result; } catch (e) { /* 読めなければ未入力扱い */ }
+            try { const sc = JSON.parse(localStorage.getItem('mapleManager_scouter_v1') || '{}')['char:' + char.id]; if (sc && sc.result && sc.result.b380h > 0) scout = sc.result; } catch (e) { /* 読めなければ未入力扱い */ }
 
             // Sort each section
             const wkSorted = wB.sort((a, b) => b.effectiveMeso - a.effectiveMeso);
@@ -1061,7 +1061,8 @@ const app = {
                     ${char.role ? `<span class="mx-role badge badge-xs font-mono font-bold ${char.role === 'MAIN' ? 'badge-warning' : char.role === 'SUB' ? 'badge-info' : 'badge-neutral'}">${char.role}</span>` : ''}
                     <div class="mx-id">
                         <div class="mx-lvjob"><span class="mx-lv">Lv.${char.level || '?'}</span><span class="mx-job">${char.job || '—'}</span></div>
-                        <h3 class="mx-name">${char.name}</h3>
+                        <h3 class="mx-name" title="${char.name}">${char.name}</h3>
+                        <div class="mx-scout" title="Scouter の HEXA換算（防御率380%）">${scout ? `HEXA換算 <b>${scout.b380h.toLocaleString()}</b>` : 'HEXA換算 <i>—</i>'}</div>
                     </div>
                 </div>
                 <div class="mx-main">
@@ -1084,7 +1085,7 @@ const app = {
                     <div class="mx-tools">
                         <button onclick="hexaTracker.openForCharacter('${char.id}')" class="mx-tool mx-tool-hexa" ${hexaReady ? '' : 'disabled'}><span class="mx-bar" style="width:${hexaPct}%"></span>${hexaClassId ? `HEXA <b>${hexaPct}%</b>` : 'HEXA 登録'}</button>
                         <button onclick="app.openGearForCharacter('${char.id}')" class="mx-tool mx-tool-up">UPGRADE</button>
-                        <button onclick="app.openScouterForCharacter('${char.id}')" class="mx-tool mx-tool-scout" title="${scout ? `換算主ステ（防御率300%） ${scout.b300.toLocaleString()}` : 'Scouter に入力'}">${scout ? `SCOUT <b>${(scout.b300 / 1000).toFixed(1)}k</b>` : 'SCOUTER'}</button>
+                        <button onclick="app.openScouterForCharacter('${char.id}')" class="mx-tool mx-tool-scout">SCOUTER</button>
                     </div>
                 </div>
             </div>`;

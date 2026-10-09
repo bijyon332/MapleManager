@@ -353,7 +353,11 @@ body {
 .mx-lvjob { display: flex; align-items: baseline; gap: 6px; line-height: 1; white-space: nowrap; }
 .mx-lv { font: 700 12px/1 "Saira Condensed", sans-serif; color: var(--sc); letter-spacing: .04em; flex: none; }
 .mx-job { font-size: 11px; line-height: 1.2; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; }
-.mx-name { font: 800 21px/1.1 "Saira Condensed", sans-serif; color: #f8fafc; letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mx-name { font: 800 16px/1.15 "Saira Condensed", sans-serif; color: #f8fafc; letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 3行目は Scouter の HEXA換算（防御率380%）。未計算なら「—」 */
+.mx-scout { font: 500 10px/1.2 "IBM Plex Mono", ui-monospace, monospace; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mx-scout b { font-weight: 700; color: #fbbf24; font-variant-numeric: tabular-nums; }
+.mx-scout i { font-style: normal; color: #475569; }
 
 .mx-main { display: flex; flex-direction: column; gap: 4px; padding: 6px 10px 0 10px; min-width: 0; }
 .mx-top { display: flex; align-items: baseline; gap: 4px; }
