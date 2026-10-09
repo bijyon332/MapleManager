@@ -406,7 +406,7 @@ const ranks = {
         const visible = () => {
             const q = ($('q').value || '').trim().toLowerCase();
             if (!q) return cands;
-            return cands.filter(e => [e.char.name, e.char.job, e.who, e.member.discordName]
+            return cands.filter(e => [e.char.name, e.char.job, e.who]
                 .some(v => String(v || '').toLowerCase().includes(q)));
         };
         // 表示中のキャラを持ち主ごとにまとめる。並びは名簿の順。
@@ -426,7 +426,6 @@ const ranks = {
         const header = (g) => `<div class="col-span-full flex items-center gap-2 pt-3 first:pt-0">
     <span class="w-2 h-2 rounded-full shrink-0" style="background:${store.color(g.member)}"></span>
     <span class="text-[12px] font-bold text-slate-200">${esc(g.who)}</span>
-    ${g.who !== g.member.discordName ? `<span class="text-[10px] text-slate-500">@${esc(g.member.discordName)}</span>` : ''}
     <span class="text-[10px] text-slate-500 font-mono">${g.items.length}体</span>
     <span class="flex-1 h-px bg-slate-800"></span>
     <button type="button" data-mid="${g.member.id}"

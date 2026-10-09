@@ -142,7 +142,7 @@
             return this.members_.flatMap((m) => m.characters.map((c) => Object.assign({}, c, {
                 memberId: m.id,
                 discordName: m.discordName,
-                who: m.displayName || m.discordName,
+                who: this.label(m),
                 colorIdx: m.colorIdx
             })));
         },
@@ -156,17 +156,18 @@
         },
         color(m) { return COLORS[((m && m.colorIdx) || 0) % COLORS.length]; },
         // 画面に出す名前は表示名。Discord名は「誰か」を決める識別子で、
-        // 名簿の管理画面と、Discordへ貼るテキストにだけ出す。
-        // 表示名が未設定の人は Discord名 をそのまま呼び名にする。
-        label(m) { return m ? (m.displayName || m.discordName) : ''; },
-        handle(m) { return m ? m.discordName : ''; },
-        // 表示名を出したうえで、別名のときだけ Discord名 を添える。
-        labelWithHandle(m) {
+        // ログインがなく誰でも全員分を見られるため、画面には一切出さない（暫定対応）。
+        // 表示名が未設定の人は、メインキャラ（無ければ先頭のキャラ）の名前で呼ぶ。
+        label(m) {
             if (!m) return '';
-            return m.displayName && m.displayName !== m.discordName
-                ? `${m.displayName}（@${m.discordName}）`
-                : m.discordName;
+            if (m.displayName) return m.displayName;
+            const cs = m.characters || [];
+            const c = cs.find((x) => x.isMain) || cs[0];
+            return c ? c.name : '（表示名未設定）';
         },
+        handle(m) { return m ? m.discordName : ''; },
+        // 以前は表示名に（@Discord名）を添えていた。今は表示名だけを返す。
+        labelWithHandle(m) { return this.label(m); },
 
         // このブラウザの持ち主。Planner のデータ分けと、各アプリの初期選択に使う。
         me() { return this.memberById(readLS(ME_KEY)); },
