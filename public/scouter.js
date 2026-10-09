@@ -735,24 +735,21 @@ const scouter = (() => {
             ['ダメージ・ボス 1%', eff.dmgeff1], ['クリダメ 1%', eff.cridmgeff1], ['オールステ 1%', eff.allStatEff],
             ['防御率無視 1%', eff.igreff1], [`未適用${label} 1`, eff.mainStatAbseff1], [`${sub} 1`, eff.subStateff1],
         ].filter(([, v]) => typeof v === 'number' && v > 0);
-        const hist = (e.history || []).slice(-6).reverse();
+        const hist = (e.history || []).filter((h) => h.b380h > 0).slice(-6).reverse();
         const cpGame = f.screen && f.screen.combatPower;
         return `
             <div class="sc-big">
-                <span>換算主ステ（防御率300%）</span>
-                <b>${fmt(r.b300)}</b>
-                <small>380%: ${fmt(r.b380)}</small>
+                <span>HEXA換算（防御率380%）</span>
+                <b>${fmt(r.b380h)}</b>
             </div>
             <table class="sc-kv">
-                <tr><th>HEXA換算（300%）</th><td>${fmt(r.b300h)}</td></tr>
-                <tr><th>HEXA換算（380%）</th><td>${fmt(r.b380h)}</td></tr>
                 <tr><th>換算戦闘力</th><td>${fmt(r.xp)}</td></tr>
                 <tr><th>戦闘力（計算）</th><td>${fmt(r.cp)}</td></tr>
                 ${cpGame ? `<tr><th>戦闘力（画面）</th><td>${fmt(cpGame)}</td></tr>` : ''}
             </table>
             ${rows.length && base ? `<h3>スペック効率 <small>${esc(label)}いくつ分か</small></h3>
             <table class="sc-kv sc-eff">${rows.map(([n, v]) => `<tr><th>${esc(n)}</th><td>${esc(label)} <b>${(v / base).toFixed(2)}</b></td></tr>`).join('')}</table>` : ''}
-            ${hist.length > 1 ? `<h3>履歴</h3><table class="sc-kv">${hist.map((h) => `<tr><th>${esc((h.at || '').replace('T', ' ').slice(0, 16))}</th><td>${fmt(h.b300)}</td></tr>`).join('')}</table>` : ''}`;
+            ${hist.length > 1 ? `<h3>履歴</h3><table class="sc-kv">${hist.map((h) => `<tr><th>${esc((h.at || '').replace('T', ' ').slice(0, 16))}</th><td>${fmt(h.b380h)}</td></tr>`).join('')}</table>` : ''}`;
     }
 
     function setMsg(text, kind = '') {
@@ -883,7 +880,7 @@ const scouter = (() => {
                     cp: d.combatPower, xp: d.exchangePower, xph: d.exchangePowerHexa, eff: d.specEfficiency || {},
                     cuts: bossCuts(d, us),
                 };
-                e.history = (e.history || []).concat({ at, b300: d.boss300_stat, b300h: d.boss300_hexaStat }).slice(-30);
+                e.history = (e.history || []).concat({ at, b300: d.boss300_stat, b300h: d.boss300_hexaStat, b380h: d.boss380_hexaStat }).slice(-30);
             }
             save();
             if (cur === mine) { cur.tab = 'result'; setMsg(e.result.error ? '' : '計算しました。', e.result.error ? 'err' : 'ok'); }
