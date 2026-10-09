@@ -7,7 +7,7 @@
 //
 // 保存（localStorage）:
 //   { 'char:<id>': entry, 'free': entry }   — 'free' はキャラに紐付けない仮入力
-//   entry = { form: {...}, result: {...} | null, history: [{at, b300, b300h, b380h}] }
+//   entry = { form: {...}, result: {...} | null, history: [{at, b300, b300h}] }
 // form は画面の項目そのまま。送るときに buildUserStat() で先方の形に組み立てる。
 
 const scouter = (() => {
