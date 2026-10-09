@@ -8,7 +8,7 @@
 // 保存（localStorage）:
 //   { 'char:<id>': entry, 'free': entry }   — 'free' はキャラに紐付けない仮入力
 //   entry = { form: {...}, result: {...} | null, history: [{at, b300, b300h}],
-//             hyperOpt: { pdr, critBuff, locked }, hyperCheck: {...} | null }
+//             hyperOpt: { pdr, critBuff, locked }, hyperRun: {...} | null }   — hyperRun は「ハイパーを計算する」の結果
 // form は画面の項目そのまま。送るときに buildUserStat() で先方の形に組み立てる。
 
 const scouter = (() => {
@@ -407,7 +407,9 @@ const scouter = (() => {
 
     // 上の1行: 誰か・前回の計算日時・操作。換算主ステは結果タブに出すのでここには出さない。
     function summaryHTML(e, portrait) {
-        const r = e.result && !e.result.error ? e.result : null;
+        const tab = cur.tab || 'input';
+        // ハイパータブはハイパーの計算、入力タブは換算の計算。結果タブには計算ボタンを出さない。
+        const r = tab === 'hyper' ? e.hyperRun : (e.result && !e.result.error ? e.result : null);
         const who = cur.page ? `<div class="flex items-center gap-3 shrink-0">
                 ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-10 h-10 object-contain">` : ''}
                 <div class="leading-tight whitespace-nowrap"><b class="text-white">仮入力</b><div class="text-[11px] text-base-content/50">キャラに紐付けない</div></div>
@@ -422,7 +424,8 @@ const scouter = (() => {
             <div class="ml-auto flex gap-1 shrink-0">
                 <button data-sc="file" class="btn btn-sm" title="ステータス画面のスクショを読み取る（貼り付け・ドロップでも可）"><i data-lucide="image" class="w-3.5 h-3.5"></i>スクショ読み取り</button>
                 <button data-sc="live" class="btn btn-sm ${cur.live ? 'btn-error btn-soft' : ''}" title="ゲーム画面を共有して、ステータス画面を読み取り続ける"><i data-lucide="monitor" class="w-3.5 h-3.5"></i>${cur.live ? 'ライブ停止' : 'ライブ読み取り'}</button>
-                <button data-sc="calc" class="btn btn-sm btn-primary" ${cur.busy ? 'disabled' : ''}><i data-lucide="calculator" class="w-3.5 h-3.5"></i>${cur.busy ? '計算中…' : '計算する'}</button>
+                ${tab === 'input' ? `<button data-sc="calc" class="btn btn-sm btn-primary" ${cur.busy ? 'disabled' : ''}><i data-lucide="calculator" class="w-3.5 h-3.5"></i>${cur.busy ? '計算中…' : '計算する'}</button>` : ''}
+                ${tab === 'hyper' ? `<button data-sc="hcalc" class="btn btn-sm btn-primary" ${cur.busy ? 'disabled' : ''}><i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>${cur.busy ? '計算中…' : 'ハイパーを計算する'}</button>` : ''}
                 <input type="file" accept="image/*" multiple data-sc="input" hidden>
             </div>
         </div></div>`;
@@ -542,8 +545,11 @@ const scouter = (() => {
         // 計算できないときは、今のレベルの入力だけ出す（理由は右の枠に）。
         const why = !cls || !num(f.main.base) || !num(f.atk.base) ? '「入力」で職業と主ステータス・攻撃力の内訳を入れると、一番伸びる振り方が出ます。'
             : !total ? '「入力」で Lv を入れてください（所持ポイントを Lv から出します）。' : '';
-        const r = why ? null : H.optimize(f, cls, f.classId, now, { total, locked: o.locked, pdr: o.pdr, critBuff: o.critBuff });
-        const err = why || (r ? '' : '固定した項目だけで所持ポイントを超えています。固定を外してください。');
+        // 結果は「ハイパーを計算する」を押したときのもの。そのあと入力や条件が変わったら古い印を出す。
+        const run = e.hyperRun || null;
+        const r = run && run.levels ? run : null;
+        const stale = !!run && run.sig !== hyperSig(e);
+        const err = why || (run && run.error) || '';
         const left = num(f.hyperPoint);
         const mismatch = f.hyperPoint !== '' && total && used + left !== total
             ? `<p class="text-[11px] text-warning">画面の残り ${fmt(left)}pt と合いません（Lv${esc(f.level)} の所持 ${fmt(total)}pt − 使用 ${fmt(used)}pt = ${fmt(total - used)}pt）。Lv かレベルの読み取りを確かめてください。</p>` : '';
@@ -562,18 +568,19 @@ const scouter = (() => {
                 <td class="text-center"><button data-sc="hlock" data-key="${k}" class="btn btn-xs btn-square ${lockOn ? 'btn-warning btn-soft' : 'btn-ghost text-base-content/30'}" title="${lockOn ? '固定を外す' : '今のレベルで固定する'}"><i data-lucide="${lockOn ? 'lock' : 'lock-open'}" class="w-3 h-3"></i></button></td>
             </tr>`;
         }).join('');
-        const chk = r && e.hyperCheck && JSON.stringify(e.hyperCheck.levels) === JSON.stringify(r.levels) ? e.hyperCheck : null;
+        const chk = r && r.check ? r.check : null;
         const diffCell = (a, b) => a > 0 ? `${fmt(a)} → <b class="text-amber-300">${fmt(b)}</b> <small class="${b >= a ? 'text-success' : 'text-error'}">${b >= a ? '+' : ''}${fmt(b - a)}</small>` : `— → <b class="text-amber-300">${fmt(b)}</b>`;
         const scouterBox = chk ? (chk.error ? `<p class="text-xs text-error">${esc(chk.error)}</p>` : `<table class="sc-kv">
                 <tr><th>換算主ステ（300%）</th><td>${diffCell(chk.now300, chk.new300)}</td></tr>
                 <tr><th>換算主ステ（380%）</th><td>${diffCell(chk.now380, chk.new380)}</td></tr>
             </table>${chk.nowError ? `<p class="text-[11px] text-warning">今の振り方は計算できませんでした（${esc(chk.nowError.replace(/^MapleScouter が計算できませんでした: /, ''))}）。</p>` : ''}`) : '';
         const same = r && HYPER_KEYS.every((k) => (r.levels[k] || 0) === now[k]);
-        const gainBox = r ? card('伸び', same ? '今の振り方が一番です' : '今の振り方と比べたダメージ', `
-                    <div class="sc-big"><span>ボス防御率 ${num(o.pdr)}%</span><b>${pct(num(o.pdr) === 380 ? r.gain380 : r.gain300)}</b><small>${num(o.pdr) === 380 ? '300%' : '380%'}: ${pct(num(o.pdr) === 380 ? r.gain300 : r.gain380)}</small></div>
-                    <div class="flex items-center gap-2"><button data-sc="hcheck" class="btn btn-sm" ${cur.busy || same ? 'disabled' : ''}><i data-lucide="calculator" class="w-3.5 h-3.5"></i>${cur.busy ? '計算中…' : 'MapleScouter で確かめる'}</button>
-                    <span class="text-[11px] text-base-content/50">今とおすすめの換算主ステを出します</span></div>
-                    ${scouterBox}`) : card('伸び', '', `<div class="sc-res-empty ${why ? '' : 'sc-err'}">${esc(err)}</div>`);
+        const staleNote = stale ? '<p class="text-[11px] text-warning">計算したあとに入力や条件が変わりました。もう一度「ハイパーを計算する」を押してください。</p>' : '';
+        const gainBox = r && !why ? card('伸び', same ? '今の振り方が一番です' : '今の振り方と比べたダメージ', `
+                    ${staleNote}
+                    <div class="sc-big"><span>ボス防御率 ${num(r.pdr)}%</span><b>${pct(num(r.pdr) === 380 ? r.gain380 : r.gain300)}</b><small>${num(r.pdr) === 380 ? '300%' : '380%'}: ${pct(num(r.pdr) === 380 ? r.gain300 : r.gain380)}</small></div>
+                    ${scouterBox || (same ? '' : '<p class="text-[11px] text-base-content/50">MapleScouter の換算主ステの差は計算中か、取れませんでした。</p>')}`)
+            : card('伸び', '', `<div class="sc-res-empty ${err && !why ? 'sc-err' : ''}">${esc(err || '上の「ハイパーを計算する」を押すと、一番伸びる振り方と、MapleScouter の換算主ステの差が出ます。')}</div>${err && !why ? '' : staleNote}`);
         return `${stepsHTML(['hyper'])}
             <div id="sc-reads">${readsHTML()}</div>
             <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,7fr)_minmax(0,4fr)] gap-3 items-start">
@@ -608,33 +615,45 @@ const scouter = (() => {
         if (bad !== undefined) throw new Error(`MapleScouter が計算できませんでした: ${ERRORS[String(bad)] || 'コード ' + bad}`);
         return d;
     }
-    // おすすめの振り方に変えたときの入力を作り、今の入力と一緒に MapleScouter に投げる。
-    async function checkHyper() {
+    // 計算に効く入力と条件（変わったら結果を古い扱いにする）。
+    function hyperSig(e) {
+        const f = e.form, o = e.hyperOpt;
+        return JSON.stringify([f.classId, f.level, f.main, f.sub, f.sub2, f.atk, f.dmg, f.bossDmg, f.ignoreDef, f.critical, f.criticalDmg,
+            hyperLv(f), o.locked, num(o.pdr), num(o.critBuff)]);
+    }
+    // 「ハイパーを計算する」: 一番伸びる振り方を出し、今とおすすめを MapleScouter に投げて換算主ステの差も出す。
+    async function runHyper() {
         if (!cur || cur.busy) return;
         const e = cur.e, f = e.form, o = e.hyperOpt, H = HY(), cls = CLASSES[f.classId];
-        if (!H || !cls) return;
+        if (!H) return;
+        const total = hyperTotal(f);
+        if (!cls || !num(f.main.base) || !num(f.atk.base) || !total) { setMsg('「入力」で職業・Lv・主ステータスと攻撃力の内訳を入れてください。', 'err'); return; }
         const now = hyperLv(f);
-        const r = H.optimize(f, cls, f.classId, now, { total: hyperTotal(f), locked: o.locked, pdr: o.pdr, critBuff: o.critBuff });
-        if (!r) return;
+        const sig = hyperSig(e), at = new Date().toISOString();
+        const r = H.optimize(f, cls, f.classId, now, { total, locked: o.locked, pdr: o.pdr, critBuff: o.critBuff });
+        if (!r) { e.hyperRun = { sig, at, error: '固定した項目だけで所持ポイントを超えています。固定を外してください。' }; save(); renderModal(); return; }
+        e.hyperRun = { ...r, sig, at, pdr: num(o.pdr), check: null };
+        if (HYPER_KEYS.every((k) => (r.levels[k] || 0) === now[k])) { save(); renderModal(); setMsg('今の振り方が一番です。', 'ok'); return; }
         const st = H.shift(f, cls, now, r.levels);
         const g = JSON.parse(JSON.stringify(f));
         for (const k of ['main', 'sub', 'sub2', 'atk']) g[k] = { base: String(st[k].base), per: String(st[k].per), abs: String(st[k].abs) };
         for (const k of ['dmg', 'bossDmg', 'criticalDmg', 'critical']) g[k] = String(st[k]);
         g.ignoreDef = String(Math.round(st.ignoreDef * 1e4) / 1e4);
+        const run = e.hyperRun;
         cur.busy = true;
         renderModal();
-        setMsg('MapleScouter で計算しています…');
+        setMsg('MapleScouter で換算主ステを計算しています…');
         const mine = cur;
         try {
             // 今の振り方はクリティカル率が足りず先方が計算できないことがある。おすすめだけでも出す。
             const [a, b] = await Promise.allSettled([postCalc(buildUserStat(f)), postCalc(buildUserStat(g))]);
             if (b.status === 'rejected') throw b.reason;
             const A = a.status === 'fulfilled' ? a.value : {};
-            e.hyperCheck = { levels: r.levels, at: new Date().toISOString(), now300: A.boss300_stat, now380: A.boss380_stat, new300: b.value.boss300_stat, new380: b.value.boss380_stat,
+            run.check = { now300: A.boss300_stat, now380: A.boss380_stat, new300: b.value.boss300_stat, new380: b.value.boss380_stat,
                 nowError: a.status === 'rejected' ? String(a.reason && a.reason.message || a.reason) : '' };
             if (cur === mine) setMsg('計算しました。', 'ok');
         } catch (err) {
-            e.hyperCheck = { levels: r.levels, error: '計算に失敗しました: ' + (err && err.message || err) };
+            run.check = { error: 'MapleScouter の計算に失敗しました: ' + (err && err.message || err) };
             if (cur === mine) setMsg('', '');
         } finally {
             save();
@@ -790,7 +809,7 @@ const scouter = (() => {
             else if (k === 'hlock') toggleLock(t.dataset.key);
             else if (k === 'step') { cur.step = t.dataset.step; renderModal(); }
             else if (k === 'hpdr') { cur.e.hyperOpt.pdr = Number(t.dataset.v); save(); renderModal(); }
-            else if (k === 'hcheck') checkHyper();
+            else if (k === 'hcalc') runHyper();
             else if (k === 'apply') applyReads();
             else if (k === 'discard') { cur.reads = null; cur.step = null; renderModal(); setMsg('読み取りを捨てました。'); }
         });
