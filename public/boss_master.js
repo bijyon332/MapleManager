@@ -110,7 +110,7 @@ const BOSS_MASTER = [
         ],
     },
     {
-        en: "Bellona", ja: "ベローナ", ko: "",
+        en: "Bellona", ja: "ベローナ", ko: "벨로나",
         maxMembers: 3, image: "bellona",
         force: "sac", entry: 280,
         party: { id: "bellona", difficulties: ["NORMAL","HARD"], color: "#06b6d4", icon: "swords" },

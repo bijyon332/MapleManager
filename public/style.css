@@ -518,7 +518,7 @@ body {
 .sc-bc-legend i { width: 10px; height: 10px; background: var(--cc); }
 .sc-bc-legend b { font: 700 12px "IBM Plex Mono", monospace; color: var(--cc); }
 .sc-bc-head p { font-size: 11px; color: #64748b; line-height: 1.5; }
-.sc-bc-head p i, .sc-bc-t small i { font: 700 9.5px "IBM Plex Mono", monospace; font-style: normal; color: #818cf8; border: 1px solid #4f46e5; padding: 0 3px; }
+.sc-bc-head p i { font: 700 9.5px "IBM Plex Mono", monospace; font-style: normal; color: #818cf8; border: 1px solid #4f46e5; padding: 0 3px; }
 .c-solo2 { --cc: #34d399; } .c-solo1 { --cc: #6ee7b7; } .c-solo0 { --cc: #fbbf24; }
 .c-pt1 { --cc: #a5b4fc; } .c-pt0 { --cc: #818cf8; } .c-no { --cc: #475569; }
 .sc-bctbl { width: 100%; border-collapse: collapse; table-layout: fixed; }
@@ -528,14 +528,18 @@ body {
 .sc-bctbl tbody th img { width: 44px; height: 44px; object-fit: cover; vertical-align: middle; margin-right: 8px; }
 .sc-bctbl tbody th b { font-size: 13px; color: #f1f5f9; vertical-align: middle; }
 .sc-bc-none { border: 1px solid #1e293b; background: repeating-linear-gradient(135deg, #020617 0 6px, #0b1224 6px 7px); }
-.sc-bc { position: relative; border: 1px solid #1e293b; border-left: 3px solid var(--cc); padding: 5px 8px 7px 6px; background: #020617; }
-.sc-bc img { float: left; width: 44px; height: 44px; margin-right: 8px; object-fit: contain; }
-.sc-bc-t { display: block; overflow: hidden; line-height: 1.15; }
-.sc-bc-t small { display: block; font: 700 11px "Saira Condensed", sans-serif; letter-spacing: .05em; }
+.sc-bc { position: relative; border: 1px solid #1e293b; border-left: 3px solid var(--cc); padding: 4px 6px 6px 5px; background: #020617; }
+.sc-bc-in { display: flex; align-items: center; gap: 7px; }
+.sc-bc-ic { position: relative; flex: none; width: 44px; height: 44px; overflow: hidden; }
+.sc-bc-ic i { position: absolute; top: 0; right: 0; z-index: 1; font: 700 8.5px/1 "IBM Plex Mono", monospace; font-style: normal; color: #c7d2fe; background: #312e81e6; padding: 2px 3px; }
+.sc-bc-ic i.sc-bc-est { left: 0; right: auto; color: #fde68a; background: #92400ee6; }
+.sc-bc-ic img { display: block; width: 44px; height: 44px; object-fit: contain; }
+.sc-bc-ic small { position: absolute; left: 0; right: 0; bottom: 0; padding: 6px 0 2px; text-align: center; font: 700 8.5px/1 "IBM Plex Mono", monospace; text-transform: uppercase; white-space: nowrap; background: linear-gradient(transparent, #020617e6 55%); }
+.sc-bc-t { min-width: 0; line-height: 1.2; white-space: nowrap; overflow: hidden; }
 .sc-bc-t b { display: block; font: 700 17px "IBM Plex Mono", monospace; color: var(--cc); }
 .sc-bc-t em { display: block; font-style: normal; font-size: 11.5px; font-weight: 700; color: var(--cc); }
 .sc-bc.c-no .sc-bc-t b, .sc-bc.c-no .sc-bc-t em { font-weight: 400; color: #64748b; }
-.sc-bc.c-no img { filter: grayscale(1); opacity: .45; }
+.sc-bc.c-no .sc-bc-ic img { filter: grayscale(1); opacity: .45; }
 .sc-bc.c-solo2, .sc-bc.c-solo1 { background: #34d3990d; }
 .sc-bc.c-solo0 { background: #fbbf240d; }
 .sc-bc.c-pt1, .sc-bc.c-pt0 { background: #818cf80d; }
@@ -620,3 +624,4 @@ header .tabs-box > .tab-active svg { color: #a5b4fc; }
 
 /* Job Art Position: 選択中の札（立ち絵／イラスト、左右反転）は藍で塗る。daisyUI の btn より強くするためレイヤーの外。 */
 .ja-kind .btn.is-on, .ja-flip.is-on { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+.sc-bc-head p i.sc-bc-est { color: #fbbf24; border-color: #b45309; }
