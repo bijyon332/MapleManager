@@ -17,6 +17,8 @@ const scouterBossCut = (() => {
       {boss:"칼로스",name:"kalos",difficulty:"Extreme",level:285,authenticForce:440,guard:380,partyBossCut:82750,partyLimit:6,easyRate:0.969},
       {boss:"발드릭스",name:"bardrix",difficulty:"Destiny",level:290,authenticForce:700,guard:380,bossCut:132800,partyLimit:1,easyRate:0.969},
       {boss:"발드릭스",name:"bardrix",difficulty:"Hard",level:290,authenticForce:700,guard:380,bossCut:132800,partyLimit:3,easyRate:0.969},
+      // 벨로나は先方の GMS 表に無い（KMS 表にだけある）。KMS の難易度補正と GMS の近いボスから推測した値（estimate）。
+      {boss:"벨로나",name:"bellona",difficulty:"Hard",level:280,authenticForce:550,guard:380,bossCut:128000,partyLimit:3,easyRate:0.969,estimate:true},
       {boss:"흉성",name:"maleficStar",difficulty:"Hard",level:280,authenticForce:550,guard:380,bossCut:120500,partyLimit:3,easyRate:0.969},
       {boss:"림보",name:"limbo",difficulty:"Destiny",level:285,authenticForce:500,guard:380,bossCut:121400,partyLimit:1,easyRate:0.969},
       {boss:"림보",name:"limbo",difficulty:"Hard",level:285,authenticForce:500,guard:380,bossCut:121400,partyLimit:3,easyRate:0.969},
@@ -33,6 +35,7 @@ const scouterBossCut = (() => {
       {boss:"칼로스",name:"kalos",difficulty:"Chaos",level:285,authenticForce:330,guard:380,bossCut:95100,partyLimit:6,easyRate:0.969},
       {boss:"세렌",name:"seren",difficulty:"Destiny",level:275,authenticForce:200,guard:380,bossCut:40600,partyLimit:1,easyRate:0.1938},
       {boss:"카링",name:"kaling",difficulty:"Normal",level:285,authenticForce:330,guard:380,bossCut:73300,partyLimit:6,easyRate:0.969},
+      {boss:"벨로나",name:"bellona",difficulty:"Normal",level:280,authenticForce:450,guard:380,bossCut:89700,partyLimit:3,easyRate:0.969,estimate:true},
       {boss:"흉성",name:"maleficStar",difficulty:"Normal",level:280,authenticForce:400,guard:380,bossCut:72300,partyLimit:3,easyRate:0.969},
       {boss:"스우",name:"lotus",difficulty:"Extreme",level:285,guard:380,bossCut:66800,partyLimit:2,easyRate:0.969},
       {boss:"칼로스",name:"kalos",difficulty:"Champion",level:280,authenticForce:300,guard:380,bossCut:49800,partyLimit:1,easyRate:0.6682758620689655},
@@ -41,6 +44,7 @@ const scouterBossCut = (() => {
       {boss:"세렌",name:"seren",difficulty:"Champion",level:275,authenticForce:200,guard:380,bossCut:44300,partyLimit:1,easyRate:0.969},
       {boss:"카링",name:"kaling",difficulty:"Easy",level:275,authenticForce:230,guard:380,bossCut:42000,partyLimit:6,easyRate:0.969,newbieCut:252},
       {boss:"세렌",name:"seren",difficulty:"Hard",level:275,authenticForce:200,guard:380,bossCut:40600,partyLimit:6,easyRate:0.969,newbieCut:233.72},
+      {boss:"벨로나",name:"bellona",difficulty:"Easy",level:280,authenticForce:400,guard:380,bossCut:45100,partyLimit:3,easyRate:0.969,estimate:true},
       {boss:"대적자",name:"adversary",difficulty:"Easy",level:270,authenticForce:220,guard:380,bossCut:35250,partyLimit:3,easyRate:0.969},
       {boss:"칼로스",name:"kalos",difficulty:"Easy",level:270,authenticForce:200,guard:380,bossCut:40600,partyLimit:6,easyRate:1.9047619047619049,newbieCut:200.62},
       {boss:"검은 마법사",name:"blackMage",difficulty:"Hard",level:275,arcaneForce:1320,guard:300,bossCut:40600,partyLimit:6,easyRate:1.0659,newbieCut:180},
@@ -241,7 +245,7 @@ const scouterBossCut = (() => {
         const pct = 100 * clearRate;
         return {
           boss: b.boss, name: b.name, difficulty: b.difficulty, guard: b.guard, icon: `${b.difficulty.toLowerCase()}_${b.name}`,
-          bossStat, clearRate, percent: pct,
+          bossStat, clearRate, percent: pct, estimate: !!b.estimate,
           percentText: isPartyBoss ? `[파티] ${Math.round(pct)}%` : (pct >= 1e3 ? Math.round(pct).toString() : pct >= 100 ? pct.toFixed(1) : pct.toFixed(2)) + "%",
           label, labelEn: VERDICT_EN[label], isPartyBoss, partyLimit,
           levelGapPct: levelGap * 100, arcaneGapPct: arcGap * 100, authenticGapPct: autGap * 100,

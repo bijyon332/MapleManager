@@ -569,19 +569,28 @@ const scouter = (() => {
                 <td class="text-center"><button data-sc="hlock" data-key="${k}" class="btn btn-xs btn-square ${lockOn ? 'btn-warning btn-soft' : 'btn-ghost text-base-content/30'}" title="${lockOn ? '固定を外す' : '今のレベルで固定する'}"><i data-lucide="${lockOn ? 'lock' : 'lock-open'}" class="w-3 h-3"></i></button></td>
             </tr>`;
         }).join('');
-        const chk = r && r.check ? r.check : null;
-        const diffCell = (a, b) => a > 0 ? `${fmt(a)} → <b class="text-amber-300">${fmt(b)}</b> <small class="${b >= a ? 'text-success' : 'text-error'}">${b >= a ? '+' : ''}${fmt(b - a)}</small>` : `— → <b class="text-amber-300">${fmt(b)}</b>`;
-        const scouterBox = chk ? (chk.error ? `<p class="text-xs text-error">${esc(chk.error)}</p>` : `<table class="sc-kv">
-                <tr><th>換算主ステ（300%）</th><td>${diffCell(chk.now300, chk.new300)}</td></tr>
-                <tr><th>換算主ステ（380%）</th><td>${diffCell(chk.now380, chk.new380)}</td></tr>
-            </table>${chk.nowError ? `<p class="text-[11px] text-warning">今の振り方は計算できませんでした（${esc(chk.nowError.replace(/^MapleScouter が計算できませんでした: /, ''))}）。</p>` : ''}`) : '';
         const same = r && HYPER_KEYS.every((k) => (r.levels[k] || 0) === now[k]);
+        const chk = r && r.check ? r.check : null;
+        // 伸びは最終ダメージで出す。MapleScouter の HEXA 込みダメージ（calculatedHexaDamage）の比が取れたらそれ、
+        // 取れるまで・取れなかったときは手元の計算（scouter_hyper.js）の見込み。
+        const fd = (a, b) => a > 0 && b > 0 ? b / a - 1 : null;
+        const api300 = chk && !chk.error ? fd(chk.nowD300, chk.newD300) : null;
+        const api380 = chk && !chk.error ? fd(chk.nowD380, chk.newD380) : null;
+        const useApi = api300 !== null && api380 !== null;
+        const g300 = useApi ? api300 : r && r.gain300, g380 = useApi ? api380 : r && r.gain380;
+        const is380 = r && num(r.pdr) === 380;
+        const srcNote = !r || same ? '' : useApi
+            ? `<p class="text-[11px] text-base-content/50">MapleScouter で今とおすすめのダメージを出した比です（6次スキルの進捗込み）。手元の見込みは ${esc(pct(is380 ? r.gain380 : r.gain300))}。</p>`
+            : chk && chk.error ? `<p class="text-xs text-error">${esc(chk.error)}</p><p class="text-[11px] text-base-content/50">上は手元の計算の見込みです。</p>`
+            : chk && chk.nowError ? `<p class="text-[11px] text-warning">今の振り方は MapleScouter で計算できませんでした（${esc(chk.nowError.replace(/^MapleScouter が計算できませんでした: /, ''))}）。上は手元の計算の見込みです。</p>`
+            : chk ? '<p class="text-[11px] text-base-content/50">手元の計算の見込みです。もう一度「ハイパーを計算する」を押すと MapleScouter の値になります。</p>'
+            : '<p class="text-[11px] text-base-content/50">MapleScouter で確かめています。いま出ているのは手元の計算の見込みです。</p>';
         const staleNote = stale ? '<p class="text-[11px] text-warning">計算したあとに入力や条件が変わりました。もう一度「ハイパーを計算する」を押してください。</p>' : '';
-        const gainBox = r && !why ? card('伸び', same ? '今の振り方が一番です' : '今の振り方と比べたダメージ', `
+        const gainBox = r && !why ? card('伸び', same ? '今の振り方が一番です' : '今の振り方と比べた最終ダメージ', `
                     ${staleNote}
-                    <div class="sc-big"><span>ボス防御率 ${num(r.pdr)}%</span><b>${pct(num(r.pdr) === 380 ? r.gain380 : r.gain300)}</b><small>${num(r.pdr) === 380 ? '300%' : '380%'}: ${pct(num(r.pdr) === 380 ? r.gain300 : r.gain380)}</small></div>
-                    ${scouterBox || (same ? '' : '<p class="text-[11px] text-base-content/50">MapleScouter の換算主ステの差は計算中か、取れませんでした。</p>')}`)
-            : card('伸び', '', `<div class="sc-res-empty ${err && !why ? 'sc-err' : ''}">${esc(err || '上の「ハイパーを計算する」を押すと、一番伸びる振り方と、MapleScouter の換算主ステの差が出ます。')}</div>${err && !why ? '' : staleNote}`);
+                    <div class="sc-big"><span>最終ダメージ（ボス防御率 ${num(r.pdr)}%）</span><b>${pct(is380 ? g380 : g300)}</b><small>${is380 ? '300%' : '380%'}: ${pct(is380 ? g300 : g380)}</small></div>
+                    ${srcNote}`)
+            : card('伸び', '', `<div class="sc-res-empty ${err && !why ? 'sc-err' : ''}">${esc(err || '上の「ハイパーを計算する」を押すと、一番伸びる振り方と、最終ダメージが何％上がるかが出ます。')}</div>${err && !why ? '' : staleNote}`);
         return `${stepsHTML(['hyper'])}
             <div id="sc-reads">${readsHTML()}</div>
             <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,7fr)_minmax(0,4fr)] gap-3 items-start">
@@ -622,7 +631,7 @@ const scouter = (() => {
         return JSON.stringify([f.classId, f.level, f.main, f.sub, f.sub2, f.atk, f.dmg, f.bossDmg, f.ignoreDef, f.critical, f.criticalDmg,
             hyperLv(f), o.locked, num(o.pdr), num(o.critBuff)]);
     }
-    // 「ハイパーを計算する」: 一番伸びる振り方を出し、今とおすすめを MapleScouter に投げて換算主ステの差も出す。
+    // 「ハイパーを計算する」: 一番伸びる振り方を出し、今とおすすめを MapleScouter に投げて最終ダメージの比を出す。
     async function runHyper() {
         if (!cur || cur.busy) return;
         const e = cur.e, f = e.form, o = e.hyperOpt, H = HY(), cls = CLASSES[f.classId];
@@ -643,14 +652,14 @@ const scouter = (() => {
         const run = e.hyperRun;
         cur.busy = true;
         renderModal();
-        setMsg('MapleScouter で換算主ステを計算しています…');
+        setMsg('MapleScouter で最終ダメージを確かめています…');
         const mine = cur;
         try {
             // 今の振り方はクリティカル率が足りず先方が計算できないことがある。おすすめだけでも出す。
             const [a, b] = await Promise.allSettled([postCalc(buildUserStat(f)), postCalc(buildUserStat(g))]);
             if (b.status === 'rejected') throw b.reason;
             const A = a.status === 'fulfilled' ? a.value : {};
-            run.check = { now300: A.boss300_stat, now380: A.boss380_stat, new300: b.value.boss300_stat, new380: b.value.boss380_stat,
+            run.check = { nowD300: A.calculatedHexaDamage_300, nowD380: A.calculatedHexaDamage_380, newD300: b.value.calculatedHexaDamage_300, newD380: b.value.calculatedHexaDamage_380,
                 nowError: a.status === 'rejected' ? String(a.reason && a.reason.message || a.reason) : '' };
             if (cur === mine) setMsg('計算しました。', 'ok');
         } catch (err) {
@@ -671,7 +680,7 @@ const scouter = (() => {
         try {
             const out = scouterBossCut.computeBossCuts(d, us);
             if (out.error) return null;
-            return out.rows.map((x) => ({ b: x.boss, n: x.name, d: x.difficulty, s: x.bossStat, r: Math.round(x.clearRate * 1e4) / 1e4, p: x.isPartyBoss ? 1 : 0, l: x.partyLimit, v: x.label }));
+            return out.rows.map((x) => ({ b: x.boss, n: x.name, d: x.difficulty, s: x.bossStat, r: Math.round(x.clearRate * 1e4) / 1e4, p: x.isPartyBoss ? 1 : 0, l: x.partyLimit, v: x.label, ...(x.estimate ? { e: 1 } : {}) }));
         } catch (err) { console.error(err); return null; }
     }
     const CUT_LABEL = {
@@ -705,10 +714,10 @@ const scouter = (() => {
         if (!c) return '<td class="sc-bc-none"></td>';
         const [txt, cls] = CUT_LABEL[c.v] || [c.v, 'c-no'];
         const bar = Math.max(0, Math.min(100, c.r / (c.p ? 5.1 : 2) * 100));
-        return `<td class="sc-bc ${cls}" title="ボスカットに対して ${pctText(c.r)}${c.p ? '（パーティ前提のボス。最大' + c.l + '人）' : ''}">
+        return `<td class="sc-bc ${cls}" title="ボスカットに対して ${pctText(c.r)}${c.p ? '（パーティ前提のボス。最大' + c.l + '人）' : ''}${c.e ? '（GMS の値が無いので推測値）' : ''}">
             <img src="${ICON}boss/${esc(c.d.toLowerCase())}_${esc(c.n)}.png" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
             <span class="sc-bc-t">
-                <small class="df-${esc(c.d.toLowerCase())}">${esc(DIFF_NAME[c.d] || c.d)}${c.p ? ' <i>PT</i>' : ''}</small>
+                <small class="df-${esc(c.d.toLowerCase())}">${esc(DIFF_NAME[c.d] || c.d)}${c.p ? ' <i>PT</i>' : ''}${c.e ? ' <i class="sc-bc-est">推測</i>' : ''}</small>
                 <b>${pctText(c.r)}</b>
                 <em>${esc(txt)}</em>
             </span>
@@ -730,7 +739,7 @@ const scouter = (() => {
         return `<h3 class="sc-bc-h"><i data-lucide="skull"></i>ボスカット</h3>
             <div class="sc-bc-head">
                 <div class="sc-bc-legend">${CUT_LEGEND.map(([cls, t]) => `<span class="${cls}"><i></i>${t}<b>${count[cls] || 0}</b></span>`).join('')}</div>
-                <p>％は MapleScouter のボスカット（そのボスに必要な火力）に対する今の火力です。100% 前後でソロの最低ライン。<i>PT</i> はパーティ前提のボスで、人数ごとの目安を出しています。レベル・フォース不足も反映しています。500% を超えたものは出していません。</p>
+                <p>％は MapleScouter のボスカット（そのボスに必要な火力）に対する今の火力です。100% 前後でソロの最低ライン。<i>PT</i> はパーティ前提のボスで、人数ごとの目安を出しています。レベル・フォース不足も反映しています。500% を超えたものは出していません。<i class="sc-bc-est">推測</i> は MapleScouter に GMS の値が無いボス（ベローナ）で、KMS の値から推し量ったものです。</p>
             </div>
             <table class="sc-bctbl">
                 <thead><tr><th></th>${CUT_COLS.map((ds) => `<th>${ds.join(' / ')}</th>`).join('')}</tr></thead>

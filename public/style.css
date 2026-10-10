@@ -620,3 +620,4 @@ header .tabs-box > .tab-active svg { color: #a5b4fc; }
 
 /* Job Art Position: 選択中の札（立ち絵／イラスト、左右反転）は藍で塗る。daisyUI の btn より強くするためレイヤーの外。 */
 .ja-kind .btn.is-on, .ja-flip.is-on { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+.sc-bc-head p i.sc-bc-est, .sc-bc-t small i.sc-bc-est { color: #fbbf24; border-color: #b45309; }
