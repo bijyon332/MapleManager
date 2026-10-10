@@ -684,10 +684,10 @@ const scouter = (() => {
         } catch (err) { console.error(err); return null; }
     }
     const CUT_LABEL = {
-        '솔플 여유컷': ['ソロ余裕', 'c-solo2'], '솔플 가능': ['ソロ可', 'c-solo1'], '솔플 최소컷': ['ソロ最低ライン', 'c-solo0'],
-        '파티격 가능': ['パーティで可', 'c-pt1'], '파티 최소컷': ['パーティ最低ライン', 'c-pt0'],
-        '2인 최소컷': ['2人で最低ライン', 'c-pt1'], '3인 최소컷': ['3人で最低ライン', 'c-pt1'], '4인 최소컷': ['4人で最低ライン', 'c-pt0'],
-        '6인 최소컷': ['6人で最低ライン', 'c-pt0'], '불가능': ['不可', 'c-no'], '입장 불가능': ['入場Lv不足', 'c-no'],
+        '솔플 여유컷': ['ソロ余裕', 'c-solo2'], '솔플 가능': ['ソロ可', 'c-solo1'], '솔플 최소컷': ['ソロ最低', 'c-solo0'],
+        '파티격 가능': ['パーティー可', 'c-pt1'], '파티 최소컷': ['パーティー最低', 'c-pt0'],
+        '2인 최소컷': ['2人最低', 'c-pt1'], '3인 최소컷': ['3人最低', 'c-pt1'], '4인 최소컷': ['4人最低', 'c-pt0'],
+        '6인 최소컷': ['6人最低', 'c-pt0'], '불가능': ['不可', 'c-no'], '입장 불가능': ['Lv不足', 'c-no'],
     };
     const DIFF_NAME = { Easy: 'Easy', Normal: 'Normal', Hard: 'Hard', Chaos: 'Chaos', Extreme: 'Extreme', Destiny: 'Destiny', Champion: 'Champion' };
     function bossOf(ko) {
@@ -714,17 +714,15 @@ const scouter = (() => {
         if (!c) return '<td class="sc-bc-none"></td>';
         const [txt, cls] = CUT_LABEL[c.v] || [c.v, 'c-no'];
         const bar = Math.max(0, Math.min(100, c.r / (c.p ? 5.1 : 2) * 100));
-        return `<td class="sc-bc ${cls}" title="ボスカットに対して ${pctText(c.r)}${c.p ? '（パーティ前提のボス。最大' + c.l + '人）' : ''}${c.e ? '（GMS の値が無いので推測値）' : ''}">
-            <img src="${ICON}boss/${esc(c.d.toLowerCase())}_${esc(c.n)}.png" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
-            <span class="sc-bc-t">
-                <small class="df-${esc(c.d.toLowerCase())}">${esc(DIFF_NAME[c.d] || c.d)}${c.p ? ' <i>PT</i>' : ''}${c.e ? ' <i class="sc-bc-est">推測</i>' : ''}</small>
-                <b>${pctText(c.r)}</b>
-                <em>${esc(txt)}</em>
-            </span>
+        return `<td class="sc-bc ${cls}" title="${esc(DIFF_NAME[c.d] || c.d)}: ボスカットに対して ${pctText(c.r)}${c.p ? '（パーティ前提のボス。最大' + c.l + '人）' : ''}${c.e ? '（GMS の値が無いので推測値）' : ''}">
+            <div class="sc-bc-in">
+                <span class="sc-bc-ic"><img src="${ICON}boss/${esc(c.d.toLowerCase())}_${esc(c.n)}.png" alt="" loading="lazy" onerror="this.style.visibility='hidden'">${c.p ? '<i>PT</i>' : ''}${c.e ? '<i class="sc-bc-est">推測</i>' : ''}<small class="df-${esc(c.d.toLowerCase())}">${esc(DIFF_NAME[c.d] || c.d)}</small></span>
+                <span class="sc-bc-t"><b>${pctText(c.r)}</b><em>${esc(txt)}</em></span>
+            </div>
             <span class="sc-bc-bar"><span style="width:${bar.toFixed(1)}%"></span></span>
         </td>`;
     }
-    const CUT_LEGEND = [['c-solo2', 'ソロ余裕'], ['c-solo1', 'ソロ可'], ['c-solo0', 'ソロ最低ライン'], ['c-pt1', 'パーティで可'], ['c-pt0', 'パーティ最低ライン'], ['c-no', '不可']];
+    const CUT_LEGEND = [['c-solo2', 'ソロ余裕'], ['c-solo1', 'ソロ可'], ['c-solo0', 'ソロ最低'], ['c-pt1', 'パーティー可'], ['c-pt0', 'パーティー最低'], ['c-no', '不可']];
     function cutPageHTML(e) {
         const r = e.result;
         if (!r || r.error) return '';
