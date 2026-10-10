@@ -330,7 +330,7 @@ const bossByEn = (en) => BOSS_MASTER.find(b => b.en === en) || null;
 // Character Manager の編集画面でのボスの並び（bi 指定、2026-09-29）。英語名で書く。
 // ここに無いボスは後ろに、結晶価格の高い順で並ぶ。
 const BOSS_REGISTER_ORDER = [
-    "Jupiter", "Baldrix", "Malefic Star", "Limbo", "First Adversary", "Kaling", "Kalos the Guardian",
+    "Jupiter", "Baldrix", "Bellona", "Malefic Star", "Limbo", "First Adversary", "Kaling", "Kalos the Guardian",
     "Chosen Seren", "Verus Hilla", "Darknell", "Gloom", "Guardian Angel Slime", "Will", "Lucid", "Damien", "Lotus"
 ];
 
