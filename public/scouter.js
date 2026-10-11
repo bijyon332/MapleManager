@@ -734,7 +734,8 @@ const scouter = (() => {
             <th><b>${esc(boss ? (boss.short || boss.ja) : ko)}</b></th>
             ${CUT_COLS.map((ds) => cutCell(cuts.find((c) => ds.includes(c.d)))).join('')}
         </tr>`).join('');
-        return `<h3 class="sc-bc-h"><i data-lucide="skull"></i>ボスカット</h3>
+        return `<h3 class="sc-bc-h"><i data-lucide="skull"></i>ボスカット
+                <span class="sc-bc-out"><button data-sc="cutcopy" class="btn btn-xs" title="コンパクトな表を画像にしてクリップボードへ"><i data-lucide="copy" class="w-3 h-3"></i>画像をコピー</button><button data-sc="cutsave" class="btn btn-xs" title="コンパクトな表を PNG で保存"><i data-lucide="download" class="w-3 h-3"></i>画像を保存</button></span></h3>
             <div class="sc-bc-head">
                 <div class="sc-bc-legend">${CUT_LEGEND.map(([cls, t]) => `<span class="${cls}"><i></i>${t}<b>${count[cls] || 0}</b></span>`).join('')}</div>
                 <p>％は MapleScouter のボスカット（そのボスに必要な火力）に対する今の火力です。100% 前後でソロの最低ライン。<i>PT</i> はパーティ前提のボスで、人数ごとの目安を出しています。レベル・フォース不足も反映しています。500% を超えたものは出していません。<i class="sc-bc-est">推測</i> は MapleScouter に GMS の値が無いボス（ベローナ）で、KMS の値から推し量ったものです。</p>
@@ -743,6 +744,108 @@ const scouter = (() => {
                 <thead><tr><th></th>${CUT_COLS.map((ds) => `<th>${ds.join(' / ')}</th>`).join('')}</tr></thead>
                 <tbody>${body}</tbody>
             </table>`;
+    }
+
+    // ボスカットのコンパクト版を画像にする（Discord などに貼る用）。表に出ているマスだけ、空の難易度の列は詰める。
+    const CUT_COLOR = { 'c-solo2': '#34d399', 'c-solo1': '#6ee7b7', 'c-solo0': '#fbbf24', 'c-pt1': '#a5b4fc', 'c-pt0': '#818cf8', 'c-no': '#475569' };
+    const DIFF_COLOR = { Easy: '#9ca3af', Normal: '#22d3ee', Hard: '#f87171', Chaos: '#ca8a04', Extreme: '#ef4444', Destiny: '#e879f9', Champion: '#fbbf24' };
+    const loadImg = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
+    async function cutImage(e, char) {
+        const r = e.result;
+        if (!r || r.error || !r.cuts) return null;
+        const rows = cutRows(r.cuts);
+        if (!rows.length) return null;
+        const cols = CUT_COLS.filter((ds) => rows.some((x) => x.cuts.some((c) => ds.includes(c.d))));
+        const S = 2, PAD = 12, NAME_W = 92, CW = 112, RH = 42, HEAD = 46, CH = 18, FOOT = 22;
+        const W = PAD * 2 + NAME_W + cols.length * CW, H = PAD * 2 + HEAD + CH + rows.length * RH + FOOT;
+        const cv = document.createElement('canvas');
+        cv.width = W * S; cv.height = H * S;
+        const g = cv.getContext('2d');
+        g.scale(S, S);
+        await document.fonts.ready.catch(() => {});
+        const icons = {};
+        await Promise.all(rows.flatMap((x) => x.cuts).map(async (c) => { icons[c.d + c.n] = await loadImg(`${ICON}boss/${c.d.toLowerCase()}_${c.n}.png`); }));
+        const JP = '"IBM Plex Sans JP", sans-serif', MONO = '"IBM Plex Mono", monospace', CON = '"Saira Condensed", sans-serif';
+        g.fillStyle = '#020617'; g.fillRect(0, 0, W, H);
+        g.textBaseline = 'middle';
+        // 見出し: キャラ名・HEXA換算・計算日
+        const name = char ? char.name : '仮入力';
+        g.fillStyle = '#f1f5f9'; g.font = `700 16px ${JP}`;
+        g.fillText(name, PAD, PAD + 13);
+        const nw = g.measureText(name).width;
+        if (char && (char.level || char.job)) { g.fillStyle = '#64748b'; g.font = `400 11px ${JP}`; g.fillText(`Lv${char.level || ''} ${char.job || ''}`, PAD + nw + 8, PAD + 14); }
+        g.fillStyle = '#94a3b8'; g.font = `400 11px ${JP}`;
+        const sub = 'HEXA換算（防御率380%）';
+        g.fillText(sub, PAD, PAD + 34);
+        const sw = g.measureText(sub).width;
+        g.fillStyle = '#fbbf24'; g.font = `700 14px ${MONO}`;
+        g.fillText(fmt(r.b380h), PAD + sw + 4, PAD + 34);
+        g.textAlign = 'right';
+        g.fillStyle = '#818cf8'; g.font = `800 13px ${CON}`;
+        g.fillText('BOSS CUT', W - PAD, PAD + 13);
+        if (r.at) { g.fillStyle = '#64748b'; g.font = `400 10px ${MONO}`; const d = new Date(r.at); g.fillText(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, W - PAD, PAD + 34); }
+        g.textAlign = 'left';
+        // 列見出し
+        let y = PAD + HEAD;
+        g.font = `700 10px ${CON}`;
+        cols.forEach((ds, i) => { g.fillStyle = '#64748b'; g.textAlign = 'center'; g.fillText(ds.join(' / ').toUpperCase(), PAD + NAME_W + i * CW + CW / 2, y + CH / 2); });
+        g.textAlign = 'left';
+        y += CH;
+        for (const { ko, boss, cuts } of rows) {
+            g.fillStyle = '#0b1224'; g.fillRect(PAD, y, NAME_W - 2, RH - 2);
+            g.fillStyle = '#f1f5f9'; g.font = `700 12px ${JP}`;
+            g.fillText(boss ? (boss.short || boss.ja) : ko, PAD + 8, y + RH / 2 - 1, NAME_W - 14);
+            cols.forEach((ds, i) => {
+                const x = PAD + NAME_W + i * CW, c = cuts.find((q) => ds.includes(q.d));
+                if (!c) { g.fillStyle = '#060c1c'; g.fillRect(x, y, CW - 2, RH - 2); return; }
+                const [txt, cls] = CUT_LABEL[c.v] || [c.v, 'c-no'];
+                const col = CUT_COLOR[cls], no = cls === 'c-no';
+                g.fillStyle = no ? '#060c1c' : col + '14'; g.fillRect(x, y, CW - 2, RH - 2);
+                g.fillStyle = col; g.fillRect(x, y, 3, RH - 2);
+                const ic = icons[c.d + c.n], IS = 34, ix = x + 6, iy = y + (RH - 2 - IS) / 2;
+                if (ic) { g.save(); if (no) { g.globalAlpha = .45; g.filter = 'grayscale(1)'; } g.drawImage(ic, ix, iy, IS, IS); g.restore(); }
+                const grad = g.createLinearGradient(0, iy + IS - 12, 0, iy + IS);
+                grad.addColorStop(0, '#02061700'); grad.addColorStop(.55, '#020617e6');
+                g.fillStyle = grad; g.fillRect(ix, iy + IS - 12, IS, 12);
+                g.fillStyle = DIFF_COLOR[c.d] || '#94a3b8'; g.font = `700 7px ${MONO}`; g.textAlign = 'center';
+                g.fillText(c.d.toUpperCase(), ix + IS / 2, iy + IS - 4, IS);
+                g.textAlign = 'left';
+                const tag = (t, fg, bg, right) => { g.font = `700 7px ${MONO}`; const tw = g.measureText(t).width + 4; const tx = right ? ix + IS - tw : ix; g.fillStyle = bg; g.fillRect(tx, iy, tw, 9); g.fillStyle = fg; g.fillText(t, tx + 2, iy + 5); };
+                if (c.p) tag('PT', '#c7d2fe', '#312e81e6', true);
+                if (c.e) tag('推測', '#fde68a', '#92400ee6', false);
+                const tx = ix + IS + 6;
+                g.fillStyle = no ? '#64748b' : col; g.font = `${no ? 400 : 700} 13px ${MONO}`;
+                g.fillText(pctText(c.r), tx, y + 13, CW - (tx - x) - 4);
+                g.font = `${no ? 400 : 700} 10px ${JP}`;
+                g.fillText(txt, tx, y + 28, CW - (tx - x) - 4);
+            });
+            y += RH;
+        }
+        g.fillStyle = '#475569'; g.font = `400 9px ${JP}`;
+        g.fillText('％は MapleScouter のボスカットに対する今の火力（100% 前後でソロの最低ライン）', PAD, y + FOOT / 2 + 2);
+        g.textAlign = 'right'; g.fillStyle = '#64748b'; g.font = `700 9px ${CON}`;
+        g.fillText('BijyonTools', W - PAD, y + FOOT / 2 + 2);
+        return cv;
+    }
+    async function exportCuts(mode) {
+        if (!cur) return;
+        const cv = await cutImage(cur.e, cur.char);
+        if (!cv) { setMsg('画像にできるボスカットがありません。「計算する」を押してから試してください。', 'err'); return; }
+        const blob = await new Promise((ok) => cv.toBlob(ok, 'image/png'));
+        if (!blob) { setMsg('画像を作れませんでした。', 'err'); return; }
+        if (mode === 'copy') {
+            try {
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                setMsg('ボスカットの画像をコピーしました。', 'ok');
+                return;
+            } catch (err) { setMsg('コピーできなかったので保存します。', 'err'); }
+        }
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `bosscut_${(cur.char ? cur.char.name : 'scouter').replace(/[^\w-]/g, '_')}.png`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        if (mode !== 'copy') setMsg('ボスカットの画像を保存しました。', 'ok');
     }
 
     function resultHTML(e) {
@@ -817,6 +920,8 @@ const scouter = (() => {
             else if (k === 'step') { cur.step = t.dataset.step; renderModal(); }
             else if (k === 'hpdr') { cur.e.hyperOpt.pdr = Number(t.dataset.v); save(); renderModal(); }
             else if (k === 'hcalc') runHyper();
+            else if (k === 'cutcopy') exportCuts('copy');
+            else if (k === 'cutsave') exportCuts('save');
             else if (k === 'apply') applyReads();
             else if (k === 'discard') { cur.reads = null; cur.step = null; renderModal(); setMsg('読み取りを捨てました。'); }
         });
