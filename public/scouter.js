@@ -267,7 +267,28 @@ const scouter = (() => {
         for (const k of ['main', 'sub', 'sub2', 'atk']) e.form[k] = { ...blankStat(), ...e.form[k] };
         for (const k of ['hexa', 'link', 'seed', 'doping', 'hyper']) e.form[k] = { ...DEFAULT_FORM()[k], ...e.form[k] };
         e.hyperOpt = { pdr: 300, critBuff: '0', locked: {}, ...(e.hyperOpt || {}) };
+        // リンクスキルと Wild Hunter ユニオンは全キャラ共通（シードリングはキャラごと）。
+        // link は共通の入れ物をそのまま指すので、入力すると全キャラに効く。
+        const sh = shared();
+        e.form.link = sh.link;
+        e.form.wildhunterUnion = sh.wildhunterUnion;
         return e;
+    }
+    // 全キャラ共通の値。初めて作るときは、最後に計算したキャラ（なければ仮入力）の値を引き継ぐ。
+    function shared() {
+        if (!data.shared) {
+            const at = (e) => (e && e.result && e.result.at) || '';
+            const src = Object.entries(data).filter(([k, v]) => (k === 'free' || k.startsWith('char:')) && v && v.form)
+                .map(([, v]) => v).sort((a, b) => at(b).localeCompare(at(a)))[0];
+            const f = (src && src.form) || {};
+            data.shared = { link: { ...DEFAULT_FORM().link, ...(f.link || {}) }, wildhunterUnion: f.wildhunterUnion !== undefined ? f.wildhunterUnion : '0' };
+        }
+        data.shared.link = { ...DEFAULT_FORM().link, ...data.shared.link };
+        return data.shared;
+    }
+    // 入力のあと、共通の値を共通の入れ物へ戻す（link は同じ入れ物なので wildhunterUnion だけ）。
+    function syncShared(f) {
+        shared().wildhunterUnion = f.wildhunterUnion;
     }
 
     const chars = () => (window.app && window.app.data && window.app.data.characters) || [];
@@ -468,9 +489,9 @@ const scouter = (() => {
         const detail = `<div class="grid grid-cols-2 gap-x-6 gap-y-1">${DETAIL.map(([k, label, unit]) => `<label class="flex items-center gap-2">
                 <span class="text-xs flex-1 ${num(f[k]) ? 'text-base-content/75' : 'text-base-content/40'}">${esc(label)}</span>${inp(k, f[k], 'w-20')}<span class="w-4 text-[11px] text-base-content/40">${unit}</span></label>`).join('')}</div>`;
         const links = LINKS.filter(([, , , only]) => !only || only === f.classId);
-        const linkBody = grid4(links.map(([k, label, icon]) => lvTile(label, icon, 'link.' + k, f.link[k])).join(''))
-            + grid4(SEEDS.map(([k, label, icon]) => lvTile(label, icon, 'seed.' + k, f.seed[k])).join('')
-                + tileLv('<span class="w-6 h-6 shrink-0 grid place-items-center border border-base-content/20 text-[10px] font-bold">WH</span>', 'Wild Hunter ユニオン', 'wildhunterUnion', f.wildhunterUnion, 'Wild Hunter のユニオン効果（%）'));
+        const linkBody = grid4(links.map(([k, label, icon]) => lvTile(label, icon, 'link.' + k, f.link[k])).join('')
+            + tileLv('<span class="w-6 h-6 shrink-0 grid place-items-center border border-base-content/20 text-[10px] font-bold">WH</span>', 'Union', 'wildhunterUnion', f.wildhunterUnion, 'Wild Hunter のユニオン効果（%）'));
+        const seedBody = `<div class="grid grid-cols-2 gap-1">${SEEDS.map(([k, label, icon]) => lvTile(label, icon, 'seed.' + k, f.seed[k])).join('')}</div>`;
         const allBuffs = BUFFS.flatMap((g) => g.items);
         const buffOn = allBuffs.filter((it) => buffIsOn(f, it)).length;
         const buffBody = BUFFS.map((g) => `<div class="text-[11px] text-base-content/50 mt-1">${esc(g.title)}</div>${grid4(g.items.map((it) => buffTile(f, it)).join(''))}`).join('');
@@ -479,7 +500,8 @@ const scouter = (() => {
             <div class="flex flex-col gap-3">
                 ${card('基本・主ステータス', 'ステータス画面で STR などをクリックすると出る STAT INFO の値', basic + main)}
                 ${card('詳細ステータス', '', detail, `入力済み ${filled} / ${DETAIL.length}`)}
-                ${card('リンクスキル・シードリング', 'レベル', linkBody)}
+                ${card('リンクスキル・Wild Hunter', '全キャラ共通のレベル', linkBody)}
+                ${card('シードリング', 'このキャラのレベル', seedBody)}
             </div>
             <div class="flex flex-col gap-3">
                 ${hexaHTML(f)}
@@ -938,6 +960,7 @@ const scouter = (() => {
             const f = cur.e.form;
             if (t.type === 'checkbox') setPath(f, t.dataset.k, t.checked);
             else setPath(f, t.dataset.k, t.value.trim());
+            syncShared(f);
             save();
             // 入力欄が消えるときの blur からも change が来るので、作り直しは後に回す。
             if (t.dataset.k === 'classId' || /^(doping|link|seed|hexa|hyper)\.|^wildhunterUnion$|^level$/.test(t.dataset.k)) setTimeout(renderModal);
@@ -947,6 +970,7 @@ const scouter = (() => {
             const t = ev.target;
             if (!t.dataset.k || t.type === 'checkbox' || t.tagName === 'SELECT') return;
             setPath(cur.e.form, t.dataset.k, t.value.trim());
+            syncShared(cur.e.form);
             save();
             const k = t.dataset.k.split('.')[0];
             const cell = veil.querySelector(`[data-fin="${k}"]`);
