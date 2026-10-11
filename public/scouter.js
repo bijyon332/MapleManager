@@ -477,7 +477,7 @@ const scouter = (() => {
         const note = 'ゲーム内の値は MapleScouter の前提の状態で入れます: 秘薬・外部バフ・ギルドスキルなし、リンクスキル装着（スタックなし）、シードリング装着、召喚獣（ソル・ヘカテなど）On、コンバットオーダーズ・シャープアイズ使用、ソウルゲージ初期化、ファミリア召喚。ボス戦で使うバフは「バフアイテム」で選びます。';
         return `<div class="grid grid-cols-1 xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] gap-3 items-start">
             <div class="flex flex-col gap-3">
-                ${card('基本・主ステータス', 'STRなどにカーソルを合わせると出る [Applied Value] の値', basic + main)}
+                ${card('基本・主ステータス', 'ステータス画面で STR などをクリックすると出る STAT INFO の値', basic + main)}
                 ${card('詳細ステータス', '', detail, `入力済み ${filled} / ${DETAIL.length}`)}
                 ${card('リンクスキル・シードリング', 'レベル', linkBody)}
             </div>
@@ -1041,9 +1041,7 @@ const scouter = (() => {
     // 1回の読み取り結果を、溜めている読み取りに足す。新しく入った項目の数を返す。
     function stage(res, only) {
         if (!cur) return 0;
-        if (only === 'hyper') res = { hyper: res.hyper };
-        else if (only === 'window') res = { window: res.window };
-        else if (only) res = { tooltip: res.tooltip && slotOf(res.tooltip.stat, cur.e.form.classId) === only ? res.tooltip : null };
+        if (only) res = onlyStep(res, only);
         const r = cur.reads || (cur.reads = { values: {}, splits: {} });
         let n = 0;
         const w = res.window || {};
@@ -1066,6 +1064,32 @@ const scouter = (() => {
             r.splits[t.stat] = { base: t.base, per: t.per, abs: t.abs };
         }
         return n;
+    }
+    // 読み取り結果から、その段階の値だけを残す。
+    function onlyStep(res, only) {
+        if (only === 'hyper') return { hyper: res.hyper };
+        if (only === 'window') return { window: res.window };
+        return { tooltip: res.tooltip && slotOf(res.tooltip.stat, cur.e.form.classId) === only ? res.tooltip : null };
+    }
+    // ライブ用: 同じ値が2回続けて読めた項目だけを残す（一瞬の誤読を入れない）。
+    // seen に項目ごとの前回の値を覚えておき、今回と同じなら確定、違えば覚え直して保留にする。
+    // 返り値の pending は保留にした項目の数。
+    function confirmTwice(res, seen) {
+        const out = { window: {}, hyper: null, tooltip: null };
+        let pending = 0;
+        const check = (key, val) => {
+            const v = JSON.stringify(val);
+            if (seen[key] === v) return true;
+            seen[key] = v;
+            pending++;
+            return false;
+        };
+        for (const [k, v] of Object.entries(res.window || {})) if (check('w:' + k, v)) out.window[k] = v;
+        if (res.hyper && check('hyper', res.hyper)) out.hyper = res.hyper;
+        const t = res.tooltip;
+        if (t && check('t:' + t.stat, [t.base, t.per, t.abs])) out.tooltip = t;
+        out.pending = pending;
+        return out;
     }
     // ツールチップの stat（str/dex/att…）がこの職業のどの欄か。
     function slotOf(stat, cid) {
@@ -1091,7 +1115,7 @@ const scouter = (() => {
     function stepHelp(step) {
         if (step === 'window') return 'キャラクター情報のステータス画面（STAT）を開いてください。DAMAGE・BOSS DAMAGE などの一覧と Lv・Combat Power を読みます。';
         if (step === 'hyper') return 'ステータス画面の下の「Hyper Stats」を押して、ハイパーステータス画面を開いてください。今のプリセットの各Lvと残りポイントを読みます。';
-        return `${stepLabel(step)} にカーソルを合わせて、出てくる内訳（Base Value・% Value・% Value Not Applied）が見える状態にしてください。`;
+        return `ステータス画面で ${stepLabel(step)} をクリックして、右に出る STAT INFO（Current Value・Base Value・% Value・% Value Not Applied）が見える状態にしてください。カーソルを合わせて出る内訳でも読めます。`;
     }
     function stepDone(step) {
         const r = cur && cur.reads;
@@ -1121,7 +1145,7 @@ const scouter = (() => {
             : now ? stepHelp(now) : '全部取れました。内容を確かめて「反映して保存」を押してください。';
         return `<div class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
             <div class="flex items-center gap-1.5 flex-wrap"><b class="text-sm text-white mr-2">読み取りの手順</b>${btns}
-                <span class="ml-auto text-[11px] text-base-content/50">${cur.live ? 'ライブ中は今の段階の値だけ受け付けます' : 'スクショは貼り付け・ドロップでも読めます'}</span></div>
+                <span class="ml-auto text-[11px] text-base-content/50">${cur.live ? 'ライブ中は今の段階の値だけ、同じ値が2回続けて読めたら受け付けます' : 'スクショは貼り付け・ドロップでも読めます'}</span></div>
             <p class="text-xs ${now ? 'text-base-content/80' : 'text-success'}">${now ? `<b class="text-primary">${esc(stepLabel(now))}:</b> ` : ''}${esc(help)}</p>
         </div></div>`;
     }
@@ -1145,7 +1169,7 @@ const scouter = (() => {
         const hy = cur.reads.hyper ? `<span><em>ハイパー</em>${esc(HYPER_KEYS.filter((k) => cur.reads.hyper.levels[k]).map((k) => `${HYPER_JA[k]} ${cur.reads.hyper.levels[k]}`).join('・') || 'すべて 0')}${cur.reads.hyper.point !== undefined ? `（残り ${cur.reads.hyper.point}pt）` : ''}</span>` : '';
         return `<div class="sc-reads">
             <div class="sc-reads-h"><b>読み取り結果</b>
-                <span>${missing.length && f.classId && cur.tab !== 'hyper' ? `まだ内訳がない: ${esc(missing.join('・'))}（カーソルを合わせた状態で読み取り）` : ''}</span>
+                <span>${missing.length && f.classId && cur.tab !== 'hyper' ? `まだ内訳がない: ${esc(missing.join('・'))}（ステータス画面でクリックして STAT INFO を出した状態で読み取り）` : ''}</span>
                 <button data-sc="apply" class="sc-go">反映して保存</button><button data-sc="discard">捨てる</button></div>
             <div class="sc-reads-v">${vals}${sp}${hy}</div>
         </div>`;
@@ -1218,7 +1242,7 @@ const scouter = (() => {
         const video = document.createElement('video');
         video.muted = true; video.playsInline = true; video.srcObject = stream;
         try { await video.play(); } catch (e) { /* フレームが来れば再生される */ }
-        const L = { stream, video, busy: false };
+        const L = { stream, video, busy: false, seen: {} };
         cur.live = L;
         stream.getVideoTracks()[0].addEventListener('ended', () => { if (cur && cur.live === L) { stopLive(); renderModal(); setMsg('画面共有が終わりました。'); } });
         L.timer = setInterval(() => liveTick(L), 600);
@@ -1239,7 +1263,9 @@ const scouter = (() => {
             if (!cur || cur.live !== L) return;
             const step = curStep();
             if (!step) return;
-            const n = stage(res, step);
+            const ok = confirmTwice(onlyStep(res, step), L.seen);
+            const n = stage(ok);
+            if (!n && ok.pending) setMsg(`${stepLabel(step)} を読みました。もう一度同じ値が読めたら確定します…`);
             if (n) {
                 beep(); showReads();
                 const next = curStep();
