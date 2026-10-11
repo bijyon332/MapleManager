@@ -7,6 +7,8 @@
 //   - the hover tooltip of STR / DEX / INT / LUK / HP / Attack Power / Magic ATT,
 //     whose [Applied Value] block gives "Base Value", "% Value" and
 //     "% Value Not Applied" — the three numbers MapleScouter wants per stat.
+//   - the STAT INFO panel that clicking a stat opens beside the window: the same three
+//     numbers plus "Current Value", with no cursor on top. Read first when it is there.
 //   - the HYPER STATS window: rows of "Critical Rate  [+]  Lv. 7" and "POINT 10".
 //     The single digits after "Lv." are mostly dropped in sparse-text mode, so once
 //     the rows are found the column of numbers is cut out and read again as digits.
@@ -259,14 +261,18 @@
 
         // [Applied Value]: Base, %, % Not Applied, one a line in that order. A line whose
         // label the cursor hides is placed by its height.
+        // A line whose label is read is taken by its label: the pitch can be thrown off by
+        // other windows' text under the tooltip.
         const applied = {};
-        for (let i = head >= 0 ? head + 1 : at; i < rows.length; i++) {
+        const start = head >= 0 ? head + 1 : at;
+        for (let i = start; i < Math.min(rows.length, start + 6); i++) {
             const t = textOf(rows[i]);
             const slot = Math.round((rows[i].cy - baseY) / pitch);
-            if (slot > 2 || (slot > 0 && headOf(t))) break;
+            const named = /Not\s*Appl/i.test(t) ? 'abs' : /%\s*Valu/i.test(t) ? 'per' : /Base/.test(t) ? 'base' : null;
+            if (!named && (slot > 2 || (slot > 0 && headOf(t)))) break;
             const it = itemOf(t);
             if (!it || slot < 0) continue;
-            const kind = /Not\s*Appl/i.test(t) ? 'abs' : /%\s*Valu/i.test(t) ? 'per' : /Base/.test(t) ? 'base' : KINDS[slot];
+            const kind = named || KINDS[slot];
             if (!applied[kind]) applied[kind] = it;
         }
 
@@ -303,6 +309,51 @@
             if (m) stat = m[1];
         }
         return stat ? { stat, cands } : null;
+    }
+
+    /* ---------- the STAT INFO panel ---------- */
+    // Clicking a stat in the stat window opens STAT INFO to its right: the stat's name in a
+    // box, a description, then "Current Value 51,243", "Base Value 5074", "% Value 423%",
+    // "% Value Not Applied 24706". No cursor sits on it, and Current Value checks the
+    // other three by itself, so it is read before the hover tooltip.
+    function readStatInfo(rows) {
+        const lineOf = (r) => r.words.map((w) => w.t).join(' ');
+        const at = rows.findIndex((r) => /Cur\w*\s*Valu\w*\s*[:;.]?\s*\d/i.test(lineOf(r)));
+        if (at < 0) return null;
+        const first = rows[at].words.find((w) => /^Cur/i.test(w.t)) || rows[at].words[0];
+        const x0 = first.x0 - 30, x1 = first.x0 + 270;   // the panel is ~200px wide at 100% UI
+        const textOf = (r) => r.words.filter((w) => w.x0 >= x0 && w.x1 <= x1).map((w) => w.t).join(' ');
+        const numOf = (t) => { const it = itemOf(t); return it ? it.n : undefined; };
+        const shown = numOf(textOf(rows[at]).replace(/^.*?Valu\w*/i, ': '));
+        if (!(shown > 0)) return null;
+        const got = {};
+        for (let i = at + 1; i < Math.min(rows.length, at + 6); i++) {
+            const t = textOf(rows[i]);
+            const kind = /Not\s*Appl/i.test(t) ? 'abs' : /%\s*Valu/i.test(t) ? 'per' : /Base\s*Valu/i.test(t) ? 'base' : null;
+            if (!kind || got[kind] !== undefined) continue;
+            const n = numOf(t.replace(/^.*?Valu\w*(\s*Not\s*Appl\w*)?/i, ': '));
+            if (n !== undefined) got[kind] = n;
+        }
+        // One number missed: work it out from Current Value (both others were read by label).
+        const { base, per, abs } = got;
+        let v = null;
+        if (base > 0 && per !== undefined && abs !== undefined) v = { base, per, abs };
+        else if (base > 0 && per !== undefined) v = { base, per, abs: shown - finalOf(base, per, 0) };
+        else if (base > 0 && abs !== undefined) v = { base, per: Math.round(((shown - abs) / base - 1) * 100), abs };
+        if (!v || v.abs < 0 || v.per < 0 || Math.abs(finalOf(v.base, v.per, v.abs) - shown) > 1) return null;
+
+        // Title: the boxed name above the description.
+        let stat = null;
+        const above = rows.slice(Math.max(0, at - 14), at);
+        for (const r of above) {
+            const m = TITLES.find(([re]) => re.test(textOf(r).trim()));
+            if (m) { stat = m[1]; break; }
+        }
+        if (!stat) {
+            const m = DESCRIBES.find(([re]) => re.test(above.map(textOf).join(' ')));
+            if (m) stat = m[1];
+        }
+        return stat ? { stat, ...v, shown } : null;
     }
 
     /* ---------- the HYPER STATS window ---------- */
@@ -365,6 +416,8 @@
     function parse(words) {
         const rows = rowsOf(words);
         const window = readWindow(rows);
+        const info = readStatInfo(rows);
+        if (info) return { window, tooltip: { stat: info.stat, base: info.base, per: info.per, abs: info.abs }, hyper: readHyper(rows) };
         const t = readTooltip(rows);
         // The stat's own row in the window, when the tooltip has not covered it.
         return { window, tooltip: t && settle(t, window[t.stat]), hyper: readHyper(rows) };
