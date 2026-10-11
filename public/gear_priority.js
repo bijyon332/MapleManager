@@ -1092,6 +1092,25 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
     <div class="grid grid-cols-1 xl:grid-cols-[11fr_12fr] gap-3 items-start">
     <div class="flex flex-col gap-3 xl:sticky xl:top-0">
         <div class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
+            <h2 class="card-title text-sm">スコア重み・設定</h2>
+            <div class="grid grid-cols-5 gap-1.5">${weights}</div>
+            <div class="pt-2 border-t border-base-content/10 flex flex-col gap-2">
+                <div class="flex flex-wrap gap-x-4 gap-y-1 whitespace-nowrap">
+                    ${chk('ssf', 'シャイニングスターフォース')}${chk('safeguard', '15-17★で破壊防止')}${chk('starCatch', 'スターキャッチ')}${chk('blackOnly', 'キューブはブライト固定')}
+                </div>
+                <div class="grid grid-cols-[minmax(0,1.3fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_auto] gap-x-3 items-end whitespace-nowrap">
+                    ${field('<label for="gp-plan">18★以降のモード（既定）</label>', `<select id="gp-plan" class="select select-xs w-full" data-gp="planName">
+                        ${Object.keys(PLANS).map((k) => `<option value="${k}" ${o.planName === k ? 'selected' : ''}>${esc(PLAN_LABEL[k])}</option>`).join('')}
+                    </select>`)}
+                    ${field('<label for="gp-flame-price">黒転生 1回（M）</label>', `<input id="gp-flame-price" class="input input-xs font-mono w-full" type="number" min="0" step="0.1" value="${(o.flamePrice || 3e6) / 1e6}" data-gp="flamePrice">`)}
+                    ${field('<label for="gp-limit">読む手数</label>', `<input id="gp-limit" class="input input-xs font-mono w-full" type="number" min="1" max="80" value="${limit}" data-gp="limit">`)}
+                    ${field('<label for="gp-sale-pct">キューブの割引</label>', `<div class="flex items-center gap-1.5">${chk('cubeSale', 'ブラックフライデー')}
+                        <input id="gp-sale-pct" class="input input-xs font-mono w-12" type="number" min="0" max="100" step="1" value="${o.cubeSalePct ?? 25}" data-gp="cubeSalePct" aria-label="割引率（%）" ${o.cubeSale ? '' : 'disabled'}><span class="text-xs text-base-content/50">%引き</span></div>`)}
+                </div>
+            </div>
+        </div></div>
+
+        <div class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
             <div class="flex items-center gap-2">
                 <h2 class="card-title text-sm whitespace-nowrap">装備</h2>
                 <span class="text-[11px] text-base-content/50">クリックで詳細を入力。チェックを外した部位は計算から除外します。</span>
@@ -1110,25 +1129,6 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
                 </div>
                 <p class="rdmsg" data-rd="msg">ゲームで装備にカーソルを合わせたスクショを、Ctrl+V かドラッグでも渡せます。</p>
                 <div id="gp-reads"></div>
-            </div>
-        </div></div>
-
-        <div class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
-            <h2 class="card-title text-sm">スコア重み</h2>
-            <div class="grid grid-cols-5 gap-1.5">${weights}</div>
-            <div class="pt-2 border-t border-base-content/10 flex flex-col gap-2">
-                <div class="flex flex-wrap gap-x-4 gap-y-1 whitespace-nowrap">
-                    ${chk('ssf', 'シャイニングスターフォース')}${chk('safeguard', '15-17★で破壊防止')}${chk('starCatch', 'スターキャッチ')}${chk('blackOnly', 'キューブはブライト固定')}
-                </div>
-                <div class="grid grid-cols-[minmax(0,1.3fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_auto] gap-x-3 items-end whitespace-nowrap">
-                    ${field('<label for="gp-plan">18★以降のモード（既定）</label>', `<select id="gp-plan" class="select select-xs w-full" data-gp="planName">
-                        ${Object.keys(PLANS).map((k) => `<option value="${k}" ${o.planName === k ? 'selected' : ''}>${esc(PLAN_LABEL[k])}</option>`).join('')}
-                    </select>`)}
-                    ${field('<label for="gp-flame-price">黒転生 1回（M）</label>', `<input id="gp-flame-price" class="input input-xs font-mono w-full" type="number" min="0" step="0.1" value="${(o.flamePrice || 3e6) / 1e6}" data-gp="flamePrice">`)}
-                    ${field('<label for="gp-limit">読む手数</label>', `<input id="gp-limit" class="input input-xs font-mono w-full" type="number" min="1" max="80" value="${limit}" data-gp="limit">`)}
-                    ${field('<label for="gp-sale-pct">キューブの割引</label>', `<div class="flex items-center gap-1.5">${chk('cubeSale', 'ブラックフライデー')}
-                        <input id="gp-sale-pct" class="input input-xs font-mono w-12" type="number" min="0" max="100" step="1" value="${o.cubeSalePct ?? 25}" data-gp="cubeSalePct" aria-label="割引率（%）" ${o.cubeSale ? '' : 'disabled'}><span class="text-xs text-base-content/50">%引き</span></div>`)}
-                </div>
             </div>
         </div></div>
     </div>
