@@ -359,6 +359,121 @@
         return v;
     }
 
+    /* ---------- potential milestones ---------- */
+    // Rolling for "anything better than now" stops on steps nobody aims for
+    // (main/all/all → main/main/all), so main-stat style parts climb a fixed
+    // ladder of line counts instead. `m` is the part's main line, `a` the line
+    // that counts like all stat; gloves keep the plain "beat the score" rule.
+    const LADDER_ROLE = (part) => {
+        if (part === '武器' || part === '補助武器') return { m: 'att', a: 'boss' };
+        if (part === 'エンブレム') return { m: 'att', a: null };
+        if (part === '手袋') return null;
+        return { m: 'main', a: 'all' };
+    };
+    // Each step needs everything the steps below it need, so "at least step i"
+    // is a single check. c = { m: main lines, a: all lines, p: Legendary main lines }.
+    const LADDER = [
+        { id: 'two', ok: (c) => c.m + c.a >= 2 },
+        { id: 'three', ok: (c) => c.m + c.a >= 3 },
+        { id: 'pure', ok: (c) => c.m >= 3 },
+        { id: 'l2', ok: (c) => c.m >= 3 && c.p >= 2 },
+        { id: 'l3', ok: (c) => c.p >= 3 },
+    ];
+    const ladderOf = (role) => (role.a ? LADDER : LADDER.filter((t) => t.id !== 'three'));
+    const ladderName = (role, id) => {
+        const a = { all: 'オール', boss: 'ボス' }[role.a];
+        return {
+            two: '2ライン',
+            three: `3ライン（${a}含み）`,
+            pure: a ? `3ライン（${a}抜き）` : '3ライン',
+            l2: 'レジェンダリー2ライン',
+            l3: 'レジェンダリー3ライン',
+        }[id];
+    };
+    // Legendary lines carry the top value of the table (12% below Lv160, 13% from it).
+    const isPrime = (k, v, L) => {
+        const t = POT_OPTS[k] && POT_OPTS[k].v.L;
+        return !!t && v >= t[L >= 160 ? 1 : 0][0];
+    };
+    const ladderStep = (ladder, c) => {
+        let s = -1;
+        ladder.forEach((t, i) => { if (t.ok(c)) s = i; });
+        return s;
+    };
+    // The step the entered lines already reach.
+    function linesStep(lines, role, L) {
+        const c = { m: 0, a: 0, p: 0 };
+        for (const ln of lines || []) {
+            const v = Number(ln.v) || 0;
+            if (!v) continue;
+            if (ln.k === role.m) { c.m++; if (ln.g === 'L' || isPrime(ln.k, v, L)) c.p++; }
+            else if (role.a && ln.k === role.a) c.a++;
+        }
+        return ladderStep(ladderOf(role), c);
+    }
+    // Every three-line result as { step, s, p, label }, lines kept by option and
+    // value (not just score) so the step can be read off them.
+    function potSteps(key, cube, L, w, role) {
+        const ladder = ladderOf(role);
+        const lines = CUBE_RATES[key][cube].map((rows) => {
+            const b = new Map();
+            let rest = 1;
+            const put = (id, e) => {
+                const x = b.get(id);
+                if (x) x.p += e.p; else b.set(id, e);
+            };
+            for (const [k, v, p] of rows) {
+                rest -= p;
+                const o = POT_OPTS[k];
+                const val = v + (L >= 160 && HI_UP.has(k) ? 1 : 0);
+                const s = o && o.w ? val * (w[o.w] || 0) : 0;
+                const r = k === role.m ? 'm' : role.a && k === role.a ? 'a' : '';
+                const label = r || s > 0 ? `${o.jp}${val}%` : 'その他';
+                put(r || s > 0 ? `${k}|${val}` : 'etc', {
+                    label, s, r, prime: r === 'm' && isPrime(k, val, L), boss: k === 'boss' ? 1 : 0, p,
+                });
+            }
+            if (rest > 1e-9) put('etc', { label: 'その他', s: 0, r: '', prime: false, boss: 0, p: rest });
+            return [...b.values()];
+        });
+        const out = new Map();
+        let kept = 0;
+        for (const a of lines[0]) for (const b of lines[1]) for (const c of lines[2]) {
+            if (a.boss + b.boss + c.boss > 2) continue;
+            const p = a.p * b.p * c.p;
+            kept += p;
+            const three = [a, b, c].sort((x, y) => y.s - x.s);
+            const k = three.map((x) => x.label).join('・');
+            const e = out.get(k);
+            if (e) { e.p += p; continue; }
+            const cnt = { m: 0, a: 0, p: 0 };
+            for (const x of three) { if (x.r === 'm') cnt.m++; if (x.r === 'a') cnt.a++; if (x.prime) cnt.p++; }
+            out.set(k, { label: k, s: a.s + b.s + c.s, p, step: ladderStep(ladder, cnt) });
+        }
+        return [...out.values()].map((e) => ({ ...e, p: e.p / kept }));
+    }
+    let potStepCache = new Map();
+    function potStepsCached(key, cube, L, w, role) {
+        const k = `${key}|${cube}|${L >= 160 ? 1 : 0}|${role.m}|${role.a}|${w.statPct}|${w.allStat}|${w.attPct}|${w.dmg}|${w.boss}|${w.crit}`;
+        let v = potStepCache.get(k);
+        if (!v) {
+            if (potStepCache.size > 200) potStepCache.clear();
+            v = potSteps(key, cube, L, w, role);
+            potStepCache.set(k, v);
+        }
+        return v;
+    }
+    // Rolling until step `to` or better: chance per roll, the average score
+    // when it lands, and the likeliest results that end the run.
+    function stepBeat(all, to) {
+        const hits = all.filter((e) => e.step >= to);
+        const p = hits.reduce((a, e) => a + e.p, 0);
+        if (!(p > 0)) return null;
+        const mean = hits.reduce((a, e) => a + e.s * e.p, 0) / p;
+        const top = [...hits].sort((a, b) => b.p - a.p).slice(0, 3).map((e) => ({ label: e.label, share: e.p / p }));
+        return { p, mean, top };
+    }
+
     /* ---------- bonus stats (rebirth flame) ---------- */
     // Black Rebirth Flame: every item, 3M mesos a roll, and the old stats can be
     // kept, so a roll only needs to beat what the item already has.
@@ -491,8 +606,32 @@
         const key = item.overall ? 'overall' : CUBE_KEY[item.part];
         if (key && CUBE_RATES[key]) {
             const cur = item.potCur != null ? item.potCur : linesScore(item.lines || [], w);
+            const cubes = o.redOnly ? ['red'] : ['red', 'black'];
+            const role = LADDER_ROLE(item.part);
+            if (role) {
+                // Aim for the next step up. A step whose usual result scores no
+                // higher than now (all-stat lines can outweigh a main line)
+                // is skipped in favour of the one above it.
+                const ladder = ladderOf(role);
+                const now = item.potStep != null ? item.potStep : linesStep(item.lines, role, L);
+                let best = null;
+                for (let to = now + 1; to < ladder.length && !best; to++) {
+                    for (const cube of cubes) {
+                        const hit = stepBeat(potStepsCached(key, cube, L, w, role), to);
+                        if (!hit || hit.mean <= cur + 1e-9) continue;
+                        const rolls = 1 / hit.p, cost = cubeUnit(cube, L, o) * rolls, eff = cost / (hit.mean - cur);
+                        if (!best || eff < best.eff) best = { eff, cost, rolls, cube, hit, to };
+                    }
+                }
+                if (best) acts.push({
+                    kind: 'pot', from: cur, to: best.hit.mean, rolls: best.rolls, unit: best.cube,
+                    cost: best.cost, score: best.hit.mean - cur, next: { potCur: best.hit.mean, potStep: best.to },
+                    step: { from: now >= 0 ? ladderName(role, ladder[now].id) : '', to: ladderName(role, ladder[best.to].id), top: best.hit.top },
+                });
+                return acts;
+            }
             let best = null;
-            for (const cube of ['red', 'black']) {
+            for (const cube of cubes) {
                 const hit = flameBeat(potDistCached(key, cube, L, w), cur);
                 if (!hit) continue;
                 const rolls = 1 / hit.p, cost = cubeUnit(cube, L, o) * rolls, eff = cost / (hit.mean - cur);
@@ -528,6 +667,7 @@
             if (last && last.idx === pick.idx && last.kind === a.kind && last.unit === a.unit) {
                 last.to = a.to; last.cost += a.cost; last.score += a.score;
                 if (a.pot) last.pot = a.pot;
+                if (a.step) last.step = { ...a.step, from: last.step.from };
                 last.rolls = (last.rolls || 0) + (a.rolls || 0);
                 last.booms = (last.booms || 0) + (a.booms || 0);
                 last.steps += 1; last.eff = last.cost / last.score; last.cum = total;
@@ -535,7 +675,7 @@
                 continue;
             }
             const row = {
-                ...a, idx: pick.idx, steps: 1, eff: pick.eff, name: pick.item.name,
+                ...a, idx: pick.idx, steps: 1, eff: pick.eff, name: pick.item.name, icon: pick.item.item,
                 big: a.kind === 'pot' && BIG_TICKET.has(pick.item.part),
                 level: FIXED_LV[pick.item.part] || pick.item.level, cum: total
             };
@@ -552,6 +692,10 @@
         if (a.kind === 'flame') return {
             label: `転生 ${Math.round(a.from)} → ${Math.round(a.to)}`,
             detail: `黒転生 期待${countText(a.rolls)}回`,
+        };
+        if (a.step) return {
+            label: `潜在 ${a.step.from || ''} → ${a.step.to}`,
+            detail: `期待${countText(a.rolls)}個`,
         };
         return {
             label: `潜在 ${Math.round(a.from)} → ${Math.round(a.to)}`,
@@ -783,7 +927,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
     };
     const DEFAULT_STATE = () => ({
         w: { main: 1, sub: 0.1, att: 3, statPct: 11, allStat: 12, crit: 40, attPct: 45, boss: 10, dmg: 10 },
-        o: { ssf: true, safeguard: true, starCatch: true, planName: '1144', flamePrice: 3e6, cubeSale: false, cubeSalePct: 25 },
+        o: { ssf: true, safeguard: true, starCatch: true, planName: '1144', flamePrice: 3e6, cubeSale: false, cubeSalePct: 25, redOnly: false },
         slots: defaultSlots(),
         limit: 40,
     });
@@ -911,7 +1055,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
                 .map((id) => {
                     const v = this.state.slots[id];
                     return {
-                        id, name: SLOTS[id].label, part: SLOTS[id].part,
+                        id, name: SLOTS[id].label, part: SLOTS[id].part, item: v.item,
                         level: v.level, star: v.star, mode: v.mode,
                         lines: v.lines, overall: id === 'top' && this.bottomTaken(),
                         noStar: !hasStar(id),
@@ -971,7 +1115,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
             <div class="grid grid-cols-5 gap-1.5">${weights}</div>
             <div class="pt-2 border-t border-base-content/10 flex flex-col gap-2">
                 <div class="flex flex-wrap gap-x-4 gap-y-1 whitespace-nowrap">
-                    ${chk('ssf', 'シャイニングスターフォース')}${chk('safeguard', '15-17★で破壊防止')}${chk('starCatch', 'スターキャッチ')}
+                    ${chk('ssf', 'シャイニングスターフォース')}${chk('safeguard', '15-17★で破壊防止')}${chk('starCatch', 'スターキャッチ')}${chk('redOnly', 'キューブはグローイング固定')}
                 </div>
                 <div class="grid grid-cols-[minmax(0,1.3fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_auto] gap-x-3 items-end whitespace-nowrap">
                     ${field('<label for="gp-plan">18★以降のモード（既定）</label>', `<select id="gp-plan" class="select select-xs w-full" data-gp="planName">
@@ -993,7 +1137,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
             <span class="text-[11px] text-base-content/50">バーは1スコアあたりの単価（対数）。長いほど割高。</span>
         </div>
         <ul id="gp-plan-list" class="-mx-1"></ul>
-        <p class="text-[11px] text-base-content/40 leading-relaxed">スターフォースは破壊で★が戻るため、0→18・18→20・20→21・21→22、以降は1★ずつをひとまとまりとして扱い、その区切りまで到達する期待額を出しています（再登坂込み、予備装備は0メソ扱い）。潜在はKMSの行ごとの確率（Lv160以上は値+1%）で3行の組み合わせを全部数え、今の3行の合計スコアを上回るまで回す期待個数と、上回ったときの平均スコアで見ています。転生は黒転生（結果を選べる）で同じように、今を上回るまでの期待回数で見ています。</p>
+        <p class="text-[11px] text-base-content/40 leading-relaxed">スターフォースは破壊で★が戻るため、0→18・18→20・20→21・21→22、以降は1★ずつをひとまとまりとして扱い、その区切りまで到達する期待額を出しています（再登坂込み、予備装備は0メソ扱い）。潜在はKMSの行ごとの確率（Lv160以上は値+1%）で3行の組み合わせを全部数えています。手袋以外は節目（2ライン → 3ライン（オール含み） → 3ライン（オール抜き） → レジェンダリー2ライン → レジェンダリー3ライン。武器・補助武器は攻撃力%をメイン、ボスダメをオールとして数える）を1段ずつ目標にし、届くまで回す期待個数と、届いたときの平均スコアで見ています。届いても今よりスコアが下がりやすい段は飛ばします。手袋は今の3行の合計スコアを上回るまで回します。転生は黒転生（結果を選べる）で同じように、今を上回るまでの期待回数で見ています。</p>
     </div></div>
     </div>
 </div>
@@ -1404,6 +1548,14 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
 
         // Potential rows name the lines to stop on, since a score alone doesn't say.
         targetHTML(s) {
+            if (s.kind === 'pot' && s.step) {
+                const [first, ...rest] = s.step.top;
+                const head = `<span class="badge badge-xs badge-ghost mr-1.5">止める</span><b class="font-semibold text-base-content/85">${esc(s.step.to)}</b>以上 <span class="text-base-content/50">多いのは ${esc(first.label)} ${pctText(first.share)}</span>`;
+                if (!rest.length) return `<div class="tgt">${head}</div>`;
+                const list = rest.map((o) => `${esc(o.label)} ${pctText(o.share)}`).join('、');
+                return `<details class="tgt"><summary>${head}<span class="more">ほか</span></summary>
+                <div class="alt">次に多いのは ${list}（止まったときの割合）</div></details>`;
+            }
             if (s.kind !== 'pot' || !s.pot) return '';
             const t = potTarget(s.pot.key, s.unit, s.pot.L, this.state.w, s.pot.thr);
             if (!t) return '';
@@ -1444,8 +1596,10 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
             // 1位だけ大きく、藍の地と左線で「次はこれ」を示す。
             const row = (s, cls, rank, cost, cum, extra) => {
                 const k = tone(s), top = rank === 1 && cls !== 'child', child = cls === 'child';
-                return `<li class="grid grid-cols-[40px_minmax(0,1fr)_84px_62px] gap-2.5 items-center px-2 py-1.5 border-b border-base-content/5 last:border-b-0 ${top ? 'bg-primary/10 border-l-2 border-l-primary' : child ? 'bg-base-300/40 border-dashed pl-6' : ''}">
+                return `<li class="grid grid-cols-[40px_32px_minmax(0,1fr)_84px_62px] gap-2.5 items-center px-2 py-1.5 border-b border-base-content/5 last:border-b-0 ${top ? 'bg-primary/10 border-l-2 border-l-primary' : child ? 'bg-base-300/40 border-dashed pl-6' : ''}">
                 <span class="font-mono text-right tabular-nums ${top ? 'text-primary font-bold text-base' : child ? 'text-base-content/40 text-[11.5px]' : 'text-base-content/45 text-[13px]'}">${rank}</span>
+                ${s.icon ? `<span class="w-8 h-8 grid place-items-center bg-base-300/60 border border-base-content/10">${iconImg(s.icon, child ? 24 : 28)}</span>`
+                    : `<span class="w-8 h-8 grid place-items-center bg-base-300/60 border border-base-content/10 text-xs text-base-content/60">${esc(s.name.slice(0, 1))}</span>`}
                 <div class="min-w-0">
                     <div class="text-[11px] text-base-content/50">${esc(s.name)}・Lv${s.level}</div>
                     <div class="${top ? 'text-base' : child ? 'text-[11.5px]' : 'text-[13.5px]'} leading-snug"><b class="font-semibold text-${k}">${esc(s.label)}</b> ${s.kind === 'pot' ? `<span class="cube ${s.unit}"><img src="https://maplestory.io/api/GMS/270/item/${CUBE_ICON[s.unit]}/icon" alt="" width="16" height="16" loading="lazy" onerror="this.style.display='none'">${esc(CUBE_JP[s.unit])}</span> ` : ''}<span class="text-[11px] text-base-content/50">${esc(s.detail)}</span>${extra || ''}</div>
