@@ -675,7 +675,7 @@
                 continue;
             }
             const row = {
-                ...a, idx: pick.idx, steps: 1, eff: pick.eff, name: pick.item.name, icon: pick.item.item,
+                ...a, idx: pick.idx, steps: 1, eff: pick.eff, name: pick.item.name, icon: pick.item.item, slot: pick.item.id,
                 big: a.kind === 'pot' && BIG_TICKET.has(pick.item.part),
                 level: FIXED_LV[pick.item.part] || pick.item.level, cum: total
             };
@@ -694,7 +694,7 @@
             detail: `黒転生 期待${countText(a.rolls)}回`,
         };
         if (a.step) return {
-            label: `潜在 ${a.step.from || ''} → ${a.step.to}`,
+            label: `潜在 ${a.step.from ? a.step.from + ' ' : ''}→ ${a.step.to}`,
             detail: `期待${countText(a.rolls)}個`,
         };
         return {
@@ -930,6 +930,8 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
         o: { ssf: true, safeguard: true, starCatch: true, planName: '1144', flamePrice: 3e6, cubeSale: false, cubeSalePct: 25, blackOnly: false },
         slots: defaultSlots(),
         limit: 40,
+        // Plan rows the player means to do, by slot and step (see pickKey).
+        picked: [],
     });
 
     /* ---------- screenshot reader (gear_reader.js) ---------- */
@@ -1043,6 +1045,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
                     o: { ...d.o, ...(s.o || {}) },
                     slots,
                     limit: Number(s.limit) || d.limit,
+                    picked: Array.isArray(s.picked) ? s.picked.filter((k) => typeof k === 'string') : [],
                 };
             } catch (e) { /* keep defaults on corrupted storage */ }
         },
@@ -1133,6 +1136,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
     <div class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
         <div class="flex items-center gap-2 flex-wrap">
             <h2 class="card-title text-sm">この順で伸ばす</h2>
+            <span id="gp-picked" class="order-last ml-auto"></span>
             ${legend('warning', 'スターフォース')}${legend('info', '潜在')}${legend('success', '転生')}${legend('secondary', '武器・補助武器・エンブレムの潜在')}
             <span class="text-[11px] text-base-content/50">バーは1スコアあたりの単価（対数）。長いほど割高。</span>
         </div>
@@ -1177,6 +1181,13 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
                     this.save(); this.renderPlan();
                 } else if (kind === 'limit') {
                     t.value = this.state.limit;
+                } else if (kind === 'pick') {
+                    // A folded row picks or drops every step inside it.
+                    const keys = (this.planKeys[Number(t.dataset.g)] || [])[t.dataset.c === '' ? 'all' : Number(t.dataset.c)] || [];
+                    const set = new Set(this.state.picked);
+                    for (const k of [].concat(keys)) { if (t.checked) set.add(k); else set.delete(k); }
+                    this.state.picked = [...set];
+                    this.save(); this.renderPlan();
                 } else if (kind === 'toggle') {
                     this.state.slots[t.dataset.id].on = t.checked;
                     this.save(); this.renderRack(); this.renderPlan();
@@ -1199,6 +1210,9 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
                     // carries quotes and brackets that would need escaping.
                     const again = [...root.querySelectorAll('[data-gp="fold"]')].find((b) => b.dataset.sig === sig);
                     if (again) again.focus();
+                } else if (kind === 'pick-clear') {
+                    this.state.picked = [];
+                    this.save(); this.renderPlan();
                 } else if (kind === 'all-on' || kind === 'all-off') {
                     const on = kind === 'all-on';
                     for (const id of Object.keys(SLOTS)) {
@@ -1570,6 +1584,19 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
         renderPlan() {
             const el = this.root.querySelector('#gp-plan-list');
             const plan = buildPlan(this.entries(), this.state.w, this.opts(), this.state.limit);
+            const pickedEl = this.root.querySelector('#gp-picked');
+            // Picks are kept by slot and step, so a row that is still in the plan
+            // after an edit stays picked and one that is gone drops out.
+            const pickKey = (s) => `${s.slot}|${s.kind}|${s.unit}|${s.label}`;
+            const live = new Set(plan.map(pickKey));
+            const picked = new Set((this.state.picked || []).filter((k) => live.has(k)));
+            if (picked.size !== (this.state.picked || []).length) { this.state.picked = [...picked]; this.save(); }
+            const chosen = plan.filter((s) => picked.has(pickKey(s)));
+            const sum = chosen.reduce((a, s) => a + s.cost, 0);
+            pickedEl.innerHTML = chosen.length
+                ? `<span class="flex items-center gap-2 whitespace-nowrap"><span class="text-xs text-base-content/60">選んだ ${chosen.length}件</span><span class="text-xs text-base-content/60">期待</span><b class="font-mono tabular-nums text-lg text-success">${fmtB(sum)}</b><button type="button" class="btn btn-xs btn-ghost text-base-content/50" data-gp="pick-clear">選択を外す</button></span>`
+                : '<span class="text-[11px] text-base-content/45">左のチェックで、やる予定の行を選ぶと合計の期待メルを出します。</span>';
+            this.planKeys = [];
             if (!plan.length) {
                 el.innerHTML = '<li class="text-base-content/50 text-center py-4">伸ばせる先がありません。装備を有効にするか、進捗を下げてみてください。</li>';
                 return;
@@ -1594,9 +1621,12 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
             // 種類ごとの色（daisyUI のテーマ色）。大物（武器・補助武器・エンブレムの潜在）は紫。
             const tone = (s) => s.big ? 'secondary' : s.kind === 'star' ? 'warning' : s.kind === 'flame' ? 'success' : 'info';
             // 1位だけ大きく、藍の地と左線で「次はこれ」を示す。
-            const row = (s, cls, rank, cost, cum, extra) => {
+            const row = (s, cls, rank, cost, cum, extra, pick) => {
                 const k = tone(s), top = rank === 1 && cls !== 'child', child = cls === 'child';
-                return `<li class="grid grid-cols-[40px_32px_minmax(0,1fr)_84px_62px] gap-2.5 items-center px-2 py-1.5 border-b border-base-content/5 last:border-b-0 ${top ? 'bg-primary/10 border-l-2 border-l-primary' : child ? 'bg-base-300/40 border-dashed pl-6' : ''}">
+                const box = `<input type="checkbox" class="checkbox checkbox-xs checkbox-success" data-gp="pick" data-g="${pick.g}" data-c="${pick.c}"
+                    aria-label="${esc(s.name)} ${esc(s.label)} を選ぶ" ${pick.on ? 'checked' : ''} ${pick.some ? 'data-some="1"' : ''}>`;
+                return `<li class="grid grid-cols-[18px_34px_32px_minmax(0,1fr)_84px_62px] gap-2.5 items-center px-2 py-1.5 border-b border-base-content/5 last:border-b-0 ${top ? 'bg-primary/10 border-l-2 border-l-primary' : child ? 'bg-base-300/40 border-dashed pl-6' : ''} ${pick.on ? 'outline outline-1 -outline-offset-1 outline-success/40' : ''}">
+                ${box}
                 <span class="font-mono text-right tabular-nums ${top ? 'text-primary font-bold text-base' : child ? 'text-base-content/40 text-[11.5px]' : 'text-base-content/45 text-[13px]'}">${rank}</span>
                 ${s.icon ? `<span class="w-8 h-8 grid place-items-center bg-base-300/60 border border-base-content/10">${iconImg(s.icon, child ? 24 : 28)}</span>`
                     : `<span class="w-8 h-8 grid place-items-center bg-base-300/60 border border-base-content/10 text-xs text-base-content/60">${esc(s.name.slice(0, 1))}</span>`}
@@ -1611,9 +1641,13 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
             </li>`;
             };
 
-            el.innerHTML = groups.map((g) => {
+            el.innerHTML = groups.map((g, gi) => {
                 const n = g.steps.length, head = g.steps[0], tail = g.steps[n - 1];
-                if (n === 1) return row(head, '', head.rank, fmtB(head.cost), fmtB(head.cum));
+                const keys = g.steps.map(pickKey);
+                const on = keys.filter((x) => picked.has(x)).length;
+                this.planKeys[gi] = { all: keys, ...keys };
+                const gp = { g: gi, c: '', on: on === n, some: on > 0 && on < n };
+                if (n === 1) return row(head, '', head.rank, fmtB(head.cost), fmtB(head.cum), '', gp);
 
                 const open = this.expanded.has(g.sig);
                 const names = g.steps.map((s) => s.name);
@@ -1622,10 +1656,13 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
                 const fold = `<button type="button" class="btn btn-xs btn-ghost font-mono px-1.5 h-5 min-h-5 border-base-content/15 ml-1" data-gp="fold" data-sig="${esc(g.sig)}"
                     aria-expanded="${open}">×${n} ${open ? '▴' : '▾'}</button>`;
                 const summary = row({ ...head, name: who }, 'grp', `${head.rank}-${tail.rank}`,
-                    fmtB(total), fmtB(tail.cum), fold);
+                    fmtB(total), fmtB(tail.cum), fold, gp);
                 if (!open) return summary;
-                return summary + g.steps.map((s) => row(s, 'child', s.rank, fmtB(s.cost), fmtB(s.cum))).join('');
+                return summary + g.steps.map((s, ci) => row(s, 'child', s.rank, fmtB(s.cost), fmtB(s.cum), '',
+                    { g: gi, c: ci, on: picked.has(keys[ci]) })).join('');
             }).join('');
+            // Part of a folded run picked: show the box as half-checked.
+            el.querySelectorAll('[data-some]').forEach((b) => { b.indeterminate = true; });
         },
 
         /* ---------- equip modal ---------- */
