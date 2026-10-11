@@ -606,7 +606,7 @@
         const key = item.overall ? 'overall' : CUBE_KEY[item.part];
         if (key && CUBE_RATES[key]) {
             const cur = item.potCur != null ? item.potCur : linesScore(item.lines || [], w);
-            const cubes = o.redOnly ? ['red'] : ['red', 'black'];
+            const cubes = o.blackOnly ? ['black'] : ['red', 'black'];
             const role = LADDER_ROLE(item.part);
             if (role) {
                 // Aim for the next step up. A step whose usual result scores no
@@ -927,7 +927,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
     };
     const DEFAULT_STATE = () => ({
         w: { main: 1, sub: 0.1, att: 3, statPct: 11, allStat: 12, crit: 40, attPct: 45, boss: 10, dmg: 10 },
-        o: { ssf: true, safeguard: true, starCatch: true, planName: '1144', flamePrice: 3e6, cubeSale: false, cubeSalePct: 25, redOnly: false },
+        o: { ssf: true, safeguard: true, starCatch: true, planName: '1144', flamePrice: 3e6, cubeSale: false, cubeSalePct: 25, blackOnly: false },
         slots: defaultSlots(),
         limit: 40,
     });
@@ -1115,7 +1115,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
             <div class="grid grid-cols-5 gap-1.5">${weights}</div>
             <div class="pt-2 border-t border-base-content/10 flex flex-col gap-2">
                 <div class="flex flex-wrap gap-x-4 gap-y-1 whitespace-nowrap">
-                    ${chk('ssf', 'シャイニングスターフォース')}${chk('safeguard', '15-17★で破壊防止')}${chk('starCatch', 'スターキャッチ')}${chk('redOnly', 'キューブはグローイング固定')}
+                    ${chk('ssf', 'シャイニングスターフォース')}${chk('safeguard', '15-17★で破壊防止')}${chk('starCatch', 'スターキャッチ')}${chk('blackOnly', 'キューブはブライト固定')}
                 </div>
                 <div class="grid grid-cols-[minmax(0,1.3fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_auto] gap-x-3 items-end whitespace-nowrap">
                     ${field('<label for="gp-plan">18★以降のモード（既定）</label>', `<select id="gp-plan" class="select select-xs w-full" data-gp="planName">
