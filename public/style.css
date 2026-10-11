@@ -571,7 +571,7 @@ body {
 #sidebar.collapsed { width: 56px; }
 .sidebar-head { padding: 0 14px; gap: 10px; }
 #sidebar .menu { padding: 6px; font-size: 13px; }
-#sidebar .menu .nav-item { position: relative; gap: 12px; padding-inline: 12px; height: 34px; flex-wrap: nowrap; }
+#sidebar .menu .nav-item { position: relative; gap: 12px; padding-inline: 12px; height: 34px; flex-wrap: nowrap; align-content: center; }
 #sidebar .menu .nav-item > svg { flex-shrink: 0; }
 #sidebar .menu .nav-item:not(.menu-active) { color: #94a3b8; }
 #sidebar .menu .nav-item:not(.menu-active):hover { color: #e2e8f0; }
