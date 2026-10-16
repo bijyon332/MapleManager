@@ -97,29 +97,31 @@ check(COST.common3.frag[6] === 265, '3rd Common Lv.6 must cost 265 fragments cum
 
 // ------------------------------------------------------- FD + planner, vs site
 
-// Reference values read off the upstream Paladin priority board with a fresh
-// character (Origin auto-granted at Lv.1, everything else at 0).
-const pal = CLASSES.find(c => c.id === 'paladin');
-check(!!pal, 'paladin class data missing');
-if (pal) {
-    const m1 = pal.skills.find(s => s.key === 'mastery1');
-    check(m1.name === 'HEXA Blast / HEXA Divine Judgment', 'paladin mastery1 name drifted: ' + m1.name);
-    const fd9 = t.fdAt(m1, 9);
-    check(Math.abs(fd9 - 19.78) < 0.01, 'paladin mastery1 Lv.9 FD should be ~19.78, got ' + fd9.toFixed(3));
+// Reference values read off the upstream Hero priority board (sort: best per
+// fragment) with a fresh character (Origin auto-granted at Lv.1, everything
+// else at 0). Re-read 2026-10-16 after the upstream HEXA value refresh.
+const hero = CLASSES.find(c => c.id === 'hero');
+check(!!hero, 'hero class data missing');
+if (hero) {
+    const m3 = hero.skills.find(s => s.key === 'mastery3');
+    check(m3.name === 'HEXA Beam Blade / Rending Edge', 'hero mastery3 name drifted: ' + m3.name);
+    const fd1 = t.fdAt(m3, 1);
+    check(Math.abs(fd1 - 10.06) < 0.01, 'hero mastery3 Lv.1 FD should be ~10.06, got ' + fd1.toFixed(3));
 
-    const steps = t.buildPlan('paladin', 'paladin');
-    const head = steps.slice(0, 6).map(s => s.skill.key + ' ' + s.from + '->' + s.to);
-    const want = ['mastery1 0->9', 'mastery4 0->1', 'mastery2 0->1', 'enhance2 0->1', 'enhance3 0->1', 'enhance4 0->1'];
+    const steps = t.buildPlan('hero', 'hero');
+    const head = steps.slice(0, 5).map(s => s.skill.key + ' ' + s.from + '->' + s.to);
+    const want = ['mastery3 0->1', 'mastery1 0->4', 'mastery2 0->1', 'mastery1 4->8', 'common2 0->1'];
     check(JSON.stringify(head) === JSON.stringify(want),
-        'paladin priority head drifted:\n    got  ' + JSON.stringify(head) + '\n    want ' + JSON.stringify(want));
-    check(steps[0].frag === 242, 'first paladin step should cost 242 fragments, got ' + steps[0].frag);
-    notes.push('paladin plan: ' + steps.length + ' steps to max, first = ' + head[0]);
+        'hero priority head drifted:\n    got  ' + JSON.stringify(head) + '\n    want ' + JSON.stringify(want));
+    check(steps[0].frag === 50, 'first hero step should cost 50 fragments, got ' + steps[0].frag);
+    notes.push('hero plan: ' + steps.length + ' steps to max, first = ' + head[0]);
 }
 
-// A fresh character sits above 0% because Origin Lv.1 is granted.
+// A fresh character reads 0%: Origin Lv.1 is granted free and, upstream, adds
+// no FD by itself (its curve starts at Lv.2).
 const fresh = t.getProgress('hero', 'hero');
 check(fresh.fragSpent === 0, 'a fresh character has spent 0 fragments, got ' + fresh.fragSpent);
-check(fresh.fdNow > 0, 'a fresh character should already have some FD from the free Origin Lv.1');
+check(fresh.fdNow === 0, 'a fresh character should have no HEXA FD yet, got ' + fresh.fdNow);
 check(fresh.pct === 0, 'a fresh character should read 0%, got ' + fresh.pct + '%');
 
 // Targets: default to 30, clamp to at least the current level.
