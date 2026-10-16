@@ -267,9 +267,9 @@ const hexaTracker = {
     // Cost of one level as the planner weighs it. Lv.1, 10, 20 and 30 cost
     // several times their neighbours; taken alone they always look like a bad
     // buy and get pushed to the back. Read each of them as a linear base cost
-    // plus a surcharge, keep the base on the level itself and spread the
-    // surcharge evenly over the nine levels it opens (Lv.2–9 for Lv.1, 11–19 for
-    // 10, 21–29 for 20). Lv.30 opens nothing, so it keeps its full cost. The
+    // plus a surcharge, and spread the surcharge evenly over the level itself
+    // and the ones it opens (Lv.1–9 for Lv.1, 10–19 for 10, 20–29 for 20).
+    // Lv.30 opens nothing, so it keeps its full cost. The
     // base for Lv.10 and 20 is the midpoint of the levels on either side; Lv.1
     // has only one side, so its base carries on the run of Lv.2–3.
     // Totals per node are unchanged, and the costs shown on screen stay the real
@@ -290,9 +290,9 @@ const hexaTracker = {
                 for (let n = from; n <= to; n++) table[n] += extra / (to - from + 1);
             };
             const between = n => (step(n - 1) + step(n + 1)) / 2;
-            spread(1, 2 * step(2) - step(3), 2, 9);
-            spread(10, between(10), 11, 19);
-            spread(20, between(20), 21, 29);
+            spread(1, 2 * step(2) - step(3), 1, 9);
+            spread(10, between(10), 10, 19);
+            spread(20, between(20), 20, 29);
             this._orderCost.set(key, table);
         }
         return table[level];
