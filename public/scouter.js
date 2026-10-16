@@ -121,6 +121,14 @@ const scouter = (() => {
             ['candy', 'Candied Apple', 'buff/candy.png'],
             ['house', "Caretaker's Support", 'buff/house.png'],
         ] },
+        // Champion のバフ。レベル 0〜5。アイコンが全部同じなので左上に種類（tag）を重ねる。
+        { title: 'Champion', items: [
+            ['championAll', 'ALLステ / HP', 'buff/champion.png', { champ: true, max: 5, tag: 'ALL', title: 'ALLステ +10 / 最大HP +500（1段あたり）' }],
+            ['championAtk', '攻撃力 / 魔力', 'buff/champion.png', { champ: true, max: 5, tag: 'AMA', title: '攻撃力・魔力 +5（1段あたり）' }],
+            ['championBoss', 'ボスダメージ', 'buff/champion.png', { champ: true, max: 5, tag: 'BOSS', title: 'ボスダメージ +2%（1段あたり）' }],
+            ['championIgnore', '防御率無視', 'buff/champion.png', { champ: true, max: 5, tag: 'IED', title: '防御率無視 +2%（1段あたり）' }],
+            ['championCriDmg', 'クリダメ', 'buff/champion.png', { champ: true, max: 5, tag: 'CRI', title: 'クリティカルダメージ +0.5%（1段あたり）' }],
+        ] },
     ];
     // 同じ group のもの（先方の画面で、1つ選ぶと他が外れるもの）。
     const GROUP_KEYS = {
@@ -182,6 +190,7 @@ const scouter = (() => {
         d.noblessBoss = d.nobless[0] !== '0'; d.noblessDmg = d.nobless[1] !== '0';
         d.noblessCriDmg = d.nobless[2] !== '0'; d.noblessIgnore = d.nobless[3] !== '0';
         d.stat = lv(d.stat, 30);
+        for (const k of ['championAll', 'championAtk', 'championBoss', 'championIgnore', 'championCriDmg']) d[k] = lv(d[k], 5);
         d.statPotion = d.stat !== '0';
         // デーモンアヴェンジャーは「伝説の英雄の秘薬」が HP 版になる（先方の画面と同じ）。
         if (f.classId === 'demonavenger') { d.legendHp = !!d.legendHero; d.legendHero = false; } else d.legendHp = false;
@@ -521,11 +530,16 @@ const scouter = (() => {
     function buffIsOn(f, [k, , , opt = {}]) {
         const d = f.doping;
         if (opt.stat) return num(d.stat) > 0;
+        if (opt.champ) return num(d[k]) > 0;
         if (opt.lv !== undefined) return num((d.nobless || [])[opt.lv]) > 0;
         return !!d[k];
     }
     function buffTile(f, [k, label, icon, opt = {}]) {
         const d = f.doping;
+        if (opt.champ) {
+            const ico = `<span class="relative shrink-0">${img(icon)}<span class="absolute -top-1 -left-1 px-0.5 rounded-sm bg-base-300/90 text-[8px] leading-[10px] font-bold font-mono text-base-content">${esc(opt.tag)}</span></span>`;
+            return tileLv(ico, label, 'doping.' + k, d[k], `${opt.title}（0〜${opt.max}、0 で使わない）`);
+        }
         if (opt.lv !== undefined || opt.stat) {
             const path = opt.stat ? 'doping.stat' : 'doping.nobless.' + opt.lv;
             const v = opt.stat ? d.stat : (d.nobless || [])[opt.lv];
