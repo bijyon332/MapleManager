@@ -1043,7 +1043,7 @@ const HEXA_CLASS_SKILLS = [
     {key:"enhance4",type:"enhance",tier:"boost",slot:3,name:"[Battou] Wailing Heavens Boost",fd:19.9865,c:6,icon:"Hayato_6"},
     {key:"common1",type:"common",tier:"common",slot:0,name:"Sol Janus",fd:0,c:-1,icon:"General_1"},
     {key:"common2",type:"common",tier:"common",slot:1,name:"Sol Hekate",fd:16.5101,c:7,icon:"General_2"},
-    {key:"common3",type:"common",tier:"common",slot:2,name:"HEXA Twilight Bloom",fd:2.3763,c:279,icon:null},
+    {key:"common3",type:"common",tier:"common",slot:2,name:"HEXA Twilight Bloom",fd:2.3763,c:279,icon:"Hayato_11"},
   ]},
   {id:"kanna",gms:"Kanna",icon:"Kanna",slots:{"skillNodes":6,"mastery":4,"boost":4,"common":4},skills:[
     {key:"origin",type:"origin",tier:"skillNodes",slot:0,name:"[Divine Will] Advent of Crimson",fd:7.0017,c:0,icon:"Kanna_1"},
@@ -1058,7 +1058,7 @@ const HEXA_CLASS_SKILLS = [
     {key:"enhance4",type:"enhance",tier:"boost",slot:3,name:"[Spirit] Unleash Soul-Searing Venom Boost",fd:5.0947,c:6,icon:"Kanna_6"},
     {key:"common1",type:"common",tier:"common",slot:0,name:"Sol Janus",fd:0,c:-1,icon:"General_1"},
     {key:"common2",type:"common",tier:"common",slot:1,name:"Sol Hekate",fd:18.4303,c:7,icon:"General_2"},
-    {key:"common3",type:"common",tier:"common",slot:2,name:"HEXA Twilight Bloom",fd:1.9124,c:279,icon:null},
+    {key:"common3",type:"common",tier:"common",slot:2,name:"HEXA Twilight Bloom",fd:1.9124,c:279,icon:"Kanna_11"},
   ]},
   {id:"lynn",gms:"Lynn",icon:"Lynn",slots:{"skillNodes":6,"mastery":4,"boost":4,"common":4},skills:[
     {key:"origin",type:"origin",tier:"skillNodes",slot:0,name:"Source Flow",fd:5.8065,c:0,icon:"Lynn_1"},
@@ -1073,7 +1073,7 @@ const HEXA_CLASS_SKILLS = [
     {key:"enhance4",type:"enhance",tier:"boost",slot:3,name:"Nature's Grace Boost",fd:0,c:-1,icon:"Lynn_6"},
     {key:"common1",type:"common",tier:"common",slot:0,name:"Sol Janus",fd:0,c:-1,icon:"General_1"},
     {key:"common2",type:"common",tier:"common",slot:1,name:"Sol Hekate",fd:13.1498,c:7,icon:"General_2"},
-    {key:"common3",type:"common",tier:"common",slot:2,name:"HEXA Ring of Samsara",fd:0.3839,c:282,icon:null},
+    {key:"common3",type:"common",tier:"common",slot:2,name:"HEXA Ring of Samsara",fd:0.3839,c:282,icon:"Lynn_11"},
   ]},
   {id:"moxuan",gms:"Mo Xuan",icon:"Moxuan",slots:{"skillNodes":6,"mastery":4,"boost":4,"common":4},skills:[
     {key:"origin",type:"origin",tier:"skillNodes",slot:0,name:"Soul Art: Jianghu Dragon",fd:2.9839,c:0,icon:"Moxuan_1"},
@@ -1088,7 +1088,7 @@ const HEXA_CLASS_SKILLS = [
     {key:"enhance4",type:"enhance",tier:"boost",slot:3,name:"Divine Art: Crashing Earth Boost",fd:3.3874,c:6,icon:"Moxuan_6"},
     {key:"common1",type:"common",tier:"common",slot:0,name:"Sol Janus",fd:0,c:-1,icon:"General_1"},
     {key:"common2",type:"common",tier:"common",slot:1,name:"Sol Hekate",fd:16.0499,c:7,icon:"General_2"},
-    {key:"common3",type:"common",tier:"common",slot:2,name:"HEXA Ring of Samsara",fd:0.6724,c:282,icon:null},
+    {key:"common3",type:"common",tier:"common",slot:2,name:"HEXA Ring of Samsara",fd:0.6724,c:282,icon:"Moxuan_11"},
   ]},
   {id:"sia",gms:"Sia",icon:"Sia",slots:{"skillNodes":6,"mastery":4,"boost":4,"common":4},skills:[
     {key:"origin",type:"origin",tier:"skillNodes",slot:0,name:"Primal Asterism",fd:8.47,c:-1,icon:"Sia_1"},
