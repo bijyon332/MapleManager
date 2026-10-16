@@ -264,13 +264,43 @@ const hexaTracker = {
         this.refreshAll();
     },
 
+    // Cost of one level as the planner weighs it. Lv.1, 10, 20 and 30 cost
+    // several times their neighbours; taken alone they always look like a bad
+    // buy and get pushed to the back. Read each of them as a linear base cost
+    // plus a surcharge, and spread the surcharge evenly over the level itself
+    // and the ones it opens (Lv.1–9 for Lv.1, 10–19 for 10, 20–29 for 20).
+    // Lv.30 opens nothing, so it keeps its full cost. The
+    // base for Lv.10 and 20 is the midpoint of the levels on either side; Lv.1
+    // has only one side, so its base carries on the run of Lv.2–3.
+    // Totals per node are unchanged, and the costs shown on screen stay the real
+    // ones — this only decides the order.
+    orderCost(skill, level, perErda) {
+        const at = n => perErda ? this.erdaAt(skill, n) : this.fragAt(skill, n);
+        const step = n => (n < 1 || n > this.MAX_LEVEL) ? 0 : at(n) - at(n - 1);
+        if (!this._orderCost) this._orderCost = new Map();
+        const key = (perErda ? 'e:' : 'f:') + this.costKey(skill);
+        let table = this._orderCost.get(key);
+        if (!table) {
+            table = [0];
+            for (let n = 1; n <= this.MAX_LEVEL; n++) table[n] = step(n);
+            const spread = (spike, base, from, to) => {
+                const extra = table[spike] - base;
+                if (!(extra > 0) || to < from) return;
+                table[spike] = base;
+                for (let n = from; n <= to; n++) table[n] += extra / (to - from + 1);
+            };
+            const between = n => (step(n - 1) + step(n + 1)) / 2;
+            spread(1, 2 * step(2) - step(3), 1, 9);
+            spread(10, between(10), 10, 19);
+            spread(20, between(20), 20, 29);
+            this._orderCost.set(key, table);
+        }
+        return table[level];
+    },
+
     // Greedy chain from current levels to targets: repeatedly take the single
-    // level with the best FD per resource, then merge consecutive levels of the
-    // same node into one step (their ratios are equal, so the order is unchanged).
-    // One greedy level at a time, from `from` to `to`. Because each pick is the
-    // best remaining ratio and the nodes are independent, the ratios come out
-    // non-increasing — which is what makes the cumulative curve concave and the
-    // break-even point below well defined.
+    // level with the best FD per resource (cost as orderCost weighs it), then
+    // merge consecutive levels of the same node into one step.
     planSingles(skills, from, to, perErda) {
         const cursor = { ...from };
         const singles = [];
@@ -284,7 +314,7 @@ const hexaTracker = {
                 const frag = this.fragAt(s, lv + 1) - this.fragAt(s, lv);
                 const erda = this.erdaAt(s, lv + 1) - this.erdaAt(s, lv);
                 const fd = this.fdAt(s, lv + 1) - this.fdAt(s, lv);
-                const cost = perErda ? erda : frag;
+                const cost = this.orderCost(s, lv + 1, perErda);
                 const ratio = cost > 0 ? fd / cost : (fd > 0 ? Infinity : 0);
                 if (!best || ratio > best.ratio) best = { skill: s, from: lv, frag, erda, fd, ratio };
             }
