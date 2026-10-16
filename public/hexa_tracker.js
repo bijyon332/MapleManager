@@ -266,11 +266,14 @@ const hexaTracker = {
 
     // Cost of one level as the planner weighs it. Lv.1, 10, 20 and 30 cost
     // several times their neighbours; taken alone they always look like a bad
-    // buy and get pushed to the back. So the part of a spike above the linear
-    // run is spread evenly over the nine levels it opens (Lv.2–9 for Lv.1,
-    // 11–19 for 10, 21–29 for 20; Lv.30 has nothing after it, so it spreads over
-    // 21–29 as well). Totals per node are unchanged, and the costs shown on
-    // screen stay the real ones — this only decides the order.
+    // buy and get pushed to the back. Read each of them as the linear base cost
+    // (the run of the two levels before it carried on one more step) plus a
+    // surcharge, keep the base on the level itself and spread the surcharge
+    // evenly over the nine levels it opens (Lv.2–9 for Lv.1, 11–19 for 10,
+    // 21–29 for 20; Lv.30 has nothing after it, so it spreads over 21–29 as
+    // well). Lv.1 has no levels before it, so its base comes from Lv.2–3.
+    // Totals per node are unchanged, and the costs shown on screen stay the real
+    // ones — this only decides the order.
     orderCost(skill, level, perErda) {
         const at = n => perErda ? this.erdaAt(skill, n) : this.fragAt(skill, n);
         const step = n => (n < 1 || n > this.MAX_LEVEL) ? 0 : at(n) - at(n - 1);
@@ -286,10 +289,11 @@ const hexaTracker = {
                 table[spike] = base;
                 for (let n = from; n <= to; n++) table[n] += extra / (to - from + 1);
             };
-            spread(1, step(2), 2, 9);
-            spread(10, step(11), 11, 19);
-            spread(20, step(21), 21, 29);
-            spread(30, step(29), 21, 29);
+            const before = n => 2 * step(n - 1) - step(n - 2);
+            spread(1, 2 * step(2) - step(3), 2, 9);
+            spread(10, before(10), 11, 19);
+            spread(20, before(20), 21, 29);
+            spread(30, before(30), 21, 29);
             this._orderCost.set(key, table);
         }
         return table[level];
