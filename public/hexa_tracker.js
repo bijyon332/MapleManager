@@ -827,6 +827,7 @@ const hexaTracker = {
         const column = ids => `<div class="flex flex-col gap-2">${ids.map(id => this.buildSkillGroup(tier(id), cls, trackingId, classId)).join('')}</div>`;
 
         return `<div class="flex flex-col gap-2">
+            ${this.buildScanBar(classId, trackingId)}
             ${this.buildResourceSummary(p)}
             <div class="grid grid-cols-2 gap-2 items-start">${column(['skillNodes', 'boost'])}${column(['mastery', 'common'])}</div>
             ${this.buildExclusionNote(classId)}
@@ -1703,6 +1704,234 @@ const hexaTracker = {
         this.refreshAll();
     },
 
+    // ========== Reading levels from a game screenshot ==========
+    // The HEXA Matrix window (HEXA Skill tab) is read by hexa_reader.js. A read
+    // never saves by itself: it is listed against the saved levels first, and
+    // only 「反映して保存」 writes it. Targets are left alone (updateLevel pulls
+    // a target up when the new level passes it, as by hand).
+    scan: null,   // { trackingId, classId, levels: {key: lv|null}, msg, kind, busy, live }
+
+    scanState(trackingId, classId) {
+        if (!this.scan || this.scan.trackingId !== trackingId || this.scan.classId !== classId) {
+            this.stopScanLive();
+            this.scan = { trackingId, classId, levels: null, msg: '', kind: '', busy: false, live: null };
+        }
+        return this.scan;
+    },
+
+    buildScanBar(classId, trackingId) {
+        const st = this.scanState(trackingId, classId);
+        const msgColor = st.kind === 'err' ? 'text-error' : st.kind === 'ok' ? 'text-success' : 'text-base-content/60';
+        const bar = `<div id="hexa-scan" class="flex items-center gap-2 flex-wrap px-3 py-2 border border-dashed border-base-content/15 bg-base-200">
+            <i data-lucide="scan-line" class="w-4 h-4 text-secondary shrink-0"></i>
+            <span class="text-[13px] font-bold">ゲーム画面から読み取り</span>
+            <button onclick="document.getElementById('hexa-scan-file').click()" class="btn btn-sm" ${st.busy ? 'disabled' : ''}
+                title="HEXA Matrix（HEXA Skill タブ）のスクショを読み取る。貼り付け・ドロップでも読めます">
+                <i data-lucide="image" class="w-3.5 h-3.5"></i>スクショ読み取り</button>
+            <button onclick="hexaTracker.toggleScanLive()" class="btn btn-sm ${st.live ? 'btn-error btn-soft' : ''}"
+                title="ゲーム画面を共有して、HEXA Matrix を読み取り続ける">
+                <i data-lucide="monitor" class="w-3.5 h-3.5"></i>${st.live ? 'ライブ停止' : 'ライブ読み取り'}</button>
+            <input id="hexa-scan-file" type="file" accept="image/*" class="hidden" onchange="hexaTracker.scanFile(this)">
+            <span class="text-[11px] ${msgColor}">${st.busy ? '<span class="loading loading-spinner loading-xs mr-1 align-middle"></span>' : ''}${this.escHtml(st.msg || 'HEXA Matrix の HEXA Skill タブを開いた画面を、縮小せずに撮ってください（貼り付け・ドロップでも可）')}</span>
+        </div>`;
+        return bar + (st.levels ? this.buildScanResult(classId, trackingId, st) : '');
+    },
+
+    // Read levels next to the saved ones, changes highlighted.
+    buildScanResult(classId, trackingId, st) {
+        const cls = this.getClassSkills(classId);
+        let changed = 0, unread = 0;
+        const row = s => {
+            if (!(s.key in st.levels)) return '';
+            const now = this.levelOf(trackingId, s);
+            const got = st.levels[s.key];
+            if (got === null) unread++;
+            else if (got !== now) changed++;
+            const diff = got !== null && got !== now;
+            const icon = this.getSkillIcon(s);
+            return `<li class="flex items-center gap-2 py-0.5 ${diff ? '' : 'opacity-60'}">
+                ${icon ? `<img src="${icon}" class="w-5 h-5 object-contain shrink-0" alt="">` : '<span class="w-5 shrink-0"></span>'}
+                <span class="truncate text-[12px] flex-1 min-w-0" title="${this.escHtml(s.name)}">${this.escHtml(s.name)}</span>
+                <span class="font-mono text-[12px] tabular-nums whitespace-nowrap">
+                    <span class="text-base-content/50">${now}</span><span class="text-base-content/30 mx-1">→</span>${got === null
+                        ? '<span class="text-warning">読めず</span>'
+                        : `<b class="${diff ? 'text-secondary' : ''}">${got}</b>`}
+                </span>
+            </li>`;
+        };
+        // Same grouping and columns as the inputs below, so each read sits
+        // where its node does.
+        const group = id => {
+            const t = this.TIERS.find(x => x.id === id);
+            const items = cls.skills.filter(s => s.tier === id).map(row).join('');
+            return items ? `<div><h4 class="text-[10px] font-bold tracking-wider uppercase mt-1" style="color:${t.color}">${t.label}</h4><ul>${items}</ul></div>` : '';
+        };
+        const column = ids => `<div class="flex flex-col">${ids.map(group).join('')}</div>`;
+        const cols = column(['skillNodes', 'boost']) + column(['mastery', 'common']);   // counts changed / unread
+        const summary = `読み取り結果: 変更 <b class="text-secondary">${changed}</b> 件${unread ? `・読めなかったノード <b class="text-warning">${unread}</b> 件（そのまま）` : ''}`;
+        return `<div class="card card-sm bg-base-100 border border-secondary/40">
+            <div class="card-body gap-1 py-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-[12px]">${summary}</span>
+                    <div class="ml-auto flex gap-1.5">
+                        <button onclick="hexaTracker.discardScan()" class="btn btn-xs btn-ghost">破棄</button>
+                        <button id="hexa-scan-apply" onclick="hexaTracker.applyScan()" class="btn btn-xs btn-secondary" ${changed ? '' : 'disabled'}>反映して保存</button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-x-6">${cols}</div>
+            </div>
+        </div>`;
+    },
+
+    setScanMsg(msg, kind) {
+        if (!this.scan) return;
+        this.scan.msg = msg; this.scan.kind = kind || '';
+        this.refreshAll();
+    },
+
+    // Reader output ({tier: [lv per slot]}) -> {skillKey: lv|null} for this class.
+    scanToLevels(classId, read) {
+        const cls = this.getClassSkills(classId);
+        const out = {};
+        for (const s of cls.skills) {
+            const row = read[s.tier];
+            if (!row || row[s.slot] === undefined) continue;
+            const v = row[s.slot];
+            out[s.key] = v === null ? null : Math.max(this.minLevel(s), v);
+        }
+        return out;
+    },
+
+    async scanImage(blob) {
+        const st = this.scan;
+        if (!st || !window.hexaReader || st.busy) return;
+        st.busy = true;
+        this.setScanMsg('読み取り中…（初回は文字認識の準備に数秒かかります）');
+        try {
+            const res = await hexaReader.read(await hexaReader.pixelsOf(blob));
+            if (this.scan !== st) return;
+            st.busy = false;
+            if (!res.levels) { this.setScanMsg('HEXA Matrix の画面が見つかりませんでした。HEXA Skill タブを開いた状態で撮ってください。', 'err'); return; }
+            if (!res.pills) { this.setScanMsg('ノードのLvが読めませんでした。画面を縮小せずに撮ってください。', 'err'); return; }
+            st.levels = this.scanToLevels(st.classId, res.levels);
+            this.setScanMsg('読み取りました。内容を確かめて「反映して保存」を押してください。', 'ok');
+        } catch (e) {
+            console.error(e);
+            st.busy = false;
+            this.setScanMsg('読み取りに失敗しました: ' + (e && e.message || e), 'err');
+        }
+    },
+
+    scanFile(input) {
+        const f = input.files && input.files[0];
+        input.value = '';
+        if (f) this.scanImage(f);
+    },
+
+    applyScan() {
+        const st = this.scan;
+        if (!st || !st.levels) return;
+        const e = this.ensureEntry(st.trackingId);
+        let n = 0;
+        for (const [key, v] of Object.entries(st.levels)) {
+            const skill = this.findSkill(st.classId, key);
+            if (!skill || v === null || v === this.levelOf(st.trackingId, skill)) continue;
+            const lvl = this.clampLevel(skill, v);
+            e.levels[key] = lvl;
+            if (typeof e.targets[key] === 'number' && e.targets[key] < lvl) e.targets[key] = lvl;
+            n++;
+        }
+        this.saveData();
+        st.levels = null;
+        this.setScanMsg(`${n} 件のLvを反映して保存しました。`, 'ok');
+    },
+
+    discardScan() {
+        if (!this.scan) return;
+        this.scan.levels = null;
+        this.setScanMsg('');
+    },
+
+    // Shared screen: the window is looked for once, then read in place every
+    // 600ms. A read is taken only when the same levels come out twice in a row.
+    async toggleScanLive() {
+        const st = this.scan;
+        if (!st) return;
+        if (st.live) { this.stopScanLive(); this.setScanMsg('ライブ読み取りを止めました。'); return; }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { this.setScanMsg('このブラウザは画面共有に対応していません。', 'err'); return; }
+        let stream;
+        try { stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 5 }, audio: false }); }
+        catch (e) { this.setScanMsg('画面共有がキャンセルされました。'); return; }
+        if (this.scan !== st) { stream.getTracks().forEach(t => t.stop()); return; }
+        const video = document.createElement('video');
+        video.srcObject = stream; video.muted = true;
+        await video.play().catch(() => {});
+        const L = { stream, video, anchor: null, last: null, busy: false };
+        st.live = L;
+        stream.getVideoTracks()[0].addEventListener('ended', () => {
+            if (this.scan === st && st.live === L) { this.stopScanLive(); this.setScanMsg('画面共有が終わりました。'); }
+        });
+        L.timer = setInterval(() => this.scanLiveTick(L), 600);
+        this.setScanMsg('ゲームで HEXA Matrix（HEXA Skill タブ）を開いてください。読み取れたら下に出ます。');
+    },
+
+    stopScanLive() {
+        const st = this.scan;
+        if (!st || !st.live) return;
+        clearInterval(st.live.timer);
+        st.live.stream.getTracks().forEach(t => t.stop());
+        st.live = null;
+    },
+
+    async scanLiveTick(L) {
+        const st = this.scan;
+        if (!st || st.live !== L || L.busy || !L.video.videoWidth) return;
+        L.busy = true;
+        try {
+            const res = await hexaReader.read(await hexaReader.pixelsOf(L.video), L.anchor);
+            if (this.scan !== st || st.live !== L) return;
+            L.anchor = res.anchor;
+            if (!res.levels || !res.pills || res.unread) { L.last = null; return; }
+            const key = JSON.stringify(res.levels);
+            if (key !== L.last) { L.last = key; return; }
+            const levels = this.scanToLevels(st.classId, res.levels);
+            if (JSON.stringify(levels) === JSON.stringify(st.levels)) return;
+            st.levels = levels;
+            if (window.navigator.vibrate) navigator.vibrate(50);
+            this.setScanMsg('読み取りました。内容を確かめて「反映して保存」を押してください（ライブ中）。', 'ok');
+        } catch (e) {
+            console.error(e);
+        } finally {
+            L.busy = false;
+        }
+    },
+
+    // Paste and drop work anywhere in the modal while 進捗入力 is open.
+    bindScanInput(on) {
+        if (!on) {
+            if (this._scanPaste) document.removeEventListener('paste', this._scanPaste);
+            this._scanPaste = null;
+            return;
+        }
+        if (this._scanPaste) return;
+        this._scanPaste = (ev) => {
+            if (this.modalTab !== 'progress' || !this.scan) return;
+            const item = [...(ev.clipboardData && ev.clipboardData.items || [])].find(i => i.type.startsWith('image/'));
+            if (!item) return;
+            ev.preventDefault();
+            this.scanImage(item.getAsFile());
+        };
+        document.addEventListener('paste', this._scanPaste);
+    },
+
+    onScanDrop(ev) {
+        if (this.modalTab !== 'progress') return;
+        const f = [...(ev.dataTransfer && ev.dataTransfer.files || [])].find(x => x.type.startsWith('image/'));
+        if (!f) return;
+        ev.preventDefault();
+        this.scanImage(f);
+    },
+
     // ========== Character-linked modal ==========
     modalCharId: null,
     modalClassId: null,
@@ -1880,14 +2109,19 @@ const hexaTracker = {
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
                 </div>
-                <div id="hexa-modal-content" class="overflow-y-auto custom-scrollbar p-3 flex-1">
+                <div id="hexa-modal-content" class="overflow-y-auto custom-scrollbar p-3 flex-1"
+                    ondragover="if(hexaTracker.modalTab==='progress')event.preventDefault()" ondrop="hexaTracker.onScanDrop(event)">
                     ${this.buildModalContent()}
                 </div>
             </div>`;
+        this.bindScanInput(true);
         if (window.lucide) lucide.createIcons();
     },
 
     closeModal() {
+        this.stopScanLive();
+        this.scan = null;
+        this.bindScanInput(false);
         const overlay = document.getElementById('hexa-modal-overlay');
         if (overlay) overlay.remove();
         if (this._escHandler) { document.removeEventListener('keydown', this._escHandler); this._escHandler = null; }

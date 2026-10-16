@@ -595,7 +595,7 @@ const app = {
         scouter: {
             view: 'view-scouter',
             nav: 'scouter-nav',
-            scripts: ['hexa_data.js', 'hexa_tracker.js', 'scouter_reader.js', 'scouter_bosscut.js', 'scouter_hyper.js', 'scouter.js'],
+            scripts: ['hexa_data.js', 'hexa_tracker.js', 'hexa_reader.js', 'scouter_reader.js', 'scouter_bosscut.js', 'scouter_hyper.js', 'scouter.js'],
             init() { scouter.init('view-scouter'); },
             reopen() { scouter.render(); }
         },
@@ -647,7 +647,7 @@ const app = {
             view: 'view-hexa',
             nav: 'hexa-nav',
             cdn: [CHART_JS],
-            scripts: ['hexa_data.js', 'hexa_tracker.js'],
+            scripts: ['hexa_data.js', 'hexa_tracker.js', 'hexa_reader.js'],
             init() { hexaTracker.init(); },
             reopen() { hexaTracker.syncPageNav(); }
         },
