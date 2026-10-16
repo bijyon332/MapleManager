@@ -506,6 +506,22 @@ const hexaTracker = {
     ],
     rankStep: 'break',
 
+    // Second view of the same ranking: spend a fixed number of fragments and
+    // see how far each class gets (share of its own full-board Final Damage).
+    RANK_FRAGS: [1000, 2000, 4000, 6000, 8000, 10000, 15000, 20000, 40000],
+    rankMode: 'need',
+    rankFrag: 6000,
+
+    setRankMode(mode) {
+        this.rankMode = mode;
+        this.setRankStep(this.rankStep);
+    },
+
+    setRankFrag(frag) {
+        this.rankFrag = frag;
+        this.setRankStep(this.rankStep);
+    },
+
     setRankStep(key) {
         this.rankStep = key;
         const body = document.getElementById('hexa-page');
@@ -542,6 +558,109 @@ const hexaTracker = {
         return rows;
     },
 
+    // Where the curve sits after spending `frag` fragments. Inside a block the
+    // curve is a straight line, so interpolating there is exact.
+    curveAtFrag(curve, frag) {
+        const pts = curve.points;
+        for (let i = 1; i < pts.length; i++) {
+            if (pts[i].frag < frag) continue;
+            const a = pts[i - 1], b = pts[i];
+            const span = b.frag - a.frag;
+            const k = span > 0 ? Math.max(0, Math.min(1, (frag - a.frag) / span)) : 1;
+            return { frag, erda: a.erda + (b.erda - a.erda) * k, fd: a.fd + (b.fd - a.fd) * k };
+        }
+        return pts[pts.length - 1];
+    },
+
+    reachRows(frag) {
+        const rows = [];
+        for (const cls of (window.HEXA_CLASS_SKILLS || [])) {
+            const info = this.getClassInfo(cls.id);
+            if (!info) continue;
+            const curve = this.rankCurve(cls.id);
+            if (!curve || curve.totalFrag <= 0) continue;
+            const p = this.curveAtFrag(curve, frag);
+            rows.push({
+                id: cls.id, name: info.name, path: info.path, group: this.getClassGroup(cls.id),
+                frag: p.frag, erda: p.erda, fd: p.fd, fdMax: curve.fdMax,
+                share: curve.fdMax > 0 ? p.fd / curve.fdMax * 100 : 0,
+            });
+        }
+        rows.sort((a, b) => b.share - a.share);
+        return rows;
+    },
+
+    // Switch between the two ranking views, shown in both.
+    buildRankModeSwitch() {
+        const btn = (mode, label) => `<button onclick="hexaTracker.setRankMode('${mode}')"
+            class="join-item btn btn-sm ${this.rankMode === mode ? 'btn-primary' : 'text-base-content/60'}">${label}</button>`;
+        return `<div class="join shrink-0">${btn('need', '必要欠片')}${btn('reach', '到達率')}</div>`;
+    },
+
+    buildReachRanking() {
+        const frag = this.rankFrag;
+        const rows = this.reachRows(frag);
+        if (!rows.length) return this.buildEmptyState();
+
+        const steps = this.RANK_FRAGS.map(f => `<button onclick="hexaTracker.setRankFrag(${f})"
+            class="join-item btn btn-sm ${frag === f ? 'btn-secondary' : 'text-base-content/60'}">${f.toLocaleString()}</button>`).join('');
+
+        let list = '';
+        rows.forEach((r, i) => {
+            const medal = i === 0 ? '#fcd34d' : i === 1 ? '#cbd5e1' : i === 2 ? '#d97706' : null;
+            list += `<tr onclick="hexaTracker.openForClass('${r.id}')" class="cursor-pointer hover:bg-base-200/70">
+                <td class="text-right font-bold tabular-nums" style="color:${medal || '#64748b'}">${i + 1}</td>
+                <td><div class="flex items-center gap-2 min-w-0">
+                    <img src="${r.path}" class="w-7 h-7 object-contain shrink-0" loading="lazy" alt="">
+                    <span class="font-bold text-white truncate">${this.escHtml(r.name)}</span>
+                    <span class="text-[10px] text-base-content/50 truncate">${this.escHtml(r.group)}</span>
+                </div></td>
+                <td class="hidden sm:table-cell"><progress class="progress progress-secondary h-1.5 w-full block" value="${r.share.toFixed(1)}" max="100"></progress></td>
+                <td class="text-right font-bold tabular-nums text-violet-300">${r.share.toFixed(1)}%</td>
+                <td class="text-right tabular-nums text-emerald-300" title="この地点の最終ダメージ（全取得時 +${r.fdMax.toFixed(1)}%）">+${r.fd.toFixed(1)}%</td>
+                <td class="text-right tabular-nums text-amber-300">${Math.round(r.erda).toLocaleString()}</td>
+            </tr>`;
+        });
+
+        const top = rows[0], bottom = rows[rows.length - 1];
+        return `<div class="max-w-6xl flex flex-col gap-3">
+            <section class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <h2 class="font-bold text-sm text-white flex items-center gap-1.5">
+                            <i data-lucide="trophy" class="w-4 h-4 text-amber-300"></i>HEXA効率ランキング
+                        </h2>
+                        <p class="text-[11px] text-base-content/50">ソルエルダフラグメントを <b class="text-violet-300">${frag.toLocaleString()}</b> 個使ったときの、全取得時の最終ダメージに対する到達率が高い順です。</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">${this.buildRankModeSwitch()}<div class="join shrink-0">${steps}</div></div>
+                </div>
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-base-content/60 pt-2 border-t border-base-content/10">
+                    <span class="badge badge-sm badge-ghost">${rows.length}職</span>
+                    <span>最高 <span class="text-white font-bold">${this.escHtml(top.name)}</span>
+                        <span class="text-violet-300 tabular-nums font-bold">${top.share.toFixed(1)}%</span></span>
+                    <span>最低 <span class="text-white font-bold">${this.escHtml(bottom.name)}</span>
+                        <span class="text-violet-300 tabular-nums font-bold">${bottom.share.toFixed(1)}%</span></span>
+                    <span class="text-base-content/40">差 ${(top.share - bottom.share).toFixed(1)}ポイント</span>
+                </div>
+            </div></section>
+
+            <div class="card bg-base-100 border border-base-content/10 overflow-x-auto">
+                <table class="table table-sm [&_td]:py-0.5">
+                    <thead><tr class="text-[11px] text-base-content/50">
+                        <th class="w-10 text-right">#</th><th class="w-72">職業</th><th class="hidden sm:table-cell"></th>
+                        <th class="w-20 text-right">到達率</th><th class="w-20 text-right">到達FD</th><th class="w-16 text-right">エルダ</th>
+                    </tr></thead>
+                    <tbody>${list}</tbody>
+                </table>
+            </div>
+            <p class="text-[11px] text-base-content/40 leading-relaxed">
+                未強化の盤面から、「最終ダメージ / 欠片」が最大の順に振った場合の到達率です。全取得に必要な欠片より多い数を選ぶと100%になります。
+                行をクリックすると、その職業のトラッカーが開きます。
+                消費リソースは正確な値、最終ダメージはノード係数からの推定値です。
+            </p>
+        </div>`;
+    },
+
     getClassGroup(classId) {
         for (const [groupId, classes] of Object.entries(window.CLASS_DATA || {})) {
             if (classes.some(c => c.id === classId)) return this.GROUP_LABELS[groupId] || groupId;
@@ -550,6 +669,7 @@ const hexaTracker = {
     },
 
     buildRanking() {
+        if (this.rankMode === 'reach') return this.buildReachRanking();
         const rows = this.rankRows(this.rankStep);
         if (!rows.length) return this.buildEmptyState();
 
@@ -591,7 +711,7 @@ const hexaTracker = {
                                 : `全取得時の最終ダメージの${this.rankStep}%に到達するまでに必要なソルエルダフラグメントが少ない順です。`}
                         </p>
                     </div>
-                    <div class="join shrink-0">${steps}</div>
+                    <div class="flex flex-wrap items-center gap-2">${this.buildRankModeSwitch()}<div class="join shrink-0">${steps}</div></div>
                 </div>
                 <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-base-content/60 pt-2 border-t border-base-content/10">
                     <span class="badge badge-sm badge-ghost">${rows.length}職</span>
