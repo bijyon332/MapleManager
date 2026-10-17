@@ -4,7 +4,7 @@
 // The board is always drawn the same way, so nodes are found by position, not by
 // icon: Tesseract only finds the "HEXA Matrix" title, and every node sits at a
 // fixed offset from it. Each unlocked node carries its level in a small dark pill
-// above the icon, in a 4x5-pixel digit font that OCR cannot read reliably, so the
+// above the icon, in a 5x5-pixel digit font that OCR cannot read reliably, so the
 // pill is cut out and its digits are matched against hand-drawn templates.
 // Locked nodes have no pill and read as 0.
 //
@@ -32,20 +32,21 @@
     const PILL_DY = -23;   // pill centre, above the icon centre
 
     /* ---------- digit font ---------- */
-    // 4 columns x 5 rows. 0, 2, 3, 7 and 9 were copied from a real screenshot;
-    // the rest are drawn in the same style. "1" is told apart by its width.
+    // 5 columns x 5 rows, as the game draws them at 100%. All but 6 were copied
+    // from real screenshots (6 is drawn in the same style). "1" is two pixels
+    // wide and is told apart by its width. Levels under 10 show a leading 0.
     const FONT = {
-        0: ['.##.', '#..#', '#..#', '#..#', '.##.'],
-        2: ['###.', '...#', '.##.', '#...', '####'],
-        3: ['###.', '...#', '.##.', '...#', '###.'],
-        4: ['#..#', '#..#', '####', '...#', '...#'],
-        5: ['####', '#...', '###.', '...#', '###.'],
-        6: ['.##.', '#...', '###.', '#..#', '.##.'],
-        7: ['####', '...#', '..#.', '..#.', '..#.'],
-        8: ['.##.', '#..#', '.##.', '#..#', '.##.'],
-        9: ['.##.', '#..#', '.###', '...#', '.##.'],
+        0: ['.###.', '#...#', '#...#', '#...#', '.###.'],
+        2: ['####.', '....#', '.###.', '#....', '#####'],
+        3: ['####.', '....#', '.###.', '....#', '####.'],
+        4: ['#...#', '#...#', '#####', '....#', '....#'],
+        5: ['#####', '#....', '####.', '....#', '####.'],
+        6: ['.###.', '#....', '####.', '#...#', '.###.'],
+        7: ['#####', '....#', '...#.', '...#.', '...#.'],
+        8: ['.###.', '#...#', '.###.', '#...#', '.###.'],
+        9: ['.###.', '#...#', '.####', '....#', '.###.'],
     };
-    const FW = 4, FH = 5;
+    const FW = 5, FH = 5;
     const TEMPLATES = Object.entries(FONT).map(([d, rows]) => ({
         d: Number(d),
         px: rows.join('').split('').map((c) => (c === '#' ? 1 : 0)),
@@ -172,7 +173,7 @@
             for (let d = 0; d <= 9; d++) res[d] = d === 1 ? 0 : 2;
             return res;
         }
-        // Average the glyph down to the font's 4x5 grid.
+        // Average the glyph onto the font's 5x5 grid.
         const cell = [];
         for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) {
             const ya = y * g.h / FH, yb = (y + 1) * g.h / FH, xa = x * g.w / FW, xb = (x + 1) * g.w / FW;
@@ -200,7 +201,8 @@
         return res;
     }
 
-    // Glyphs -> level 1..30, using what a level can be: one digit 1-9, or 10-30.
+    // Glyphs -> level 0..30, using what a level can be: two digits 00-30 (the
+    // game pads with 0), or one digit 1-9 should the leading 0 be missed.
     // Also returns the runner-up's cost, to tell a clear read from a guess.
     function levelOf(glyphs) {
         const cands = [];
@@ -209,7 +211,7 @@
             for (let d = 1; d <= 9; d++) cands.push({ lv: d, cost: s[d] });
         } else if (glyphs.length === 2) {
             const a = scores(glyphs[0]), b = scores(glyphs[1]);
-            for (let lv = 10; lv <= 30; lv++) cands.push({ lv, cost: a[Math.floor(lv / 10)] + b[lv % 10] });
+            for (let lv = 0; lv <= 30; lv++) cands.push({ lv, cost: a[Math.floor(lv / 10)] + b[lv % 10] });
         } else return null;
         cands.sort((x, y) => x.cost - y.cost);
         return { lv: cands[0].lv, cost: cands[0].cost, next: cands[1].cost };
@@ -227,7 +229,7 @@
                 if (!G) return 0;
                 pills++;
                 const r = levelOf(glyphsOf(G));
-                if (!r || r.cost > 1.6 || r.next - r.cost < 0.06) { unread++; return null; }
+                if (!r || r.cost > 1.2 || r.next - r.cost < 0.06) { unread++; return null; }
                 cost += r.cost;
                 return r.lv;
             });
@@ -348,12 +350,13 @@
         // Hand back the refined position in the original picture's pixels.
         const s = anchor.s || 1;
         const back = n.img === img ? a : { x: anchor.x + (a.x - n.anchor.x) * s, y: anchor.y + (a.y - n.anchor.y) * s, s };
-        return { ...res, anchor: back };
+        // scaled: the picture was not at 100%, so a misread is more likely.
+        return { ...res, anchor: back, scaled: n.img !== img };
     }
     async function read(img, anchor) {
         if (anchor) {
             const res = readAt(img, anchor, false);
-            if (res.pills >= 2 && !res.unread) return res;
+            if (res.pills >= 2 && res.unread * 2 < res.pills) return res;
         }
         const found = await locate(img);
         if (!found) return { anchor: null, levels: null };

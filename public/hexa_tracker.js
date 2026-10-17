@@ -1814,7 +1814,9 @@ const hexaTracker = {
             if (!res.levels) { this.setScanMsg('HEXA Matrix の画面が見つかりませんでした。HEXA Skill タブを開いた状態で撮ってください。', 'err'); return; }
             if (!res.pills) { this.setScanMsg('ノードのLvが読めませんでした。画面を縮小せずに撮ってください。', 'err'); return; }
             st.levels = this.scanToLevels(st.classId, res.levels);
-            this.setScanMsg('読み取りました。内容を確かめて「反映して保存」を押してください。', 'ok');
+            this.setScanMsg(res.scaled
+                ? '読み取りました。画像が等倍でないため読み違いがあるかもしれません。内容を確かめて「反映して保存」を押してください。'
+                : '読み取りました。内容を確かめて「反映して保存」を押してください。', res.scaled ? '' : 'ok');
         } catch (e) {
             console.error(e);
             st.busy = false;
@@ -1891,10 +1893,12 @@ const hexaTracker = {
             const res = await hexaReader.read(await hexaReader.pixelsOf(L.video), L.anchor);
             if (this.scan !== st || st.live !== L) return;
             L.anchor = res.anchor;
-            if (!res.levels || !res.pills || res.unread) { L.last = null; return; }
-            const key = JSON.stringify(res.levels);
+            // Only this class's nodes matter: a tooltip over an unreleased slot
+            // must not hold the read back.
+            const levels = res.levels && res.pills ? this.scanToLevels(st.classId, res.levels) : null;
+            if (!levels || Object.values(levels).includes(null)) { L.last = null; return; }
+            const key = JSON.stringify(levels);
             if (key !== L.last) { L.last = key; return; }
-            const levels = this.scanToLevels(st.classId, res.levels);
             if (JSON.stringify(levels) === JSON.stringify(st.levels)) return;
             st.levels = levels;
             if (window.navigator.vibrate) navigator.vibrate(50);
