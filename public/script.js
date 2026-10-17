@@ -5,7 +5,7 @@ const CHART_JS = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min
 
 const app = {
     data: { config: { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' }, characters: [], masterBosses: [], memo: "" },
-    lastLoginDate: null, lastCheckAt: null, activeCharId: null,
+    activeCharId: null,
     currentApp: 'planner',
     bcCharId: null, bcSelected: {}, bcParty: {}, bcDiff: {},
     DEFAULT_IMG_OFFSET_X: 50,
@@ -96,7 +96,6 @@ const app = {
         if (!['KRONOS', 'CHALLENGER', 'ALL'].includes(this.data.config.activeServer)) {
             this.data.config.activeServer = 'ALL';
         }
-        this.checkResets();
         this.startResetWatcher();
         this.startClock();
         lucide.createIcons();
@@ -228,7 +227,8 @@ const app = {
     emptyPlannerData() {
         return {
             config: { charMaxCrystals: 14, worldMaxCrystals: 180, revenueMode: 'weekly', activeServer: 'KRONOS' },
-            characters: [], masterBosses: this.bossMaster([]), memo: ''
+            characters: [], masterBosses: this.bossMaster([]), memo: '',
+            resetCheckedAt: Date.now()
         };
     },
     // 「自分」を選ぶ前のデータや、旧いキー方式で保存されたデータを拾う。
@@ -272,13 +272,11 @@ const app = {
             } else {
                 this.data = this.emptyPlannerData();
             }
-            this.lastLoginDate = localStorage.getItem('gms_v24_date') || new Date().toISOString().split('T')[0];
-            // Migrate the old date-only marker: treat it as that day's 00:00 UTC.
-            const checked = parseInt(localStorage.getItem('gms_v24_checked'), 10);
-            this.lastCheckAt = Number.isFinite(checked) ? checked : Date.parse(this.lastLoginDate + 'T00:00:00Z');
         } catch (e) {
             this.data = this.emptyPlannerData();
         }
+        // どのデータ（「自分」ごと）を読み込んでも、その場でリセットを確かめる。
+        this.checkResets();
     },
     // 保存先は「いま画面に出しているデータを読み込んだキー」でなければならない。
     // 名簿の読み込みは非同期なので、起動直後と読み込み後で plannerKey() の値が
@@ -306,7 +304,6 @@ const app = {
             }
         }
         localStorage.setItem(key, JSON.stringify(this.data));
-        localStorage.setItem('gms_v24_date', new Date().toISOString().split('T')[0]);
     },
 
     // 名簿で「自分」を選び直したときに、その人の Planner データへ入れ替える。
@@ -502,10 +499,12 @@ const app = {
     },
 
     // Returns true if any progress was cleared, so callers can re-render.
+    // 最後に確かめた時刻はデータ自身（「自分」ごと）に持たせる。ブラウザ共通の
+    // 1つだけだと、起動直後に別のデータで確認済みになり、本人のデータが
+    // 週をまたいでも消えなかった。時刻のない古いデータは一度リセットする。
     checkResets() {
         const now = new Date();
-        const last = this.lastCheckAt;
-        if (!last) { this.markChecked(now); return false; }
+        const last = Number(this.data.resetCheckedAt) || 0;
 
         const daily = last < this.lastDailyReset(now);
         const weekly = last < this.lastWeeklyReset(now);
@@ -531,13 +530,9 @@ const app = {
                 c.progress.boss = keep(c.progress.boss, ['MONTHLY']);
             }
         });
-        this.markChecked(now);
+        this.data.resetCheckedAt = now.getTime();
         this.saveData();
         return true;
-    },
-    markChecked(now) {
-        this.lastCheckAt = now.getTime();
-        localStorage.setItem('gms_v24_checked', String(this.lastCheckAt));
     },
     // The tab can stay open across 09:00 JST, so keep checking while it runs.
     startResetWatcher() {
