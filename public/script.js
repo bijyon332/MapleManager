@@ -604,6 +604,12 @@ const app = {
             scripts: ['kms_videos.js'],
             init() { kmsVideos.init('view-kmsvideos'); }
         },
+        updates: {
+            view: 'view-updates',
+            nav: 'updates-nav',
+            scripts: ['gms_updates.js'],
+            init() { gmsUpdates.init('view-updates'); }
+        },
         ranks: {
             view: 'view-ranks',
             nav: 'ranks-nav',

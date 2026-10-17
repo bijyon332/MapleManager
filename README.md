@@ -21,6 +21,7 @@ Cloudflare Worker + 静的アセットとして配信している。ビルド工
 | Tools | Scouter | `scouter` | `public/scouter.js`（MapleScouter の換算主ステをキャラごとに保存。計算は先方のサーバーで、Worker の `/scouter` が中継。サイドバーの Scouter はキャラに紐付けない仮入力の画面、キャラごとの入力は Character Manager のカードの SCOUTER から開く。HEXA は手入力で、HEXA Tracker から取り込める。バフ・リンク・シードのアイコンは `public/assets/scouter/`）、`public/scouter_bosscut.js`（ボスカット。MapleScouter の結果ページと同じ表と式）、`public/scouter_reader.js`（ステータス画面とSTRなどのツールチップ、ハイパーステータス画面をスクショ・ライブ共有から読む。Tesseract.js を jsDelivr から読み込む）、`public/scouter_hyper.js`（ハイパー最適化タブ。入力のステータスから今のハイパー分を引き、ボス相手のダメージが一番伸びる振り方を探す。項目ごとの効果とポイントの表もここ） |
 | Tools | Cheat Sheet | `cheatsheet` | `public/cheatsheet.js` |
 | Tools | KMS Videos | `kmsvideos` | `public/kms_videos.js` |
+| Tools | GMS Updates | `updates` | `public/gms_updates.js`（GMSアップデート告知の和訳。開くと回ごとの一覧が出て、選んだ回の要約／全訳を上部バーで切り替える。各回の本文と画像は `public/updates/<id>/`。新しい回は `python3 -I tools/import_gms_update.py <和訳.html> <id>` で取り込み、`gms_updates.js` の `LIST` の先頭に1件足す。過去の回は消さない） |
 | Monitoring | EXP Tracker | `ranks` | `public/ranks.js` |
 | Community | Party Builder | `scheduler` | `public/boss_scheduler.html`（同一オリジンの iframe） |
 | Community | Community Members | `community` | `public/community.js`, `public/community_import.js` |
