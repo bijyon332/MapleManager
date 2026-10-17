@@ -77,6 +77,10 @@ const CLASS_DATA = {
     "SHINE": [
         { id: "erellight", name: "Erel Light", path: "assets/SHINE_ErelLight/CharacterIcon.png" },
         { id: "sia", name: "Sia Astelle", path: "assets/SHINE_SiaAstelle/CharacterIcon.png" }
+    ],
+    // レテは KMS 2026-06 実装、GMS は 2026-11 の見込みで先に載せている。
+    "ASMODIAN": [
+        { id: "lethe", name: "Lethe", path: "assets/ASMODIAN_Lethe/CharacterIcon.png" }
     ]
 };
 
