@@ -13,7 +13,7 @@ const REPO = path.join(__dirname, '..');
 const PUB = path.join(REPO, 'public');
 
 // Icons the upstream source does not publish; these fall back to a type badge.
-const KNOWN_ICONLESS = new Set(['hayato.common3', 'kanna.common3', 'lynn.common3', 'moxuan.common3']);
+const KNOWN_ICONLESS = new Set([]);
 // Classes with no GMS HEXA table (Erel Light is on Erda Link).
 const PLACEHOLDER_CLASSES = new Set(['erellight']);
 

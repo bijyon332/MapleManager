@@ -46,7 +46,13 @@ const ICON_PREFIX = {
 // Icon files the source names but never publishes (their own board renders a
 // placeholder for these). We emit `icon: null` so the tracker falls back to a
 // type badge instead of a broken image. Drop entries here once they show up.
-const UNPUBLISHED_ICONS = new Set(['Hayato_11', 'Kanna_11', 'Lynn_11', 'Moxuan_11']);
+const UNPUBLISHED_ICONS = new Set([]);
+
+// Icons we keep ourselves because the source doesn't publish them. These are the
+// 5th-job (V) versions from maplestory.io (GMS v270, Skill/_Canvas/40000.img),
+// standing in until the HEXA art is available: Twilight Bloom (400001031) for
+// Hayato/Kanna, Ring of Samsara (400001091) for Lynn/Mo Xuan. --icons skips them.
+const LOCAL_ICONS = new Set(['Hayato_11', 'Kanna_11', 'Lynn_11', 'Moxuan_11']);
 
 // Board position -> icon file number, from the same source.
 // common 0/1 always use the shared General_1 / General_2 art.
@@ -273,7 +279,7 @@ function emit({ classes, curves, cost, localEntries }) {
 async function downloadIcons(classes) {
   fs.mkdirSync(OUT_ICONS, { recursive: true });
   const want = new Set(['General_1', 'General_2']);
-  for (const c of classes) for (const s of c.skills) if (s.icon) want.add(s.icon);
+  for (const c of classes) for (const s of c.skills) if (s.icon && !LOCAL_ICONS.has(s.icon)) want.add(s.icon);
 
   const names = [...want].sort();
   const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
