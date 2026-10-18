@@ -1942,6 +1942,52 @@ ${grades}
     gearPriority.hasCharData = (charId) => {
         try { return !!localStorage.getItem(charKey(charId)); } catch (e) { return false; }
     };
+    // 初めてのキャラは、スコア重みと設定をサイドバー側から引き継ぎ、武器の職業を埋めて保存する。
+    function seedCharState(inst, char) {
+        const app = window.app;
+        const base = Object.create(gearPriority);
+        base.state = DEFAULT_STATE();
+        base.storageKey = STORAGE_KEY;
+        base.load();
+        inst.state.w = { ...base.state.w };
+        inst.state.o = { ...base.state.o };
+        inst.state.limit = base.state.limit;
+        const cls = app && app.classByJobName && app.classByJobName(char.job);
+        if (cls && CLASS_WEAPON[cls.id]) inst.state.slots.weapon.job = cls.id;
+        inst.save();
+    }
+    // 開いている画面のスコア重みの欄を今の state に合わせ、強化順を計算し直す。
+    gearPriority.refreshWeights = function () {
+        if (!this.root || !this.root.isConnected) return;
+        for (const [k] of WEIGHT_FIELDS) {
+            const el = this.root.querySelector(`[data-gp="weight"][data-key="${k}"]`);
+            if (el) el.value = this.state.w[k];
+        }
+        this.renderPlan();
+    };
+    // Scouter の「スペック効率」をスコア重みに入れる。charId が null ならサイドバーの仮入力へ。
+    // 開いている画面（サイドバー／キャラのモーダル）があれば、その場で表示も直す。
+    gearPriority.applyWeights = function (charId, w) {
+        const app = window.app;
+        let inst;
+        if (charId == null) inst = this;
+        else if (this._charInst && this._charInst.storageKey === charKey(charId)) inst = this._charInst;
+        else {
+            inst = Object.create(gearPriority);
+            inst.state = DEFAULT_STATE();
+            inst.storageKey = charKey(charId);
+            inst.root = null; // 画面には出ていない（サイドバーの root を継がない）
+            if (this.hasCharData(charId)) inst.load();
+            else {
+                const char = app && app.data.characters.find((c) => c.id === charId);
+                if (char) seedCharState(inst, char);
+            }
+        }
+        if (inst === this && !this.root) this.load(); // 開いていなければ保存データから
+        Object.assign(inst.state.w, w);
+        inst.save();
+        if (inst.root) inst.refreshWeights();
+    };
     gearPriority.openForCharacter = function (charId) {
         const app = window.app;
         const char = app && app.data.characters.find((c) => c.id === charId);
@@ -1955,18 +2001,7 @@ ${grades}
         inst.storageKey = charKey(charId);
         const jobCls = app.classByJobName && app.classByJobName(char.job);
         inst.charJob = jobCls ? jobCls.id : '';
-        if (!this.hasCharData(charId)) {
-            const base = Object.create(gearPriority);
-            base.state = DEFAULT_STATE();
-            base.storageKey = STORAGE_KEY;
-            base.load();
-            inst.state.w = { ...base.state.w };
-            inst.state.o = { ...base.state.o };
-            inst.state.limit = base.state.limit;
-            const cls = app.classByJobName && app.classByJobName(char.job);
-            if (cls && CLASS_WEAPON[cls.id]) inst.state.slots.weapon.job = cls.id;
-            inst.save();
-        }
+        if (!this.hasCharData(charId)) seedCharState(inst, char);
 
         const veil = document.createElement('div');
         veil.id = 'gp-char-overlay';
