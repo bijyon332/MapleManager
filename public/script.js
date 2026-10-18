@@ -1280,6 +1280,10 @@ const app = {
     // ================= コミュニティ名簿との連携 =================
     // 名簿があれば、自分のキャラは名簿から取り込むだけで済む（週ボスの設定に専念できる）。
     // 名簿が無い環境ではこの行ごと隠れ、上の手動追加だけで今までどおり使える。
+    // 名簿との紐づけ（「自分」の選択・名簿からの取り込み・レベル/職/画像の追随）は一旦止めている。
+    // Discord 連携でユーザーとキャラが結び付いたら true に戻して使う。
+    // 止めていても、以前「自分」を選んだ人のデータは今までどおりその人の保存先から読む。
+    ROSTER_LINK: false,
     initCommunity() {
         const cs = window.communityStore;
         if (!cs) return;
@@ -1344,7 +1348,7 @@ const app = {
         const cs = window.communityStore;
         const me = cs && cs.me();
         const none = { updated: 0, added: 0 };
-        if (!me) return none;
+        if (!this.ROSTER_LINK || !me) return none;
         // 保存先が確定していないうちは触らない（キーずれで別の記録を壊さないため）
         if (this.dataKey && this.dataKey !== this.plannerKey()) return none;
 
@@ -1393,7 +1397,7 @@ const app = {
         if (!cs || !bar || !sel) return;
 
         const members = cs.members();
-        if (!members.length) { bar.classList.add('hidden'); bar.classList.remove('flex'); return; }
+        if (!this.ROSTER_LINK || !members.length) { bar.classList.add('hidden'); bar.classList.remove('flex'); return; }
         bar.classList.remove('hidden');
         bar.classList.add('flex');
 
