@@ -98,6 +98,7 @@ const app = {
         }
         this.startResetWatcher();
         this.startClock();
+        this.markUnavailableApps();
         lucide.createIcons();
         this.syncConfigUI();
         this.updateServerUI();
@@ -106,6 +107,16 @@ const app = {
         this.initCommunity();
         this.prefetchHexa();
         this.initAppRouting();
+    },
+    // APPS の unavailable があるアプリは、サイドバーの項目に注意マークと説明を付ける。
+    markUnavailableApps() {
+        for (const [name, entry] of Object.entries(this.APPS)) {
+            const btn = entry.unavailable && document.getElementById(`app-${name}`);
+            if (!btn || btn.querySelector('.nav-alert')) continue;
+            btn.title = `${btn.title}\n⚠ ${entry.unavailable}`;
+            btn.insertAdjacentHTML('beforeend',
+                `<span class="nav-alert" aria-label="${entry.unavailable}"><i data-lucide="triangle-alert"></i></span>`);
+        }
     },
     loadJobSelect() {
         if (typeof CLASS_DATA === 'undefined') return;
@@ -611,6 +622,8 @@ const app = {
             html: 'ranks.html',
             cdn: [CHART_JS],
             scripts: ['exp_data.js', 'ranks.js'],
+            // 今うまく使えないアプリはサイドバーに注意マークを出す（直ったらこの行を消す）。
+            unavailable: '現在データを取得できません（データ元のサイトがアクセスを制限中）',
             init() { ranks.init(); lucide.createIcons(); }
         },
         scheduler: {
