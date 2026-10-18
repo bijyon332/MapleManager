@@ -415,7 +415,7 @@ const scouter = (() => {
             ${head}
             <!-- 中の枠は縮ませない（overflow-hidden のカードが枠の高さまで縮んで、下が切れてスクロールできなくなる） -->
             <div class="${cur.page ? '' : 'flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3'} flex flex-col gap-3 [&>*]:shrink-0">
-                ${summaryHTML(e, portrait)}
+                ${result && cur.live ? `<div class="flex">${actionsHTML()}</div>` : ''}
                 <div class="sc-msg ${cur.msgKind}" id="sc-msg">${esc(cur.msg)}</div>
                 ${result ? `<div class="card card-sm bg-base-100 border border-base-content/10 overflow-hidden"><div class="sc-body sc-resbody">
                     <div class="sc-side" id="sc-result">${resultHTML(e)}</div>
@@ -440,31 +440,17 @@ const scouter = (() => {
         renderModal();
     }
 
-    // 上の1行: 誰か・前回の計算日時・操作。換算主ステは結果タブに出すのでここには出さない。
-    function summaryHTML(e, portrait) {
+    // 読み取り・計算のボタン。入力・ハイパーのタブでは「読み取りの手順」カードの右に置く。
+    // 結果タブには出さない（ライブ読み取り中だけ、止められるように停止ボタンを残す）。
+    function actionsHTML() {
         const tab = cur.tab || 'input';
-        // ハイパータブはハイパーの計算、入力タブは換算の計算。結果タブには計算・読み取りのボタンを出さない
-        // （ライブ読み取り中だけ、止められるように停止ボタンを残す）。
-        const r = tab === 'hyper' ? e.hyperRun : (e.result && !e.result.error ? e.result : null);
-        const who = cur.page ? `<div class="flex items-center gap-3 shrink-0">
-                ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-10 h-10 object-contain">` : ''}
-                <div class="leading-tight whitespace-nowrap"><b class="text-white">仮入力</b><div class="text-[11px] text-base-content/50">キャラに紐付けない</div></div>
-            </div>` : '';
-        const at = r && r.at ? r.at.replace('T', ' ').slice(0, 16) : '';
-        return `<div class="card bg-base-100 border border-base-content/10"><div class="flex items-center gap-5 px-4 py-2.5 flex-wrap">
-            ${who}
-            <div class="${who ? 'border-l border-base-content/10 pl-5' : ''} leading-tight">
-                <div class="text-[11px] text-base-content/50">前回の計算</div>
-                ${at ? `<div class="font-mono text-xs text-base-content/70">${esc(at)}</div>` : '<div class="text-xs text-base-content/40">まだ計算していません</div>'}
-            </div>
-            <div class="ml-auto flex gap-1 shrink-0">
-                ${tab !== 'result' || cur.live ? `<button data-sc="file" class="btn btn-sm ${tab === 'result' ? 'hidden' : ''}" title="ステータス画面のスクショを読み取る（貼り付け・ドロップでも可）"><i data-lucide="image" class="w-3.5 h-3.5"></i>スクショ読み取り</button>
-                <button data-sc="live" class="btn btn-sm ${cur.live ? 'btn-error btn-soft' : ''}" title="ゲーム画面を共有して、ステータス画面を読み取り続ける"><i data-lucide="monitor" class="w-3.5 h-3.5"></i>${cur.live ? 'ライブ停止' : 'ライブ読み取り'}</button>` : ''}
+        return `<div class="ml-auto flex gap-1 shrink-0">
+                ${tab !== 'result' ? `<button data-sc="file" class="btn btn-sm" title="ステータス画面のスクショを読み取る（貼り付け・ドロップでも可）"><i data-lucide="image" class="w-3.5 h-3.5"></i>スクショ読み取り</button>` : ''}
+                ${tab !== 'result' || cur.live ? `<button data-sc="live" class="btn btn-sm ${cur.live ? 'btn-error btn-soft' : ''}" title="ゲーム画面を共有して、ステータス画面を読み取り続ける"><i data-lucide="monitor" class="w-3.5 h-3.5"></i>${cur.live ? 'ライブ停止' : 'ライブ読み取り'}</button>` : ''}
                 ${tab === 'input' ? `<button data-sc="calc" class="btn btn-sm btn-primary" ${cur.busy ? 'disabled' : ''}><i data-lucide="calculator" class="w-3.5 h-3.5"></i>${cur.busy ? '計算中…' : '計算する'}</button>` : ''}
                 ${tab === 'hyper' ? `<button data-sc="hcalc" class="btn btn-sm btn-primary" ${cur.busy ? 'disabled' : ''}><i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>${cur.busy ? '計算中…' : 'ハイパーを計算する'}</button>` : ''}
                 <input type="file" accept="image/*" multiple data-sc="input" hidden>
-            </div>
-        </div></div>`;
+            </div>`;
     }
 
     const inp = (path, v, cls = 'w-full') => `<input class="input input-xs font-mono text-right ${num(v) ? 'font-bold' : 'text-base-content/35'} ${cls}" data-k="${path}" value="${esc(v)}" inputmode="decimal" placeholder="0">`;
@@ -490,10 +476,12 @@ const scouter = (() => {
             </tr>`;
         }).join('');
         const chk = (k, label) => `<label class="label text-xs text-base-content whitespace-nowrap"><input type="checkbox" class="checkbox checkbox-xs" data-k="${k}" ${f[k] ? 'checked' : ''}>${label}</label>`;
-        const basic = `<div class="flex items-center gap-x-3 gap-y-1 flex-wrap">
-                <label class="flex items-center gap-2 text-xs text-base-content/60 whitespace-nowrap">職業<select class="select select-sm w-36" data-k="classId"><option value="">選択</option>${opts}</select></label>
-                <label class="flex items-center gap-2 text-xs text-base-content/60">Lv${inp('level', f.level, 'input-sm w-16')}</label>
-                ${chk('reboot', 'リブート（Heroic）')}${chk('genesis', 'ジェネシス解放')}${chk('destiny', 'デスティニー（最初の遺産）')}
+        const basic = `<div class="flex flex-col gap-1">
+                <div class="flex items-center gap-3">
+                    <label class="flex items-center gap-2 text-xs text-base-content/60 whitespace-nowrap">職業<select class="select select-sm w-36" data-k="classId"><option value="">選択</option>${opts}</select></label>
+                    <label class="flex items-center gap-2 text-xs text-base-content/60">Lv${inp('level', f.level, 'input-sm w-16')}</label>
+                </div>
+                <div class="flex items-center gap-x-3 gap-y-1 flex-wrap">${chk('reboot', 'リブート（Heroic）')}${chk('genesis', 'ジェネシス解放')}${chk('destiny', 'デスティニー（最初の遺産）')}</div>
             </div>`;
         const main = f.classId ? `<div class="overflow-x-auto"><table class="table table-sm table-zebra border border-base-content/10 [&_th]:px-1.5 [&_td]:px-1.5">
                 <thead><tr><th></th><th class="text-right">Base Value</th><th class="text-right">% Value</th><th class="text-right">% Not Applied</th><th class="text-right">最終値</th><th class="text-right">画面の値</th></tr></thead>
@@ -503,8 +491,9 @@ const scouter = (() => {
         const detail = `<div class="grid grid-cols-2 gap-x-6 gap-y-1">${DETAIL.map(([k, label, unit]) => `<label class="flex items-center gap-2">
                 <span class="text-xs flex-1 ${num(f[k]) ? 'text-base-content/75' : 'text-base-content/40'}">${esc(label)}</span>${inp(k, f[k], 'w-20')}<span class="w-4 text-[11px] text-base-content/40">${unit}</span></label>`).join('')}</div>`;
         const links = LINKS.filter(([, , , only]) => !only || only === f.classId);
-        const linkBody = grid4(links.map(([k, label, icon]) => lvTile(label, icon, 'link.' + k, f.link[k])).join('')
-            + tileLv('<span class="w-6 h-6 shrink-0 grid place-items-center border border-base-content/20 text-[10px] font-bold">WH</span>', 'Union', 'wildhunterUnion', f.wildhunterUnion, 'Wild Hunter のユニオン効果（%）'));
+        const linkBody = grid4(links.map(([k, label, icon]) => lvTile(label, icon, 'link.' + k, f.link[k])).join(''));
+        // Wild Hunter のユニオン効果は、ユニオンに置いた Wild Hunter のレベルで決まる。
+        const whBody = `<div class="w-48">${tileLv(img('link/wildhunter_union.png'), 'Wild Hunter', 'wildhunterUnion', f.wildhunterUnion, 'Wild Hunter のレベル')}</div>`;
         const seedBody = `<div class="grid grid-cols-2 gap-1">${SEEDS.map(([k, label, icon]) => lvTile(label, icon, 'seed.' + k, f.seed[k])).join('')}</div>`;
         const allBuffs = BUFFS.flatMap((g) => g.items);
         const buffOn = allBuffs.filter((it) => buffIsOn(f, it)).length;
@@ -514,7 +503,8 @@ const scouter = (() => {
             <div class="flex flex-col gap-3">
                 ${card('基本・主ステータス', 'ステータス画面で STR などをクリックすると出る STAT INFO の値', basic + main)}
                 ${card('詳細ステータス', '', detail, `入力済み ${filled} / ${DETAIL.length}`)}
-                ${card('リンクスキル・Wild Hunter', '全キャラ共通のレベル', linkBody)}
+                ${card('リンクスキル', '全キャラ共通のレベル', linkBody)}
+                ${card('Wild Hunter（ユニオン）', 'Wild Hunter のレベルを入力（全キャラ共通）', whBody)}
                 ${card('シードリング', 'このキャラのレベル', seedBody)}
             </div>
             <div class="flex flex-col gap-3">
@@ -1210,9 +1200,11 @@ const scouter = (() => {
         const help = needClass ? '先に下の「職業」を選ぶと、主ステ・副ステの段階が出ます。'
             : now ? stepHelp(now) : '全部取れました。内容を確かめて「反映して保存」を押してください。';
         return `<div class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
-            <div class="flex items-center gap-1.5 flex-wrap"><b class="text-sm text-white mr-2">読み取りの手順</b>${btns}
-                <span class="ml-auto text-[11px] text-base-content/50">${cur.live ? 'ライブ中は今の段階の値だけ、同じ値が2回続けて読めたら受け付けます' : 'スクショは貼り付け・ドロップでも読めます'}</span></div>
-            <p class="text-xs ${now ? 'text-base-content/80' : 'text-success'}">${now ? `<b class="text-primary">${esc(stepLabel(now))}:</b> ` : ''}${esc(help)}</p>
+            <div class="flex items-center gap-1.5 flex-wrap"><b class="text-sm text-white mr-2">読み取りの手順</b>${btns}${actionsHTML()}</div>
+            <div class="flex items-baseline gap-3 flex-wrap">
+                <p class="text-xs ${now ? 'text-base-content/80' : 'text-success'}">${now ? `<b class="text-primary">${esc(stepLabel(now))}:</b> ` : ''}${esc(help)}</p>
+                <span class="ml-auto text-[11px] text-base-content/50">${cur.live ? 'ライブ中は今の段階の値だけ、同じ値が2回続けて読めたら受け付けます' : 'スクショは貼り付け・ドロップでも読めます'}</span>
+            </div>
         </div></div>`;
     }
     // 読み取りのあと、今の段階が取れていたら次のまだの段階へ。
