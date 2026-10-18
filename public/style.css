@@ -585,6 +585,11 @@ body {
 #sidebar .dev-app:not(.menu-active) { opacity: 0.45; }
 #sidebar .dev-app:not(.menu-active):hover { opacity: 1; }
 .dev-dot { position: absolute; top: 5px; left: 28px; width: 6px; height: 6px; border-radius: 9999px; background: #f59e0b; }
+/* 今うまく使えないアプリ（APPS の unavailable）。名前の右に琥珀色の△、畳んだときはアイコンの右上に小さく。 */
+.nav-alert { margin-left: auto; display: inline-flex; color: #f59e0b; }
+.nav-alert svg { width: 15px; height: 15px; }
+#sidebar.collapsed .nav-alert { position: absolute; top: 2px; left: 30px; margin: 0; }
+#sidebar.collapsed .nav-alert svg { width: 11px; height: 11px; }
 .sidebar-icon-open { display: none; }
 #sidebar.collapsed .sidebar-icon-open { display: block; }
 #sidebar.collapsed .sidebar-icon-close { display: none; }
