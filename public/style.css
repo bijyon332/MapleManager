@@ -645,3 +645,19 @@ header .tabs-box > .tab-active svg { color: #a5b4fc; }
 .gms-update .card-title .link { color: var(--color-primary); }
 .gms-update .menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 .gms-update .menu .menu-title { grid-column: 1 / -1; }
+
+/* News の一覧。1行＝1件（サムネ・日付と種類・タイトル・一言）。 */
+.news-list { border: 1px solid #ffffff14; background: var(--color-base-100); border-radius: var(--radius-box); overflow: hidden; }
+.news-list > li + li { border-top: 1px solid #ffffff10; }
+.news-row { display: flex; align-items: center; gap: 16px; width: 100%; padding: 14px 16px; text-align: left; transition: background .15s; }
+.news-row:hover { background: rgba(99, 102, 241, .08); }
+.news-thumb { width: 160px; height: 90px; object-fit: cover; object-position: 50% 75%; border-radius: 6px; flex-shrink: 0; background: var(--color-base-300); }
+
+/* Guide。見出しへ飛んだときに少し上を空ける。箇条書きは daisyUI で消えている印を戻す。 */
+.guide .guide-sec, .guide #guide-faq { scroll-margin-top: 1rem; }
+.guide .guide-ul { list-style: disc; padding-left: 1.3rem; }
+.guide .guide-ol { list-style: decimal; padding-left: 1.4rem; }
+.guide .guide-ul li, .guide .guide-ol li { margin: .3rem 0; line-height: 1.75; font-size: .875rem; }
+.guide .guide-ol li::marker { color: var(--color-primary); font-weight: 700; }
+.guide .guide-table th, .guide .guide-table td { padding-top: 7px; padding-bottom: 7px; }
+.guide .guide-table th, .guide .guide-table td { vertical-align: top; }

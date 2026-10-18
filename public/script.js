@@ -616,6 +616,11 @@ const app = {
             scripts: ['gms_updates.js'],
             init() { gmsUpdates.init('view-updates'); }
         },
+        guide: {
+            view: 'view-guide',
+            scripts: ['guide.js'],
+            init() { guide.init('view-guide'); }
+        },
         ranks: {
             view: 'view-ranks',
             nav: 'ranks-nav',
