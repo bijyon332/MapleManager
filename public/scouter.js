@@ -55,7 +55,7 @@ const scouter = (() => {
         noblessBoss: true, noblessDmg: true, noblessCriDmg: true, noblessIgnore: true, nobless: ['15', '15', '15', '15'],
         sayram: true, collector: true, buff275: false, additional1: true, additional2: false,
         championAll: '0', championAtk: '0', championBoss: '0', championIgnore: '0', championCriDmg: '0',
-        authenticDmg: false, moonshine: false, cake: false, apple: false, tengu: false, candy: false, house: false,
+        authenticDmg: false, moonshine: false, cake: false, apple: false, tengu: false, candy: false, house: false, dragonFood: false,
         wedding: false, specialWedding: false, whiteBear: false, ultraVip: false, superVip: false, truffle: false,
         medal: false, hyperRainbow: false, rainbow: false, thanks: false, genePass: false, criDmgRing: '0',
     };
@@ -107,6 +107,7 @@ const scouter = (() => {
             ['shiningRed', 'Red Star', 'buff/shiningred.png'],
             ['genePass', 'Genesis Pass', 'buff/opponent.png'],
             ['authenticDmg', 'シンボル最大（ダメージ20%）', 'buff/authentic_symbol.png'],
+            ['candy', 'Candied Apple', 'buff/candy.png'],
         ] },
         { title: '攻撃力の薬（1つ）', items: [
             ['bigHero', '大英雄の秘薬', 'buff/bighero.png', { group: 'atk' }],
@@ -118,7 +119,8 @@ const scouter = (() => {
             ['fish', 'Fish Bread', 'buff/fish.png', { group: 'food' }],
             ['apple', 'Onyx Apple', 'buff/apple.webp', { group: 'food' }],
             ['tengu', "Tengu's Judgement", 'buff/tengu.png', { group: 'food' }],
-            ['candy', 'Candied Apple', 'buff/candy.png'],
+            // 先方にない食べ物。ON のとき攻撃力の基礎値に +7 して送る（魔法職は魔力が伸びないので足さない。buildUserStat）。
+            ['dragonFood', 'Baby Dragon Food', 'buff/dragonfood.png', { group: 'food' }],
             ['house', "Caretaker's Support", 'buff/house.png'],
         ] },
         // Champion のバフ。レベル 0〜5。アイコンが全部同じなので左上に種類（tag）を重ねる。
@@ -133,7 +135,7 @@ const scouter = (() => {
     // 同じ group のもの（先方の画面で、1つ選ぶと他が外れるもの）。
     const GROUP_KEYS = {
         atk: ['bigHero', 'legendHero', 'legendHp', 'jangBi', 'shiningBlue'],
-        food: ['fish', 'apple', 'tengu', 'cake', 'dragonsMeal', 'whiteBear', 'rebootAtkPotion'],
+        food: ['fish', 'apple', 'tengu', 'dragonFood', 'cake', 'dragonsMeal', 'whiteBear', 'rebootAtkPotion'],
     };
     // HEXA。hexa_data.js のキー → 先方のキー。
     const HEXA_KEYS = [
@@ -194,6 +196,7 @@ const scouter = (() => {
         d.statPotion = d.stat !== '0';
         // デーモンアヴェンジャーは「伝説の英雄の秘薬」が HP 版になる（先方の画面と同じ）。
         if (f.classId === 'demonavenger') { d.legendHp = !!d.legendHero; d.legendHero = false; } else d.legendHp = false;
+        delete d.dragonFood;   // 先方にない項目。攻撃力に足して送る。
         return d;
     }
 
@@ -205,6 +208,8 @@ const scouter = (() => {
         const entire = { str: str(screen.str), dex: str(screen.dex), int: str(screen.int), luk: str(screen.luk) };
         const seedLv = (k) => SEEDS.some(([sk]) => sk === k) ? str(f.seed[k]) : '0';
         const linkOn = ([k, , , only]) => !only || only === f.classId;
+        // Baby Dragon Food（攻撃力 +7、魔力は伸びない）は先方にないので、攻撃力の基礎値に足す。
+        const atkBase = num(sx('atk').base) + (f.doping && f.doping.dragonFood && !isMagic(f.classId) ? 7 : 0);
         return {
             doping: dopingOf(f),
             linkSkill: { hayato: '0', ...Object.fromEntries(LINKS.map((l) => [l[0], linkOn(l) ? str(f.link[l[0]]) : '0'])) },
@@ -223,7 +228,7 @@ const scouter = (() => {
                 subStatBase: str(sx('sub').base), subStatPer: str(sx('sub').per), subStatAbs: str(sx('sub').abs),
                 ssubStatBase: str(sx('sub2').base), ssubStatPer: str(sx('sub2').per), ssubStatAbs: str(sx('sub2').abs),
                 arcaneForce: str(f.arcane), authenticForce: str(f.sacred), classForce: '0',
-                atkBase: str(sx('atk').base), atkAbs: str(sx('atk').abs), atkPercent: str(sx('atk').per),
+                atkBase: String(atkBase), atkAbs: str(sx('atk').abs), atkPercent: str(sx('atk').per),
                 dmg: str(f.dmg), bossDmg: str(f.bossDmg), normalDmg: str(f.normalDmg), ignoreDef: str(f.ignoreDef),
                 buffDuration: str(f.buffDuration), critical: str(f.critical), criticalDmg: str(f.criticalDmg),
                 weaponAtk: '0', coolTimeReducePercent: str(f.coolPer), coolTimeReduce: str(f.coolSec),
@@ -252,7 +257,7 @@ const scouter = (() => {
                 mainStatBase: num(sx('main').base), mainStatPer: num(sx('main').per), mainStatAbs: num(sx('main').abs),
                 subStatBase: num(sx('sub').base), subStatPer: num(sx('sub').per), subStatAbs: num(sx('sub').abs),
                 ssubStatBase: num(sx('sub2').base), ssubStatPer: num(sx('sub2').per), ssubStatAbs: num(sx('sub2').abs),
-                atk: num(sx('atk').base), atkPer: num(sx('atk').per), bossDmg: num(f.bossDmg), criDmg: num(f.criticalDmg),
+                atk: atkBase, atkPer: num(sx('atk').per), bossDmg: num(f.bossDmg), criDmg: num(f.criticalDmg),
             },
             huntSkill: { solJanus: str(f.hexa.solJanus), erdaShower: '25' },
         };
