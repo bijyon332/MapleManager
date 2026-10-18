@@ -490,10 +490,12 @@ const scouter = (() => {
             </tr>`;
         }).join('');
         const chk = (k, label) => `<label class="label text-xs text-base-content whitespace-nowrap"><input type="checkbox" class="checkbox checkbox-xs" data-k="${k}" ${f[k] ? 'checked' : ''}>${label}</label>`;
-        const basic = `<div class="flex items-center gap-x-3 gap-y-1 flex-wrap">
-                <label class="flex items-center gap-2 text-xs text-base-content/60 whitespace-nowrap">職業<select class="select select-sm w-36" data-k="classId"><option value="">選択</option>${opts}</select></label>
-                <label class="flex items-center gap-2 text-xs text-base-content/60">Lv${inp('level', f.level, 'input-sm w-16')}</label>
-                ${chk('reboot', 'リブート（Heroic）')}${chk('genesis', 'ジェネシス解放')}${chk('destiny', 'デスティニー（最初の遺産）')}
+        const basic = `<div class="flex flex-col gap-1">
+                <div class="flex items-center gap-3">
+                    <label class="flex items-center gap-2 text-xs text-base-content/60 whitespace-nowrap">職業<select class="select select-sm w-36" data-k="classId"><option value="">選択</option>${opts}</select></label>
+                    <label class="flex items-center gap-2 text-xs text-base-content/60">Lv${inp('level', f.level, 'input-sm w-16')}</label>
+                </div>
+                <div class="flex items-center gap-x-3 gap-y-1 flex-wrap">${chk('reboot', 'リブート（Heroic）')}${chk('genesis', 'ジェネシス解放')}${chk('destiny', 'デスティニー（最初の遺産）')}</div>
             </div>`;
         const main = f.classId ? `<div class="overflow-x-auto"><table class="table table-sm table-zebra border border-base-content/10 [&_th]:px-1.5 [&_td]:px-1.5">
                 <thead><tr><th></th><th class="text-right">Base Value</th><th class="text-right">% Value</th><th class="text-right">% Not Applied</th><th class="text-right">最終値</th><th class="text-right">画面の値</th></tr></thead>
