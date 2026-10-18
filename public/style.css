@@ -634,7 +634,7 @@ header .tabs-box > .tab-active svg { color: #a5b4fc; }
 .sc-bc-h .sc-bc-out svg { width: 12px; height: 12px; color: currentColor; }
 
 /* GMS Updates: 和訳の本文（public/updates/<id>/content.html）。見出しへ飛んだときは少し上を空け、藍の枠で一瞬示す。 */
-.gms-update [id^="s-"], .gms-update [id^="d-"] { scroll-margin-top: 1rem; }
+.gms-update #toc, .gms-update [id^="d-"] { scroll-margin-top: 1rem; }
 .gms-update .jump-target { outline: 2px solid var(--color-primary); outline-offset: 4px; border-radius: .5rem; transition: outline-color 1.6s; }
 .gms-update .card-title { color: #fff; }
 .gms-update .detail-sec p { margin: .6rem 0; line-height: 1.85; }
@@ -643,6 +643,8 @@ header .tabs-box > .tab-active svg { color: #a5b4fc; }
 .gms-update .alert-info { background: rgba(99, 102, 241, .12); border-color: rgba(129, 140, 248, .45); color: #e2e8f0; }
 .gms-update .alert-info b { color: #fff; }
 .gms-update .card-title .link { color: var(--color-primary); }
+.gms-update .card-title .toc-back { margin-left: auto; white-space: nowrap; text-decoration: none; }
+.gms-update .card-title .toc-back:hover { text-decoration: underline; }
 .gms-update .menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 .gms-update .menu .menu-title { grid-column: 1 / -1; }
 
