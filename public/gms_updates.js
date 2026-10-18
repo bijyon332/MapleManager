@@ -1,8 +1,10 @@
 /* =========================================================
  *  News（サイドバーの Information。キーは updates のまま）
  *  GMS のアップデート告知の和訳などを、回ごとに読めるようにする。
- *  開くとまずニュース一覧（新しい順の縦の並び）が出て、行を押すとその回の要約／全訳が出る。
- *  上部バーの「一覧」「要約」「全訳」は index.html の #updates-nav。
+ *  開くとまずニュース一覧（新しい順の縦の並び）が出て、行を押すとその回のページが出る。
+ *  回のページは「目次＋全訳」の1枚（要約は作らない）。目次から各節へ飛び、各節の「↑ 目次へ」で戻る。
+ *  書き方のルールは .claude/skills/news-translation/SKILL.md。
+ *  上部バーの「一覧」は index.html の #updates-nav。
  *
  *  新しい回を足すとき:
  *    1. python3 -I tools/import_gms_update.py <和訳.html> <id>
@@ -26,12 +28,11 @@ const gmsUpdates = {
 
     root: null,
     current: null,     // 開いている回の id。null なら一覧
-    tab: 'summary',    // 'summary' | 'detail'
     _html: {},         // id -> content.html の Promise
 
     init(rootId) {
         this.root = document.getElementById(rootId);
-        // 中身の「← 要約へ」や目次は #s-… / #d-… のリンク。URL のハッシュはアプリの切り替えに
+        // 中身の目次や「↑ 目次へ」は #d-… / #toc のリンク。URL のハッシュはアプリの切り替えに
         // 使っているので書き換えさせず、ここで受けてページ内を動かす。
         this.root.addEventListener('click', (ev) => {
             const a = ev.target.closest('a[href^="#"]');
@@ -109,13 +110,11 @@ const gmsUpdates = {
                 </div>
                 ${html}
             </div>`;
-        this.showTab(this.tab);
         this.scrollTop();
     },
 
     open(id) {
         this.current = id;
-        this.tab = 'summary';
         this.render();
     },
 
@@ -124,22 +123,8 @@ const gmsUpdates = {
         this.render();
     },
 
-    setTab(tab) {
-        if (!this.current) return;
-        this.tab = tab;
-        this.showTab(tab);
-        this.syncNav();
-        this.scrollTop();
-    },
-
-    showTab(tab) {
-        this.root.querySelectorAll('[data-panel]').forEach(p => { p.hidden = p.dataset.panel !== tab; });
-    },
-
-    // s-… は要約、d-… は全訳の中。タブを合わせてからそこまで送る。
+    // 目次の項目は d-…、各節の「↑ 目次へ」は toc。そこまで送って一瞬枠を付ける。
     jump(id) {
-        const tab = (id === 'detail' || id.startsWith('d-')) ? 'detail' : 'summary';
-        if (tab !== this.tab) { this.tab = tab; this.showTab(tab); this.syncNav(); }
         const el = this.root.querySelector(`[id="${CSS.escape(id)}"]`);
         if (!el) { this.scrollTop(); return; }
         el.scrollIntoView({ block: 'start' });
@@ -152,14 +137,10 @@ const gmsUpdates = {
         if (main) main.scrollTop = 0;
     },
 
-    // 上部バー。一覧のときは要約／全訳を畳み、「一覧」を選択中にする。
+    // 上部バー。一覧を見ているときだけ「一覧」を選択中にする（回のページからは押して戻る）。
     syncNav() {
         const nav = document.getElementById('updates-nav');
         if (!nav) return;
-        nav.querySelectorAll('[data-tab]').forEach(b => {
-            const t = b.dataset.tab;
-            b.classList.toggle('tab-active', this.current ? t === this.tab : t === 'list');
-            if (t !== 'list') b.classList.toggle('hidden', !this.current);
-        });
+        nav.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('tab-active', !this.current));
     },
 };
