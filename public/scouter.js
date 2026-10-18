@@ -493,10 +493,7 @@ const scouter = (() => {
         const links = LINKS.filter(([, , , only]) => !only || only === f.classId);
         const linkBody = grid4(links.map(([k, label, icon]) => lvTile(label, icon, 'link.' + k, f.link[k])).join(''));
         // Wild Hunter のユニオン効果は、ユニオンに置いた Wild Hunter のレベルで決まる。
-        const whBody = `<div class="flex items-center gap-3">
-                <div class="w-1/4 shrink-0">${tileLv(img('link/wildhunter_union.png'), 'Wild Hunter', 'wildhunterUnion', f.wildhunterUnion, 'ユニオンに置いた Wild Hunter のレベル')}</div>
-                <p class="text-[11px] text-base-content/60 leading-relaxed">ユニオンの攻撃隊に配置している Wild Hunter のキャラのレベルを入れます（配置していなければ 0）。レベルで効果（攻撃時 20% の確率でダメージ増加）の大きさが決まります。</p>
-            </div>`;
+        const whBody = `<div class="w-48">${tileLv(img('link/wildhunter_union.png'), 'Wild Hunter', 'wildhunterUnion', f.wildhunterUnion, 'Wild Hunter のレベル')}</div>`;
         const seedBody = `<div class="grid grid-cols-2 gap-1">${SEEDS.map(([k, label, icon]) => lvTile(label, icon, 'seed.' + k, f.seed[k])).join('')}</div>`;
         const allBuffs = BUFFS.flatMap((g) => g.items);
         const buffOn = allBuffs.filter((it) => buffIsOn(f, it)).length;
@@ -507,7 +504,7 @@ const scouter = (() => {
                 ${card('基本・主ステータス', 'ステータス画面で STR などをクリックすると出る STAT INFO の値', basic + main)}
                 ${card('詳細ステータス', '', detail, `入力済み ${filled} / ${DETAIL.length}`)}
                 ${card('リンクスキル', '全キャラ共通のレベル', linkBody)}
-                ${card('Wild Hunter（ユニオン）', '全キャラ共通', whBody)}
+                ${card('Wild Hunter（ユニオン）', 'Wild Hunter のレベルを入力（全キャラ共通）', whBody)}
                 ${card('シードリング', 'このキャラのレベル', seedBody)}
             </div>
             <div class="flex flex-col gap-3">
