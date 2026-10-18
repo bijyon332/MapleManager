@@ -119,7 +119,7 @@ const scouter = (() => {
             ['fish', 'Fish Bread', 'buff/fish.png', { group: 'food' }],
             ['apple', 'Onyx Apple', 'buff/apple.webp', { group: 'food' }],
             ['tengu', "Tengu's Judgement", 'buff/tengu.png', { group: 'food' }],
-            // 先方にない食べ物。ON のとき攻撃力・魔力の基礎値に +7 して送る（buildUserStat）。
+            // 先方にない食べ物。ON のとき攻撃力の基礎値に +7 して送る（魔法職は魔力が伸びないので足さない。buildUserStat）。
             ['dragonFood', 'Baby Dragon Food', 'buff/dragonfood.png', { group: 'food' }],
             ['house', "Caretaker's Support", 'buff/house.png'],
         ] },
@@ -208,8 +208,8 @@ const scouter = (() => {
         const entire = { str: str(screen.str), dex: str(screen.dex), int: str(screen.int), luk: str(screen.luk) };
         const seedLv = (k) => SEEDS.some(([sk]) => sk === k) ? str(f.seed[k]) : '0';
         const linkOn = ([k, , , only]) => !only || only === f.classId;
-        // Baby Dragon Food（攻撃力・魔力 +7）は先方にないので、攻撃力の基礎値に足す。
-        const atkBase = num(sx('atk').base) + (f.doping && f.doping.dragonFood ? 7 : 0);
+        // Baby Dragon Food（攻撃力 +7、魔力は伸びない）は先方にないので、攻撃力の基礎値に足す。
+        const atkBase = num(sx('atk').base) + (f.doping && f.doping.dragonFood && !isMagic(f.classId) ? 7 : 0);
         return {
             doping: dopingOf(f),
             linkSkill: { hayato: '0', ...Object.fromEntries(LINKS.map((l) => [l[0], linkOn(l) ? str(f.link[l[0]]) : '0'])) },
