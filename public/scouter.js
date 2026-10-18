@@ -884,6 +884,27 @@ const scouter = (() => {
         if (mode !== 'copy') setMsg('ボスカットの画像を保存しました。', 'ok');
     }
 
+    // スペック効率（主ステ Base 1 いくつ分か）を Upgrade Priority のスコア重みに入れる。
+    // ダメージ・ボスは1つの値なのでボスダメとダメージの両方へ。防御率無視と未適用主ステは重みの欄がないので使わない。
+    async function applyToGear() {
+        const eff = (cur.e.result || {}).eff || {};
+        const base = eff.mainStateff1;
+        if (!base) return;
+        const to = { att: eff.atkeff1, attPct: eff.atkPereff1, statPct: eff.mainStatPereff1, allStat: eff.allStatEff,
+            crit: eff.cridmgeff1, boss: eff.dmgeff1, dmg: eff.dmgeff1, sub: eff.subStateff1 };
+        const w = { main: 1 };
+        for (const [k, v] of Object.entries(to)) if (typeof v === 'number' && v > 0) w[k] = Math.round(v / base * 100) / 100;
+        const charId = cur.char ? cur.char.id : null;
+        try {
+            await window.app.loadAppAssets('gear');
+            window.gearPriority.applyWeights(charId, w);
+            setMsg(`Upgrade Priority${cur.char ? `（${cur.char.name}）` : '（仮入力）'}のスコア重みに反映しました。`, 'ok');
+        } catch (err) {
+            console.error(err);
+            setMsg('Upgrade Priority に反映できませんでした。', 'err');
+        }
+    }
+
     function resultHTML(e) {
         const r = e.result;
         const f = e.form;
@@ -913,7 +934,8 @@ const scouter = (() => {
                 ${cpGame ? `<tr><th>戦闘力（画面）</th><td>${fmt(cpGame)}</td></tr>` : ''}
             </table>
             ${rows.length && base ? `<h3>スペック効率 <small>${esc(label)}いくつ分か</small></h3>
-            <table class="sc-kv sc-eff">${rows.map(([n, v]) => `<tr><th>${esc(n)}</th><td>${esc(label)} <b>${(v / base).toFixed(2)}</b></td></tr>`).join('')}</table>` : ''}
+            <table class="sc-kv sc-eff">${rows.map(([n, v]) => `<tr><th>${esc(n)}</th><td>${esc(label)} <b>${(v / base).toFixed(2)}</b></td></tr>`).join('')}</table>
+            <button data-sc="togear" class="btn btn-xs btn-soft btn-primary w-full mt-1.5" title="この値を Upgrade Priority のスコア重みに入れる${cur.char ? '（このキャラ）' : '（サイドバーの仮入力）'}"><i data-lucide="arrow-right-left" class="w-3 h-3"></i>Upgrade Priority のスコア重みに反映</button>` : ''}
             ${hist.length > 1 ? `<h3>履歴</h3><table class="sc-kv">${hist.map((h) => `<tr><th>${esc((h.at || '').replace('T', ' ').slice(0, 16))}</th><td>${fmt(h.b380h)}</td></tr>`).join('')}</table>` : ''}`;
     }
 
@@ -958,6 +980,7 @@ const scouter = (() => {
             else if (k === 'hcalc') runHyper();
             else if (k === 'cutcopy') exportCuts('copy');
             else if (k === 'cutsave') exportCuts('save');
+            else if (k === 'togear') applyToGear();
             else if (k === 'apply') applyReads();
             else if (k === 'discard') { cur.reads = null; cur.step = null; renderModal(); setMsg('読み取りを捨てました。'); }
         });
