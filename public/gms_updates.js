@@ -1,7 +1,7 @@
 /* =========================================================
- *  GMS Updates
- *  GMS のアップデート告知の和訳を、回ごとに読めるようにする。
- *  開くとまず一覧（メニュー）が出て、カードを押すとその回の要約／全訳が出る。
+ *  News（サイドバーの Information。キーは updates のまま）
+ *  GMS のアップデート告知の和訳などを、回ごとに読めるようにする。
+ *  開くとまずニュース一覧（新しい順の縦の並び）が出て、行を押すとその回の要約／全訳が出る。
  *  上部バーの「一覧」「要約」「全訳」は index.html の #updates-nav。
  *
  *  新しい回を足すとき:
@@ -14,11 +14,13 @@ const gmsUpdates = {
     LIST: [
         {
             id: '2026-winter-maplayer-one',
+            date: '2026-10-17',          // 告知の日付。一覧はこの順ではなく LIST の並び順で出す
+            kind: 'GMS Update',          // 一覧のバッジ
             title: 'Maplayer One',
             subtitle: '2026年冬アップデート プレビュー（INKWELL\'S NOTE）',
             period: '2026/11/11〜',
             cover: 'updates/2026-winter-maplayer-one/img-02.jpg',
-            tags: ['新イベントワールド Quanah', '新職業 レテ', 'HEXA第3弾', '新ボス2体', 'QoL'],
+            summary: '冬アップデートのプレビュー。新イベントワールド Quanah、新職業レテ、HEXA第3弾、新ボス2体（ベローナ・メイリン）、QoL改善。',
         },
     ],
 
@@ -50,27 +52,28 @@ const gmsUpdates = {
     },
 
     renderList() {
-        const cards = this.LIST.map(u => `
-            <button type="button" onclick="gmsUpdates.open('${u.id}')"
-                class="card bg-base-100 border border-base-content/10 shadow-sm text-left overflow-hidden
-                       hover:border-primary/60 hover:-translate-y-0.5 transition">
-                <figure class="aspect-[16/9] bg-base-300"><img src="${this.esc(u.cover)}" alt="" loading="lazy"
-                    class="w-full h-full object-cover object-[50%_75%]"></figure>
-                <div class="card-body p-4 gap-1.5">
-                    <div class="text-xs font-bold text-primary">${this.esc(u.period)}</div>
-                    <h3 class="text-lg font-bold text-white leading-tight">${this.esc(u.title)}</h3>
-                    <div class="text-xs text-base-content/60">${this.esc(u.subtitle)}</div>
-                    <div class="flex flex-wrap gap-1 mt-1">
-                        ${(u.tags || []).map(t => `<span class="badge badge-sm badge-ghost">${this.esc(t)}</span>`).join('')}
+        const rows = this.LIST.map(u => `
+            <li><button type="button" onclick="gmsUpdates.open('${u.id}')" class="news-row">
+                <img src="${this.esc(u.cover)}" alt="" loading="lazy" class="news-thumb">
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="font-mono text-base-content/60">${this.esc(u.date.replace(/-/g, '/'))}</span>
+                        <span class="badge badge-sm badge-primary badge-soft">${this.esc(u.kind)}</span>
+                        <span class="text-primary font-bold">${this.esc(u.period)}</span>
                     </div>
+                    <div class="text-base font-bold text-white leading-snug mt-1">${this.esc(u.title)}
+                        <span class="text-xs font-normal text-base-content/60 ml-1">${this.esc(u.subtitle)}</span></div>
+                    <div class="text-sm text-base-content/75 mt-1 line-clamp-2">${this.esc(u.summary)}</div>
                 </div>
-            </button>`).join('');
+                <i data-lucide="chevron-right" class="w-5 h-5 text-base-content/40 shrink-0"></i>
+            </button></li>`).join('');
         this.root.innerHTML = `
-            <div class="max-w-5xl mx-auto">
-                <h2 class="text-lg font-bold text-white mb-1">GMS Updates</h2>
-                <p class="text-xs text-base-content/60 mb-4">GMS のアップデート告知の和訳です。読みたい回を選んでください。</p>
-                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">${cards}</div>
+            <div class="max-w-4xl mx-auto">
+                <h2 class="text-lg font-bold text-white mb-1">News</h2>
+                <p class="text-xs text-base-content/60 mb-4">GMS のアップデート告知の和訳などです。新しい順に並んでいます。</p>
+                <ul class="news-list">${rows}</ul>
             </div>`;
+        if (window.lucide) lucide.createIcons();
         this.scrollTop();
     },
 
