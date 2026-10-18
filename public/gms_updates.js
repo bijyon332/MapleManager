@@ -1,21 +1,23 @@
 /* =========================================================
  *  News（サイドバーの Information。キーは updates のまま）
- *  GMS のアップデート告知の和訳などを、回ごとに読めるようにする。
- *  開くとまずニュース一覧（新しい順の縦の並び）が出て、行を押すとその回のページが出る。
+ *  GMS・KMS のアップデート告知の和訳などを、回ごとに読めるようにする。
+ *  上部バーの「GMS」「KMS」で地域を切り替え、その地域のニュース一覧（新しい順の縦の並び）が出る。
+ *  行を押すとその回のページが出る。
  *  回のページは「目次＋全訳」の1枚（要約は作らない）。目次から各節へ飛び、各節の「↑ 目次へ」で戻る。
  *  書き方のルールは .claude/skills/news-translation/SKILL.md。
- *  上部バーの「一覧」は index.html の #updates-nav。
+ *  上部バーは index.html の #updates-nav。
  *
  *  新しい回を足すとき:
  *    1. python3 -I tools/import_gms_update.py <和訳.html> <id>
  *       → public/updates/<id>/content.html と画像が出来る
- *    2. 下の LIST の先頭に1件足す（上ほど新しい）。過去の回は消さない。
+ *    2. 下の LIST の先頭に1件足す（上ほど新しい）。region に 'GMS' か 'KMS'。過去の回は消さない。
  * ========================================================= */
 
 const gmsUpdates = {
     LIST: [
         {
             id: '2026-winter-maplayer-one',
+            region: 'GMS',               // 'GMS' | 'KMS'。上部バーのどちらに出すか
             date: '2026-10-17',          // 告知の日付。一覧はこの順ではなく LIST の並び順で出す
             kind: 'GMS Update',          // 一覧のバッジ
             title: 'Maplayer One',
@@ -27,6 +29,7 @@ const gmsUpdates = {
     ],
 
     root: null,
+    region: 'GMS',     // 'GMS' | 'KMS'。一覧に出す地域
     current: null,     // 開いている回の id。null なら一覧
     _html: {},         // id -> content.html の Promise
 
@@ -53,7 +56,8 @@ const gmsUpdates = {
     },
 
     renderList() {
-        const rows = this.LIST.map(u => `
+        const list = this.LIST.filter(u => u.region === this.region);
+        const rows = list.map(u => `
             <li><button type="button" onclick="gmsUpdates.open('${u.id}')" class="news-row">
                 <img src="${this.esc(u.cover)}" alt="" loading="lazy" class="news-thumb">
                 <div class="min-w-0 flex-1">
@@ -70,9 +74,10 @@ const gmsUpdates = {
             </button></li>`).join('');
         this.root.innerHTML = `
             <div class="max-w-4xl mx-auto">
-                <h2 class="text-lg font-bold text-white mb-1">News</h2>
-                <p class="text-xs text-base-content/60 mb-4">GMS のアップデート告知の和訳などです。新しい順に並んでいます。手動で載せているので、すべての告知があるわけではありません。</p>
-                <ul class="news-list">${rows}</ul>
+                <h2 class="text-lg font-bold text-white mb-1">News <span class="text-primary">${this.region}</span></h2>
+                <p class="text-xs text-base-content/60 mb-4">${this.region} のアップデート告知の和訳などです。新しい順に並んでいます。手動で載せているので、すべての告知があるわけではありません。</p>
+                ${list.length ? `<ul class="news-list">${rows}</ul>`
+                    : `<div class="news-list text-center py-12 text-sm text-base-content/50">まだありません。</div>`}
             </div>`;
         if (window.lucide) lucide.createIcons();
         this.scrollTop();
@@ -115,10 +120,13 @@ const gmsUpdates = {
 
     open(id) {
         this.current = id;
+        this.region = this.LIST.find(x => x.id === id)?.region || this.region;
         this.render();
     },
 
-    backToList() {
+    // 上部バーの GMS／KMS。回を開いているときに押すと、その地域の一覧に戻る。
+    showRegion(region) {
+        this.region = region;
         this.current = null;
         this.render();
     },
@@ -137,10 +145,10 @@ const gmsUpdates = {
         if (main) main.scrollTop = 0;
     },
 
-    // 上部バー。一覧を見ているときだけ「一覧」を選択中にする（回のページからは押して戻る）。
+    // 上部バー。今の地域（回を開いているときはその回の地域）を選択中にする。
     syncNav() {
         const nav = document.getElementById('updates-nav');
         if (!nav) return;
-        nav.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('tab-active', !this.current));
+        nav.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('tab-active', b.dataset.tab === this.region));
     },
 };

@@ -1,12 +1,13 @@
 ---
 name: news-translation
-description: GMS のアップデート告知などを和訳して BijyonTools の News（public/updates/）に1回分として載せるときに使う。目次＋全訳の1ページで作り、要約は作らない。
+description: GMS・KMS のアップデート告知などを和訳して BijyonTools の News（public/updates/）に1回分として載せるときに使う。目次＋全訳の1ページで作り、要約は作らない。
 ---
 
 # news-translation
 
-GMS 公式のアップデート告知（Inkwell's Note、パッチノート、イベント告知など）を和訳し、
-サイドバー Information の **News** に1回分として載せる。
+GMS 公式のアップデート告知（Inkwell's Note、パッチノート、イベント告知など）や
+KMS 公式の告知（업데이트 안내、패치노트、이벤트 공지など）を和訳し、
+サイドバー Information の **News** に1回分として載せる。News は上部バーの「GMS」「KMS」で地域ごとに分かれる。
 News は bi が「この回を載せて」と指示したときだけ手で足す。GMS アップデート監視ルーティンとは連動しない。
 
 ## 形式のルール（bi 決定、2026-10-18）
@@ -15,6 +16,7 @@ News は bi が「この回を載せて」と指示したときだけ手で足�
 - ページの先頭に目次（`id="toc"`）を置き、各項目から該当する節へ飛べるようにする。
 - 各節の見出しの右に「↑ 目次へ」（`href="#toc"`）を置き、目次へ戻れるようにする。
 - 一覧の行に出す1〜2行の説明は `public/gms_updates.js` の `LIST` の `summary` に書く（ページの中身とは別）。
+- 各回は `LIST` の `region` に `'GMS'` か `'KMS'` を持ち、その地域のタブにだけ出る。
 - 過去の回は消さない。新しい回は `LIST` の先頭に足す。
 
 ## 訳し方
@@ -25,6 +27,13 @@ News は bi が「この回を載せて」と指示したときだけ手で足�
 - 日付・期間・条件（レベル・ワールド・回数）は原文どおり正確に。表は `table` にする。
 - 挿絵は原文（またはスクショ）から切り出し、元の位置に `figure` で入れる。
 - 文体は「です・ます」。
+
+### KMS の回
+
+- 韓国語の原文から直接訳す（英語を挟まない）。
+- 職業名・ボス名・システム名は、GMS や日本で定着した呼び名があればそれを使い、なければ韓国語の読みをカタカナにして、
+  初出だけ原語を括弧で添える（例: 「ユピテル（유피테르）」）。
+- `kind` は `'KMS Update'` など、id は `kms-` で始める（例: `kms-2026-winter-xxx`）。
 
 ## HTML の作り
 
@@ -72,7 +81,7 @@ daisyUI 5 + Tailwind 4 の CDN を読み、`data-theme="maple"` 相当の暗い�
    ```
    → `public/updates/<id>/content.html` と `img-NN.*` が出来る。最後に出る「要確認」（目次のリンク切れ、
    「↑ 目次へ」のない節、id の重複）がなくなるまで直す。
-3. `public/gms_updates.js` の `LIST` の先頭に1件足す（`id` `date` `kind` `title` `subtitle` `period` `cover` `summary`）。
+3. `public/gms_updates.js` の `LIST` の先頭に1件足す（`id` `region` `date` `kind` `title` `subtitle` `period` `cover` `summary`）。
    `cover` は一覧のサムネイルにする画像（`updates/<id>/img-NN.jpg`）。
-4. 画面で確かめる: 一覧に出る、回が開く、目次から各節へ飛ぶ、「↑ 目次へ」で戻る。
+4. 画面で確かめる: 該当する地域のタブの一覧に出る、回が開く、目次から各節へ飛ぶ、「↑ 目次へ」で戻る。
    スクショを撮って返信に添付する（プロジェクトのルール）。
