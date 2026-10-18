@@ -70,7 +70,7 @@ const gmsUpdates = {
         this.root.innerHTML = `
             <div class="max-w-4xl mx-auto">
                 <h2 class="text-lg font-bold text-white mb-1">News</h2>
-                <p class="text-xs text-base-content/60 mb-4">GMS のアップデート告知の和訳などです。新しい順に並んでいます。</p>
+                <p class="text-xs text-base-content/60 mb-4">GMS のアップデート告知の和訳などです。新しい順に並んでいます。手動で載せているので、すべての告知があるわけではありません。</p>
                 <ul class="news-list">${rows}</ul>
             </div>`;
         if (window.lucide) lucide.createIcons();

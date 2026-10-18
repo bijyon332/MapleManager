@@ -660,3 +660,4 @@ header .tabs-box > .tab-active svg { color: #a5b4fc; }
 .guide .guide-ul li, .guide .guide-ol li { margin: .3rem 0; line-height: 1.75; font-size: .875rem; }
 .guide .guide-ol li::marker { color: var(--color-primary); font-weight: 700; }
 .guide .guide-table th, .guide .guide-table td { padding-top: 7px; padding-bottom: 7px; }
+.guide .guide-table th, .guide .guide-table td { vertical-align: top; }
