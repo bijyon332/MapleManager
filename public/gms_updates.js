@@ -108,6 +108,9 @@ const gmsUpdates = {
         if (this.current !== id) return;   // 読み込み中に一覧へ戻った
         this.root.innerHTML = `
             <div class="gms-update max-w-5xl mx-auto">
+                <button type="button" onclick="gmsUpdates.showRegion('${u.region}')" class="news-back btn btn-ghost btn-sm gap-1.5 -ml-3 mb-2 text-base-content/70">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i>${this.esc(u.region)} の一覧へ
+                </button>
                 <div class="mb-4">
                     <div class="text-xs font-bold text-primary">${this.esc(u.period)}</div>
                     <h2 class="text-xl font-bold text-white leading-tight">${this.esc(u.title)}</h2>
@@ -115,6 +118,7 @@ const gmsUpdates = {
                 </div>
                 ${html}
             </div>`;
+        if (window.lucide) lucide.createIcons();
         this.scrollTop();
     },
 
