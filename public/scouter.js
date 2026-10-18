@@ -55,7 +55,7 @@ const scouter = (() => {
         noblessBoss: true, noblessDmg: true, noblessCriDmg: true, noblessIgnore: true, nobless: ['15', '15', '15', '15'],
         sayram: true, collector: true, buff275: false, additional1: true, additional2: false,
         championAll: '0', championAtk: '0', championBoss: '0', championIgnore: '0', championCriDmg: '0',
-        authenticDmg: false, moonshine: false, cake: false, apple: false, tengu: false, candy: false, house: false, dragonFood: false,
+        authenticDmg: false, moonshine: false, cake: false, apple: false, tengu: false, candy: false, house: false, potion4: false,
         wedding: false, specialWedding: false, whiteBear: false, ultraVip: false, superVip: false, truffle: false,
         medal: false, hyperRainbow: false, rainbow: false, thanks: false, genePass: false, criDmgRing: '0',
     };
@@ -119,8 +119,9 @@ const scouter = (() => {
             ['fish', 'Fish Bread', 'buff/fish.png', { group: 'food' }],
             ['apple', 'Onyx Apple', 'buff/apple.webp', { group: 'food' }],
             ['tengu', "Tengu's Judgement", 'buff/tengu.png', { group: 'food' }],
-            // 先方にない食べ物。ON のとき攻撃力の基礎値に +7 して送る（魔法職は魔力が伸びないので足さない。buildUserStat）。
-            ['dragonFood', 'Baby Dragon Food', 'buff/dragonfood.png', { group: 'food' }],
+            // 先方にない項目。攻撃力用と魔力用は別アイテムだが同じ枠なので1つのボタンにする。
+            // ON のとき攻撃力・魔力の基礎値に +8 して送る（buildUserStat）。
+            ['potion4', 'Potion IV', ['buff/potion4_att.png', 'buff/potion4_matt.png'], { group: 'food' }],
             ['house', "Caretaker's Support", 'buff/house.png'],
         ] },
         // Champion のバフ。レベル 0〜5。アイコンが全部同じなので左上に種類（tag）を重ねる。
@@ -135,7 +136,7 @@ const scouter = (() => {
     // 同じ group のもの（先方の画面で、1つ選ぶと他が外れるもの）。
     const GROUP_KEYS = {
         atk: ['bigHero', 'legendHero', 'legendHp', 'jangBi', 'shiningBlue'],
-        food: ['fish', 'apple', 'tengu', 'dragonFood', 'cake', 'dragonsMeal', 'whiteBear', 'rebootAtkPotion'],
+        food: ['fish', 'apple', 'tengu', 'potion4', 'cake', 'dragonsMeal', 'whiteBear', 'rebootAtkPotion'],
     };
     // HEXA。hexa_data.js のキー → 先方のキー。
     const HEXA_KEYS = [
@@ -196,7 +197,7 @@ const scouter = (() => {
         d.statPotion = d.stat !== '0';
         // デーモンアヴェンジャーは「伝説の英雄の秘薬」が HP 版になる（先方の画面と同じ）。
         if (f.classId === 'demonavenger') { d.legendHp = !!d.legendHero; d.legendHero = false; } else d.legendHp = false;
-        delete d.dragonFood;   // 先方にない項目。攻撃力に足して送る。
+        delete d.potion4; delete d.dragonFood;   // 先方にない項目。攻撃力・魔力に足して送る。
         return d;
     }
 
@@ -208,8 +209,8 @@ const scouter = (() => {
         const entire = { str: str(screen.str), dex: str(screen.dex), int: str(screen.int), luk: str(screen.luk) };
         const seedLv = (k) => SEEDS.some(([sk]) => sk === k) ? str(f.seed[k]) : '0';
         const linkOn = ([k, , , only]) => !only || only === f.classId;
-        // Baby Dragon Food（攻撃力 +7、魔力は伸びない）は先方にないので、攻撃力の基礎値に足す。
-        const atkBase = num(sx('atk').base) + (f.doping && f.doping.dragonFood && !isMagic(f.classId) ? 7 : 0);
+        // Potion IV（攻撃力・魔力 +8）は先方にないので、攻撃力・魔力の基礎値に足す。
+        const atkBase = num(sx('atk').base) + (f.doping && f.doping.potion4 ? 8 : 0);
         return {
             doping: dopingOf(f),
             linkSkill: { hayato: '0', ...Object.fromEntries(LINKS.map((l) => [l[0], linkOn(l) ? str(f.link[l[0]]) : '0'])) },
@@ -280,6 +281,8 @@ const scouter = (() => {
         e.form = { ...DEFAULT_FORM(), ...e.form };
         for (const k of ['main', 'sub', 'sub2', 'atk']) e.form[k] = { ...blankStat(), ...e.form[k] };
         for (const k of ['hexa', 'link', 'seed', 'doping', 'hyper']) e.form[k] = { ...DEFAULT_FORM()[k], ...e.form[k] };
+        // 少しのあいだ Baby Dragon Food だった枠は Potion IV に置き換えた。
+        if ('dragonFood' in e.form.doping) { if (e.form.doping.dragonFood) e.form.doping.potion4 = true; delete e.form.doping.dragonFood; }
         e.hyperOpt = { pdr: 300, critBuff: '0', locked: {}, ...(e.hyperOpt || {}) };
         // リンクスキルと Wild Hunter ユニオンは全キャラ共通（シードリングはキャラごと）。
         // link は共通の入れ物をそのまま指すので、入力すると全キャラに効く。
@@ -514,7 +517,9 @@ const scouter = (() => {
             </div>
         </div>`;
     }
-    const img = (icon) => `<img class="w-6 h-6 shrink-0 object-contain" src="${ICON}${icon}" alt="" loading="lazy">`;
+    // icon が配列のときは並べて1つのアイコンにする（Potion IV の攻撃力用・魔力用など）。
+    const img = (icon) => Array.isArray(icon) ? `<span class="flex shrink-0 -space-x-1">${icon.map(img).join('')}</span>`
+        : `<img class="w-6 h-6 shrink-0 object-contain" src="${ICON}${icon}" alt="" loading="lazy">`;
     // レベルを入れるタイル。0 より大きいと紫で点く。
     function tileLv(ico, label, path, v, title) {
         const on = num(v) > 0;
