@@ -141,7 +141,7 @@ const guide = {
                 <section class="card bg-base-100 border border-base-content/10"><div class="card-body">
                     <h3 class="card-title text-base">基本の操作</h3>
                     <ul class="guide-ul">${this.BASICS.map(t => `<li>${t}</li>`).join('')}</ul>
-                    <p class="text-xs text-base-content/50 mt-2">※ 画面は${this.SHOT_DATE}時点のものです。キャラの立ち絵は写していません。</p>
+                    <p class="text-xs text-base-content/50 mt-2">※ 画面は${this.SHOT_DATE}時点のものです。キャラの立ち絵の部分は「キャラ画像」の仮の絵にしています。</p>
                 </div></section>
 
                 ${sections}
