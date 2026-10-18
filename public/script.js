@@ -954,17 +954,6 @@ const app = {
             .filter(char => (this.data.config.activeServer === 'ALL' || char.server === this.data.config.activeServer) && !char.hidden)
             .sort((a, b) => computeCharMesos(b) - computeCharMesos(a));
 
-        if (activeChars.length === 0) {
-            c.innerHTML = ''; if (e) e.classList.remove('hidden');
-            const statsContainer = document.getElementById('dashboard-stats-container');
-            if (statsContainer) {
-                statsContainer.innerHTML = this.headerStatsHTML({ revMode: this.data.config.revenueMode || 'weekly', k: { rev: 0, count: 0 }, c: { rev: 0, count: 0 }, worldLimit: this.data.config.worldMaxCrystals || 180, kOn: false, cOn: false });
-                lucide.createIcons();
-            }
-            return;
-        }
-        if (e) e.classList.add('hidden');
-
         const charLimit = this.data.config.charMaxCrystals || 14;
         const worldLimit = this.data.config.worldMaxCrystals || 180;
         const revMode = this.data.config.revenueMode || 'weekly';
@@ -1003,6 +992,15 @@ const app = {
         if (statsContainer) {
             statsContainer.innerHTML = this.headerStatsHTML({ revMode, k: { rev: rev(kStats), count: kStats.count }, c: { rev: rev(cStats), count: cStats.count }, worldLimit, kOn: kOpacity === 'opacity-100', cOn: cOpacity === 'opacity-100' });
         }
+
+        if (activeChars.length === 0) {
+            c.innerHTML = ''; if (e) e.classList.remove('hidden');
+            const lbl = e && e.querySelector('.server-label');
+            if (lbl) lbl.textContent = { KRONOS: 'Kronos', CHALLENGER: 'Challenger' }[activeSrv] || 'Kronos / Challenger';
+            lucide.createIcons();
+            return;
+        }
+        if (e) e.classList.add('hidden');
 
         const addCardHTML = `
             <button type="button" onclick="app.openAddCharacterFromDashboard()" class="btn btn-dashed h-auto min-h-24 flex-col gap-1 font-normal text-slate-500 hover:text-indigo-300">
