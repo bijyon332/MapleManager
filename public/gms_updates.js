@@ -20,8 +20,8 @@ const gmsUpdates = {
             region: 'GMS',               // 'GMS' | 'KMS'。上部バーのどちらに出すか
             date: '2026-10-17',          // 告知の日付。一覧はこの順ではなく LIST の並び順で出す
             kind: 'GMS Update',          // 一覧のバッジ
-            title: 'Maplayer One',
-            subtitle: '2026年冬アップデート プレビュー（INKWELL\'S NOTE）',
+            title: 'Inkwell\'s Note: Maplayer One',
+            subtitle: '2026年冬アップデート プレビュー',
             period: '2026/11/11〜',
             cover: 'updates/2026-winter-maplayer-one/img-02.jpg',
             summary: '冬アップデートのプレビュー。新イベントワールド Quanah、新職業レテ、HEXA第3弾、新ボス2体（ベローナ・メイリン）、QoL改善。',
