@@ -104,9 +104,9 @@
             <ul class="menu menu-sm w-full gap-px">
                 <li class="menu-title">Information</li>
                 <li><button onclick="app.switchApp('updates')" id="app-updates"
-                    class="nav-item" title="News（GMSアップデート告知の和訳など）">
-                    <i data-lucide="newspaper" class="w-5 h-5"></i>
-                    <span class="nav-label">News</span>
+                    class="nav-item" title="Journal（GMS・KMSアップデートの和訳と Bijyon のコラム）">
+                    <i data-lucide="notebook-pen" class="w-5 h-5"></i>
+                    <span class="nav-label">Journal</span>
                 </button></li>
                 <li><button onclick="app.switchApp('guide')" id="app-guide"
                     class="nav-item" title="Guide（BijyonTools の使い方）">
@@ -238,15 +238,23 @@
                     <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>ハイパー最適化
                 </button>
             </nav>
-            <!-- News の一覧／要約／全訳（News のときだけ出す）。押したときの切り替えは gms_updates.js -->
-            <nav id="updates-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
-                <button onclick="gmsUpdates.showRegion('GMS')" data-tab="GMS" role="tab" class="tab tab-active gap-1.5">
-                    <i data-lucide="globe" class="w-3.5 h-3.5"></i>GMS
-                </button>
-                <button onclick="gmsUpdates.showRegion('KMS')" data-tab="KMS" role="tab" class="tab gap-1.5">
-                    <i data-lucide="globe" class="w-3.5 h-3.5"></i>KMS
-                </button>
-            </nav>
+            <!-- Journal の GMS／KMS（パッチ情報）と、少し離して Column（Journal のときだけ出す）。押したときの切り替えは gms_updates.js -->
+            <div id="updates-nav" class="hidden items-center gap-4 mr-3 shrink-0">
+                <nav role="tablist" class="tabs tabs-box tabs-sm flex-nowrap shrink-0">
+                    <button onclick="gmsUpdates.showRegion('GMS')" data-tab="GMS" role="tab" class="tab tab-active gap-1.5">
+                        <i data-lucide="globe" class="w-3.5 h-3.5"></i>GMS
+                    </button>
+                    <button onclick="gmsUpdates.showRegion('KMS')" data-tab="KMS" role="tab" class="tab gap-1.5">
+                        <i data-lucide="globe" class="w-3.5 h-3.5"></i>KMS
+                    </button>
+                </nav>
+                <span class="w-px h-5 bg-white/15"></span>
+                <nav role="tablist" class="tabs tabs-box tabs-sm flex-nowrap shrink-0">
+                    <button onclick="gmsUpdates.showRegion('COLUMN')" data-tab="COLUMN" role="tab" class="tab gap-1.5">
+                        <i data-lucide="pen-line" class="w-3.5 h-3.5"></i>Column
+                    </button>
+                </nav>
+            </div>
             <!-- Boss Scheduler sub navigation (shown only for the scheduler app) -->
             <nav id="scheduler-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="app.schedulerTab('members')" id="snav-members"

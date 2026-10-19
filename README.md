@@ -15,7 +15,7 @@ Cloudflare Worker + 静的アセットとして配信している。ビルド工
 
 | グループ | アプリ | キー | 実体 |
 | --- | --- | --- | --- |
-| Information | News | `updates` | `public/gms_updates.js`（GMS・KMSのアップデート告知の和訳など。上部バーの GMS／KMS で地域を切り替え、その地域のニュース一覧（新しい順）が出る。選んだ回は目次＋全訳の1ページで、目次から各節へ飛び、各節の「↑ 目次へ」で戻る。和訳の書き方は `.claude/skills/news-translation/SKILL.md`。各回の本文と画像は `public/updates/<id>/`。新しい回は `python3 -I tools/import_gms_update.py <和訳.html> <id>` で取り込み、`gms_updates.js` の `LIST` の先頭に1件足す。過去の回は消さない） |
+| Information | Journal（旧 News） | `updates` | `public/gms_updates.js`（GMS・KMSのアップデート告知の和訳と、Bijyon のコラム。上部バーの GMS／KMS と、少し離した Column で切り替え、その一覧（新しい順）が出る。コラムは `region: 'COLUMN'`、id は `col-` で始める。選んだ回は目次＋全訳の1ページで、目次から各節へ飛び、各節の「↑ 目次へ」で戻る。和訳の書き方は `.claude/skills/news-translation/SKILL.md`。各回の本文と画像は `public/updates/<id>/`。新しい回は `python3 -I tools/import_gms_update.py <和訳.html> <id>` で取り込み、`gms_updates.js` の `LIST` の先頭に1件足す。過去の回は消さない） |
 | Information | Guide | `guide` | `public/guide.js`（使い方ガイド。アプリ一覧・基本の操作・アプリごとの説明とスクショ・よくある質問。スクショは `public/assets/guide/`。アプリを足したり画面を大きく変えたりしたら、文とスクショも直す） |
 | Tools | Character Manager | `planner` | `public/script.js` |
 | Tools | HEXA Tracker | `hexa` | `public/hexa_tracker.js`、`public/hexa_reader.js`（進捗入力の「ゲーム画面から読み取り」。HEXA Matrix の画面をスクショ・ライブ共有から読む。タイトルの位置だけ Tesseract.js で探し、ノードは固定の位置、Lvの小さな数字は形の照合で読む） |
