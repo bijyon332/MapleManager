@@ -648,12 +648,14 @@ header .tabs-box > .tab-active svg { color: #a5b4fc; }
 .gms-update .menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 .gms-update .menu .menu-title { grid-column: 1 / -1; }
 
-/* News の一覧。1行＝1件（サムネ・日付と種類・タイトル・一言）。 */
+/* Journal（旧 News）の一覧。1行＝1件（サムネ・日付と種類・タイトル・一言）。 */
 .news-list { border: 1px solid #ffffff14; background: var(--color-base-100); border-radius: var(--radius-box); overflow: hidden; }
 .news-list > li + li { border-top: 1px solid #ffffff10; }
 .news-row { display: flex; align-items: center; gap: 16px; width: 100%; padding: 14px 16px; text-align: left; transition: background .15s; }
 .news-row:hover { background: rgba(99, 102, 241, .08); }
 .news-thumb { width: 160px; height: 90px; object-fit: cover; object-position: 50% 75%; border-radius: 6px; flex-shrink: 0; background: var(--color-base-300); }
+/* サムネのないコラムの回は、琥珀色のペンのアイコン（パッチ情報の藍色と見分ける） */
+.news-thumb-column { display: flex; align-items: center; justify-content: center; color: color-mix(in oklab, var(--color-warning) 80%, transparent); background: color-mix(in oklab, var(--color-warning) 12%, var(--color-base-300)); }
 
 /* Guide。見出しへ飛んだときに少し上を空ける。箇条書きは daisyUI で消えている印を戻す。 */
 .guide .guide-sec, .guide #guide-faq { scroll-margin-top: 1rem; }

@@ -1,7 +1,7 @@
 /* =========================================================
- *  News（サイドバーの Information。キーは updates のまま）
- *  GMS・KMS のアップデート告知の和訳などを、回ごとに読めるようにする。
- *  上部バーの「GMS」「KMS」で地域を切り替え、その地域のニュース一覧（新しい順の縦の並び）が出る。
+ *  Journal（サイドバーの Information。旧 News。キーは updates のまま）
+ *  GMS・KMS のアップデート告知の和訳と、Bijyon が書いたコラムを、回ごとに読めるようにする。
+ *  上部バーの「GMS」「KMS」（パッチ情報）と、少し離した「Column」で切り替え、その一覧（新しい順の縦の並び）が出る。
  *  行を押すとその回のページが出る。
  *  回のページは「目次＋全訳」の1枚（要約は作らない）。目次から各節へ飛び、各節の「↑ 目次へ」で戻る。
  *  書き方のルールは .claude/skills/news-translation/SKILL.md。
@@ -11,13 +11,16 @@
  *    1. python3 -I tools/import_gms_update.py <和訳.html> <id>
  *       → public/updates/<id>/content.html と画像が出来る
  *    2. 下の LIST の先頭に1件足す（上ほど新しい）。region に 'GMS' か 'KMS'。過去の回は消さない。
+ *
+ *  コラムの回も同じ形（public/updates/<id>/content.html）。region は 'COLUMN'、id は col- で始める。
+ *  kind は 'Column'、subtitle は 'by Bijyon'、period は空でよい。cover がなければ一覧はペンのアイコンになる。
  * ========================================================= */
 
 const gmsUpdates = {
     LIST: [
         {
             id: '2026-winter-maplayer-one',
-            region: 'GMS',               // 'GMS' | 'KMS'。上部バーのどちらに出すか
+            region: 'GMS',               // 'GMS' | 'KMS' | 'COLUMN'。上部バーのどれに出すか
             date: '2026-10-17',          // 告知の日付。一覧はこの順ではなく LIST の並び順で出す
             kind: 'GMS Update',          // 一覧のバッジ
             title: 'Inkwell\'s Note: Maplayer One',
@@ -29,7 +32,7 @@ const gmsUpdates = {
     ],
 
     root: null,
-    region: 'GMS',     // 'GMS' | 'KMS'。一覧に出す地域
+    region: 'GMS',     // 'GMS' | 'KMS' | 'COLUMN'。一覧に出す地域（COLUMN はコラム）
     current: null,     // 開いている回の id。null なら一覧
     _html: {},         // id -> content.html の Promise
 
@@ -51,6 +54,15 @@ const gmsUpdates = {
         this.syncNav();
     },
 
+    // 上部バーの名前と、一覧の上の見出し・説明
+    tabLabel(region) { return region === 'COLUMN' ? 'Column' : region; },
+
+    listIntro(region) {
+        return region === 'COLUMN'
+            ? 'Bijyon が書いたコラムです。パッチ情報ではなく、考察や育成方針などの読み物です。新しい順に並んでいます。'
+            : `${region} のアップデート告知の和訳などです。新しい順に並んでいます。手動で載せているので、すべての告知があるわけではありません。`;
+    },
+
     esc(s) {
         return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     },
@@ -59,11 +71,12 @@ const gmsUpdates = {
         const list = this.LIST.filter(u => u.region === this.region);
         const rows = list.map(u => `
             <li><button type="button" onclick="gmsUpdates.open('${u.id}')" class="news-row">
-                <img src="${this.esc(u.cover)}" alt="" loading="lazy" class="news-thumb">
+                ${u.cover ? `<img src="${this.esc(u.cover)}" alt="" loading="lazy" class="news-thumb">`
+                    : `<div class="news-thumb news-thumb-column"><i data-lucide="pen-line" class="w-8 h-8"></i></div>`}
                 <div class="min-w-0 flex-1">
                     <div class="flex items-center gap-2 text-xs">
                         <span class="font-mono text-base-content/60">${this.esc(u.date.replace(/-/g, '/'))}</span>
-                        <span class="badge badge-sm badge-primary badge-soft">${this.esc(u.kind)}</span>
+                        <span class="badge badge-sm ${u.region === 'COLUMN' ? 'badge-warning' : 'badge-primary'} badge-soft">${this.esc(u.kind)}</span>
                         <span class="text-primary font-bold">${this.esc(u.period)}</span>
                     </div>
                     <div class="text-base font-bold text-white leading-snug mt-1">${this.esc(u.title)}
@@ -74,8 +87,8 @@ const gmsUpdates = {
             </button></li>`).join('');
         this.root.innerHTML = `
             <div class="max-w-4xl mx-auto">
-                <h2 class="text-lg font-bold text-white mb-1">News <span class="text-primary">${this.region}</span></h2>
-                <p class="text-xs text-base-content/60 mb-4">${this.region} のアップデート告知の和訳などです。新しい順に並んでいます。手動で載せているので、すべての告知があるわけではありません。</p>
+                <h2 class="text-lg font-bold text-white mb-1">Journal <span class="${this.region === 'COLUMN' ? 'text-warning' : 'text-primary'}">${this.tabLabel(this.region)}</span></h2>
+                <p class="text-xs text-base-content/60 mb-4">${this.listIntro(this.region)}</p>
                 ${list.length ? `<ul class="news-list">${rows}</ul>`
                     : `<div class="news-list text-center py-12 text-sm text-base-content/50">まだありません。</div>`}
             </div>`;
@@ -109,10 +122,10 @@ const gmsUpdates = {
         this.root.innerHTML = `
             <div class="gms-update max-w-5xl mx-auto">
                 <button type="button" onclick="gmsUpdates.showRegion('${u.region}')" class="news-back btn btn-ghost btn-sm gap-1.5 -ml-3 mb-2 text-base-content/70">
-                    <i data-lucide="arrow-left" class="w-4 h-4"></i>${this.esc(u.region)} の一覧へ
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i>${this.esc(this.tabLabel(u.region))} の一覧へ
                 </button>
                 <div class="mb-4">
-                    <div class="text-xs font-bold text-primary">${this.esc(u.period)}</div>
+                    ${u.period ? `<div class="text-xs font-bold text-primary">${this.esc(u.period)}</div>` : ''}
                     <h2 class="text-xl font-bold text-white leading-tight">${this.esc(u.title)}</h2>
                     <div class="text-xs text-base-content/60">${this.esc(u.subtitle)}</div>
                 </div>
@@ -128,7 +141,7 @@ const gmsUpdates = {
         this.render();
     },
 
-    // 上部バーの GMS／KMS。回を開いているときに押すと、その地域の一覧に戻る。
+    // 上部バーの GMS／KMS／Column。回を開いているときに押すと、その一覧に戻る。
     showRegion(region) {
         this.region = region;
         this.current = null;

@@ -1,14 +1,14 @@
 ---
 name: news-translation
-description: GMS・KMS のアップデート告知などを和訳して BijyonTools の News（public/updates/）に1回分として載せるときに使う。目次＋全訳の1ページで作り、要約は作らない。
+description: GMS・KMS のアップデート告知などを和訳して BijyonTools の Journal（旧 News、public/updates/）に1回分として載せるときに使う。目次＋全訳の1ページで作り、要約は作らない。
 ---
 
 # news-translation
 
 GMS 公式のアップデート告知（Inkwell's Note、パッチノート、イベント告知など）や
 KMS 公式の告知（업데이트 안내、패치노트、이벤트 공지など）を和訳し、
-サイドバー Information の **News** に1回分として載せる。News は上部バーの「GMS」「KMS」で地域ごとに分かれる。
-News は bi が「この回を載せて」と指示したときだけ手で足す。GMS アップデート監視ルーティンとは連動しない。
+サイドバー Information の **Journal**（旧 News）に1回分として載せる。Journal は上部バーの「GMS」「KMS」で地域ごとに分かれる（離れた「Column」は bi のコラムで、和訳とは別）。
+和訳は bi が「この回を載せて」と指示したときだけ手で足す。GMS アップデート監視ルーティンとは連動しない。
 
 ## 形式のルール（bi 決定、2026-10-18）
 
@@ -70,7 +70,7 @@ daisyUI 5 + Tailwind 4 の CDN を読み、`data-theme="maple"` 相当の暗い�
 
 - 節の id は `d-` で始まる小文字英数字とハイフン（例: `d-quanah`、`d-qol-equip`）。目次と節で1対1に対応させる。
 - 見出しは全部 `h2.card-title`、節の中の小見出しは `h3`。
-- 色は daisyUI のセマンティックカラーだけ。独自の CSS は書かない（News 用の見た目は `public/style.css` の `.gms-update` にある）。
+- 色は daisyUI のセマンティックカラーだけ。独自の CSS は書かない（Journal 用の見た目は `public/style.css` の `.gms-update` にある）。
 
 ## 載せる手順
 
