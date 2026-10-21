@@ -44,11 +44,15 @@ const app = {
         const cls = all.find(j => j.path === char.classImage) || this.classByJobName(char.job);
         return cls ? this.jobArtOf(cls) : null;
     },
-    // f（左右反転）のときは透かしの欄ごと裏返すので、位置を left 基準にして見た目は右端からの距離のままにする
+    // f（左右反転）のときは透かしの欄ごと裏返すので、位置を left 基準にして見た目は右端からの距離のままにする。
+    // --wm-face は右上の顔のあたりを濃くする範囲の中心（裏返すと左右も入れ替わる）
     jobArtVars(pos) {
-        return pos.f
-            ? `;--wm-pos:left ${pos.x}px top ${pos.y}px;--wm-size:${pos.z}% auto;--wm-flip:-1;--wm-mask:to left`
-            : `;--wm-pos:right ${pos.x}px top ${pos.y}px;--wm-size:${pos.z}% auto;--wm-flip:1;--wm-mask:to right`;
+        // 縁を薄くするマスクの大きさ（幅は絵と同じ%、高さは幅×縦横比）。KMS イラストは 960x540、立ち絵は 395x400
+        const illust = pos.kind === 'illust';
+        const edge = `;--wm-mw:${pos.z}%;--wm-zr:${+(pos.z / 100 * (illust ? 540 / 960 : 400 / 395)).toFixed(4)};--wm-ef:${illust ? '18%' : '0%'}`;
+        return (pos.f
+            ? `;--wm-pos:left ${pos.x}px top ${pos.y}px;--wm-size:${pos.z}% auto;--wm-flip:-1;--wm-mask:to left;--wm-face:20%`
+            : `;--wm-pos:right ${pos.x}px top ${pos.y}px;--wm-size:${pos.z}% auto;--wm-flip:1;--wm-mask:to right;--wm-face:80%`) + edge;
     },
     // カードの角の飾り線に使うサーバー色（Tailwind の色名 → 400 の値）
     SERVER_HEX: { emerald: '#34d399', purple: '#c084fc', violet: '#a78bfa', indigo: '#818cf8', sky: '#38bdf8', cyan: '#22d3ee', teal: '#2dd4bf', amber: '#fbbf24', yellow: '#facc15', orange: '#fb923c', rose: '#fb7185', red: '#f87171', pink: '#f472b6', blue: '#60a5fa', lime: '#a3e635', green: '#4ade80' },
