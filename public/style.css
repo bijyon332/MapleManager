@@ -368,22 +368,21 @@ body {
 /* メルの数字は透かしの上に乗るので、濃い縁取りの影で読みやすくする */
 .mx-meso, .mx-count { text-shadow: 0 0 2px #020617, 0 0 4px #020617, 0 1px 2px #020617; }
 
-/* 月ボス：枠なしの1行（アイコン＋難易度）。消し込むと金の COMPLETE で覆い、右端に月の額 */
-.mx-mo { position: relative; display: flex; align-items: center; gap: 12px; height: 34px; padding: 0 6px; cursor: pointer; }
-.mx-mo:hover .mx-mo-ic { box-shadow: inset 0 0 0 1px #ca8a04; }
-.mx-mo-none { font-size: 11px; color: #ffffff4d; cursor: default; }
-.mx-mo-boss { display: flex; align-items: center; gap: 6px; }
-.mx-mo-ic { position: relative; width: 29px; height: 29px; background: #0b1222; box-shadow: inset 0 0 0 1px #334155; display: grid; place-items: center; overflow: hidden; flex: none; }
-.mx-mo-ic img { width: 100%; height: 100%; object-fit: cover; }
-.mx-mo-nm { font-size: 9px; line-height: 1; color: #cbd5e1; text-align: center; }
-.mx-mo-df { font: 700 13px/1 "IBM Plex Sans JP", sans-serif; color: var(--dc); }
+/* 月ボス：週ボスと同じマス（38px、難易度は画像の下部に重ねる）を1行。消し込むと金の COMPLETE で覆う */
+.mx-mo { position: relative; cursor: pointer; }
+.mx-mo:hover .mx-boss-ic { box-shadow: inset 0 0 0 1px #ca8a04; }
+.mx-mo-none { height: 38px; display: flex; align-items: center; padding: 0 6px; font-size: 11px; color: #ffffff4d; cursor: default; }
+.mx-grid.mx-grid-mo { min-height: 0; }
+.mx-mo .mx-complete { --cc: #facc15; }
+/* COMPLETE の枠はマスの外へ上下5px・左右6px はみ出すので、月・週・下の帯の間を空けて重ならないようにする */
+.mx-top { margin-bottom: 4px; }
+.mx-mo { margin-bottom: 10px; }
+.mx-wk { margin-bottom: 6px; }
 
 /* 消し込み済み：暗い幕で上から覆い、色の枠と「◎ COMPLETE」（週＝紫、月＝金）。マス自体は薄くしない */
 .mx-complete { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 8px; pointer-events: none; color: var(--cc, #c4b5fd); background: #020617b3; border: 2px solid currentColor; }
 .mx-complete svg { width: 17px; height: 17px; stroke-width: 2.25; }
 .mx-complete span { font: 700 16px/1 "IBM Plex Mono", monospace; letter-spacing: .28em; }
-/* 月の消し込みは左半分だけを覆い、獲得メルだけを出す */
-.mx-mo-done { position: absolute; left: 0; top: 0; bottom: 0; width: 50%; z-index: 3; display: grid; place-items: center; pointer-events: none; background: #020617b3; border: 2px solid #facc15; font: 700 17px/1 "Saira Condensed", sans-serif; color: #facc15; font-variant-numeric: tabular-nums; }
 .mx-lbl, .mx-none { font-size: 11px; color: #475569; }
 .mx-wk { position: relative; } /* 地は敷かず、マスの隙間には透かしが見える。マス自体は不透明 */
 .mx-grid { display: grid; grid-template-columns: repeat(7, 38px); gap: 3px; min-height: 84px; align-content: start; } /* ボスが1行でも常に2行分の高さ */
@@ -400,8 +399,8 @@ body {
 .mx-d-easy { --dc: #94a3b8; } .mx-d-normal { --dc: #22d3ee; } .mx-d-hard { --dc: #fb7185; } .mx-d-chaos { --dc: #facc15; } .mx-d-extreme { --dc: #f43f5e; }
 .mx-boss-more .mx-boss-ic { font: 700 13px "Saira Condensed"; color: #e2e8f0; box-shadow: inset 0 0 0 1px #334155; }
 .mx-wk[onclick]:hover .mx-boss-ic { box-shadow: inset 0 0 0 1px #475569; }
-.mx-wk .mx-complete { inset: -5px -6px; } /* アイコンの際にぴったり付けず、少し外まで大きめに覆う */
-.mx-wk .mx-complete span { font-size: 17px; }
+.mx-wk .mx-complete, .mx-mo .mx-complete { inset: -5px -6px; } /* アイコンの際にぴったり付けず、少し外まで大きめに覆う */
+.mx-wk .mx-complete span, .mx-mo .mx-complete span { font-size: 17px; }
 
 /* 下の帯：最初から HEXA＝紫、UPGRADE＝水色、SCOUTER＝琥珀で色を付ける（入力済みかどうかで色は変えない） */
 .mx-tools { display: grid; grid-template-columns: repeat(3, 1fr); margin: auto -10px 0; border-top: 1px solid #ffffff1a; background: #0b1222; }

@@ -1066,7 +1066,7 @@ const app = {
                         <div class="mx-boss-ic">${img ? `<img src="${img}" alt="" onerror="this.nextElementSibling.style.display='';this.remove()">` : ''}<span class="mx-boss-nm" ${img ? 'style="display:none"' : ''}>${(bossByEn(b.name) || {}).shortEn || b.name}</span>${b.pSize > 1 ? `<i class="mx-boss-ps">×${b.pSize}</i>` : ''}<span class="mx-boss-df">${b.difficulty}</span></div></div>`;
                 }).join('') + (rest.length ? `<div class="mx-boss mx-boss-more" title="${rest.map(b => `${b.difficulty} ${b.name}`).join('\n')}"><div class="mx-boss-ic">+${rest.length}<span class="mx-boss-df">more</span></div></div>` : '');
             };
-            // 消し込み済みは元のカードと同じ「COMPLETE」（枠を色で囲み、中を沈める）
+            // 消し込み済みは週・月とも「COMPLETE」（枠を色で囲み、中を沈める。週＝紫、月＝金）
             const completeMark = `<div class="mx-complete"><i data-lucide="check-circle-2"></i><span>COMPLETE</span></div>`;
             const art = char.classImage ? this.jobArtFor(char) : null;
 
@@ -1089,12 +1089,8 @@ const app = {
                     </div>
                     ${mB.length ? `
                     <div class="mx-mo ${isMonthlyDone ? 'is-done' : ''}" onclick="app.toggleCharDone('${char.id}','monthly')" title="${isMonthlyDone ? 'クリックで消し込みを解除' : 'クリックで月ボスを消し込む'}">
-                        ${mB.slice(0, 2).map(b => { const img = this.getBossImageUrl(b.name); return `
-                        <span class="mx-mo-boss mx-d-${(b.difficulty || '').toLowerCase()}">
-                            <span class="mx-mo-ic" title="${b.difficulty} ${b.name}">${img ? `<img src="${img}" alt="" onerror="this.nextElementSibling.style.display='';this.remove()">` : ''}<span class="mx-mo-nm" ${img ? 'style="display:none"' : ''}>${(bossByEn(b.name) || {}).shortEn || b.name}</span></span>
-                            <span class="mx-mo-df">${b.difficulty}</span>
-                        </span>`; }).join('')}
-                        ${isMonthlyDone ? `<div class="mx-mo-done">${Math.floor(mB.reduce((s, b) => s + b.effectiveMeso, 0)).toLocaleString()}</div>` : ''}
+                        <div class="mx-grid mx-grid-mo">${tiles(mB, 2)}</div>
+                        ${isMonthlyDone ? completeMark : ''}
                     </div>` : '<div class="mx-mo mx-mo-none">月ボスなし</div>'}
                     <div class="mx-wk ${isWeeklyDone ? 'is-done' : ''}" ${wkSorted.length ? `onclick="app.toggleCharDone('${char.id}','weekly')" title="${isWeeklyDone ? 'クリックで消し込みを解除' : 'クリックで週ボスをまとめて消し込む'}"` : ''}>
                         ${wkSorted.length ? `<div class="mx-grid">${tiles(wkSorted, 14)}</div>${isWeeklyDone ? completeMark : ''}` : '<div class="mx-none mx-none-wk">週ボスなし</div>'}
