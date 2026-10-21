@@ -44,11 +44,15 @@ const app = {
         const cls = all.find(j => j.path === char.classImage) || this.classByJobName(char.job);
         return cls ? this.jobArtOf(cls) : null;
     },
-    // f（左右反転）のときは透かしの欄ごと裏返すので、位置を left 基準にして見た目は右端からの距離のままにする
+    // f（左右反転）のときは透かしの欄ごと裏返すので、位置を left 基準にして見た目は右端からの距離のままにする。
+    // --wm-face は右上の顔のあたりを濃くする範囲の中心（裏返すと左右も入れ替わる）
     jobArtVars(pos) {
-        return pos.f
-            ? `;--wm-pos:left ${pos.x}px top ${pos.y}px;--wm-size:${pos.z}% auto;--wm-flip:-1;--wm-mask:to left`
-            : `;--wm-pos:right ${pos.x}px top ${pos.y}px;--wm-size:${pos.z}% auto;--wm-flip:1;--wm-mask:to right`;
+        // 縁を薄くするマスクの大きさ（幅は絵と同じ%、高さは幅×縦横比）。KMS イラストは 960x540、立ち絵は 395x400
+        const illust = pos.kind === 'illust';
+        const edge = `;--wm-mw:${pos.z}%;--wm-zr:${+(pos.z / 100 * (illust ? 540 / 960 : 400 / 395)).toFixed(4)};--wm-ef:${illust ? '18%' : '0%'}`;
+        return (pos.f
+            ? `;--wm-pos:left ${pos.x}px top ${pos.y}px;--wm-size:${pos.z}% auto;--wm-flip:-1;--wm-mask:to left;--wm-face:20%`
+            : `;--wm-pos:right ${pos.x}px top ${pos.y}px;--wm-size:${pos.z}% auto;--wm-flip:1;--wm-mask:to right;--wm-face:80%`) + edge;
     },
     // カードの角の飾り線に使うサーバー色（Tailwind の色名 → 400 の値）
     SERVER_HEX: { emerald: '#34d399', purple: '#c084fc', violet: '#a78bfa', indigo: '#818cf8', sky: '#38bdf8', cyan: '#22d3ee', teal: '#2dd4bf', amber: '#fbbf24', yellow: '#facc15', orange: '#fb923c', rose: '#fb7185', red: '#f87171', pink: '#f472b6', blue: '#60a5fa', lime: '#a3e635', green: '#4ade80' },
@@ -1066,7 +1070,7 @@ const app = {
                         <div class="mx-boss-ic">${img ? `<img src="${img}" alt="" onerror="this.nextElementSibling.style.display='';this.remove()">` : ''}<span class="mx-boss-nm" ${img ? 'style="display:none"' : ''}>${(bossByEn(b.name) || {}).shortEn || b.name}</span>${b.pSize > 1 ? `<i class="mx-boss-ps">×${b.pSize}</i>` : ''}<span class="mx-boss-df">${b.difficulty}</span></div></div>`;
                 }).join('') + (rest.length ? `<div class="mx-boss mx-boss-more" title="${rest.map(b => `${b.difficulty} ${b.name}`).join('\n')}"><div class="mx-boss-ic">+${rest.length}<span class="mx-boss-df">more</span></div></div>` : '');
             };
-            // 消し込み済みは元のカードと同じ「COMPLETE」（枠を色で囲み、中を沈める）
+            // 消し込み済みは週・月とも「COMPLETE」（枠を色で囲み、中を沈める。週＝紫、月＝金）
             const completeMark = `<div class="mx-complete"><i data-lucide="check-circle-2"></i><span>COMPLETE</span></div>`;
             const art = char.classImage ? this.jobArtFor(char) : null;
 
@@ -1089,12 +1093,8 @@ const app = {
                     </div>
                     ${mB.length ? `
                     <div class="mx-mo ${isMonthlyDone ? 'is-done' : ''}" onclick="app.toggleCharDone('${char.id}','monthly')" title="${isMonthlyDone ? 'クリックで消し込みを解除' : 'クリックで月ボスを消し込む'}">
-                        ${mB.slice(0, 2).map(b => { const img = this.getBossImageUrl(b.name); return `
-                        <span class="mx-mo-boss mx-d-${(b.difficulty || '').toLowerCase()}">
-                            <span class="mx-mo-ic" title="${b.difficulty} ${b.name}">${img ? `<img src="${img}" alt="" onerror="this.nextElementSibling.style.display='';this.remove()">` : ''}<span class="mx-mo-nm" ${img ? 'style="display:none"' : ''}>${(bossByEn(b.name) || {}).shortEn || b.name}</span></span>
-                            <span class="mx-mo-df">${b.difficulty}</span>
-                        </span>`; }).join('')}
-                        ${isMonthlyDone ? `<div class="mx-mo-done">${Math.floor(mB.reduce((s, b) => s + b.effectiveMeso, 0)).toLocaleString()}</div>` : ''}
+                        <div class="mx-grid mx-grid-mo">${tiles(mB, 2)}</div>
+                        ${isMonthlyDone ? completeMark : ''}
                     </div>` : '<div class="mx-mo mx-mo-none">月ボスなし</div>'}
                     <div class="mx-wk ${isWeeklyDone ? 'is-done' : ''}" ${wkSorted.length ? `onclick="app.toggleCharDone('${char.id}','weekly')" title="${isWeeklyDone ? 'クリックで消し込みを解除' : 'クリックで週ボスをまとめて消し込む'}"` : ''}>
                         ${wkSorted.length ? `<div class="mx-grid">${tiles(wkSorted, 14)}</div>${isWeeklyDone ? completeMark : ''}` : '<div class="mx-none mx-none-wk">週ボスなし</div>'}
