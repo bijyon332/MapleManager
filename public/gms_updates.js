@@ -19,6 +19,16 @@
 const gmsUpdates = {
     LIST: [
         {
+            id: 'col-3rd-hexa-history',
+            region: 'COLUMN',
+            date: '2026-10-21',
+            kind: 'Column',
+            title: 'KMS 1.2.417以降の職業調整の推移',
+            subtitle: 'by Bijyon',
+            period: '',
+            summary: '3rd HEXAスキル実装（KMS 1.2.417）から10月のテストサーバーまで、全職業のスキル調整を職業別に。3rd HEXA関連は色分けし、系統・傾向・キーワードで絞り込めます。',
+        },
+        {
             id: '2026-winter-maplayer-one',
             region: 'GMS',               // 'GMS' | 'KMS' | 'COLUMN'。上部バーのどれに出すか
             date: '2026-10-17',          // 告知の日付。一覧はこの順ではなく LIST の並び順で出す
