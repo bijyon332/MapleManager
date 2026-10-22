@@ -26,7 +26,7 @@ const gmsUpdates = {
             title: 'KMS 1.2.417以降の職業調整の推移',
             subtitle: 'by Bijyon',
             period: '',
-            summary: '3rd HEXAスキル実装（KMS 1.2.417）から10月のテストサーバーまで、全職業のスキル調整を職業別に。3rd HEXA関連は色分けし、系統・傾向・キーワードで絞り込めます。',
+            summary: '3rd HEXAスキル実装（KMS 1.2.417）から10月22日の KMS 1.2.420 まで、全職業のスキル調整を職業別に。3rd HEXA関連は色分けし、系統・傾向・キーワードで絞り込めます。',
         },
         {
             id: '2026-winter-maplayer-one',
