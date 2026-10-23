@@ -846,6 +846,8 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
 .gp .read .rx:hover{color:var(--red)}
 .gp .readfoot{display:flex;gap:6px;justify-content:flex-end;padding:5px 6px}
 .gp.drop .rd{outline:1px dashed var(--acc);outline-offset:2px}
+.gp .rd{position:relative}
+.gp.drop .rd::after{content:'離すと読み取ります';position:absolute;inset:0;display:grid;place-items:center;background:#0f172ae6;color:var(--acc);font-size:13px;font-weight:700;pointer-events:none}
 `;
 
     const STORAGE_KEY = 'gms-gear-priority';
@@ -1082,12 +1084,9 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
             const chk = (key, label) => `<label class="label text-xs text-base-content"><input type="checkbox" class="checkbox checkbox-xs" data-gp="opt" data-key="${key}" ${o[key] ? 'checked' : ''}>${label}</label>`;
             const weights = WEIGHT_FIELDS.map(([k, lb]) => field(`<label for="gp-w-${k}">${esc(lb)}</label>`,
                 `<input id="gp-w-${k}" class="input input-xs font-mono w-full" type="number" min="0" step="any" value="${w[k]}" data-gp="weight" data-key="${k}">`)).join('');
-            const legend = (st, label) => `<span class="badge badge-sm badge-ghost"><span class="status status-${st}"></span>${label}</span>`;
 
             return `<style>${CSS}</style>
 <div class="gp">
-    <div class="flex items-baseline gap-3 mb-3 flex-wrap"><h1 class="text-lg font-bold text-white">Upgrade Priority</h1>
-    <p class="text-xs text-base-content/50 leading-relaxed">いま持っている装備を入れると、次に伸ばすべき順番をメソ効率順に並べます。リブート／シャイニングスターフォース前提、潜在はレジェンダリー基準。${this.storageKey ? '' : '<br>ここはキャラに紐づかない仮の入力です。キャラごとの入力は Character Manager のカードの「UPGRADE」から開きます。'}</p></div>
 
     <div class="grid grid-cols-1 xl:grid-cols-[11fr_12fr] gap-3 items-start">
     <div class="flex flex-col gap-3 xl:sticky xl:top-0">
@@ -1113,7 +1112,6 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
         <div class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
             <div class="flex items-center gap-2">
                 <h2 class="card-title text-sm whitespace-nowrap">装備</h2>
-                <span class="text-[11px] text-base-content/50">クリックで詳細を入力。チェックを外した部位は計算から除外します。</span>
                 <div class="join ml-auto shrink-0">
                     <button type="button" class="btn btn-xs join-item" data-gp="all-on">すべて有効</button>
                     <button type="button" class="btn btn-xs join-item" data-gp="all-off">すべて無効</button>
@@ -1127,7 +1125,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
                     <input type="file" accept="image/*" multiple hidden data-gp="rd-input">
                     <span class="rdstat ml-auto flex items-center gap-2 text-xs text-base-content/50 whitespace-nowrap">${this.statPicks()}</span>
                 </div>
-                <p class="rdmsg" data-rd="msg">ゲームで装備にカーソルを合わせたスクショを、Ctrl+V かドラッグでも渡せます。</p>
+                <p class="rdmsg" data-rd="msg"></p>
                 <div id="gp-reads"></div>
             </div>
         </div></div>
@@ -1137,11 +1135,8 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
         <div class="flex items-center gap-2 flex-wrap">
             <h2 class="card-title text-sm">この順で伸ばす</h2>
             <span id="gp-picked" class="order-last ml-auto"></span>
-            ${legend('warning', 'スターフォース')}${legend('info', '潜在')}${legend('success', '転生')}${legend('secondary', '武器・補助武器・エンブレムの潜在')}
-            <span class="text-[11px] text-base-content/50">バーは1スコアあたりの単価（対数）。長いほど割高。</span>
         </div>
         <ul id="gp-plan-list" class="-mx-1"></ul>
-        <p class="text-[11px] text-base-content/40 leading-relaxed">スターフォースは破壊で★が戻るため、0→18・18→20・20→21・21→22、以降は1★ずつをひとまとまりとして扱い、その区切りまで到達する期待額を出しています（再登坂込み、予備装備は0メソ扱い）。潜在はKMSの行ごとの確率（Lv160以上は値+1%）で3行の組み合わせを全部数えています。手袋以外は節目（2ライン → 3ライン（オール含み） → 3ライン（オール抜き） → レジェンダリー2ライン → レジェンダリー3ライン。武器・補助武器は攻撃力%をメイン、ボスダメをオールとして数える）を1段ずつ目標にし、届くまで回す期待個数と、届いたときの平均スコアで見ています。届いても今よりスコアが下がりやすい段は飛ばします。手袋は今の3行の合計スコアを上回るまで回します。転生は黒転生（結果を選べる）で同じように、今を上回るまでの期待回数で見ています。</p>
     </div></div>
     </div>
 </div>
@@ -1595,7 +1590,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
             const sum = chosen.reduce((a, s) => a + s.cost, 0);
             pickedEl.innerHTML = chosen.length
                 ? `<span class="flex items-center gap-2 whitespace-nowrap"><span class="text-xs text-base-content/60">選んだ ${chosen.length}件</span><span class="text-xs text-base-content/60">期待</span><b class="font-mono tabular-nums text-lg text-success">${fmtB(sum)}</b><button type="button" class="btn btn-xs btn-ghost text-base-content/50" data-gp="pick-clear">選択を外す</button></span>`
-                : '<span class="text-[11px] text-base-content/45">左のチェックで、やる予定の行を選ぶと合計の期待メルを出します。</span>';
+                : '';
             this.planKeys = [];
             if (!plan.length) {
                 el.innerHTML = '<li class="text-base-content/50 text-center py-4">伸ばせる先がありません。装備を有効にするか、進捗を下げてみてください。</li>';
@@ -1634,7 +1629,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
                     <div class="text-[11px] text-base-content/50">${esc(s.name)}・Lv${s.level}</div>
                     <div class="${top ? 'text-base' : child ? 'text-[11.5px]' : 'text-[13.5px]'} leading-snug"><b class="font-semibold text-${k}">${esc(s.label)}</b> ${s.kind === 'pot' ? `<span class="cube ${s.unit}"><img src="https://maplestory.io/api/GMS/270/item/${CUBE_ICON[s.unit]}/icon" alt="" width="16" height="16" loading="lazy" onerror="this.style.display='none'">${esc(CUBE_JP[s.unit])}</span> ` : ''}<span class="text-[11px] text-base-content/50">${esc(s.detail)}</span>${extra || ''}</div>
                     ${this.targetHTML(s)}
-                    ${child ? '' : `<div class="h-0.5 mt-1 bg-base-content/10"><div class="h-full bg-${k}" style="width:${(8 + frac(s) * 92).toFixed(1)}%"></div></div>`}
+                    ${child ? '' : `<div class="h-0.5 mt-1 bg-base-content/10" title="1スコアあたりの単価（長いほど割高）"><div class="h-full bg-${k}" style="width:${(8 + frac(s) * 92).toFixed(1)}%"></div></div>`}
                 </div>
                 <div class="text-right font-mono tabular-nums leading-tight"><div class="${top ? 'text-lg' : child ? 'text-xs text-base-content/60' : 'text-sm'} font-semibold text-base-content">${cost}</div><div class="text-[10.5px] text-base-content/45">累計 ${cum}</div></div>
                 <div class="text-right font-mono tabular-nums leading-tight"><div class="text-xs text-base-content/70">${fmtM(s.eff)}</div><div class="text-[10.5px] text-base-content/45">/スコア</div></div>

@@ -354,15 +354,13 @@ body {
 .mx-lv { font: 700 12px/1 "Saira Condensed", sans-serif; color: var(--sc); letter-spacing: .04em; flex: none; }
 .mx-job { font-size: 11px; line-height: 1.2; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; }
 .mx-name { font: 800 16px/1.15 "Saira Condensed", sans-serif; color: #f8fafc; letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* 3行目は Scouter の HEXA換算（防御率380%）。未計算なら「—」 */
-.mx-scout { font: 500 10px/1.2 "IBM Plex Mono", ui-monospace, monospace; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 3行目は Scouter の HEXA換算（防御率380%）。未計算なら空ける（高さは保つ） */
+.mx-scout { font: 500 10px/1.2 "IBM Plex Mono", ui-monospace, monospace; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 12px; }
 .mx-scout b { font-weight: 700; color: #fbbf24; font-variant-numeric: tabular-nums; }
-.mx-scout i { font-style: normal; color: #475569; }
 
 .mx-main { display: flex; flex-direction: column; gap: 4px; padding: 6px 10px 0 10px; min-width: 0; }
 .mx-top { display: flex; align-items: baseline; gap: 4px; }
 .mx-meso { font: 700 26px/1 "Saira Condensed", sans-serif; color: #34d399; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
-.mx-meso small { font: 600 10px "IBM Plex Sans JP", sans-serif; color: #64748b; margin-left: 4px; }
 .mx-count { margin-left: auto; font: 600 16px/1 "Saira Condensed", sans-serif; color: #94a3b8; font-variant-numeric: tabular-nums; }
 .mx-count b { color: #e2e8f0; font-weight: 700; }
 /* メルの数字は透かしの上に乗るので、濃い縁取りの影で読みやすくする */
@@ -490,6 +488,8 @@ body {
 /* Scouter: 一覧・モーダル */
 
 .sc-modal.drop { outline: 1px dashed #818cf8; outline-offset: -4px; }
+/* ドラッグしている間だけ「離すと読み取ります」を画面の真ん中に出す（ふだんは説明文を置かない） */
+.sc-modal.drop::after { content: '離すと読み取ります'; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 50; padding: 10px 18px; background: #0f172af2; border: 1px dashed #818cf8; color: #a5b4fc; font-size: 13px; font-weight: 700; pointer-events: none; }
 .sc-reads-h button { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border: 1px solid #334155; background: #0b1224; color: #cbd5e1; font-size: 12px; }
 .sc-reads-h button:hover { border-color: #64748b; color: #fff; }
 .sc-go { background: #312e81 !important; border-color: #6366f1 !important; color: #fff !important; font-weight: 700; }

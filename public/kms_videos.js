@@ -102,12 +102,7 @@ const kmsVideos = {
     init(rootId) {
         this.root = document.getElementById(rootId);
         this.state = { ...this.DEFAULTS, ...this.load() };
-        const total = this.GROUPS.reduce((n, g) => n + g.jobs.length, 0);
         this.root.innerHTML = `
-            <div class="flex items-baseline gap-3 mb-3 flex-wrap">
-                <h1 class="text-[18px] font-bold text-white">KMS Videos</h1>
-                <span class="text-xs text-slate-500">KMSの職業ごとの YouTube 検索リンク（${total}職）。押すと検索結果が新しいタブで開きます。</span>
-            </div>
             <div id="kmsv-controls" class="flex flex-wrap items-center gap-x-5 gap-y-2 px-3 py-2 mb-3 bg-base-100 border border-base-content/10 rounded-box"></div>
             <div id="kmsv-list"></div>
             <p class="text-[10px] text-slate-500 mt-1">after: と OR は YouTube の公式ヘルプに無い演算子で、効かないことがあります。
@@ -181,15 +176,12 @@ const kmsVideos = {
                 return `<tr class="border-t border-base-content/10">
                     <td class="px-2 py-1 whitespace-nowrap align-top w-[46%]">
                         <span class="text-slate-100 font-bold">${job[0]}</span>
-                        <span class="text-slate-500 text-[10px] ml-1">${job[1] || job[2].join('・')}</span>
                     </td>
                     <td class="px-2 py-1">${links}</td>
                 </tr>`;
             }).join('');
             return `<section class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden break-inside-avoid mb-3">
-                <h2 class="px-2.5 py-1.5 text-sm font-bold text-indigo-300 bg-base-200 border-b border-base-content/10 flex justify-between">
-                    <span>${g.name}</span><span class="text-slate-500 font-normal tabular-nums">${g.jobs.length}</span>
-                </h2>
+                <h2 class="px-2.5 py-1.5 text-sm font-bold text-indigo-300 bg-base-200 border-b border-base-content/10">${g.name}</h2>
                 <table class="w-full text-[12px]"><tbody>${rows}</tbody></table>
             </section>`;
         }).join('');
