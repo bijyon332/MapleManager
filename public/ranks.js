@@ -1154,6 +1154,12 @@ const ranks = {
 
     /* ---------- board cell renderers (inner HTML, no <td>) ---------- */
 
+    // 地域（NA/EU）は名簿に両方が混ざっているときだけ名前の横に出す。1地域だけなら上の切り替えで分かる。
+    _regionTag(r, cls) {
+        if (new Set(this.roster.map(x => x.region)).size < 2) return '';
+        return `<span class="${cls} uppercase tracking-wider text-base-content/40">${r.region}</span>`;
+    },
+
     _charCellInner(r, info, s) {
         const imgUrl = this._fixImgUrl(info.img);
         const img = imgUrl
@@ -1173,7 +1179,7 @@ const ranks = {
                 <div class="min-w-0 flex-1">
                     <div class="flex items-baseline gap-1.5 leading-tight">
                         <span class="text-sm font-bold text-white truncate">${this._escape(r.name)}</span>
-                        <span class="text-[10px] uppercase tracking-wider text-base-content/40">${r.region}</span>
+                        ${this._regionTag(r, 'text-[10px]')}
                         <span class="ml-auto text-xs whitespace-nowrap">${lvTxt}</span>
                     </div>
                     ${sub ? `<div class="text-[11px] text-base-content/50 truncate leading-tight">${this._escape(sub)}</div>` : ''}
@@ -1253,7 +1259,7 @@ const ranks = {
         <div class="min-w-0">
             <div class="flex items-baseline gap-2">
                 <span class="text-base font-bold text-white truncate">${this._escape(r.name)}</span>
-                <span class="text-[10px] uppercase tracking-wider text-base-content/40">${r.region}</span>
+                ${this._regionTag(r, 'text-[10px]')}
                 <span class="font-mono text-xs font-bold text-indigo-300">${lv}</span>
             </div>
             ${sub ? `<div class="text-[11px] text-base-content/50 truncate">${this._escape(sub)}</div>` : ''}
@@ -1408,7 +1414,7 @@ const ranks = {
                     ${img}
                     <div class="flex-1 min-w-0">
                         <div class="text-xs font-bold text-white truncate">${this._escape(r.name)}
-                            <span class="text-[9px] uppercase tracking-wider text-base-content/40 ml-1">${r.region}</span>
+                            ${this._regionTag(r, 'text-[9px] ml-1')}
                         </div>
                         <div class="text-[10px] text-base-content/60 font-mono">${lvTxt}</div>
                     </div>

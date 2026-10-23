@@ -390,9 +390,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
         shell() {
             return '<style>' + CSS + '</style>' +
                 '<div class="cm"><div class="wrap">' +
-                '<div class="head"><h1>Community Members</h1>' +
-                '<p class="sub">Discord名にキャラクターを紐づけた名簿。キャラ名を入れると レベル・職・画像 をランキングAPIから取得します（ギルドは手入力）。</p>' +
-                '<span class="cm-stat" id="cm-stat"></span></div>' +
+                '<div class="head"><span class="cm-stat" id="cm-stat"></span></div>' +
                 '<div class="bar">' +
                 // Discord名は「誰か」を決める識別子、表示名は各ツールに出る呼び名。
                 // 別物なので入口で両方受け取る（表示名は後から編集でも可）。
@@ -476,7 +474,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
             }
             if (meNote) {
                 meNote.textContent = me
-                    ? `${me.characters.length}キャラ・Plannerのデータはこの名前ごとに分かれます`
+                    ? `${me.characters.length}キャラ`
                     : '選ぶと Planner / Scheduler / Leaderboard で自分の行が最初に出ます';
             }
             const sync = this.root.querySelector('#cm-sync');
@@ -505,7 +503,8 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
                 : '<span class="ph"><i data-lucide="user" class="w-6 h-6"></i></span>') + '</div>';
         },
 
-        charCard(c) {
+        // ギルド札は区別が要るときだけ出す（メンバーのキャラが複数ギルドに分かれている／未設定）。
+        charCard(c, showGuild) {
             const lv = c.level > 0
                 ? `<span class="lv">Lv.<b>${c.level}</b></span>`
                 : '<span class="lv none">Lv.<b>--</b></span>';
@@ -515,7 +514,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
         <div class="cname">${esc(c.name)}${c.isMain ? '<span class="flag">MAIN</span>' : ''}</div>
         <div class="cmeta">${lv}<span class="job">${esc(c.job || '職 未取得')}</span></div>
         <div class="cfoot">
-            <span class="chip${c.guild ? ' on' : ''}">${esc(c.guild || 'ギルド未設定')}</span>
+            ${!c.guild || showGuild ? `<span class="chip${c.guild ? ' on' : ''}">${esc(c.guild || 'ギルド未設定')}</span>` : '<span></span>'}
             <div class="cbtns">
                 <button class="btn btn-ghost btn-xs btn-square" data-cm="refresh-char" title="APIで取り直す"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
                 <button class="btn btn-ghost btn-xs btn-square" data-cm="edit-char" title="編集"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
@@ -532,6 +531,8 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
             }
             const closed = new Set(this.state.ui.closed);
             const filtering = !!(this.state.ui.q.trim() || this.state.ui.guild);
+            // 名簿全体でギルドが1つだけなら、名前の横のギルド札も出さない。
+            const allGuilds = new Set(this.state.members.flatMap((m) => m.characters.map((c) => c.guild).filter(Boolean)));
             const cards = this.state.members.map((m) => {
                 const chars = m.characters.map((c) => Object.assign({}, c, {
                     discordName: m.discordName, who: CS().label(m)
@@ -548,7 +549,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
         <span class="mdot" style="background:${this.color(m)}"></span>
         <span class="mname">${esc(CS().label(m))}</span>
         <span class="mmeta">${m.characters.length}キャラ${max ? ' / 最高 Lv.' + max : ''}</span>
-        <span class="gtags">${gs.slice(0, 4).map((g) => '<span class="chip">' + esc(g) + '</span>').join('')}${gs.length > 4 ? '<span class="chip">+' + (gs.length - 4) + '</span>' : ''}</span>
+        <span class="gtags">${allGuilds.size < 2 ? '' : gs.slice(0, 4).map((g) => '<span class="chip">' + esc(g) + '</span>').join('')}${gs.length > 4 ? '<span class="chip">+' + (gs.length - 4) + '</span>' : ''}</span>
         <span class="spacer"></span>
         <span class="mbtns">
             <button class="btn btn-ghost btn-xs btn-square" data-cm="refresh-member" title="このメンバーのキャラを更新"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
@@ -557,13 +558,12 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
         </span>
     </div>
     <div class="cbody">
-        ${shown.length ? '<div class="cgrid">' + shown.map((c) => this.charCard(c)).join('') + '</div>'
+        ${shown.length ? '<div class="cgrid">' + shown.map((c) => this.charCard(c, gs.length > 1)).join('') + '</div>'
                         : '<div class="empty" style="padding:18px">キャラ未登録</div>'}
         <div class="addrow">
             <input type="text" data-cm="nc-name" placeholder="キャラ名" autocomplete="off" spellcheck="false">
             <input type="text" data-cm="nc-guild" placeholder="所属ギルド（任意）" list="cm-guild-list" autocomplete="off">
             <button class="btn btn-sm btn-primary" data-cm="add-char"><i data-lucide="plus" class="w-3.5 h-3.5"></i>追加して取得</button>
-            <span class="hint">レベル・職・画像はキャラ名から自動取得</span>
         </div>
     </div>
 </div>`;

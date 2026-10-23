@@ -646,6 +646,7 @@ const app = {
         },
         gear: {
             view: 'view-gear-priority',
+            nav: 'gear-nav',
             scripts: ['gear_items.js', 'cube_rates.js', 'gear_reader.js', 'gear_priority.js'],
             init() { gearPriority.init('gear-priority-root'); }
         },
@@ -1083,21 +1084,21 @@ const app = {
                     <div class="mx-id">
                         <div class="mx-lvjob"><span class="mx-lv">Lv.${char.level || '?'}</span><span class="mx-job">${char.job || '—'}</span></div>
                         <h3 class="mx-name" title="${char.name}">${char.name}</h3>
-                        <div class="mx-scout" title="Scouter の HEXA換算（防御率380%）">${scout ? `HEXA換算 <b>${scout.b380h.toLocaleString()}</b>` : 'HEXA換算 <i>—</i>'}</div>
+                        <div class="mx-scout" title="Scouter の HEXA換算（防御率380%）">${scout ? `HEXA換算 <b>${scout.b380h.toLocaleString()}</b>` : ''}</div>
                     </div>
                 </div>
                 <div class="mx-main">
                     <div class="mx-top">
-                        <div class="mx-meso" title="週の収入（上位${charLimit}体）">${Math.floor(localMaxTotal).toLocaleString()}<small>mesos</small></div>
+                        <div class="mx-meso" title="週の収入（上位${charLimit}体）">${Math.floor(localMaxTotal).toLocaleString()}</div>
                         <div class="mx-count"><b>${countAll}</b>/${wkSorted.length}</div>
                     </div>
                     ${mB.length ? `
                     <div class="mx-mo ${isMonthlyDone ? 'is-done' : ''}" onclick="app.toggleCharDone('${char.id}','monthly')" title="${isMonthlyDone ? 'クリックで消し込みを解除' : 'クリックで月ボスを消し込む'}">
                         <div class="mx-grid mx-grid-mo">${tiles(mB, 2)}</div>
                         ${isMonthlyDone ? completeMark : ''}
-                    </div>` : '<div class="mx-mo mx-mo-none">月ボスなし</div>'}
+                    </div>` : '<div class="mx-mo mx-mo-none"></div>'}
                     <div class="mx-wk ${isWeeklyDone ? 'is-done' : ''}" ${wkSorted.length ? `onclick="app.toggleCharDone('${char.id}','weekly')" title="${isWeeklyDone ? 'クリックで消し込みを解除' : 'クリックで週ボスをまとめて消し込む'}"` : ''}>
-                        ${wkSorted.length ? `<div class="mx-grid">${tiles(wkSorted, 14)}</div>${isWeeklyDone ? completeMark : ''}` : '<div class="mx-none mx-none-wk">週ボスなし</div>'}
+                        ${wkSorted.length ? `<div class="mx-grid">${tiles(wkSorted, 14)}</div>${isWeeklyDone ? completeMark : ''}` : '<div class="mx-none mx-none-wk"></div>'}
                     </div>
                     <div class="mx-tools">
                         <button onclick="hexaTracker.openForCharacter('${char.id}')" class="mx-tool mx-tool-hexa" ${hexaReady ? '' : 'disabled'}><span class="mx-bar" style="width:${hexaPct}%"></span>${hexaClassId ? `HEXA <b>${hexaPct}%</b>` : 'HEXA 登録'}</button>
@@ -1144,7 +1145,8 @@ const app = {
             const hexaClassId = hexaReady ? hexaTracker.getCharClassId(x) : null;
             const hexaPct = hexaClassId ? hexaTracker.getProgress('char:' + x.id, hexaClassId).pct : null;
             const roleCls = x.role === 'MAIN' ? 'border-yellow-500/60 text-yellow-300' : (x.role === 'SUB' ? 'border-cyan-500/60 text-cyan-300' : 'border-base-content/20 text-base-content/50');
-            const act = (fn, icon, label, hover) => `<button onclick="${fn}" title="${label}" class="btn btn-ghost btn-xs font-normal text-base-content/60 ${hover}"><i data-lucide="${icon}" class="w-3 h-3"></i>${label}</button>`;
+            // 操作はアイコンだけ（名前はマウスを乗せると出る）。15行に同じ4語が並ぶと表がうるさいため。
+            const act = (fn, icon, label, hover) => `<button onclick="${fn}" title="${label}" aria-label="${label}" class="btn btn-ghost btn-xs btn-square text-base-content/60 ${hover}"><i data-lucide="${icon}" class="w-3.5 h-3.5"></i></button>`;
             return `
             <tr class="hover:bg-base-200/60 ${x.hidden ? 'opacity-45' : ''}">
                 <td class="text-right font-mono text-base-content/40">${idx + 1}</td>
@@ -1179,7 +1181,7 @@ const app = {
                 <table class="table table-sm [&_td]:py-1">
                     <thead><tr class="text-[11px] text-base-content/50">
                         <th class="w-8 text-right">#</th><th>Name</th><th class="w-12 text-right">Lv</th><th>Job</th><th class="w-24">Server</th>
-                        <th class="w-16">Role</th><th class="w-16 text-right">Weekly</th><th class="w-32">HEXA</th><th class="w-72"></th>
+                        <th class="w-16">Role</th><th class="w-16 text-right">Weekly</th><th class="w-32">HEXA</th><th class="w-32"></th>
                     </tr></thead>
                     <tbody>${rows}</tbody>
                 </table>

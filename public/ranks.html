@@ -2,13 +2,9 @@
      index.html の #view-ranks に、初回オープン時に読み込まれる
      （script.js の APPS テーブルを参照）。動かすのは ranks.js。 -->
 <div class="max-w-[1600px] flex flex-col gap-3">
-    <!-- キャラ追加の1行: 見出し・地域・検索・追加・全更新・名簿から追加 -->
+    <!-- キャラ追加の1行: 地域・検索・追加・全更新・名簿から追加 -->
     <section class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
         <form id="ranks-import-form" class="flex flex-wrap items-center gap-2">
-            <div class="leading-tight mr-2 shrink-0">
-                <h2 class="font-bold text-sm text-white">EXP Tracker</h2>
-                <p class="text-[11px] text-base-content/50">キャラ名で検索して追加。データはMapleBotから自動取得(日次スナップショット。取得した日の分はこのブラウザに貯まる)。</p>
-            </div>
             <div class="join shrink-0">
                 <button type="button" data-region="na" class="ranks-region-btn join-item btn btn-sm">NA</button>
                 <button type="button" data-region="eu" class="ranks-region-btn join-item btn btn-sm">EU</button>
@@ -60,7 +56,7 @@
         <div class="flex flex-col lg:flex-row gap-3 items-stretch">
             <!-- Character list (click to toggle) -->
             <section class="lg:w-[280px] shrink-0 card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
-                <h3 class="font-bold text-sm text-white">キャラクター <span class="text-[11px] font-normal text-base-content/50">クリックでグラフ表示切替</span></h3>
+                <h3 class="font-bold text-sm text-white">キャラクター</h3>
                 <div id="ranks-trend-list" class="flex flex-col gap-1"></div>
             </div></section>
             <!-- Chart -->
