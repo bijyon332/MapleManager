@@ -47,8 +47,10 @@ const scouterBossCut = (() => {
       {boss:"벨로나",name:"bellona",difficulty:"Easy",level:280,authenticForce:400,guard:380,bossCut:45100,partyLimit:3,easyRate:0.969,estimate:true},
       {boss:"대적자",name:"adversary",difficulty:"Easy",level:270,authenticForce:220,guard:380,bossCut:35250,partyLimit:3,easyRate:0.969},
       {boss:"칼로스",name:"kalos",difficulty:"Easy",level:270,authenticForce:200,guard:380,bossCut:40600,partyLimit:6,easyRate:1.9047619047619049,newbieCut:200.62},
-      {boss:"검은 마법사",name:"blackMage",difficulty:"Hard",level:275,arcaneForce:1320,guard:300,bossCut:40600,partyLimit:6,easyRate:1.0659,newbieCut:180},
-      {boss:"검은 마법사",name:"blackMage",difficulty:"Champion",level:275,arcaneForce:1320,guard:300,bossCut:40600,partyLimit:1,easyRate:1.332375},
+      // 暗黒の魔法使いの Hard と Champion は先方の表だと easyRate が逆（Champion の方が楽になる）。ほかのボスは Champion の方が
+      // きついので、easyRate だけ入れ替えている（bi 指摘、2026-10-25）。
+      {boss:"검은 마법사",name:"blackMage",difficulty:"Champion",level:275,arcaneForce:1320,guard:300,bossCut:40600,partyLimit:1,easyRate:1.0659},
+      {boss:"검은 마법사",name:"blackMage",difficulty:"Hard",level:275,arcaneForce:1320,guard:300,bossCut:40600,partyLimit:6,easyRate:1.332375,newbieCut:180},
       {boss:"세렌",name:"seren",difficulty:"Normal",level:270,authenticForce:200,guard:380,bossCut:40600,partyLimit:6,easyRate:2.36436,newbieCut:233.72},
       {boss:"진 힐라",name:"verusHilla",difficulty:"Champion",level:250,arcaneForce:900,guard:300,bossCut:40600,partyLimit:1,easyRate:3.040655172413793},
       {boss:"진 힐라",name:"verusHilla",difficulty:"Hard",level:250,arcaneForce:900,guard:300,bossCut:40600,partyLimit:6,easyRate:4.40895,newbieCut:236.41},
