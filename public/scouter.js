@@ -748,9 +748,11 @@ const scouter = (() => {
     const pctText = (r) => { const p = r * 100; return (p >= 1000 ? Math.round(p).toLocaleString() : p >= 100 ? p.toFixed(1) : p.toFixed(2)) + '%'; };
     // 列。Hard と Chaos は同じ列（Character Manager の編集画面と同じ）。Destiny・Champion は右端（bi 指定）。
     const CUT_COLS = [['Easy'], ['Normal'], ['Hard', 'Chaos'], ['Extreme'], ['Destiny'], ['Champion']];
-    // ボスの並びは Character Manager の編集画面と同じ（BOSS_REGISTER_ORDER）。無いボスは後ろ。
+    // ボスの並びは CUT_ORDER（bi 指定）。それ以外は暗黒の魔法使いの下に Character Manager の編集画面の順（BOSS_REGISTER_ORDER）で。
+    const CUT_ORDER = ["Jupiter", "Baldrix", "Bellona", "Malefic Star", "Limbo", "First Adversary", "Kaling", "Kalos the Guardian",
+        "Chosen Seren", "Lotus", "Black Mage"];
     function cutRows(cuts) {
-        const order = window.BOSS_REGISTER_ORDER || [];
+        const order = [...CUT_ORDER, ...(window.BOSS_REGISTER_ORDER || []).filter((en) => !CUT_ORDER.includes(en))];
         const by = {};
         for (const c of cuts) {
             if (c.r > CUT_HIDE) continue;   // 楽すぎるもの（500%超）は出さない（bi 指定）
