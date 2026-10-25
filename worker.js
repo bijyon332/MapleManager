@@ -13,6 +13,9 @@
 //   /api?name=               -> Nexon GMS ranking API (current level / exp snapshot)
 //   /scouter                 -> MapleScouter の換算計算（POST {userStat}）。
 //                               先方は他オリジンからの呼び出しを許していないので中継する
+//                               （2026-10 から先方の Bot 対策で弾かれるので今は使っていない）
+//   /kinoko                  -> kinokohub（きのこツール）のメインステ換算（POST {basicStats, buffStats}）。
+//                               Scouter の今の計算元。先方は他オリジンを許していないので中継する
 //   /api/scheduler           -> Boss Scheduler の共有データ (D1)
 //                               GET  現在のスナップショットとバージョン
 //                               PUT  {version, data, updatedBy} で保存（楽観ロック）
@@ -118,6 +121,52 @@ async function handleScouter(request) {
       return json({ error: (out && out.message) || `MapleScouter API returned ${res.status}` }, res.status === 430 ? 429 : 502);
     }
     return json(out, 200);
+  } catch (e) {
+    return json({ error: e.message }, 502);
+  }
+}
+
+// kinokohub（kinokohub.net、JMS 向けのきのこツール）のメインステ換算。MapleScouter 互換の計算を
+// 先方のサーバーで行い、{ success, payload: { stats, power, specEfficiency, ... } } が返る。
+// GMS への寄せ（Heroic など）は public/scouter_kinoko.js 側で行う。
+// 中継するのは計算の action 1つだけにして、ほかの先方APIの踏み台にはしない。
+const KINOKO_URL = 'https://kinokohub.net/api/mainStatsConverter';
+
+async function handleKinoko(request) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      }
+    });
+  }
+  if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+
+  const text = await request.text();
+  if (text.length > 64_000) return json({ error: 'データが大きすぎます' }, 413);
+  let body;
+  try { body = JSON.parse(text); }
+  catch (e) { return json({ error: 'JSONとして読めません' }, 400); }
+  if (!body || typeof body.basicStats !== 'object' || typeof body.buffStats !== 'object') return json({ error: 'basicStats / buffStats がありません' }, 400);
+
+  try {
+    const res = await fetch(KINOKO_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': 'https://kinokohub.net',
+        'Referer': 'https://kinokohub.net/tools/main-stats-converter',
+        'User-Agent': UA
+      },
+      body: JSON.stringify({ action: 'calculate', payload: { basicStats: body.basicStats, buffStats: body.buffStats } })
+    });
+    const out = await res.json().catch(() => null);
+    if (!out) return json({ error: `kinokohub returned ${res.status}` }, 502);
+    // 入力エラーなどは先方の { success: false, error: { message } } をそのまま返す。
+    return json(out, out.success ? 200 : (res.status >= 400 && res.status < 500 ? res.status : 502));
   } catch (e) {
     return json({ error: e.message }, 502);
   }
@@ -258,6 +307,7 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/maplehub')      return handleMaplehub(url);
     if (url.pathname === '/scouter')       return handleScouter(request);
+    if (url.pathname === '/kinoko')        return handleKinoko(request);
     if (url.pathname === '/api/scheduler') return handleState(request, env, 'scheduler');
     if (url.pathname === '/api/community') return handleState(request, env, 'community');
     if (url.pathname === '/api')           return handleApi(url);

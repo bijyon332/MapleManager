@@ -1,7 +1,9 @@
 // Scouter — MapleScouter（maplescouter.com）の換算主ステを、キャラごとに入力・保存して出す。
 //
 // 計算は先方のサーバー（POST /api/calc/dmg、本文 {userStat}）で行う。ブラウザからは
-// 直接呼べないので Worker の /scouter が中継する（worker.js）。GMS は先方のキャラ検索に
+// 直接呼べないので Worker の /scouter が中継する（worker.js）。
+// 2026-10 から MapleScouter が Bot 対策で中継を弾くので、今は MapleScouter 互換の kinokohub で計算し、
+// 結果を MapleScouter と同じ形に組み立てて使っている（scouter_kinoko.js、ENGINE で切り替え）。GMS は先方のキャラ検索に
 // 対応していないので、ステータス画面の値を手入力するか、スクショ／画面共有から読み取る
 // （scouter_reader.js）。
 //
@@ -16,6 +18,9 @@ const scouter = (() => {
 
     const STORAGE_KEY = 'mapleManager_scouter_v1';
     const API = '/scouter';
+    // 計算元。MapleScouter が復旧したら 'maplescouter' に戻す。
+    const ENGINE = 'kinoko';
+    const ENGINE_NAME = ENGINE === 'kinoko' ? 'kinokohub' : 'MapleScouter';
 
     // GMS の職業 id（class_data.js）→ 先方の職業名（韓国語）と主ステ・副ステ。
     // 主・副・第3ステは先方の職業表（maplescouter のフロントJS）の GMS 用のものに合わせた。
@@ -616,11 +621,11 @@ const scouter = (() => {
         const g300 = useApi ? api300 : r && r.gain300, g380 = useApi ? api380 : r && r.gain380;
         const is380 = r && num(r.pdr) === 380;
         const srcNote = !r || same ? '' : useApi
-            ? `<p class="text-[11px] text-base-content/50">MapleScouter で今とおすすめのダメージを出した比です（6次スキルの進捗込み）。手元の見込みは ${esc(pct(is380 ? r.gain380 : r.gain300))}。</p>`
+            ? `<p class="text-[11px] text-base-content/50">${ENGINE_NAME} で今とおすすめのダメージを出した比です（6次スキルの進捗込み）。手元の見込みは ${esc(pct(is380 ? r.gain380 : r.gain300))}。</p>`
             : chk && chk.error ? `<p class="text-xs text-error">${esc(chk.error)}</p><p class="text-[11px] text-base-content/50">上は手元の計算の見込みです。</p>`
-            : chk && chk.nowError ? `<p class="text-[11px] text-warning">今の振り方は MapleScouter で計算できませんでした（${esc(chk.nowError.replace(/^MapleScouter が計算できませんでした: /, ''))}）。上は手元の計算の見込みです。</p>`
-            : chk ? '<p class="text-[11px] text-base-content/50">手元の計算の見込みです。もう一度「ハイパーを計算する」を押すと MapleScouter の値になります。</p>'
-            : '<p class="text-[11px] text-base-content/50">MapleScouter で確かめています。いま出ているのは手元の計算の見込みです。</p>';
+            : chk && chk.nowError ? `<p class="text-[11px] text-warning">今の振り方は ${ENGINE_NAME} で計算できませんでした（${esc(chk.nowError.replace(/^\S+ が計算できませんでした: /, ''))}）。上は手元の計算の見込みです。</p>`
+            : chk ? `<p class="text-[11px] text-base-content/50">手元の計算の見込みです。もう一度「ハイパーを計算する」を押すと ${ENGINE_NAME} の値になります。</p>`
+            : `<p class="text-[11px] text-base-content/50">${ENGINE_NAME} で確かめています。いま出ているのは手元の計算の見込みです。</p>`;
         const staleNote = stale ? '<p class="text-[11px] text-warning">計算したあとに入力や条件が変わりました。もう一度「ハイパーを計算する」を押してください。</p>' : '';
         const gainBox = r && !why ? card('伸び', same ? '今の振り方が一番です' : '今の振り方と比べた最終ダメージ', `
                     ${staleNote}
@@ -652,6 +657,14 @@ const scouter = (() => {
         save(); renderModal();
     }
 
+    // 計算元に送って、MapleScouter の calculatedData の形で受け取る。
+    async function calcForm(f) {
+        if (ENGINE === 'kinoko') {
+            if (typeof scouterKinoko === 'undefined') throw new Error('計算の部品を読み込めませんでした');
+            return scouterKinoko.calculate(f, CLASSES[f.classId], isMagic(f.classId));
+        }
+        return postCalc(buildUserStat(f));
+    }
     async function postCalc(us) {
         const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userStat: us }) });
         const out = await res.json().catch(() => null);
@@ -667,7 +680,7 @@ const scouter = (() => {
         return JSON.stringify([f.classId, f.level, f.main, f.sub, f.sub2, f.atk, f.dmg, f.bossDmg, f.ignoreDef, f.critical, f.criticalDmg,
             hyperLv(f), o.locked, num(o.pdr), num(o.critBuff)]);
     }
-    // 「ハイパーを計算する」: 一番伸びる振り方を出し、今とおすすめを MapleScouter に投げて最終ダメージの比を出す。
+    // 「ハイパーを計算する」: 一番伸びる振り方を出し、今とおすすめを計算元に投げて最終ダメージの比を出す。
     async function runHyper() {
         if (!cur || cur.busy) return;
         const e = cur.e, f = e.form, o = e.hyperOpt, H = HY(), cls = CLASSES[f.classId];
@@ -688,18 +701,18 @@ const scouter = (() => {
         const run = e.hyperRun;
         cur.busy = true;
         renderModal();
-        setMsg('MapleScouter で最終ダメージを確かめています…');
+        setMsg(`${ENGINE_NAME} で最終ダメージを確かめています…`);
         const mine = cur;
         try {
             // 今の振り方はクリティカル率が足りず先方が計算できないことがある。おすすめだけでも出す。
-            const [a, b] = await Promise.allSettled([postCalc(buildUserStat(f)), postCalc(buildUserStat(g))]);
+            const [a, b] = await Promise.allSettled([calcForm(f), calcForm(g)]);
             if (b.status === 'rejected') throw b.reason;
             const A = a.status === 'fulfilled' ? a.value : {};
             run.check = { nowD300: A.calculatedHexaDamage_300, nowD380: A.calculatedHexaDamage_380, newD300: b.value.calculatedHexaDamage_300, newD380: b.value.calculatedHexaDamage_380,
                 nowError: a.status === 'rejected' ? String(a.reason && a.reason.message || a.reason) : '' };
             if (cur === mine) setMsg('計算しました。', 'ok');
         } catch (err) {
-            run.check = { error: 'MapleScouter の計算に失敗しました: ' + (err && err.message || err) };
+            run.check = { error: `${ENGINE_NAME} の計算に失敗しました: ` + (err && err.message || err) };
             if (cur === mine) setMsg('', '');
         } finally {
             save();
@@ -930,9 +943,10 @@ const scouter = (() => {
             </div>
             <table class="sc-kv">
                 <tr><th>換算戦闘力</th><td>${fmt(r.xp)}</td></tr>
-                <tr><th>戦闘力（計算）</th><td>${fmt(r.cp)}</td></tr>
+                <tr><th>戦闘力（計算）</th><td>${r.cp ? fmt(r.cp) : '—'}</td></tr>
                 ${cpGame ? `<tr><th>戦闘力（画面）</th><td>${fmt(cpGame)}</td></tr>` : ''}
             </table>
+            ${r.src === 'kinokohub' ? '<p class="text-[11px] text-base-content/50 mt-1 mb-3">計算元: kinokohub（MapleScouter 互換の計算を GMS・Heroic に寄せた推定値。MapleScouter との差はおおむね ±0.5%）</p>' : ''}
             ${rows.length && base ? `<h3>スペック効率 <small>${esc(label)}いくつ分か</small></h3>
             <table class="sc-kv sc-eff">${rows.map(([n, v]) => `<tr><th>${esc(n)}</th><td>${esc(label)} <b>${(v / base).toFixed(2)}</b></td></tr>`).join('')}</table>
             <button data-sc="togear" class="btn btn-xs btn-soft btn-primary w-full mt-1.5" title="この値を Upgrade Priority のスコア重みに入れる${cur.char ? '（このキャラ）' : '（サイドバーの仮入力）'}"><i data-lucide="arrow-right-left" class="w-3 h-3"></i>Upgrade Priority のスコア重みに反映</button>` : ''}
@@ -1054,28 +1068,20 @@ const scouter = (() => {
         if (!num(f.main.base)) { setMsg(`${CLASSES[f.classId][1]} の Base Value を入れてください。`, 'err'); return; }
         cur.busy = true;
         renderModal();
-        setMsg('MapleScouter で計算しています…');
+        setMsg(`${ENGINE_NAME} で計算しています…`);
         const mine = cur;
         const us = buildUserStat(f);
         try {
-            const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userStat: us }) });
-            const out = await res.json().catch(() => null);
-            if (!res.ok || !out || !out.calculatedData) throw new Error((out && out.error) || `HTTP ${res.status}`);
-            const d = out.calculatedData;
-            const bad = [d.boss300_stat, d.boss300_hexaStat].find((v) => typeof v === 'number' && v < 0);
-            if (bad !== undefined) {
-                e.result = { error: `MapleScouter が計算できませんでした: ${ERRORS[String(bad)] || 'コード ' + bad}`, at: new Date().toISOString() };
-            } else {
-                const at = new Date().toISOString();
-                e.result = {
-                    at, b300: d.boss300_stat, b380: d.boss380_stat, b300h: d.boss300_hexaStat, b380h: d.boss380_hexaStat,
-                    cp: d.combatPower, xp: d.exchangePower, xph: d.exchangePowerHexa, eff: d.specEfficiency || {},
-                    cuts: bossCuts(d, us),
-                };
-                e.history = (e.history || []).concat({ at, b300: d.boss300_stat, b300h: d.boss300_hexaStat, b380h: d.boss380_hexaStat }).slice(-30);
-            }
+            const d = await calcForm(f);
+            const at = new Date().toISOString();
+            e.result = {
+                at, b300: d.boss300_stat, b380: d.boss380_stat, b300h: d.boss300_hexaStat, b380h: d.boss380_hexaStat,
+                cp: d.combatPower, xp: d.exchangePower, xph: d.exchangePowerHexa, eff: d.specEfficiency || {},
+                cuts: bossCuts(d, us), src: d.source || 'maplescouter',
+            };
+            e.history = (e.history || []).concat({ at, b300: d.boss300_stat, b300h: d.boss300_hexaStat, b380h: d.boss380_hexaStat }).slice(-30);
             save();
-            if (cur === mine) { cur.tab = 'result'; setMsg(e.result.error ? '' : '計算しました。', e.result.error ? 'err' : 'ok'); }
+            if (cur === mine) { cur.tab = 'result'; setMsg('計算しました。', 'ok'); }
         } catch (err) {
             if (cur === mine) setMsg('計算に失敗しました: ' + (err && err.message || err) + (location.protocol === 'file:' ? '（Worker 経由で開いてください）' : ''), 'err');
         } finally {

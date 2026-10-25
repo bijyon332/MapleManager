@@ -20,7 +20,7 @@ Cloudflare Worker + 静的アセットとして配信している。ビルド工
 | Tools | Character Manager | `planner` | `public/script.js` |
 | Tools | HEXA Tracker | `hexa` | `public/hexa_tracker.js`、`public/hexa_reader.js`（進捗入力の「ゲーム画面から読み取り」。HEXA Matrix の画面をスクショ・ライブ共有から読む。タイトルの位置だけ Tesseract.js で探し、ノードは固定の位置、Lvの小さな数字は形の照合で読む） |
 | Tools | Upgrade Priority | `gear` | `public/gear_priority.js`（サイドバーは仮の入力。キャラごとの入力は Character Manager のカードの UPGRADE から開く）、`public/gear_reader.js`（ゲーム画面のスクショ・ライブ共有から装備のツールチップを読む。Tesseract.js を jsDelivr から読み込む） |
-| Tools | Scouter | `scouter` | `public/scouter.js`（MapleScouter の換算主ステをキャラごとに保存。計算は先方のサーバーで、Worker の `/scouter` が中継。サイドバーの Scouter はキャラに紐付けない仮入力の画面、キャラごとの入力は Character Manager のカードの SCOUTER から開く。HEXA は手入力で、HEXA Tracker から取り込める。バフ・リンク・シードのアイコンは `public/assets/scouter/`）、`public/scouter_bosscut.js`（ボスカット。MapleScouter の結果ページと同じ表と式）、`public/scouter_reader.js`（ステータス画面とSTRなどのツールチップ、ハイパーステータス画面をスクショ・ライブ共有から読む。Tesseract.js を jsDelivr から読み込む）、`public/scouter_hyper.js`（ハイパー最適化タブ。入力のステータスから今のハイパー分を引き、ボス相手のダメージが一番伸びる振り方を探す。項目ごとの効果とポイントの表もここ） |
+| Tools | Scouter | `scouter` | `public/scouter.js`（MapleScouter の換算主ステをキャラごとに保存。2026-10-25 から計算は kinokohub（JMS 向けの MapleScouter 互換）で、Worker の `/kinoko` が中継。入力の変換と GMS・Heroic の補正（ダメージ+18%、Heroic は攻撃力・魔力+5と最終ダメージ+45%）は `public/scouter_kinoko.js`。サイドバーの Scouter はキャラに紐付けない仮入力の画面、キャラごとの入力は Character Manager のカードの SCOUTER から開く。HEXA は手入力で、HEXA Tracker から取り込める。バフ・リンク・シードのアイコンは `public/assets/scouter/`）、`public/scouter_bosscut.js`（ボスカット。MapleScouter の結果ページと同じ表と式）、`public/scouter_reader.js`（ステータス画面とSTRなどのツールチップ、ハイパーステータス画面をスクショ・ライブ共有から読む。Tesseract.js を jsDelivr から読み込む）、`public/scouter_hyper.js`（ハイパー最適化タブ。入力のステータスから今のハイパー分を引き、ボス相手のダメージが一番伸びる振り方を探す。項目ごとの効果とポイントの表もここ） |
 | Tools | Cheat Sheet | `cheatsheet` | `public/cheatsheet.js` |
 | Tools | KMS Videos | `kmsvideos` | `public/kms_videos.js` |
 | Monitoring | EXP Tracker | `ranks` | `public/ranks.js` |
@@ -56,7 +56,8 @@ Community Members / Party Builder / Character Manager / EXP Tracker の4つが�
 | ルート | 内容 |
 | --- | --- |
 | `GET /maplehub?name=&region=na\|eu` | MapleHub のキャラAPI中継（専用ヘッダが要るのでブラウザから直接叩けない） |
-| `POST /scouter` | MapleScouter（api.maplescouter.com/api/calc/dmg）の換算計算の中継。本文は `{userStat}`。先方は他オリジンからの呼び出しを許していないので中継する。非公開APIなので先方の都合で動かなくなることがある |
+| `POST /kinoko` | kinokohub（kinokohub.net/api/mainStatsConverter）の換算計算の中継。本文は `{basicStats, buffStats}`。先方は他オリジンからの呼び出しを許していないので中継する。非公開APIなので先方の都合で動かなくなることがある |
+| `POST /scouter` | MapleScouter（api.maplescouter.com/api/calc/dmg）の換算計算の中継。本文は `{userStat}`。2026-10-25 時点で先方の Bot 対策により 403 になるため未使用（`public/scouter.js` の `ENGINE` を戻せば使える） |
 | `GET /api?name=` | Nexon GMS ランキングAPI中継（現在レベルとEXPのスナップショット） |
 | `GET/PUT /api/community` | コミュニティ名簿の共有スナップショット |
 | `GET/PUT /api/scheduler` | 週ボスの希望とPT編成 |

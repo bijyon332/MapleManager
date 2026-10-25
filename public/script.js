@@ -605,7 +605,7 @@ const app = {
         scouter: {
             view: 'view-scouter',
             nav: 'scouter-nav',
-            scripts: ['hexa_data.js', 'hexa_tracker.js', 'hexa_reader.js', 'scouter_reader.js', 'scouter_bosscut.js', 'scouter_hyper.js', 'scouter.js'],
+            scripts: ['hexa_data.js', 'hexa_tracker.js', 'hexa_reader.js', 'scouter_reader.js', 'scouter_bosscut.js', 'scouter_hyper.js', 'scouter_kinoko.js', 'scouter.js'],
             init() { scouter.init('view-scouter'); },
             reopen() { scouter.render(); }
         },
