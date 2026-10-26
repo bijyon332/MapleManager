@@ -226,6 +226,10 @@
                     <i data-lucide="settings-2" class="w-3.5 h-3.5"></i>System
                 </button>
             </nav>
+            <!-- サイドバーの Upgrade Priority はキャラに紐づかない仮入力。キャラごとの入力はカードの UPGRADE から開く -->
+            <div id="gear-nav" class="hidden items-center mr-3 shrink-0">
+                <span class="badge badge-sm badge-ghost" title="キャラに紐づかない入力です。キャラごとの入力は Character Manager のカードの UPGRADE から開きます">仮入力</span>
+            </div>
             <!-- Scouter の入力／結果（Scouter のときだけ出す）。押したときの切り替えは scouter.js -->
             <nav id="scouter-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="scouter.setTab('input')" data-tab="input" role="tab" class="tab tab-active gap-1.5">
@@ -349,13 +353,10 @@
                 </div>
 
                 <div id="view-characters" class="hidden-page fade-in">
-                    <!-- 登録の1行: 見出し・人数・サーバー・名前で追加（ランキングAPIから取得）・手動・全更新 -->
+                    <!-- 登録の1行: 人数・サーバー・名前で追加（ランキングAPIから取得）・手動・全更新 -->
                     <section class="card card-sm bg-base-100 border border-base-content/10 mb-3"><div class="card-body gap-2">
                         <form onsubmit="app.quickAddCharacter(event)" class="flex items-center gap-2 flex-wrap">
-                            <div class="leading-tight mr-2 shrink-0">
-                                <div class="flex items-baseline gap-2"><h2 class="font-bold text-sm text-white">Manage Roster</h2><span id="roster-count-badge" class="badge badge-sm badge-ghost">0 Characters</span></div>
-                                <p class="text-[11px] text-base-content/50">Add characters and pull live data from the Ranking API</p>
-                            </div>
+                            <span id="roster-count-badge" class="badge badge-sm badge-ghost mr-2 shrink-0">0 Characters</span>
                             <div class="join shrink-0">
                                 <button type="button" onclick="app.setServer('KRONOS')" id="btn-quick-srv-kronos" class="join-item btn btn-sm">Kronos</button>
                                 <button type="button" onclick="app.setServer('CHALLENGER')" id="btn-quick-srv-challenger" class="join-item btn btn-sm">Challenger</button>
@@ -441,29 +442,21 @@
                         <section class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
                             <h3 class="font-bold text-sm text-white flex items-center gap-1.5"><i data-lucide="coins" class="w-4 h-4 text-base-content/50"></i>Revenue Calculation</h3>
                             <div class="flex justify-between items-center gap-3">
-                                <div class="leading-tight">
-                                    <div class="text-sm">World Max Crystals</div>
-                                    <div class="text-[11px] text-base-content/50">Total limit for account</div>
-                                </div>
+                                <div class="text-sm">World Max Crystals</div>
                                 <input type="number" id="config-world-crystals" class="input input-sm w-20 font-mono font-bold text-right" value="180" min="1" onchange="app.saveConfig()">
                             </div>
                             <div class="flex justify-between items-center gap-3">
-                                <div class="leading-tight">
-                                    <div class="text-sm">Character Max Crystals</div>
-                                    <div class="text-[11px] text-base-content/50">Per character limit</div>
-                                </div>
+                                <div class="text-sm">Character Max Crystals</div>
                                 <input type="number" id="config-char-crystals" class="input input-sm w-20 font-mono font-bold text-right" value="14" min="1" onchange="app.saveConfig()">
                             </div>
                         </div></section>
                         <section class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
                             <h3 class="font-bold text-sm text-white flex items-center gap-1.5"><i data-lucide="server" class="w-4 h-4 text-base-content/50"></i>Server Names</h3>
                             <label class="block">
-                                <span class="block text-[11px] text-base-content/50 mb-1">Server 1 (Default: Kronos)</span>
-                                <input type="text" id="config-server-kronos" class="input input-sm w-full border-l-[3px] border-l-emerald-500" placeholder="Kronos" onchange="app.saveConfig()">
+                                <input type="text" id="config-server-kronos" aria-label="Server 1" class="input input-sm w-full border-l-[3px] border-l-emerald-500" placeholder="Kronos" onchange="app.saveConfig()">
                             </label>
                             <label class="block">
-                                <span class="block text-[11px] text-base-content/50 mb-1">Server 2 (Default: Challenger)</span>
-                                <input type="text" id="config-server-challenger" class="input input-sm w-full border-l-[3px] border-l-purple-500" placeholder="Challenger" onchange="app.saveConfig()">
+                                <input type="text" id="config-server-challenger" aria-label="Server 2" class="input input-sm w-full border-l-[3px] border-l-purple-500" placeholder="Challenger" onchange="app.saveConfig()">
                             </label>
                         </div></section>
                         <section class="card card-sm bg-base-100 border border-error/30"><div class="card-body gap-2">

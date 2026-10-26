@@ -203,12 +203,12 @@ const cheatsheet = {
     renderArcane() {
         const legend = Object.entries(this.TIER_COLOR).sort((a, b) => b[0] - a[0])
             .map(([m, cls]) => `<span class="${cls}">■</span>${m}倍`).join(' ');
-        return this.card('アーケインボス', `ボスLv / 必要AF / 最大（${legend}）`,
+        return this.card('アーケインボス', `最大 ${legend}`,
             this.bossTable(this.ARCANE_BOSSES, this.arcaneCells));
     },
 
     renderSacred() {
-        return this.card('オーセンティックボス', 'ボスLv / 必要AUT / 最大（要求 +50）',
+        return this.card('オーセンティックボス', '最大 = 必要 +50',
             this.bossTable(this.SACRED_BOSSES, this.sacredCells));
     },
 

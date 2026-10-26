@@ -509,15 +509,14 @@ const scouter = (() => {
         const note = 'ゲーム内の値は MapleScouter の前提の状態で入れます: 秘薬・外部バフ・ギルドスキルなし、リンクスキル装着（スタックなし）、シードリング装着、召喚獣（ソル・ヘカテなど）On、コンバットオーダーズ・シャープアイズ使用、ソウルゲージ初期化、ファミリア召喚。ボス戦で使うバフは「バフアイテム」で選びます。';
         return `<div class="grid grid-cols-1 xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] gap-3 items-start">
             <div class="flex flex-col gap-3">
-                ${card('基本・主ステータス', 'ステータス画面で STR などをクリックすると出る STAT INFO の値', basic + main)}
+                ${card('基本・主ステータス', '', basic + main)}
                 ${card('詳細ステータス', '', detail, `入力済み ${filled} / ${DETAIL.length}`)}
-                ${card('リンクスキル', '全キャラ共通のレベル', linkBody)}
-                ${card('Wild Hunter（ユニオン）', 'Wild Hunter のレベルを入力（全キャラ共通）', whBody)}
-                ${card('シードリング', 'このキャラのレベル', seedBody)}
+                ${card('全キャラ共通', '', `<div class="text-[11px] text-base-content/50">リンクスキル</div>${linkBody}<div class="text-[11px] text-base-content/50 mt-1">Wild Hunter（ユニオン）</div>${whBody}`)}
+                ${card('シードリング', '', seedBody)}
             </div>
             <div class="flex flex-col gap-3">
                 ${hexaHTML(f)}
-                ${card('バフアイテム', 'ボス戦で使うもの。押すと On / Off', buffBody, `使用 ${buffOn} / ${allBuffs.length}`)}
+                ${card('バフアイテム', '', buffBody, `使用 ${buffOn} / ${allBuffs.length}`)}
                 <div role="alert" class="alert alert-soft alert-info text-[11px] py-2 leading-relaxed">${esc(note)}</div>
             </div>
         </div>`;
@@ -567,7 +566,7 @@ const scouter = (() => {
             return tileLv(ico, label, 'hexa.' + k, f.hexa[k], s ? s.name : label);
         }).join('');
         const imp = canImport ? '<button data-sc="hexa" class="btn btn-xs"><i data-lucide="download" class="w-3 h-3"></i>HEXA Tracker から取り込む</button>' : '';
-        return card('HEXA', 'レベル', (imp ? `<div>${imp}</div>` : '') + grid4(tiles), `使用 ${used} / ${HEXA_KEYS.length}`);
+        return card('HEXA', '', (imp ? `<div>${imp}</div>` : '') + grid4(tiles), `使用 ${used} / ${HEXA_KEYS.length}`);
     }
     /* ---------- ハイパーステータス ---------- */
     const hyperLv = (f) => Object.fromEntries(HYPER_KEYS.map((k) => [k, num(f.hyper && f.hyper[k])]));
@@ -635,7 +634,7 @@ const scouter = (() => {
         return `${stepsHTML(['hyper'])}
             <div id="sc-reads">${readsHTML()}</div>
             <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,7fr)_minmax(0,4fr)] gap-3 items-start">
-            ${card('ハイパーステータス', '「今」に今のレベルを入れると、ボス相手のダメージが一番伸びる振り方を出します', `<div class="overflow-x-auto"><table class="table table-sm table-zebra sc-hytbl border border-base-content/10">
+            ${card('ハイパーステータス', '', `<div class="overflow-x-auto"><table class="table table-sm table-zebra sc-hytbl border border-base-content/10">
                 <thead><tr><th></th><th class="text-right">今</th><th class="text-right">おすすめ</th><th class="text-right">差</th><th class="text-right">pt</th><th class="text-center">固定</th></tr></thead>
                 <tbody>${rows}</tbody>
                 <tfoot><tr><th>合計</th><td class="text-right font-mono">${fmt(used)}pt</td><td class="text-right font-mono font-bold text-white">${r ? fmt(r.used) + 'pt' : ''}</td><td></td><td class="text-right font-mono text-base-content/60">${total ? fmt(total) + 'pt 中' : ''}</td><td></td></tr></tfoot>
@@ -644,9 +643,7 @@ const scouter = (() => {
                 ${gainBox}
                 ${card('条件', '', `<div class="flex flex-col gap-2 text-xs">
                     <div class="flex items-center gap-2"><span class="w-32 text-base-content/60">ボス防御率</span>${pdrBtn(300)}${pdrBtn(380)}</div>
-                    <label class="flex items-center gap-2"><span class="w-32 text-base-content/60">クリ率のバフ上乗せ</span><input class="input input-xs w-16 font-mono text-right" data-ho="critBuff" value="${esc(o.critBuff)}" inputmode="decimal"><span class="text-base-content/40">%</span></label>
-                    <p class="text-[11px] text-base-content/50 leading-relaxed">ボス戦でステータス画面の値より上がるクリティカル率（シャープアイズを入れていない場合など）。クリティカル率が 100% に届かない分は期待値で計算します。<br>
-                    ダメージにかからない項目（一般モンスターダメージ・獲得経験値・アーケインフォースなど）は固定しない限り 0 にします。${total ? `所持ポイントは Lv${esc(f.level)} から出しています（${fmt(total)}pt）。` : ''}</p>
+                    <label class="flex items-center gap-2" title="ボス戦でステータス画面の値より上がるクリティカル率（シャープアイズを入れていない場合など）"><span class="w-32 text-base-content/60">クリ率のバフ上乗せ</span><input class="input input-xs w-16 font-mono text-right" data-ho="critBuff" value="${esc(o.critBuff)}" inputmode="decimal"><span class="text-base-content/40">%</span></label>
                 </div>`)}
             </div>
         </div>`;
@@ -1216,7 +1213,7 @@ const scouter = (() => {
             <div class="flex items-center gap-1.5 flex-wrap"><b class="text-sm text-white mr-2">読み取りの手順</b>${btns}${actionsHTML()}</div>
             <div class="flex items-baseline gap-3 flex-wrap">
                 <p class="text-xs ${now ? 'text-base-content/80' : 'text-success'}">${now ? `<b class="text-primary">${esc(stepLabel(now))}:</b> ` : ''}${esc(help)}</p>
-                <span class="ml-auto text-[11px] text-base-content/50">${cur.live ? 'ライブ中は今の段階の値だけ、同じ値が2回続けて読めたら受け付けます' : 'スクショは貼り付け・ドロップでも読めます'}</span>
+                ${cur.live ? '<span class="ml-auto text-[11px] text-base-content/50">ライブ中は今の段階の値だけ、同じ値が2回続けて読めたら受け付けます</span>' : ''}
             </div>
         </div></div>`;
     }

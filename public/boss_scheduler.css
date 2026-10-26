@@ -377,10 +377,11 @@ select option { background: #0f172a; }
     border-radius: var(--r); padding: 0 4px; margin-top: 2px;
 }
 .drop-back {
-    margin-top: 8px; padding: 8px; text-align: center;
+    display: none; margin-top: 8px; padding: 8px; text-align: center;
     border: 1px dashed var(--line-strong); border-radius: var(--r);
     font-size: 11px; color: #64748b;
 }
+body.drag-out .drop-back { display: block; }
 .drop-back.hot { border-color: #22c55e; border-style: solid; color: #6ee7b7; background: rgba(34,197,94,0.08); }
 
 .party-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(285px, 1fr)); gap: 8px; align-items: start; }
@@ -534,10 +535,6 @@ select option { background: #0f172a; }
     display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
     padding: 0 1px 3px;
 }
-.party-mini-letter {
-    font-family: "Orbitron", sans-serif; font-size: 10px; font-weight: 700;
-    background: rgb(226 232 240 / 0.10); color: #cbd5e1; padding: 1px 5px; border-radius: var(--r);
-}
 .party-mini-name { font-size: 12px; font-weight: 700; color: #e2e8f0; flex: 1; min-width: 0;
                    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .party-mini-members { display: flex; flex-direction: column; gap: 2px; min-height: 24px; }
@@ -658,7 +655,7 @@ select option { background: #0f172a; }
 .solo-head { display: flex; align-items: center; gap: 7px; color: #94a3b8; margin-bottom: 7px; }
 .solo-title { font-size: 13px; font-weight: 700; color: #e2e8f0; }
 .solo-count { font-size: 11px; font-family: "IBM Plex Mono", ui-monospace, monospace; color: #64748b; }
-.solo-empty { font-size: 11px; color: #64748b; line-height: 1.6; }
+.solo-empty { min-height: 20px; }
 .solo-list { display: flex; flex-wrap: wrap; gap: 4px; }
 .solo-chip {
     display: flex; align-items: center; gap: 6px;

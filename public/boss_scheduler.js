@@ -1080,8 +1080,6 @@
         const d = state.ui.difficulty;
 
         pane.appendChild(el("div", { class: "col-header", text: "希望を出している人" }));
-        pane.appendChild(el("p", { class: "hint" },
-            "カードを押して選び、PTの「ここに追加」で配置します。ドラッグでも動かせます。難しい難易度から先に組むと取りこぼしが減ります。"));
 
         // 検索欄はここで作り直されるため、入力中だったらフォーカスとカーソル位置を戻す
         const searchWasFocused = document.activeElement && document.activeElement.id === "cand-search";
@@ -1140,7 +1138,8 @@
         });
         pane.appendChild(list);
 
-        const back = el("div", { class: "drop-back", text: "PTから外すにはここへドラッグ" });
+        // PTから外す受け口。PTのメンバーをドラッグしている間だけ出す（body.drag-out、CSS 側）。
+        const back = el("div", { class: "drop-back", text: "ここに離すとPTから外します" });
         back.addEventListener("dragover", (e) => {
             if (drag && drag.fromPartyId) { e.preventDefault(); back.classList.add("hot"); }
         });
@@ -1206,7 +1205,7 @@
         ));
 
         if (!slots.length) {
-            card.appendChild(el("div", { class: "solo-empty", text: "PTを組まずに、ソロで行く人・サブキャラで行く人はここへ。ドラッグでも、候補を選んで「ここに追加」でも入ります。" }));
+            card.appendChild(el("div", { class: "solo-empty" }));
         } else {
             const listEl = el("div", { class: "solo-list" });
             slots.forEach((id) => {
@@ -1218,6 +1217,7 @@
                 });
                 chip.addEventListener("dragstart", (e) => {
                     drag = { charId: id, fromPartyId: existing.id };
+                    setTimeout(() => document.body.classList.add("drag-out"));
                     try { e.dataTransfer.setData("text/plain", id); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
                     chip.classList.add("dragging");
                 });
@@ -1306,6 +1306,7 @@
                 });
                 li.addEventListener("dragstart", (e) => {
                     drag = { charId: id, fromPartyId: p.id };
+                    setTimeout(() => document.body.classList.add("drag-out"));
                     try { e.dataTransfer.setData("text/plain", id); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
                     li.classList.add("dragging");
                 });
@@ -1426,7 +1427,7 @@
                         el("div", { class: "mine-boss" }, bossIconNode(b, "sm"), b.name, diffBadge(p.difficulty),
                             p.status === "draft" ? el("span", { class: "badge badge-soft", text: "下書き" }) : null),
                         el("div", { class: "mine-who", text: (p.isSolo ? SOLO_LABEL : (p.label || "PT")) + " / " + myChar.name + " で参加" }),
-                        el("div", { class: "mine-mates", text: p.isSolo ? "PTを組まずに消化する予定です" : (mates.length ? "一緒に行く人: " + mates.join("、") : "他のメンバーは未定") }),
+                        el("div", { class: "mine-mates", text: p.isSolo ? "PTを組まずに消化する予定です" : (mates.length ? mates.join("、") : "他のメンバーは未定") }),
                         p.memo && el("div", { class: "mine-memo", text: "メモ: " + p.memo }));
                     box.style.setProperty("--diff-color", diffColor(p.difficulty));
                     g.appendChild(box);
@@ -1440,7 +1441,6 @@
         const all = el("section", { class: "panel" });
         const allHead = el("div", { class: "panel-head" },
             el("h2", { text: "編成全体" }),
-            el("span", { class: "sub", text: ui.includeDraft ? "下書きも表示しています" : "公開されているPTのみ表示しています" }),
             el("span", { class: "spacer" }),
             !VIEW_ONLY && el("label", { class: "check" },
                 el("input", {
@@ -1848,11 +1848,10 @@
         }
         // 6人ボスはPTを1段、3人ボスは2段に並べる
         const strip = el("div", { class: "parties-strip" + (b.maxMembers <= 3 ? " rows-2" : "") });
-        parties.forEach((p, idx) => {
+        parties.forEach((p) => {
             const wrap = el("div", { class: "party-mini" });
             const total = p.slots.reduce((s, id) => s + ((charById(id) || {}).combatPower || 0), 0);
             wrap.appendChild(el("div", { class: "party-mini-head" },
-                el("span", { class: "party-mini-letter", text: String.fromCharCode(65 + idx) }),
                 diffBadge(p.difficulty),
                 el("span", { class: "party-mini-name", text: p.label || "PT" }),
                 p.status === "draft" ? el("span", { class: "badge badge-soft", text: "下書き" }) : null
@@ -2324,6 +2323,7 @@
 
     function render() {
         const ui = state.ui;
+        document.body.classList.remove("drag-out");
         SCREENS.forEach((s) => {
             const sec = $("#view-" + s);
             if (sec) sec.classList.toggle("hidden", s !== ui.screen);
