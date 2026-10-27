@@ -7,18 +7,19 @@
 //     on a single Chart.js chart (level / delta / cumulative EXP / daily EXP).
 //     The window is the last N days, or an explicit date range.
 //
-// Data source: MapleHub (maplehub.app) keeps daily snapshots for every ranked
-// character in its own backend DB (the response format changed in 2026-10 and
-// now returns a shorter window, so refreshed data is merged into the local cache). We fetch it through our own
-// Cloudflare Pages Function proxy (/maplehub?name=...&region=...) which adds the
-// required `X-MapleHub-Request: true` header and CORS.
+// Data source: Nexon の公式ランキング（Worker の /api 経由）。返るのは「今の Lv と
+// レベル内EXP」だけなので、1日1回（日本時間1時以降）このブラウザに記録して推移を作る。
+// 日ごとの獲得EXPは記録どうしの累計EXPの差。開かなかった日は差を日数で均等に割る。
+// （2026-10 まで使っていた MapleHub・MapleBot は Bot 対策で取れなくなった。そのころに
+// 取り込んだ過去の日次データはキャッシュにそのまま残る。）
 //
 // Level predictions use tnlData (exp_data.js, Lv.200-299). Characters outside
 // that table show "—" instead of a forecast.
 //
 // Persistence:
 //   - Roster:  localStorage[gmsManager.ranks.roster] = [{name, region}, ...]
-//   - Cache:   localStorage[gmsManager.ranks.cache]  = { 'na:name': { labels, values, expDaily, charInfo, importedAt } }
+//   - Cache:   localStorage[gmsManager.ranks.cache]  = { 'na:name': { labels, values, expDaily, charInfo, last, base, importedAt } }
+//              last = 最後の記録 { date, lv, within, cum }、base = その前の記録（同じ日に取り直したときの差の基準）
 //   - Prefs:   localStorage[gmsManager.ranks.prefs]  = { range, yMode, region, tab, sortKey, sortDir, selected, detailMode, detailRange }
 //
 //   values[]   : fractional level per day  (Lv + withinLevelExp / TNL(level))
@@ -29,7 +30,7 @@ const ranks = {
     CACHE_KEY:   'gmsManager.ranks.cache',
     PREFS_KEY:   'gmsManager.ranks.prefs',
 
-    SNAPSHOT_HOUR_JST: 3, // MapleHub's daily snapshot lands around 03:00 JST
+    SNAPSHOT_HOUR_JST: 1, // 日本時間1時を過ぎたら、その前日分として記録する
 
     initialized: false,
     roster: [],          // [{ name, region }]
@@ -72,40 +73,44 @@ const ranks = {
         this.bindUI();
         this.renderRegionButtons();
         this.renderAll();
-        this.autoRefresh();     // pull a new day's snapshot if 03:00 JST has passed
+        this.autoRefresh();     // pull a new day's snapshot if 01:00 JST has passed
         this.startAutoWatcher();
     },
 
     /* ---------- auto refresh ---------- */
 
-    // MapleHub publishes the previous day's snapshot around 03:00 JST, so cache
-    // taken before the most recent 03:00 is a day behind. Returns that boundary.
+    // 直近の日本時間1時（記録の区切り）。これより前に取った記録は1日遅れている。
     lastSnapshotAt(now = new Date()) {
         const JST = 9 * 3600000;
         const j = new Date(now.getTime() + JST); // shifted, so getUTC* reads as JST
         const ms = Date.UTC(j.getUTCFullYear(), j.getUTCMonth(), j.getUTCDate(), this.SNAPSHOT_HOUR_JST) - JST;
-        return ms > now.getTime() ? ms - 86400000 : ms; // before 03:00 → yesterday's
+        return ms > now.getTime() ? ms - 86400000 : ms; // before 01:00 → yesterday's
     },
 
-    // One automatic refresh per 03:00 window: if fetches fail we keep the old data
-    // and wait for the next window rather than retrying on every tick.
+    // 記録する日（'YYYY-MM-DD'）。1時を過ぎたら前日分、1時より前なら前々日分。
+    dayKey(now = new Date()) {
+        const d = new Date(now.getTime() + 9 * 3600000 - (this.SNAPSHOT_HOUR_JST + 24) * 3600000);
+        return d.toISOString().slice(0, 10);
+    },
+
+    // その日の記録がまだのキャラがいれば取りに行く。Nexon 側の更新が遅れて値が
+    // 変わっていなかったときに備え、1時間おきまでは取り直す。
     async autoRefresh() {
         if (this.busy || this.roster.length === 0) return;
-        const cutoff = this.lastSnapshotAt();
+        const day = this.dayKey();
         const stale = this.roster.some(r => {
             const c = this.cache[this._key(r)];
-            return c && !(c.importedAt >= cutoff);
+            return !c || !c.last || c.last.date < day;
         });
-        if (stale && !(this.autoAttemptAt >= cutoff)) {
+        const retryAfter = Math.max(this.lastSnapshotAt(), Date.now() - 3600000);
+        if (stale && !(this.autoAttemptAt >= retryAfter)) {
             this.autoAttemptAt = Date.now();
             this.savePrefs();
             await this.refreshAll(true);
-            return;
         }
-        this._refreshMissing(); // pull icon/withinExp for entries cached by the old version
     },
 
-    // The tab can stay open across 03:00 JST.
+    // 開いたまま1時をまたいでも取れるように。
     startAutoWatcher() {
         if (this._watcher) return;
         this._watcher = setInterval(() => this.autoRefresh(), 5 * 60000);
@@ -124,7 +129,7 @@ const ranks = {
     _isDate(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s); },
     _hasDateRange() { return !!(this.dateFrom || this.dateTo); },
 
-    // MapleHubのラベルは "6/9" のように年が入っていない。系列は最大90日ぶんで
+    // ラベルは "6/9" のように年が入っていない。系列は最大90日ぶんで
     // 末尾が直近の日なので、末尾から遡りながら「月が大きくなったら前年」で年を補う。
     // 返すのは labels と同じ並びの 'YYYY-MM-DD'（読めなかった要素は null）。
     _labelDates(labels) {
@@ -188,7 +193,7 @@ const ranks = {
     saveCache() {
         const lean = {};
         for (const [k, v] of Object.entries(this.cache)) {
-            lean[k] = { labels: v.labels, values: v.values, expDaily: v.expDaily, charInfo: v.charInfo, importedAt: v.importedAt };
+            lean[k] = { labels: v.labels, values: v.values, expDaily: v.expDaily, charInfo: v.charInfo, last: v.last, base: v.base, importedAt: v.importedAt };
         }
         localStorage.setItem(this.CACHE_KEY, JSON.stringify(lean));
     },
@@ -512,7 +517,7 @@ const ranks = {
         });
     },
 
-    // 選んだキャラをまとめて取り込む。1体ずつMapleHubを見に行く。
+    // 選んだキャラをまとめて取り込む。1体ずつ Nexon のランキングを見に行く。
     async importCharsFromCommunity(charIds, onProgress) {
         const store = window.communityStore;
         if (this.busy || !store || !charIds.length) return;
@@ -528,11 +533,10 @@ const ranks = {
             this.showMsg(msg, 'info');
             if (onProgress) onProgress(msg);
             try {
-                const parsed = await this._fetchCharacter(char.name, region);
-                if (!parsed.labels.length) { missed.push(char.name); continue; }
-                const canonicalName = (parsed.charInfo && parsed.charInfo.name) || char.name;
+                const snap = await this._fetchNexon(char.name, region);
+                const canonicalName = snap.name || char.name;
                 const key = `${region}:${canonicalName.toLowerCase()}`;
-                this._storeParsed(key, parsed);
+                this._recordSnapshot(key, snap, this.dayKey());
                 if (!this.roster.some(r => this._key(r) === key)) this.roster.push({ name: canonicalName, region });
                 if (Array.isArray(this.selectedKeys) && !this.selectedKeys.includes(key)) this.selectedKeys.push(key);
                 ok++;
@@ -547,7 +551,7 @@ const ranks = {
         this.renderCommunityRow();
         this.setBusy(false);
         this.showMsg(
-            `${ok}体を追加しました` + (missed.length ? ` / 推移データが見つからなかったキャラ: ${missed.join(', ')}` : ''),
+            `${ok}体を追加しました` + (missed.length ? ` / ランキングで見つからなかったキャラ: ${missed.join(', ')}` : ''),
             missed.length ? 'warn' : 'ok');
     },
 
@@ -618,15 +622,10 @@ const ranks = {
         this.setBusy(true);
         this.showMsg(`${typedName} (${region.toUpperCase()}) を取得中…`, 'info');
         try {
-            const parsed = await this._fetchCharacter(typedName, region);
-            if (!parsed.labels.length) {
-                this.showMsg('このキャラクターの推移データが見つかりませんでした。', 'err');
-                return;
-            }
-
-            const canonicalName = (parsed.charInfo && parsed.charInfo.name) || typedName;
+            const snap = await this._fetchNexon(typedName, region);
+            const canonicalName = snap.name || typedName;
             const cacheKey = `${region}:${canonicalName.toLowerCase()}`;
-            this._storeParsed(cacheKey, parsed);
+            this._recordSnapshot(cacheKey, snap, this.dayKey());
 
             const existing = this.roster.findIndex(r => r.region === region && r.name.toLowerCase() === canonicalName.toLowerCase());
             if (existing === -1) this.roster.push({ name: canonicalName, region });
@@ -642,7 +641,8 @@ const ranks = {
             this.savePrefs();
             this.renderAll();
             nameEl.value = '';
-            this.showMsg(`${canonicalName} (${region.toUpperCase()}) を追加しました · ${parsed.labels.length}日分のデータ`, 'ok');
+            const days = this.cache[cacheKey].labels.length;
+            this.showMsg(`${canonicalName} (${region.toUpperCase()}) を追加しました · ${days}日分の記録` + (days < 2 ? '（推移は明日の記録から出ます）' : ''), 'ok');
         } catch (e) {
             this.showMsg(`取得に失敗しました: ${e.message}`, 'err');
         } finally {
@@ -653,53 +653,132 @@ const ranks = {
     async refreshAll(auto = false) {
         if (this.busy || this.roster.length === 0) return;
         this.setBusy(true);
-        if (auto) this.showMsg('新しい日次データを自動取得中…', 'info');
-        let ok = 0, fail = 0;
+        if (auto) this.showMsg('Nexon のランキングから今日の記録を取得中…', 'info');
+        const day = this.dayKey();
+        // 1時から6時間たっても値が同じなら、更新待ちではなくその日は遊んでいないと見て記録する。
+        const settled = Date.now() - this.lastSnapshotAt() >= 6 * 3600000;
+        let ok = 0, fail = 0, same = 0;
         for (const r of this.roster) {
             try {
-                const parsed = await this._fetchCharacter(r.name, r.region);
-                if (parsed.labels.length) {
-                    this._storeParsed(this._key(r), parsed);
-                    ok++;
-                } else { fail++; }
+                const snap = await this._fetchNexon(r.name, r.region);
+                if (this._recordSnapshot(this._key(r), snap, day, settled)) ok++; else same++;
             } catch (_) { fail++; }
         }
         this.saveCache();
         this.renderAll();
         this.setBusy(false);
-        this.showMsg(`${auto ? '自動更新: ' : ''}${ok}キャラを更新しました${fail ? `(${fail}件失敗)` : ''}。`, fail ? 'warn' : 'ok');
+        const notes = [];
+        if (same) notes.push(`${same}件は Nexon 側がまだ更新されていないため後で取り直します`);
+        if (fail) notes.push(`${fail}件失敗`);
+        this.showMsg(`${auto ? '自動更新: ' : ''}${ok}キャラを記録しました${notes.length ? `（${notes.join('、')}）` : ''}。`, fail ? 'warn' : 'ok');
     },
 
-    // Entries cached by the old ranks.js lack charInfo.img / withinExp.
-    // Silently re-fetch just those so the leaderboard fills in without a manual refresh.
-    async _refreshMissing() {
-        const stale = this.roster.filter(r => {
-            const c = this.cache[this._key(r)];
-            return c && (!c.charInfo || !('img' in c.charInfo));
-        });
-        if (this.busy || stale.length === 0) return;
-        this.setBusy(true);
-        for (const r of stale) {
-            try {
-                const parsed = await this._fetchCharacter(r.name, r.region);
-                if (parsed.labels.length) this._storeParsed(this._key(r), parsed);
-            } catch (_) { /* keep old data */ }
-        }
-        this.saveCache();
-        this.setBusy(false);
-        this.renderAll();
-    },
-
-    // Fetch + parse a single character from the MapleHub proxy.
-    async _fetchCharacter(name, region) {
-        const url = `/maplehub?name=${encodeURIComponent(name)}&region=${region}`;
-        const res = await fetch(url, { cache: 'no-cache' });
+    // Nexon の公式ランキングから1キャラの今の値を取る（Worker の /api 経由）。
+    async _fetchNexon(name, region) {
+        const res = await fetch(`/api?name=${encodeURIComponent(name)}&region=${region}`, { cache: 'no-cache' });
         let data;
         try { data = await res.json(); } catch (_) { data = null; }
-        if (!res.ok || !data || data.error || data.success === false) {
-            throw new Error((data && (data.error || data.message)) || `HTTP ${res.status}`);
+        if (!res.ok || !data || data.error) throw new Error((data && data.error) || `HTTP ${res.status}`);
+        const ranks = Array.isArray(data.ranks) ? data.ranks : [];
+        const hit = ranks.find(x => String(x.characterName).toLowerCase() === name.toLowerCase()) || null;
+        if (!hit) throw new Error('ランキングに見つかりません');
+        const level = Number(hit.level), within = Number(hit.exp);
+        if (!Number.isFinite(level) || !Number.isFinite(within)) throw new Error('Lv・EXPが読めません');
+        return {
+            name: hit.characterName, level, within,
+            job: hit.jobName || null,
+            world: this.WORLDS[hit.worldID] || null,
+            img: this._fixImgUrl(hit.characterImgURL)
+        };
+    },
+
+    WORLDS: { 45: 'Kronos' },
+
+    // Lv200 からの累計EXP。tnlData（Lv200〜299）の外は出せないので null。
+    _cumExp(lv, within) {
+        const tnl = (typeof tnlData !== 'undefined') ? tnlData : {};
+        if (!Number.isFinite(lv) || !Number.isFinite(within) || lv < 200) return null;
+        let sum = 0;
+        for (let l = 200; l < lv; l++) { if (!tnl[l]) return null; sum += tnl[l]; }
+        return sum + within;
+    },
+
+    _fracLevel(lv, within) {
+        const tnl = (typeof tnlData !== 'undefined') ? tnlData : {};
+        const need = tnl[lv];
+        return need ? lv + Math.min(within / need, 0.9999) : lv;
+    },
+
+    // 前の版（MapleHub・MapleBot から取り込んだ系列）のキャッシュには last が無いので、
+    // 系列の最後の日の小数Lvから記録を組み立てる。
+    _lastFromSeries(c) {
+        if (!c || !Array.isArray(c.labels) || !c.labels.length) return null;
+        const dates = this._labelDates(c.labels);
+        for (let i = c.labels.length - 1; i >= 0; i--) {
+            const v = Number(c.values && c.values[i]);
+            if (!dates[i] || !Number.isFinite(v)) continue;
+            const tnl = (typeof tnlData !== 'undefined') ? tnlData : {};
+            const lv = Math.floor(v), within = tnl[lv] ? Math.round((v - lv) * tnl[lv]) : 0;
+            return { date: dates[i], lv, within, cum: this._cumExp(lv, within) };
         }
-        return this._parseApiResponse(data);
+        return null;
+    },
+
+    _addDays(dt, n) {
+        const d = new Date(dt + 'T00:00:00Z');
+        d.setUTCDate(d.getUTCDate() + n);
+        return d.toISOString().slice(0, 10);
+    },
+
+    // その日の記録を系列に足す。前の記録との累計EXPの差を、あいだの日数で割って
+    // 日ごとの獲得EXPにする。前日から値が変わっていなければ（Nexon 側の更新待ち）
+    // 何もせず false を返す（force なら獲得0として記録）。同じ日に取り直したときは、その日の値を上書きする。
+    MAX_DAYS: 180,
+    _recordSnapshot(key, snap, day, force = false) {
+        const prev = this.cache[key] || null;
+        const cur = { date: day, lv: snap.level, within: snap.within, cum: this._cumExp(snap.level, snap.within) };
+        const last = (prev && prev.last) || this._lastFromSeries(prev);
+        let base = last;
+        if (last && last.date === day) base = prev.base || null;
+        else if (last && last.date > day) base = null;
+        if (!force && last && last.date < day && last.lv === cur.lv && last.within === cur.within) return false;
+
+        const rows = {};
+        if (prev && Array.isArray(prev.labels)) {
+            this._labelDates(prev.labels).forEach((dt, i) => {
+                if (dt) rows[dt] = { v: prev.values ? prev.values[i] : null, e: prev.expDaily ? prev.expDaily[i] : null };
+            });
+        }
+        rows[day] = { v: this._fracLevel(cur.lv, cur.within), e: null };
+        if (base && base.date < day) {
+            let n = 0;
+            for (let dt = this._addDays(base.date, 1); dt <= day; dt = this._addDays(dt, 1)) n++;
+            const gain = (base.cum != null && cur.cum != null) ? (cur.cum - base.cum) / n : null;
+            for (let dt = this._addDays(base.date, 1); dt <= day; dt = this._addDays(dt, 1)) {
+                rows[dt] = { v: rows[dt] ? rows[dt].v : null, e: gain };
+            }
+        }
+        const dates = Object.keys(rows).sort().slice(-this.MAX_DAYS);
+        const tnl = (typeof tnlData !== 'undefined') ? tnlData : {};
+        const old = (prev && prev.charInfo) || {};
+        this.cache[key] = {
+            labels:   dates.map(dt => this._dateToLabel(dt)),
+            values:   dates.map(dt => rows[dt].v ?? null),
+            expDaily: dates.map(dt => rows[dt].e ?? null),
+            charInfo: {
+                name: snap.name || old.name || null,
+                level: cur.lv,
+                expPct: tnl[cur.lv] ? (cur.within / tnl[cur.lv]) * 100 : null,
+                withinExp: cur.within,
+                world: snap.world || old.world || null,
+                job: snap.job || old.job || null,
+                img: snap.img || old.img || null
+            },
+            last: cur,
+            base: (last && last.date === day) ? (prev.base || null) : (last || null),
+            importedAt: Date.now()
+        };
+        return true;
     },
 
     setBusy(on) {
@@ -720,148 +799,12 @@ const ranks = {
         this.renderAll();
     },
 
-    /* ---------- API parsing ---------- */
+    /* ---------- labels ---------- */
 
-    // MapleHub /api/character response → { labels, values, expDaily, charInfo }.
-    // 2026-10 から応答の形が { success, data: { character, expHistory, levelHistory } }
-    // に変わった。旧形式（additionalData.graphData）も念のため読めるようにしておく。
-    _parseApiResponse(data) {
-        if (data && data.data && (data.data.character || data.data.expHistory || data.data.levelHistory)) {
-            return this._parseApiResponseV2(data.data);
-        }
-        return this._parseApiResponseV1(data);
-    },
-
-    // 新形式。expHistory = [{ date:'2026-10-05', exp(その日の獲得EXP), level }]、
-    // levelHistory = [{ date, level, exp(レベル内EXP), expPercent }]。日付で突き合わせる。
-    _parseApiResponseV2(d) {
-        const tnl = (typeof tnlData !== 'undefined') ? tnlData : {};
-        const byDate = {};
-        const at = (date) => (byDate[date] = byDate[date] || {});
-        const provisional = new Set();
-        // 当日分（provisional）は途中経過なので使わない。翌日に確定値で入る。
-        (Array.isArray(d.levelHistory) ? d.levelHistory : []).forEach(r => {
-            if (r && this._isDate(r.date)) Object.assign(at(r.date), { lv: Number(r.level), within: Number(r.exp), pct: Number(r.expPercent) });
-        });
-        (Array.isArray(d.expHistory) ? d.expHistory : []).forEach(r => {
-            if (r && r.provisional && this._isDate(r.date)) provisional.add(r.date);
-        });
-        (Array.isArray(d.expHistory) ? d.expHistory : []).forEach(r => {
-            if (!r || !this._isDate(r.date)) return;
-            const e = at(r.date);
-            e.gain = Number(r.expExact != null ? r.expExact : r.exp);
-            if (!Number.isFinite(e.lv)) e.lv = Number(r.level);
-        });
-        const dates = Object.keys(byDate).filter(dt => !provisional.has(dt)).sort();
-        // 先頭の日は前日が無いので獲得EXPが 0 で入ってくる。実際の値ではないので空にする。
-        if (dates.length && byDate[dates[0]].gain === 0) byDate[dates[0]].gain = null;
-
-        const fracLevel = (e) => {
-            if (!Number.isFinite(e.lv)) return null;
-            const need = tnl[e.lv];
-            if (need && Number.isFinite(e.within)) return e.lv + Math.min(e.within / need, 0.9999);
-            if (Number.isFinite(e.pct)) return e.lv + Math.min(e.pct / 100, 0.9999);
-            return e.lv;
-        };
-        const labels   = dates.map(dt => this._dateToLabel(dt));
-        const values   = dates.map(dt => fracLevel(byDate[dt]));
-        const expDaily = dates.map(dt => Number.isFinite(byDate[dt].gain) ? byDate[dt].gain : null);
-
-        const ch = d.character || {};
-        const lastE = dates.length ? byDate[dates[dates.length - 1]] : {};
-        const level = Number(ch.level) || (Number.isFinite(lastE.lv) ? lastE.lv : null);
-        const within = Number.isFinite(Number(ch.exp)) ? Number(ch.exp) : (Number.isFinite(lastE.within) ? lastE.within : null);
-        let expPct = Number.isFinite(Number(ch.expPercent)) ? Number(ch.expPercent) : null;
-        if (level && tnl[level] && Number.isFinite(within)) expPct = (within / tnl[level]) * 100;
-
-        const charInfo = {
-            name: ch.name || null,
-            level,
-            expPct,
-            withinExp: within,
-            world: ch.world || null,
-            job: ch.job || null,
-            img: this._fixImgUrl(ch.imageUrl)
-        };
-        return { labels, values, expDaily, charInfo };
-    },
-
-    // 'YYYY-MM-DD' → 旧形式と同じ "M/D" ラベル（キャッシュと推移グラフの突き合わせがこの形なので揃える）。
+    // 'YYYY-MM-DD' → "M/D" ラベル（キャッシュと推移グラフの突き合わせがこの形なので揃える）。
     _dateToLabel(dt) {
         const [, m, d] = dt.split('-').map(Number);
         return `${m}/${d}`;
-    },
-
-    // 取り込んだ系列を手元のキャッシュと日付で合わせて保存する。MapleHub が返す
-    // 期間が手元より短くなっても、過去の日次データを失わないため。重なる日は新しい方を使う。
-    MAX_DAYS: 180,
-    _storeParsed(key, parsed) {
-        const prev = this.cache[key];
-        let merged = parsed;
-        if (prev && Array.isArray(prev.labels) && prev.labels.length) {
-            const rows = {};
-            const put = (c) => {
-                this._labelDates(c.labels).forEach((dt, i) => {
-                    if (!dt) return;
-                    const old = rows[dt] || {};
-                    const v = c.values ? c.values[i] : null, e = c.expDaily ? c.expDaily[i] : null;
-                    rows[dt] = { v: v ?? old.v ?? null, e: e ?? old.e ?? null };
-                });
-            };
-            put(prev);
-            put(parsed);
-            const dates = Object.keys(rows).sort().slice(-this.MAX_DAYS);
-            merged = {
-                ...parsed,
-                labels:   dates.map(dt => this._dateToLabel(dt)),
-                values:   dates.map(dt => rows[dt].v ?? null),
-                expDaily: dates.map(dt => rows[dt].e ?? null)
-            };
-        }
-        this.cache[key] = { ...merged, importedAt: Date.now() };
-    },
-
-    // 旧形式。時系列は additionalData.graphData（fallback では最上位）にある。
-    _parseApiResponseV1(data) {
-        const g = (data.additionalData && data.additionalData.graphData) || data.graphData || {};
-        const labels    = Array.isArray(g.labels)    ? g.labels.slice()    : [];
-        const levelData = Array.isArray(g.levelData) ? g.levelData         : [];
-        const expValues = Array.isArray(g.expValues) ? g.expValues         : []; // within-level EXP
-        const expDataA  = Array.isArray(g.expData)   ? g.expData           : []; // daily EXP gained
-
-        const tnl = (typeof tnlData !== 'undefined') ? tnlData : {};
-
-        // Fractional level: Lv + (within-level EXP / EXP-to-next-level).
-        const values = labels.map((_, i) => {
-            const lv = Number(levelData[i]);
-            if (!Number.isFinite(lv)) return null;
-            const within = Number(expValues[i]);
-            const need = tnl[lv];
-            if (need && Number.isFinite(within)) return lv + Math.min(within / need, 0.9999);
-            return lv;
-        });
-
-        const expDaily = labels.map((_, i) => {
-            const v = Number(expDataA[i]);
-            return Number.isFinite(v) ? v : null;
-        });
-
-        const level = Number(data.level) || (levelData.length ? Number(levelData[levelData.length - 1]) : null);
-        const curWithin = Number(expValues[expValues.length - 1]);
-        let expPct = null;
-        if (level && tnl[level] && Number.isFinite(curWithin)) expPct = (curWithin / tnl[level]) * 100;
-
-        const charInfo = {
-            name: data.name || null,
-            level,
-            expPct,
-            withinExp: Number.isFinite(curWithin) ? curWithin : null,
-            world: data.worldName || null,
-            job: data.jobName || null,
-            img: this._fixImgUrl(data.characterImgURL)
-        };
-
-        return { labels, values, expDaily, charInfo };
     },
 
     /* ---------- stats & predictions ---------- */
@@ -886,7 +829,7 @@ const ranks = {
         }
 
         const daily = Array.isArray(c.expDaily) ? c.expDaily : [];
-        const finite = n => Number.isFinite(Number(n));
+        const finite = n => n != null && Number.isFinite(Number(n));
         const avgN = n => {
             const arr = daily.slice(-n).filter(finite).map(Number);
             if (!arr.length) return null;
@@ -1625,7 +1568,7 @@ const ranks = {
         return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     },
 
-    // MapleHub sometimes returns a malformed image URL where a CDN base is
+    // 画像URLが CDN の頭に別の絶対URLをつなげた壊れた形で来ることがある（以前の MapleHub）。
     // prepended onto an already-absolute S3 URL with no separator, e.g.
     // "https://cdn.maplebot.iohttps://maplebot-storage.s3.../x.png".
     // Keep only the last absolute URL so the <img> resolves correctly.

@@ -63,11 +63,12 @@ async function handleMaplehub(url) {
   return json({ error: firstError.message }, firstError.status);
 }
 
-// Nexon GMS ranking (NA) - current level / within-level exp snapshot.
+// Nexon GMS ranking (NA/EU) - current level / within-level exp snapshot.
 async function handleApi(url) {
   const name = url.searchParams.get('name');
   if (!name) return json({ error: 'Character name is required' }, 400);
-  const target = `https://www.nexon.com/api/maplestory/no-auth/ranking/v2/na?type=overall&id=legendary&reboot_index=0&page_index=1&character_name=${encodeURIComponent(name)}`;
+  const region = url.searchParams.get('region') === 'eu' ? 'eu' : 'na';
+  const target = `https://www.nexon.com/api/maplestory/no-auth/ranking/v2/${region}?type=overall&id=legendary&reboot_index=0&page_index=1&character_name=${encodeURIComponent(name)}`;
   try {
     const res = await fetch(target, { headers: { 'User-Agent': UA, 'Accept': 'application/json' } });
     if (!res.ok) return json({ error: `Nexon API returned ${res.status}` }, res.status);

@@ -632,7 +632,6 @@ const app = {
             cdn: [CHART_JS],
             scripts: ['exp_data.js', 'ranks.js'],
             // 今うまく使えないアプリはサイドバーに注意マークを出す（直ったらこの行を消す）。
-            unavailable: '現在データを取得できません（データ元のサイトがアクセスを制限中）',
             init() { ranks.init(); lucide.createIcons(); }
         },
         scheduler: {
