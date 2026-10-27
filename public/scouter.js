@@ -10,7 +10,8 @@
 // 保存（localStorage）:
 //   { 'char:<id>': entry, 'free': entry }   — 'free' はキャラに紐付けない仮入力
 //   entry = { form: {...}, result: {...} | null, history: [{at, b300, b300h}],
-//             hyperOpt: { pdr, critBuff, locked }, hyperRun: {...} | null }   — hyperRun は「ハイパーを計算する」の結果
+//             hyperOpt: { pdr, critBuff, locked }, hyperRun: {...} | null,   — hyperRun は「ハイパーを計算する」の結果
+//             calib: { min, scale, at } | undefined }   — ボスカットの実測補正（EXスウのソロ実測タイムと火力の倍率）
 // form は画面の項目そのまま。送るときに buildUserStat() で先方の形に組み立てる。
 
 const scouter = (() => {
@@ -773,12 +774,60 @@ const scouter = (() => {
             <span class="sc-bc-bar"><span style="width:${bar.toFixed(1)}%"></span></span>
         </td>`;
     }
+    // 実測補正（bi 指定）: EXスウのソロ実測タイムから火力の倍率を出し、全ボスの％に一律で掛ける。
+    // ％は火力に比例し、EXスウ 100% で 30分、時間は火力に反比例とみる（200% なら 15分。10分で倒せたら 300% 扱いで ×1.5）。
+    // 倍率は保存して、再計算したあとも掛け続ける（ずれは職業ごとの計算の癖なので、装備が変わってもほぼ同じ）。
+    const CALIB_MIN = 30;
+    const calibBase = (cuts) => (cuts || []).find((c) => c.b === '스우' && c.d === 'Extreme') || null;
+    // 「10:30」「10分30秒」「10.5」「10」を分で返す。読めなければ null。
+    function parseMinutes(s) {
+        const t = String(s || '').trim().replace(/[：]/g, ':');
+        if (!t) return null;
+        const m = t.match(/^(\d+)\s*(?::|分)\s*(\d{1,2})\s*秒?$/) || t.match(/^(\d+(?:\.\d+)?)\s*分?$/);
+        if (!m) return null;
+        const min = m[2] !== undefined ? Number(m[1]) + Number(m[2]) / 60 : Number(m[1]);
+        return min > 0 ? min : null;
+    }
+    const fmtMinutes = (min) => { const sec = Math.round(min * 60); return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; };
+    // 表に出す％と判定。補正があれば倍率を掛けて判定を付け直す（Lv不足はそのまま）。
+    function shownCuts(e) {
+        const cuts = e.result && e.result.cuts;
+        const k = e.calib && e.calib.scale;
+        if (!cuts || !k || typeof scouterBossCut === 'undefined') return cuts;
+        return cuts.map((c) => {
+            const r = c.r * k;
+            return { ...c, r, v: c.v === '입장 불가능' ? c.v : scouterBossCut.verdict(r, !!c.p, c.l) };
+        });
+    }
+    function setCalib(text) {
+        const e = cur.e;
+        const base = calibBase(e.result && e.result.cuts);
+        const min = parseMinutes(text);
+        if (!String(text || '').trim()) delete e.calib;
+        else if (!min) { setMsg('時間は「10:30」のように分:秒で入れてください。', 'err'); return; }
+        else if (!base || !(base.r > 0)) { setMsg('EXスウのボスカットが無いので補正できません。', 'err'); return; }
+        else e.calib = { min, scale: CALIB_MIN / base.r / min, at: new Date().toISOString() };
+        save();
+        renderModal();
+    }
+    function calibHTML(e) {
+        const base = calibBase(e.result.cuts);
+        if (!base || !(base.r > 0)) return '';
+        const c = e.calib;
+        return `<div class="sc-calib ${c ? 'on' : ''}">
+                <span class="sc-calib-l">EXスウ ソロ実測</span>
+                <input data-sc="calib" class="input input-xs w-20 font-mono text-center" value="${c ? fmtMinutes(c.min) : ''}" placeholder="分:秒" title="EXスウをソロで倒した時間（例 10:30）">
+                <span class="sc-calib-p">計算上 <b>${fmtMinutes(CALIB_MIN / base.r)}</b></span>
+                ${c ? `<b class="sc-calib-tag">実測補正 ×${c.scale.toFixed(2)}</b><span class="sc-calib-p">EXスウ ${pctText(base.r)} → <b>${pctText(base.r * c.scale)}</b></span>
+                <button data-sc="calibclear" class="btn btn-xs btn-ghost">消す</button>` : ''}
+            </div>`;
+    }
     const CUT_LEGEND = [['c-solo2', 'ソロ余裕'], ['c-solo1', 'ソロ可'], ['c-solo0', 'ソロ最低'], ['c-pt1', 'パーティー可'], ['c-pt0', 'パーティー最低'], ['c-no', '不可']];
     function cutPageHTML(e) {
         const r = e.result;
         if (!r || r.error) return '';
         if (!r.cuts) return `<div class="sc-res-empty">もう一度「計算する」を押すと出ます（ボスカットを足す前の計算結果です）。</div>`;
-        const rows = cutRows(r.cuts);
+        const rows = cutRows(shownCuts(e));
         const count = {};
         for (const x of rows) for (const c of x.cuts) { const cls = (CUT_LABEL[c.v] || [, 'c-no'])[1]; count[cls] = (count[cls] || 0) + 1; }
         const body = rows.map(({ ko, boss, cuts }) => `<tr>
@@ -787,6 +836,7 @@ const scouter = (() => {
         </tr>`).join('');
         return `<h3 class="sc-bc-h"><i data-lucide="skull"></i>ボスカット
                 <span class="sc-bc-out"><button data-sc="cutcopy" class="btn btn-xs" title="コンパクトな表を画像にしてクリップボードへ"><i data-lucide="copy" class="w-3 h-3"></i>画像をコピー</button><button data-sc="cutsave" class="btn btn-xs" title="コンパクトな表を PNG で保存"><i data-lucide="download" class="w-3 h-3"></i>画像を保存</button></span></h3>
+            ${calibHTML(e)}
             <div class="sc-bc-head">
                 <div class="sc-bc-legend">${CUT_LEGEND.map(([cls, t]) => `<span class="${cls}"><i></i>${t}<b>${count[cls] || 0}</b></span>`).join('')}</div>
                 <p>％は MapleScouter のボスカット（そのボスに必要な火力）に対する今の火力です。100% 前後でソロの最低ライン。<i>PT</i> はパーティ前提のボスで、人数ごとの目安を出しています。レベル・フォース不足も反映しています。500% を超えたものは出していません。<i class="sc-bc-est">推測</i> は MapleScouter に GMS の値が無いボス（ベローナ）で、KMS の値から推し量ったものです。</p>
@@ -804,7 +854,7 @@ const scouter = (() => {
     async function cutImage(e, char) {
         const r = e.result;
         if (!r || r.error || !r.cuts) return null;
-        const rows = cutRows(r.cuts);
+        const rows = cutRows(shownCuts(e));
         if (!rows.length) return null;
         const cols = CUT_COLS.filter((ds) => rows.some((x) => x.cuts.some((c) => ds.includes(c.d))));
         const S = 2, PAD = 12, NAME_W = 92, CW = 112, RH = 42, HEAD = 46, CH = 18, FOOT = 22;
@@ -831,6 +881,14 @@ const scouter = (() => {
         const sw = g.measureText(sub).width;
         g.fillStyle = '#fbbf24'; g.font = `700 14px ${MONO}`;
         g.fillText(fmt(r.b380h), PAD + sw + 4, PAD + 34);
+        if (e.calib) {
+            const hw = g.measureText(fmt(r.b380h)).width;
+            g.fillStyle = '#fbbf24'; g.font = `700 11px ${JP}`;
+            g.fillText(`実測補正 ×${e.calib.scale.toFixed(2)}`, PAD + sw + hw + 16, PAD + 34);
+            const cw = g.measureText(`実測補正 ×${e.calib.scale.toFixed(2)}`).width;
+            g.fillStyle = '#64748b'; g.font = `400 10px ${JP}`;
+            g.fillText(`EXスウ ${fmtMinutes(e.calib.min)}`, PAD + sw + hw + 16 + cw + 6, PAD + 34);
+        }
         g.textAlign = 'right';
         g.fillStyle = '#818cf8'; g.font = `800 13px ${CON}`;
         g.fillText('BOSS CUT', W - PAD, PAD + 13);
@@ -996,6 +1054,7 @@ const scouter = (() => {
             else if (k === 'hcalc') runHyper();
             else if (k === 'cutcopy') exportCuts('copy');
             else if (k === 'cutsave') exportCuts('save');
+            else if (k === 'calibclear') setCalib('');
             else if (k === 'togear') applyToGear();
             else if (k === 'apply') applyReads();
             else if (k === 'discard') { cur.reads = null; cur.step = null; renderModal(); setMsg('読み取りを捨てました。'); }
@@ -1008,6 +1067,7 @@ const scouter = (() => {
                 for (const f of files) await readImage(f);
                 return;
             }
+            if (t.dataset.sc === 'calib') { const v = t.value; setTimeout(() => setCalib(v)); return; }
             if (t.dataset.ho) { cur.e.hyperOpt[t.dataset.ho] = t.value.trim(); save(); setTimeout(renderModal); return; }
             if (!t.dataset.k) return;
             const f = cur.e.form;
