@@ -780,15 +780,14 @@ const scouter = (() => {
     // 掛けるかどうかはトグル（on）で切り替える。時間は残したまま外せる（bi 指定）。
     const CALIB_MIN = 30;
     const calibBase = (cuts) => (cuts || []).find((c) => c.b === '스우' && c.d === 'Extreme') || null;
-    // 「10:30」「10分30秒」「10.5」「10」を分で返す。読めなければ null。
-    function parseMinutes(s) {
-        const t = String(s || '').trim().replace(/[：]/g, ':');
-        if (!t) return null;
-        const m = t.match(/^(\d+)\s*(?::|分)\s*(\d{1,2})\s*秒?$/) || t.match(/^(\d+(?:\.\d+)?)\s*分?$/);
-        if (!m) return null;
-        const min = m[2] !== undefined ? Number(m[1]) + Number(m[2]) / 60 : Number(m[1]);
-        return min > 0 ? min : null;
+    // 時間は秒数で入れる（コロンは打ちにくいので、bi 指定）。「630」→ 10.5分。読めなければ null。保存は分（calib.min）。
+    function parseSeconds(s) {
+        const t = String(s || '').trim().replace(/[０-９]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xFEE0)).replace(/秒$/, '');
+        if (!/^\d+(?:\.\d+)?$/.test(t)) return null;
+        const sec = Number(t);
+        return sec > 0 ? sec / 60 : null;
     }
+    const fmtSeconds = (min) => String(Math.round(min * 60));
     const fmtMinutes = (min) => { const sec = Math.round(min * 60); return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; };
     // 表に出す％と判定。補正があれば倍率を掛けて判定を付け直す（Lv不足はそのまま）。
     function shownCuts(e) {
@@ -803,9 +802,9 @@ const scouter = (() => {
     function setCalib(text) {
         const e = cur.e;
         const base = calibBase(e.result && e.result.cuts);
-        const min = parseMinutes(text);
+        const min = parseSeconds(text);
         if (!String(text || '').trim()) delete e.calib;
-        else if (!min) { setMsg('時間は「10:30」のように分:秒で入れてください。', 'err'); return; }
+        else if (!min) { setMsg('時間は秒数で入れてください（例 10分30秒なら 630）。', 'err'); return; }
         else if (!base || !(base.r > 0)) { setMsg('EXスウのボスカットが無いので補正できません。', 'err'); return; }
         else e.calib = { min, scale: CALIB_MIN / base.r / min, at: new Date().toISOString(), on: e.calib ? e.calib.on : true };
         save();
@@ -818,8 +817,9 @@ const scouter = (() => {
         return `<div class="sc-calib ${on ? 'on' : ''}">
                 <label class="sc-calib-sw" title="${c ? '補正を掛ける／外す' : '先に EXスウの時間を入れてください'}"><input type="checkbox" data-sc="calibon" class="toggle toggle-xs toggle-warning" ${on ? 'checked' : ''} ${c ? '' : 'disabled'}><span class="sc-calib-tag">実測補正</span></label>
                 <span class="sc-calib-l">EXスウ ソロ</span>
-                <input data-sc="calib" class="input input-xs w-20 font-mono text-center" value="${c ? fmtMinutes(c.min) : ''}" placeholder="分:秒" title="EXスウをソロで倒した時間（例 10:30）">
-                <span class="sc-calib-p">計算上 <b>${fmtMinutes(CALIB_MIN / base.r)}</b></span>
+                <input data-sc="calib" inputmode="numeric" class="input input-xs w-20 font-mono text-center" value="${c ? fmtSeconds(c.min) : ''}" placeholder="秒" title="EXスウをソロで倒した時間を秒数で（例 10分30秒なら 630）">
+                <span class="sc-calib-p">${c ? `秒（${fmtMinutes(c.min)}）` : '秒'}</span>
+                <span class="sc-calib-p">計算上 <b>${fmtSeconds(CALIB_MIN / base.r)}</b>秒（${fmtMinutes(CALIB_MIN / base.r)}）</span>
                 ${c ? `<b class="sc-calib-x">×${c.scale.toFixed(2)}</b>${on ? `<span class="sc-calib-p">EXスウ ${pctText(base.r)} → <b>${pctText(base.r * c.scale)}</b></span>` : ''}` : ''}
             </div>`;
     }
