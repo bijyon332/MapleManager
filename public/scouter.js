@@ -11,7 +11,7 @@
 //   { 'char:<id>': entry, 'free': entry }   — 'free' はキャラに紐付けない仮入力
 //   entry = { form: {...}, result: {...} | null, history: [{at, b300, b300h}],
 //             hyperOpt: { pdr, critBuff, locked }, hyperRun: {...} | null,   — hyperRun は「ハイパーを計算する」の結果
-//             calib: { min, scale, at } | undefined }   — ボスカットの実測補正（EXスウのソロ実測タイムと火力の倍率）
+//             calib: { min, scale, at, on } | undefined }   — ボスカットの実測補正（EXスウのソロ実測タイムと火力の倍率、on はトグル）
 // form は画面の項目そのまま。送るときに buildUserStat() で先方の形に組み立てる。
 
 const scouter = (() => {
@@ -777,6 +777,7 @@ const scouter = (() => {
     // 実測補正（bi 指定）: EXスウのソロ実測タイムから火力の倍率を出し、全ボスの％に一律で掛ける。
     // ％は火力に比例し、EXスウ 100% で 30分、時間は火力に反比例とみる（200% なら 15分。10分で倒せたら 300% 扱いで ×1.5）。
     // 倍率は保存して、再計算したあとも掛け続ける（ずれは職業ごとの計算の癖なので、装備が変わってもほぼ同じ）。
+    // 掛けるかどうかはトグル（on）で切り替える。時間は残したまま外せる（bi 指定）。
     const CALIB_MIN = 30;
     const calibBase = (cuts) => (cuts || []).find((c) => c.b === '스우' && c.d === 'Extreme') || null;
     // 「10:30」「10分30秒」「10.5」「10」を分で返す。読めなければ null。
@@ -792,7 +793,7 @@ const scouter = (() => {
     // 表に出す％と判定。補正があれば倍率を掛けて判定を付け直す（Lv不足はそのまま）。
     function shownCuts(e) {
         const cuts = e.result && e.result.cuts;
-        const k = e.calib && e.calib.scale;
+        const k = e.calib && e.calib.on && e.calib.scale;
         if (!cuts || !k || typeof scouterBossCut === 'undefined') return cuts;
         return cuts.map((c) => {
             const r = c.r * k;
@@ -806,20 +807,20 @@ const scouter = (() => {
         if (!String(text || '').trim()) delete e.calib;
         else if (!min) { setMsg('時間は「10:30」のように分:秒で入れてください。', 'err'); return; }
         else if (!base || !(base.r > 0)) { setMsg('EXスウのボスカットが無いので補正できません。', 'err'); return; }
-        else e.calib = { min, scale: CALIB_MIN / base.r / min, at: new Date().toISOString() };
+        else e.calib = { min, scale: CALIB_MIN / base.r / min, at: new Date().toISOString(), on: e.calib ? e.calib.on : true };
         save();
         renderModal();
     }
     function calibHTML(e) {
         const base = calibBase(e.result.cuts);
         if (!base || !(base.r > 0)) return '';
-        const c = e.calib;
-        return `<div class="sc-calib ${c ? 'on' : ''}">
-                <span class="sc-calib-l">EXスウ ソロ実測</span>
+        const c = e.calib, on = !!(c && c.on);
+        return `<div class="sc-calib ${on ? 'on' : ''}">
+                <label class="sc-calib-sw" title="${c ? '補正を掛ける／外す' : '先に EXスウの時間を入れてください'}"><input type="checkbox" data-sc="calibon" class="toggle toggle-xs toggle-warning" ${on ? 'checked' : ''} ${c ? '' : 'disabled'}><span class="sc-calib-tag">実測補正</span></label>
+                <span class="sc-calib-l">EXスウ ソロ</span>
                 <input data-sc="calib" class="input input-xs w-20 font-mono text-center" value="${c ? fmtMinutes(c.min) : ''}" placeholder="分:秒" title="EXスウをソロで倒した時間（例 10:30）">
                 <span class="sc-calib-p">計算上 <b>${fmtMinutes(CALIB_MIN / base.r)}</b></span>
-                ${c ? `<b class="sc-calib-tag">実測補正 ×${c.scale.toFixed(2)}</b><span class="sc-calib-p">EXスウ ${pctText(base.r)} → <b>${pctText(base.r * c.scale)}</b></span>
-                <button data-sc="calibclear" class="btn btn-xs btn-ghost">消す</button>` : ''}
+                ${c ? `<b class="sc-calib-x">×${c.scale.toFixed(2)}</b>${on ? `<span class="sc-calib-p">EXスウ ${pctText(base.r)} → <b>${pctText(base.r * c.scale)}</b></span>` : ''}` : ''}
             </div>`;
     }
     const CUT_LEGEND = [['c-solo2', 'ソロ余裕'], ['c-solo1', 'ソロ可'], ['c-solo0', 'ソロ最低'], ['c-pt1', 'パーティー可'], ['c-pt0', 'パーティー最低'], ['c-no', '不可']];
@@ -881,7 +882,7 @@ const scouter = (() => {
         const sw = g.measureText(sub).width;
         g.fillStyle = '#fbbf24'; g.font = `700 14px ${MONO}`;
         g.fillText(fmt(r.b380h), PAD + sw + 4, PAD + 34);
-        if (e.calib) {
+        if (e.calib && e.calib.on) {
             const hw = g.measureText(fmt(r.b380h)).width;
             g.fillStyle = '#fbbf24'; g.font = `700 11px ${JP}`;
             g.fillText(`実測補正 ×${e.calib.scale.toFixed(2)}`, PAD + sw + hw + 16, PAD + 34);
@@ -1054,7 +1055,6 @@ const scouter = (() => {
             else if (k === 'hcalc') runHyper();
             else if (k === 'cutcopy') exportCuts('copy');
             else if (k === 'cutsave') exportCuts('save');
-            else if (k === 'calibclear') setCalib('');
             else if (k === 'togear') applyToGear();
             else if (k === 'apply') applyReads();
             else if (k === 'discard') { cur.reads = null; cur.step = null; renderModal(); setMsg('読み取りを捨てました。'); }
@@ -1068,6 +1068,7 @@ const scouter = (() => {
                 return;
             }
             if (t.dataset.sc === 'calib') { const v = t.value; setTimeout(() => setCalib(v)); return; }
+            if (t.dataset.sc === 'calibon') { if (cur.e.calib) { cur.e.calib.on = t.checked; save(); } setTimeout(renderModal); return; }
             if (t.dataset.ho) { cur.e.hyperOpt[t.dataset.ho] = t.value.trim(); save(); setTimeout(renderModal); return; }
             if (!t.dataset.k) return;
             const f = cur.e.form;
