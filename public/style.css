@@ -532,6 +532,16 @@ body {
 .sc-resbody .sc-side { border-right: 1px solid #1e293b; }
 .sc-bc-h { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #e2e8f0; margin-bottom: 6px; }
 .sc-bc-h svg { width: 14px; height: 14px; color: #818cf8; }
+.sc-calib { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 32px; padding: 4px 8px; margin-bottom: 8px; border: 1px solid #1e293b; background: #0b1224; font-size: 11.5px; color: #cbd5e1; }
+.sc-calib.on { border-color: #b45309; }
+.sc-calib-l { font-weight: 700; }
+.sc-calib-p { color: #64748b; }
+.sc-calib-p b { font: 700 12px "IBM Plex Mono", monospace; color: #cbd5e1; }
+.sc-calib-sw { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin-right: 4px; }
+.sc-calib-tag { color: #94a3b8; font-weight: 700; }
+.sc-calib.on .sc-calib-tag { color: #fbbf24; }
+.sc-calib-x { font: 700 12px "IBM Plex Mono", monospace; color: #64748b; }
+.sc-calib.on .sc-calib-x { color: #fbbf24; }
 .sc-bc-head { display: grid; gap: 6px; margin-bottom: 8px; }
 .sc-bc-legend { display: flex; flex-wrap: wrap; gap: 4px; }
 .sc-bc-legend span { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border: 1px solid #1e293b; background: #0b1224; font-size: 11.5px; color: #cbd5e1; }
