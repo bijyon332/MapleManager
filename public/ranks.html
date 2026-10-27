@@ -7,7 +7,7 @@
         <form id="ranks-import-form" class="flex flex-wrap items-center gap-2">
             <div class="leading-tight mr-2 shrink-0">
                 <h2 class="font-bold text-sm text-white">EXP Tracker</h2>
-                <p class="text-[11px] text-base-content/50">キャラ名で検索して追加。データはMapleBotから自動取得(日次スナップショット。取得した日の分はこのブラウザに貯まる)。</p>
+                <p class="text-[11px] text-base-content/50">キャラ名で検索して追加。Nexon 公式ランキングから1日1回（1時以降に開いたとき）自動で取得し、このブラウザに貯めます。</p>
             </div>
             <div class="join shrink-0">
                 <button type="button" data-region="na" class="ranks-region-btn join-item btn btn-sm">NA</button>
@@ -20,7 +20,7 @@
             <button type="submit" id="ranks-import-btn" class="btn btn-sm btn-primary">
                 <i data-lucide="plus" class="w-3.5 h-3.5"></i>追加
             </button>
-            <button type="button" id="ranks-refresh-all" class="btn btn-sm" title="全キャラのデータをMapleHubから再取得">
+            <button type="button" id="ranks-refresh-all" class="btn btn-sm" title="全キャラのデータを Nexon 公式ランキングから今すぐ取り直す">
                 <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>全更新
             </button>
             <!-- コミュニティ名簿から一括追加。表を広く使うため、手入力の追加と同じ行に置く。 -->

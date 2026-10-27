@@ -55,10 +55,10 @@ Community Members / Party Builder / Character Manager / EXP Tracker の4つが�
 
 | ルート | 内容 |
 | --- | --- |
-| `GET /maplehub?name=&region=na\|eu` | MapleHub のキャラAPI中継（専用ヘッダが要るのでブラウザから直接叩けない） |
+| `GET /maplehub?name=&region=na\|eu` | MapleBot / MapleHub の経験値履歴の中継。2026-10 時点で先方の Bot 対策により取得できないため未使用 |
 | `POST /kinoko` | kinokohub（kinokohub.net/api/mainStatsConverter）の換算計算の中継。本文は `{basicStats, buffStats}`。先方は他オリジンからの呼び出しを許していないので中継する。非公開APIなので先方の都合で動かなくなることがある |
 | `POST /scouter` | MapleScouter（api.maplescouter.com/api/calc/dmg）の換算計算の中継。本文は `{userStat}`。2026-10-25 時点で先方の Bot 対策により 403 になるため未使用（`public/scouter.js` の `ENGINE` を戻せば使える） |
-| `GET /api?name=` | Nexon GMS ランキングAPI中継（現在レベルとEXPのスナップショット） |
+| `GET /api?name=&region=na\|eu` | Nexon GMS ランキングAPI中継（現在レベルとEXPのスナップショット）。EXP Tracker はこれを1日1回呼んで各ブラウザに日次記録を貯める |
 | `GET/PUT /api/community` | コミュニティ名簿の共有スナップショット |
 | `GET/PUT /api/scheduler` | 週ボスの希望とPT編成 |
 
