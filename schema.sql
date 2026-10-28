@@ -81,3 +81,23 @@ CREATE TABLE IF NOT EXISTS scheduler_history (
   updated_at  TEXT    NOT NULL,
   updated_by  TEXT
 );
+
+-- ---------------------------------------------------------
+--  利用状況（アプリを開いた回数と利用ブラウザ数）
+-- ---------------------------------------------------------
+-- worker.js の /api/hit が最初の記録のときに同じものを作るので、流さなくても動く。
+-- 名前・キャラ・IP は持たない。vid はブラウザごとのランダムIDのハッシュ。
+-- app = '*' の行はサイト全体（どれかのアプリを開いたブラウザ）。日付は JST。
+CREATE TABLE IF NOT EXISTS usage_daily (
+  day    TEXT    NOT NULL,                   -- 'YYYY-MM-DD'（JST）
+  app    TEXT    NOT NULL,                   -- APPS のキー（planner, hexa …）
+  opens  INTEGER NOT NULL DEFAULT 0,         -- 開いた回数
+  PRIMARY KEY (day, app)
+);
+
+CREATE TABLE IF NOT EXISTS usage_visitors (
+  day    TEXT    NOT NULL,
+  app    TEXT    NOT NULL,
+  vid    TEXT    NOT NULL,                   -- ブラウザIDのハッシュ
+  PRIMARY KEY (day, app, vid)
+);

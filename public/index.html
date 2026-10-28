@@ -193,6 +193,12 @@
                     <span class="nav-label">Job Art Position</span>
                     <span class="dev-dot"></span>
                 </button></li>
+                <!-- 管理用。?admin=1 のときだけ出す（script.js の initAppRouting）。 -->
+                <li class="hidden"><button onclick="app.switchApp('usage')" id="app-usage"
+                    class="nav-item dev-app" title="Usage（アプリごとの利用状況・管理用）">
+                    <i data-lucide="chart-column" class="w-5 h-5"></i>
+                    <span class="nav-label">Usage</span>
+                </button></li>
             </ul>
         </nav>
         <ul class="menu menu-sm w-full border-t border-base-content/10">
@@ -399,6 +405,8 @@
                 <div id="view-guide" class="hidden-page fade-in"></div>
                 <!-- 中身は job_art_tool.js が描く（DEV: 職業の透かしの位置合わせ）。 -->
                 <div id="view-jobart" class="hidden-page fade-in"></div>
+                <!-- 中身は usage_stats.js が描く（管理用: アプリごとの利用状況）。 -->
+                <div id="view-usage" class="hidden-page fade-in"></div>
 
                 <!-- ========== EXP SIMULATOR APP ========== -->
                 <!-- 中身は exp_sim.html。初回オープン時に読み込む（script.js の APPS）。 -->
