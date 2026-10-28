@@ -738,8 +738,10 @@ const app = {
     // アプリを開いた回数を数える（worker.js の /api/hit）。送るのはアプリ名と、
     // ブラウザごとのランダムなID（利用ブラウザ数を出すため。個人とは結び付かない）だけ。
     // 届かなくても何も困らないので、結果は見ない。
+    // ?admin=1 で開いている間は管理する人の操作なので数えない（普段の URL での利用は数える）。
     trackOpen(appName) {
         if (appName === 'usage' || !navigator.sendBeacon) return;
+        if (new URLSearchParams(location.search).get('admin') === '1') return;
         let vid = '';
         try {
             vid = localStorage.getItem('mm-usage-id') || '';
