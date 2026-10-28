@@ -30,6 +30,7 @@ Cloudflare Worker + 静的アセットとして配信している。ビルド工
 | DEV（開発中） | Gear Cost Calculator | `cost` | `public/cost_calc.js` |
 | DEV（開発中） | Weapon Liberation | `liberation` | `public/liberation_calc.js` ほか |
 | DEV（開発中） | Job Art Position | `jobart` | `public/job_art_tool.js`（値は `public/job_art.js`） |
+| 管理用（`?admin=1` のときだけ表示） | Usage | `usage` | `public/usage_stats.js` |
 
 ### アプリの読み込み
 
@@ -61,6 +62,8 @@ Community Members / Party Builder / Character Manager / EXP Tracker の4つが�
 | `GET /api?name=&region=na\|eu` | Nexon GMS ランキングAPI中継（現在レベルとEXPのスナップショット）。EXP Tracker はこれを1日1回呼んで各ブラウザに日次記録を貯める |
 | `GET/PUT /api/community` | コミュニティ名簿の共有スナップショット |
 | `GET/PUT /api/scheduler` | 週ボスの希望とPT編成 |
+| `POST /api/hit` | アプリを開いた回数を数える。本文は `{app, vid}`（vid はブラウザごとのランダムID）。プレビューとローカルは数えない |
+| `GET /api/usage?days=` | その集計（日別・アプリ別の回数と利用ブラウザ数） |
 
 `functions/` には Cloudflare Pages Functions 時代の同等コードが残っているが、
 今の Worker + 静的アセット構成では **読まれていない**（`worker.js` 冒頭のコメント参照）。
@@ -113,6 +116,9 @@ D1 データベース `maplemanager-scheduler` に、共有するものを2つ�
 
 - `community_state` … コミュニティ名簿
 - `scheduler_state` … 週ボスの希望とPT編成
+
+ほかに利用状況の集計（`usage_daily` / `usage_visitors`）がある。こちらは回数とブラウザIDのハッシュだけで、
+名前・キャラ・IP は持たない。テーブルは Worker が最初の記録のときに作る。
 
 **本番の D1 には実データ（PT編成とメンバー情報）が入っている。** `--remote` を付けるコマンドは
 そのデータベースを直接触るので注意すること。

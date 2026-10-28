@@ -673,6 +673,12 @@ const app = {
             init() { hexaTracker.init(); },
             reopen() { hexaTracker.syncPageNav(); }
         },
+        usage: {
+            view: 'view-usage',
+            scripts: ['usage_stats.js'],
+            init() { usageStats.init('view-usage'); },
+            reopen() { usageStats.load(); }
+        },
         liberation: {
             view: 'view-liberation-calc',
             nav: 'liberation-nav',
@@ -720,6 +726,26 @@ const app = {
         // 知らない名前のハッシュは、ダッシュボードを出したうえで URL からも消す。
         if (first === 'planner' && location.hash) history.replaceState(null, '', this.appUrl('planner'));
         if (first !== 'planner') this.switchApp(first, { fromUrl: true });
+        else this.trackOpen('planner');
+
+        // 利用状況（Usage）は管理用。?admin=1 のときだけサイドバーに出す。
+        if (new URLSearchParams(location.search).get('admin') === '1') {
+            const btn = document.getElementById('app-usage');
+            if (btn) btn.closest('li').classList.remove('hidden');
+        }
+    },
+
+    // アプリを開いた回数を数える（worker.js の /api/hit）。送るのはアプリ名と、
+    // ブラウザごとのランダムなID（利用ブラウザ数を出すため。個人とは結び付かない）だけ。
+    // 届かなくても何も困らないので、結果は見ない。
+    trackOpen(appName) {
+        if (appName === 'usage' || !navigator.sendBeacon) return;
+        let vid = '';
+        try {
+            vid = localStorage.getItem('mm-usage-id') || '';
+            if (!vid) localStorage.setItem('mm-usage-id', vid = crypto.randomUUID());
+        } catch (e) { /* 保存できないブラウザは毎回別IDになるが、回数は数えられる */ }
+        try { navigator.sendBeacon('/api/hit', JSON.stringify({ app: appName, vid: vid || crypto.randomUUID() })); } catch (e) {}
     },
 
     // サイドバーの開閉。起動時の状態は index.html の </aside> 直後で当てている。
@@ -732,6 +758,7 @@ const app = {
         const entry = this.APPS[appName];
         if (!entry) return;
         this.currentApp = appName;
+        this.trackOpen(appName);
 
         // サイドバーから切り替えたときは履歴に積む（ブラウザの戻るで前のアプリへ）。
         // URL から来たときは、URL の方が既に正しいので触らない。

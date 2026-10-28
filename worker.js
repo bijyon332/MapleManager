@@ -19,6 +19,8 @@
 //   /api/scheduler           -> Boss Scheduler の共有データ (D1)
 //                               GET  現在のスナップショットとバージョン
 //                               PUT  {version, data, updatedBy} で保存（楽観ロック）
+//   /api/hit                 -> アプリを開いた回数を数える（POST {app, vid}、D1）
+//   /api/usage?days=         -> その集計（GET、?admin=1 の Usage 画面が読む）
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 
@@ -303,6 +305,104 @@ async function handleState(request, env, kind) {
   return json({ error: 'Method not allowed' }, 405);
 }
 
+// ---------------------------------------------------------
+//  利用状況（アプリを開いた回数と利用ブラウザ数）
+// ---------------------------------------------------------
+// 画面がアプリを開くたびに /api/hit へ {app, vid} を送ってくる。vid はブラウザごとの
+// ランダムな文字列（localStorage）で、個人とは結び付かない。そのままは残さず、
+// ハッシュにしてから「その日・そのアプリを使ったブラウザ」として1行ずつ持つ。
+// IP・キャラ名・Discord名などは一切受け取らない。
+//
+//   usage_daily    … 日 × アプリ ごとの開いた回数
+//   usage_visitors … 日 × アプリ × ブラウザ（ハッシュ）。app = '*' はサイト全体
+//
+// 日付は JST。テーブルは最初の記録のときに作るので、schema.sql を流し直さなくても動く。
+// プレビュー（<版>-maplemanager.*.workers.dev）とローカルは本番と同じ D1 を
+// 汚さないよう数えない（USAGE_ALL_HOSTS を付けた wrangler dev だけ例外）。
+const USAGE_DDL = [
+  `CREATE TABLE IF NOT EXISTS usage_daily (
+     day TEXT NOT NULL, app TEXT NOT NULL, opens INTEGER NOT NULL DEFAULT 0,
+     PRIMARY KEY (day, app))`,
+  `CREATE TABLE IF NOT EXISTS usage_visitors (
+     day TEXT NOT NULL, app TEXT NOT NULL, vid TEXT NOT NULL,
+     PRIMARY KEY (day, app, vid))`
+];
+let usageReady = null;
+function ensureUsageTables(env) {
+  if (!usageReady) {
+    usageReady = env.DB.batch(USAGE_DDL.map(q => env.DB.prepare(q)));
+    usageReady.catch(() => { usageReady = null; });
+  }
+  return usageReady;
+}
+
+function jstDay(ms) {
+  return new Date(ms + 9 * 3600e3).toISOString().slice(0, 10);
+}
+
+function countsHost(hostname, env) {
+  if (env.USAGE_ALL_HOSTS) return true;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return false;
+  return !(hostname.endsWith('.workers.dev') && !hostname.startsWith('maplemanager.'));
+}
+
+async function hashVid(vid) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('bijyontools-usage:' + vid));
+  return [...new Uint8Array(buf).slice(0, 12)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function handleHit(request, env, url) {
+  if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+  if (!env.DB || !countsHost(url.hostname, env)) return new Response(null, { status: 204 });
+
+  // sendBeacon は text/plain で来るので Content-Type は見ずに読む。
+  let body;
+  try { body = JSON.parse(await request.text()); } catch (e) { return json({ error: 'JSONとして読めません' }, 400); }
+  const app = String(body && body.app || '');
+  const vid = String(body && body.vid || '');
+  if (!/^[a-z0-9_-]{1,32}$/.test(app)) return json({ error: 'app が不正です' }, 400);
+  if (!/^[A-Za-z0-9-]{8,64}$/.test(vid)) return json({ error: 'vid が不正です' }, 400);
+
+  await ensureUsageTables(env);
+  const day = jstDay(Date.now());
+  const h = await hashVid(vid);
+  await env.DB.batch([
+    env.DB.prepare(`INSERT INTO usage_daily (day, app, opens) VALUES (?, ?, 1)
+                    ON CONFLICT (day, app) DO UPDATE SET opens = opens + 1`).bind(day, app),
+    env.DB.prepare(`INSERT OR IGNORE INTO usage_visitors (day, app, vid) VALUES (?, ?, ?)`).bind(day, app, h),
+    env.DB.prepare(`INSERT OR IGNORE INTO usage_visitors (day, app, vid) VALUES (?, '*', ?)`).bind(day, h)
+  ]);
+  return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*' } });
+}
+
+// 直近 days 日（今日を含む）の集計。中身は回数とブラウザ数だけなので鍵は要求しない。
+//   daily   … [{day, app, opens, browsers}]（app = '*' の行はサイト全体のブラウザ数）
+//   period  … [{app, browsers}] 期間を通した重複なしのブラウザ数
+async function handleUsage(env, url) {
+  if (!env.DB) return json({ error: 'D1 (DB) がバインドされていません' }, 501);
+  const days = Math.min(Math.max(parseInt(url.searchParams.get('days'), 10) || 30, 1), 366);
+  await ensureUsageTables(env);
+  const from = jstDay(Date.now() - (days - 1) * 86400e3);
+  const [opens, browsers, period] = await env.DB.batch([
+    env.DB.prepare(`SELECT day, app, opens FROM usage_daily WHERE day >= ?`).bind(from),
+    env.DB.prepare(`SELECT day, app, COUNT(*) AS n FROM usage_visitors WHERE day >= ? GROUP BY day, app`).bind(from),
+    env.DB.prepare(`SELECT app, COUNT(DISTINCT vid) AS n FROM usage_visitors WHERE day >= ? GROUP BY app`).bind(from)
+  ]);
+  const rows = new Map();
+  const row = (day, app) => {
+    const k = day + '|' + app;
+    if (!rows.has(k)) rows.set(k, { day, app, opens: 0, browsers: 0 });
+    return rows.get(k);
+  };
+  opens.results.forEach(r => { row(r.day, r.app).opens = r.opens; });
+  browsers.results.forEach(r => { row(r.day, r.app).browsers = r.n; });
+  return json({
+    from, to: jstDay(Date.now()), days,
+    daily: [...rows.values()],
+    period: period.results.map(r => ({ app: r.app, browsers: r.n }))
+  }, 200);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -311,6 +411,8 @@ export default {
     if (url.pathname === '/kinoko')        return handleKinoko(request);
     if (url.pathname === '/api/scheduler') return handleState(request, env, 'scheduler');
     if (url.pathname === '/api/community') return handleState(request, env, 'community');
+    if (url.pathname === '/api/hit')       return handleHit(request, env, url);
+    if (url.pathname === '/api/usage')     return handleUsage(env, url);
     if (url.pathname === '/api')           return handleApi(url);
     return env.ASSETS.fetch(request);
   }
