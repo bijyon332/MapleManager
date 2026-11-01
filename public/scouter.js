@@ -12,6 +12,7 @@
 //   entry = { form: {...}, result: {...} | null, history: [{at, b300, b300h}],
 //             hyperOpt: { pdr, critBuff, locked }, hyperRun: {...} | null,   — hyperRun は「ハイパーを計算する」の結果
 //             calib: { min, scale, at, on } | undefined }   — ボスカットの実測補正（EXスウのソロ実測タイムと火力の倍率、on はトグル）
+//   form.symbol = { cernium: true, ... }   — Lv11 以上のオーセンティックシンボル（その地域のボスだけダメージ +20%）
 // form は画面の項目そのまま。送るときに buildUserStat() で先方の形に組み立てる。
 
 const scouter = (() => {
@@ -61,7 +62,7 @@ const scouter = (() => {
         noblessBoss: true, noblessDmg: true, noblessCriDmg: true, noblessIgnore: true, nobless: ['15', '15', '15', '15'],
         sayram: true, collector: true, buff275: false, additional1: true, additional2: false,
         championAll: '0', championAtk: '0', championBoss: '0', championIgnore: '0', championCriDmg: '0',
-        authenticDmg: false, moonshine: false, cake: false, apple: false, tengu: false, candy: false, house: false, potion4: false,
+        moonshine: false, cake: false, apple: false, tengu: false, candy: false, house: false, potion4: false,
         wedding: false, specialWedding: false, whiteBear: false, ultraVip: false, superVip: false, truffle: false,
         medal: false, hyperRainbow: false, rainbow: false, thanks: false, genePass: false, criDmgRing: '0',
     };
@@ -85,6 +86,16 @@ const scouter = (() => {
         ['thief', 'Explorer 盗賊', 'link/thief.png'], ['angel', 'Angelic Buster', 'link/angel.png'],
         ['hoyoung', 'Hoyoung', 'link/hoyoung.png'], ['mukhyun', 'Mo Xuan', 'link/mukhyun.png'], ['kanna', 'Kanna', 'link/kanna.png'],
         ['mihile', 'Mihile', 'link/mihile.png', 'mihile'], ['kaiser', 'Kaiser', 'link/kaiser.png', 'kaiser'],
+    ];
+    // オーセンティックシンボル。Lv11 以上にすると、その地域のボスを攻撃するときだけダメージ +20%（Nexon 公式ガイド）。
+    // HEXA換算などの全体の値には入れず、ボスカットの該当ボスだけに掛ける（symbolCuts）。
+    // アイコンは assets/scouter/symbol/<key>.png（GMS のアイテム 1713000〜1713005・1714000〜1714001、maplestory.io から）。
+    // 凶星・ベローナはアルテリア扱い（MapleScouter の対応表 78547 と同じ。公式ガイドの一覧には無い）。
+    const SYMBOL_DMG = 20;
+    const SYMBOLS = [
+        ['cernium', 'Cernium', ['세렌']], ['arcus', 'Hotel Arcus', ['칼로스']], ['odium', 'Odium', ['대적자']],
+        ['shangrila', 'Shangri-La', ['카링']], ['arteria', 'Arteria', ['흉성', '벨로나']], ['carcion', 'Carcion', ['림보']],
+        ['tallahart', 'Tallahart', ['발드릭스']], ['geardock', 'Geardock', ['유피테르']],
     ];
     const SEEDS = [
         ['restraintRing', 'Restraint Ring', 'seed/restraint.png'], ['continuosRing', 'Continuous Ring', 'seed/continuos.png'],
@@ -112,7 +123,6 @@ const scouter = (() => {
             ['moonshine', 'Moonshine', 'buff/moonshine.png'],
             ['shiningRed', 'Red Star', 'buff/shiningred.png'],
             ['genePass', 'Genesis Pass', 'buff/opponent.png'],
-            ['authenticDmg', 'シンボル最大（ダメージ20%）', 'buff/authentic_symbol.png'],
             ['candy', 'Candied Apple', 'buff/candy.png'],
         ] },
         { title: '攻撃力の薬（1つ）', items: [
@@ -178,6 +188,7 @@ const scouter = (() => {
             link: { ark: '2', illium: '2', kadena: '2', kain: '2', magician: '6', thief: '6', angel: '2', hoyoung: '0', mukhyun: '0', mihile: '0', kaiser: '0', kanna: '0' },
             seed: { restraintRing: '4', continuosRing: '4' },
             doping: dopingDefault(),
+            symbol: Object.fromEntries(SYMBOLS.map(([k]) => [k, false])),
             wildhunterUnion: '0',
             // ハイパーステータスの今のレベル（scouter_hyper.js の KEYS）と、画面の残りポイント。
             hyper: Object.fromEntries(HYPER_KEYS.map((k) => [k, '0'])), hyperPoint: '',
@@ -204,6 +215,7 @@ const scouter = (() => {
         // デーモンアヴェンジャーは「伝説の英雄の秘薬」が HP 版になる（先方の画面と同じ）。
         if (f.classId === 'demonavenger') { d.legendHp = !!d.legendHero; d.legendHero = false; } else d.legendHp = false;
         delete d.potion4; delete d.dragonFood;   // 先方にない項目。攻撃力・魔力に足して送る。
+        d.authenticDmg = false;   // シンボルのダメージはボス別なので送らない（symbolCuts でボスカットに掛ける）。
         return d;
     }
 
@@ -284,9 +296,23 @@ const scouter = (() => {
         if (!loaded) load();
         if (!data[id]) data[id] = { form: DEFAULT_FORM(), result: null, history: [] };
         const e = data[id];
+        // 以前の「シンボル最大（ダメージ20%）」は全ボスにダメージ +20% を足していた。オンだった人は全地域 Lv11 として引き継ぐ。
+        const legacySym = !!(e.form && e.form.doping && e.form.doping.authenticDmg);
         e.form = { ...DEFAULT_FORM(), ...e.form };
         for (const k of ['main', 'sub', 'sub2', 'atk']) e.form[k] = { ...blankStat(), ...e.form[k] };
-        for (const k of ['hexa', 'link', 'seed', 'doping', 'hyper']) e.form[k] = { ...DEFAULT_FORM()[k], ...e.form[k] };
+        for (const k of ['hexa', 'link', 'seed', 'doping', 'hyper', 'symbol']) e.form[k] = { ...DEFAULT_FORM()[k], ...e.form[k] };
+        if ('authenticDmg' in e.form.doping) {
+            if (legacySym) {
+                for (const [k] of SYMBOLS) e.form.symbol[k] = true;
+                // そのとき出したボスカットは全ボスに +20% 入りなので印を付けておく（symbolCuts でシンボル外のボスから外す）。
+                // 実測補正の倍率も、EXスウ（シンボル外）の％が下がる分だけ直す。
+                if (e.result && e.result.cuts) {
+                    e.result.symAll = true;
+                    if (e.calib && e.calib.scale) e.calib.scale *= symbolFactor(e);
+                }
+            }
+            delete e.form.doping.authenticDmg;
+        }
         // 少しのあいだ Baby Dragon Food だった枠は Potion IV に置き換えた。
         if ('dragonFood' in e.form.doping) { if (e.form.doping.dragonFood) e.form.doping.potion4 = true; delete e.form.doping.dragonFood; }
         e.hyperOpt = { pdr: 300, critBuff: '0', locked: {}, ...(e.hyperOpt || {}) };
@@ -519,6 +545,7 @@ const scouter = (() => {
             <div class="flex flex-col gap-3">
                 ${hexaHTML(f)}
                 ${card('バフアイテム', 'ボス戦で使うもの。押すと On / Off', buffBody, `使用 ${buffOn} / ${allBuffs.length}`)}
+                ${symbolHTML(f)}
                 <div role="alert" class="alert alert-soft alert-info text-[11px] py-2 leading-relaxed">${esc(note)}</div>
             </div>
         </div>`;
@@ -554,6 +581,18 @@ const scouter = (() => {
         const on = !!d[k];
         return `<button type="button" class="btn btn-sm h-9 justify-start gap-2 px-1.5 font-normal ${on ? 'btn-soft btn-secondary' : 'btn-ghost border-base-content/10 [&_img]:grayscale [&_img]:opacity-50'}" data-sc="buff" data-key="${k}" title="${esc(label)}">
             ${img(icon)}<span class="truncate text-xs ${on ? 'text-base-content font-semibold' : 'text-base-content/45'}">${esc(label)}</span><span class="ml-auto text-[10px] font-mono font-bold ${on ? 'text-secondary' : 'text-base-content/30'}">${on ? 'ON' : 'OFF'}</span></button>`;
+    }
+
+    // オーセンティックシンボル Lv11 以上の地域。ボタンにカーソルを合わせると効くボスが出る。
+    function symbolHTML(f) {
+        const n = SYMBOLS.filter(([k]) => f.symbol[k]).length;
+        const tiles = SYMBOLS.map(([k, region, bosses]) => {
+            const on = !!f.symbol[k];
+            const names = bosses.map((b) => { const m = bossOf(b); return m ? (m.short || m.ja) : b; }).join('・');
+            return `<button type="button" class="btn btn-sm h-9 justify-start gap-2 px-1.5 font-normal ${on ? 'btn-soft btn-secondary' : 'btn-ghost border-base-content/10 [&_img]:grayscale [&_img]:opacity-50'}" data-sc="sym" data-key="${k}" title="${esc(`${region}（${names}）: Lv11 以上でダメージ +${SYMBOL_DMG}%`)}">
+                ${img(`symbol/${k}.png`)}<span class="truncate text-xs ${on ? 'text-base-content font-semibold' : 'text-base-content/45'}">${esc(region)}</span><span class="ml-auto text-[10px] font-mono font-bold ${on ? 'text-secondary' : 'text-base-content/30'}">${on ? 'ON' : 'OFF'}</span></button>`;
+        }).join('');
+        return card('オーセンティックシンボル', `Lv11 以上の地域。そのボスにだけダメージ +${SYMBOL_DMG}%`, grid4(tiles), `Lv11 ${n} / ${SYMBOLS.length}`);
     }
 
     // HEXA。手で入れる。キャラは HEXA Tracker の今のレベルをボタンで取り込める。
@@ -762,6 +801,11 @@ const scouter = (() => {
         const rank = (ko) => { const b = bossOf(ko); const i = b ? order.indexOf(b.en) : -1; return i < 0 ? 99 : i; };
         return Object.keys(by).sort((x, y) => rank(x) - rank(y)).map((ko) => ({ ko, boss: bossOf(ko), cuts: by[ko] }));
     }
+    // シンボルが効いているボスの名前の横に、その地域のシンボルを出す。
+    function symbolMark(ko) {
+        const s = SYMBOLS.find(([, , b]) => b.includes(ko));
+        return s ? `<img class="sc-bc-sym" src="${ICON}symbol/${s[0]}.png" alt="" title="${esc(s[1])} シンボル Lv11（ダメージ +${SYMBOL_DMG}%）">` : '';
+    }
     function cutCell(c) {
         if (!c) return '<td class="sc-bc-none"></td>';
         const [txt, cls] = CUT_LABEL[c.v] || [c.v, 'c-no'];
@@ -780,6 +824,31 @@ const scouter = (() => {
     // 掛けるかどうかはトグル（on）で切り替える。時間は残したまま外せる（bi 指定）。
     const CALIB_MIN = 30;
     const calibBase = (cuts) => (cuts || []).find((c) => c.b === '스우' && c.d === 'Extreme') || null;
+    // シンボルのダメージ +20% で火力が何倍になるか。ダメージは足し算なので、ダメージ 1% の伸び（スペック効率）の 20 倍。
+    // スペック効率が無い古い結果は画面の値から出す（+18 は計算元の補正、scouter_kinoko.js の DMG_FIX）。
+    function symbolFactor(e) {
+        const eff = e.result && e.result.eff && e.result.eff.dmgeff1;
+        if (eff > 0) return 1 + SYMBOL_DMG * eff;
+        const f = e.form || {};
+        return 1 + SYMBOL_DMG / (100 + 18 + num(f.dmg) + num(f.bossDmg));
+    }
+    const symbolBosses = (f) => new Set(SYMBOLS.filter(([k]) => f.symbol && f.symbol[k]).flatMap(([, , b]) => b));
+    // ボスカットにシンボルを反映する。％は火力に比例するので、そのボスだけ倍率を掛けて判定を付け直す（Lv不足はそのまま）。
+    // symAll は以前の「全ボス +20%」で出した結果。シンボル外（または Lv11 にしていない地域）のボスから外す。
+    function symbolCuts(e) {
+        const cuts = e.result && e.result.cuts;
+        if (!cuts || typeof scouterBossCut === 'undefined') return cuts;
+        const on = symbolBosses(e.form), all = !!e.result.symAll;
+        if (!on.size && !all) return cuts;
+        const k = symbolFactor(e);
+        return cuts.map((c) => {
+            const m = (on.has(c.b) ? k : 1) / (all ? k : 1);
+            const sym = on.has(c.b) ? { sym: 1 } : {};
+            if (m === 1) return { ...c, ...sym };
+            const r = c.r * m;
+            return { ...c, ...sym, r, v: c.v === '입장 불가능' ? c.v : scouterBossCut.verdict(r, !!c.p, c.l) };
+        });
+    }
     // 時間は秒数で入れる（コロンは打ちにくいので、bi 指定）。「630」→ 10.5分。読めなければ null。保存は分（calib.min）。
     function parseSeconds(s) {
         const t = String(s || '').trim().replace(/[０-９]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xFEE0)).replace(/秒$/, '');
@@ -789,9 +858,9 @@ const scouter = (() => {
     }
     const fmtSeconds = (min) => String(Math.round(min * 60));
     const fmtMinutes = (min) => { const sec = Math.round(min * 60); return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; };
-    // 表に出す％と判定。補正があれば倍率を掛けて判定を付け直す（Lv不足はそのまま）。
+    // 表に出す％と判定。シンボルを反映してから、補正があれば倍率を掛けて判定を付け直す（Lv不足はそのまま）。
     function shownCuts(e) {
-        const cuts = e.result && e.result.cuts;
+        const cuts = symbolCuts(e);
         const k = e.calib && e.calib.on && e.calib.scale;
         if (!cuts || !k || typeof scouterBossCut === 'undefined') return cuts;
         return cuts.map((c) => {
@@ -801,7 +870,7 @@ const scouter = (() => {
     }
     function setCalib(text) {
         const e = cur.e;
-        const base = calibBase(e.result && e.result.cuts);
+        const base = calibBase(symbolCuts(e));
         const min = parseSeconds(text);
         if (!String(text || '').trim()) delete e.calib;
         else if (!min) { setMsg('時間は秒数で入れてください（例 10分30秒なら 630）。', 'err'); return; }
@@ -811,7 +880,7 @@ const scouter = (() => {
         renderModal();
     }
     function calibHTML(e) {
-        const base = calibBase(e.result.cuts);
+        const base = calibBase(symbolCuts(e));
         if (!base || !(base.r > 0)) return '';
         const c = e.calib, on = !!(c && c.on);
         return `<div class="sc-calib ${on ? 'on' : ''}">
@@ -832,7 +901,7 @@ const scouter = (() => {
         const count = {};
         for (const x of rows) for (const c of x.cuts) { const cls = (CUT_LABEL[c.v] || [, 'c-no'])[1]; count[cls] = (count[cls] || 0) + 1; }
         const body = rows.map(({ ko, boss, cuts }) => `<tr>
-            <th><b>${esc(boss ? (boss.short || boss.ja) : ko)}</b></th>
+            <th><b>${esc(boss ? (boss.short || boss.ja) : ko)}</b>${cuts.some((c) => c.sym) ? symbolMark(ko) : ''}</th>
             ${CUT_COLS.map((ds) => cutCell(cuts.find((c) => ds.includes(c.d)))).join('')}
         </tr>`).join('');
         return `<h3 class="sc-bc-h"><i data-lucide="skull"></i>ボスカット
@@ -1048,6 +1117,7 @@ const scouter = (() => {
             else if (k === 'live') toggleLive();
             else if (k === 'hexa') importHexa();
             else if (k === 'buff') toggleBuff(t.dataset.key);
+            else if (k === 'sym') { const sy = cur.e.form.symbol; sy[t.dataset.key] = !sy[t.dataset.key]; save(); renderModal(); }
             else if (k === 'tab') { cur.tab = t.dataset.tab; renderModal(); }
             else if (k === 'hlock') toggleLock(t.dataset.key);
             else if (k === 'step') { cur.step = t.dataset.step; renderModal(); }
