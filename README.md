@@ -15,7 +15,7 @@ Cloudflare Worker + 静的アセットとして配信している。ビルド工
 
 | グループ | アプリ | キー | 実体 |
 | --- | --- | --- | --- |
-| Information | Journal（旧 News） | `updates` | `public/gms_updates.js`（GMS・KMSのアップデート告知の和訳と、Bijyon のコラム。上部バーの GMS／KMS と、少し離した Column で切り替え、その一覧（新しい順）が出る。コラムは `region: 'COLUMN'`、id は `col-` で始める。選んだ回は目次＋全訳の1ページで、目次から各節へ飛び、各節の「↑ 目次へ」で戻る。和訳の書き方は `.claude/skills/news-translation/SKILL.md`。各回の本文と画像は `public/updates/<id>/`。新しい回は `python3 -I tools/import_gms_update.py <和訳.html> <id>` で取り込み、`gms_updates.js` の `LIST` の先頭に1件足す。過去の回は消さない） |
+| Information | Journal（旧 News） | `updates` | `public/gms_updates.js`（GMS・KMSのアップデート告知の和訳と、Bijyon のコラム。上部バーの GMS／KMS と、少し離した Column で切り替え、その一覧（新しい順）が出る。コラムは `region: 'COLUMN'`、id は `col-` で始める。選んだ回は目次＋全訳の1ページで、目次から各節へ飛び、各節の「↑ 目次へ」で戻る。和訳の書き方は `.claude/skills/news-translation/SKILL.md`。各回の本文と画像は `public/updates/<id>/`。新しい回は `python3 -I tools/import_gms_update.py <和訳.html> <id>` で取り込み、`public/updates/list.json` の先頭に1件足す。過去の回は消さない。各回は `/#updates/<id>` で開け、回のページの「リンクをコピー」で渡す `/journal/<id>` は `worker.js` が Discord などのプレビュー（タイトル・概要・カバー画像）を返してから `/#updates/<id>` へ送る。一覧は `/#updates/gms`・`kms`・`column`） |
 | Information | Guide | `guide` | `public/guide.js`（使い方ガイド。アプリ一覧・基本の操作・アプリごとの説明とスクショ・よくある質問。スクショは `public/assets/guide/`。アプリを足したり画面を大きく変えたりしたら、文とスクショも直す） |
 | Tools | Character Manager | `planner` | `public/script.js` |
 | Tools | HEXA Tracker | `hexa` | `public/hexa_tracker.js`、`public/hexa_reader.js`（進捗入力の「ゲーム画面から読み取り」。HEXA Matrix の画面をスクショ・ライブ共有から読む。タイトルの位置だけ Tesseract.js で探し、ノードは固定の位置、Lvの小さな数字は形の照合で読む） |
@@ -64,6 +64,7 @@ Community Members / Party Builder / Character Manager / EXP Tracker の4つが�
 | `GET/PUT /api/scheduler` | 週ボスの希望とPT編成 |
 | `POST /api/hit` | アプリを開いた回数を数える。本文は `{app, vid}`（vid はブラウザごとのランダムID）。プレビューとローカルは数えない |
 | `GET /api/usage?days=` | その集計（日別・アプリ別の回数と利用ブラウザ数） |
+| `GET /journal/<id>` | Journal の回を人に渡す用の URL。`public/updates/list.json` からその回のタイトル・概要・カバー画像を Discord などのプレビュー用タグにして返し、ブラウザは `/#updates/<id>` へ送る。知らない id はそのまま送り先へ（画面側で一覧に戻る） |
 
 `functions/` には Cloudflare Pages Functions 時代の同等コードが残っているが、
 今の Worker + 静的アセット構成では **読まれていない**（`worker.js` 冒頭のコメント参照）。

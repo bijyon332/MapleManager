@@ -618,7 +618,11 @@ const app = {
             view: 'view-updates',
             nav: 'updates-nav',
             scripts: ['gms_updates.js'],
-            init() { gmsUpdates.init('view-updates'); }
+            // 回ごとの URL（#updates/<id>、一覧は #updates/gms など）。中身は gms_updates.js
+            init() { gmsUpdates.init('view-updates', this.hashRoute().sub); },
+            reopen() { gmsUpdates.route(this.hashRoute().sub); },
+            route(sub) { if (this._started.updates) gmsUpdates.route(sub); },
+            subpath() { return typeof gmsUpdates !== 'undefined' ? gmsUpdates.subpath() : ''; }
         },
         guide: {
             view: 'view-guide',
@@ -701,23 +705,34 @@ const app = {
     // パス（/hexa）にしないのは、静的アセットが拡張子なしのURLを .html に解決するので
     // /ranks で断片の ranks.html が返ってしまうのと、Worker 側の振り分けが要るため。
     // ?view=1 などのクエリはそのまま残す。
-    appFromHash() {
-        let name = location.hash.slice(1);
-        try { name = decodeURIComponent(name); } catch (e) { /* 壊れた %xx はそのまま照合して外れる */ }
-        return Object.hasOwn(this.APPS, name) ? name : 'planner';
+    // アプリの中の画面も URL にしたいアプリは、/#<キー>/<中の画面> の形にする（今は Journal の回だけ）。
+    // APPS の route(sub) が URL から画面を合わせ、subpath() が今の画面の名前を返す。
+    hashRoute() {
+        let hash = location.hash.slice(1);
+        try { hash = decodeURIComponent(hash); } catch (e) { /* 壊れた %xx はそのまま照合して外れる */ }
+        const i = hash.indexOf('/');
+        const name = i < 0 ? hash : hash.slice(0, i);
+        if (!Object.hasOwn(this.APPS, name)) return { name: 'planner', sub: '' };
+        return { name, sub: i < 0 ? '' : hash.slice(i + 1) };
     },
+
+    appFromHash() { return this.hashRoute().name; },
 
     appUrl(appName) {
         const base = location.pathname + location.search;
-        return appName === 'planner' ? base : `${base}#${appName}`;
+        if (appName === 'planner') return base;
+        const sub = this.APPS[appName]?.subpath?.call(this);
+        return sub ? `${base}#${appName}/${encodeURIComponent(sub)}` : `${base}#${appName}`;
     },
 
     initAppRouting() {
         // 戻る・進むと、アドレスバーでハッシュを書き換えたとき。
         // 両方来ることがあるが、同じアプリなら何もしないので二重には切り替わらない。
+        // 同じアプリの中の画面だけ変わったとき（Journal の回から回へ戻るなど）は、そのアプリの route へ。
         const follow = () => {
-            const name = this.appFromHash();
+            const { name, sub } = this.hashRoute();
             if (name !== this.currentApp) this.switchApp(name, { fromUrl: true });
+            else this.APPS[name]?.route?.call(this, sub);
         };
         window.addEventListener('popstate', follow);
         window.addEventListener('hashchange', follow);
