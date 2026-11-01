@@ -9,7 +9,7 @@
 // 補正後の換算値は MapleScouter と ±0.5% 以内、ボスカットの判定は123マス中120マス一致）:
 //   - 全キャラ ダメージ +18%。MapleScouter との差（スペック効率から逆算）。理由は不明（bi 了承）。
 //   - Heroic（リブート）は 攻撃力・魔力 +5、最終ダメージ +45%。kinokohub に Heroic の設定がないため。
-//   - シンボル最大（ダメージ20%）は kinokohub ではボス別の判定にしか効かないので、ダメージに足して送る。
+//   - オーセンティックシンボル Lv11 のダメージ +20% はボス別なので送らない（scouter.js の symbolCuts でボスカットに掛ける）。
 
 const scouterKinoko = (() => {
     'use strict';
@@ -78,7 +78,7 @@ const scouterKinoko = (() => {
         return {
             basicStats: {
                 level: int(f.level), class: CLASS_ID[f.classId],
-                damage: String(Math.round(num(f.dmg) + DMG_FIX + (d.authenticDmg ? 20 : 0))), bossDamage: int(f.bossDmg),
+                damage: String(Math.round(num(f.dmg) + DMG_FIX)), bossDamage: int(f.bossDmg),
                 ignoreDefence: dec(f.ignoreDef), criticalRate: dec(f.critical), criticalDamage: dec(f.criticalDmg),
                 cooldown: { absolute: int(f.coolSec), percentage: int(f.coolPer) },
                 buffDuration: int(f.buffDuration), cooldownNotApplied: dec(f.resetCool),

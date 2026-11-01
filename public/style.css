@@ -557,6 +557,7 @@ body {
 .sc-bctbl tbody th { border: 1px solid #1e293b; padding: 0 10px; text-align: left; white-space: nowrap; background: #0b1224; }
 .sc-bctbl tbody th img { width: 44px; height: 44px; object-fit: cover; vertical-align: middle; margin-right: 8px; }
 .sc-bctbl tbody th b { font-size: 13px; color: #f1f5f9; vertical-align: middle; }
+.sc-bctbl tbody th img.sc-bc-sym { display: inline-block; width: 18px; height: 18px; object-fit: contain; vertical-align: middle; margin: 0 0 0 6px; }
 .sc-bc-none { border: 1px solid #1e293b; background: repeating-linear-gradient(135deg, #020617 0 6px, #0b1224 6px 7px); }
 .sc-bc { position: relative; border: 1px solid #1e293b; border-left: 3px solid var(--cc); padding: 4px 6px 6px 5px; background: #020617; }
 .sc-bc-in { display: flex; align-items: center; gap: 7px; }
