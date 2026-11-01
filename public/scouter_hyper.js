@@ -99,24 +99,26 @@
         const statKeys = [cls[1], cls[2], cls[3]].filter(Boolean).map((s) => s.toLowerCase()).filter((k) => KEYS.includes(k));
         return [statKeys, ['dmg', 'boss'], ['cr', 'cd'], ['att'], ['ied']];
     }
-    function combos(keys, locked, current) {
+    function combos(keys, locked, current, pinned) {
         let out = [{}];
         for (const k of keys) {
-            const lvs = locked[k] ? [lvOf(current, k)] : Array.from({ length: MAX + 1 }, (_, i) => i);
+            const lvs = k in pinned ? [pinned[k]] : locked[k] ? [lvOf(current, k)] : Array.from({ length: MAX + 1 }, (_, i) => i);
             out = out.flatMap((o) => lvs.map((lv) => ({ ...o, [k]: lv })));
         }
         return out;
     }
 
     // f: Scouter の入力、cls: CLASSES の行、current: 今のハイパー、
-    // opt: { total（所持ポイント）, locked: {key: true}, pdr: 300|380, critBuff }
+    // opt: { total（所持ポイント）, locked: {key: true}, fixed: {key: lv}（そのレベルに決め打ち。クリティカル率など）, pdr: 300|380, critBuff }
     function optimize(f, cls, classId, current, opt) {
         const locked = opt.locked || {};
+        const pinned = {};
+        for (const [k, v] of Object.entries(opt.fixed || {})) if (KEYS.includes(k)) pinned[k] = lvOf({ [k]: v }, k);
         const groups = groupsFor(cls);
         const inGroup = new Set(groups.flat());
         // まとまりに入らない項目は、固定なら今のまま、そうでなければ 0。
         const fixed = {};
-        for (const k of KEYS) if (!inGroup.has(k)) fixed[k] = locked[k] ? lvOf(current, k) : 0;
+        for (const k of KEYS) if (!inGroup.has(k)) fixed[k] = k in pinned ? pinned[k] : locked[k] ? lvOf(current, k) : 0;
         const total = Math.max(0, Math.floor(num(opt.total)));
         const B = total - costOf(fixed);
         const zero = Object.fromEntries(KEYS.map((k) => [k, 0]));
@@ -128,7 +130,7 @@
         const picks = [];
         if (B < 0) return null;
         for (const keys of groups) {
-            const opts = combos(keys, locked, current).map((o) => ({ o, c: costOf(o), v: val(o) - base })).filter((x) => x.c <= B);
+            const opts = combos(keys, locked, current, pinned).map((o) => ({ o, c: costOf(o), v: val(o) - base })).filter((x) => x.c <= B);
             const nd = new Float64Array(B + 1).fill(-Infinity);
             const pick = new Int32Array(B + 1).fill(-1);
             for (let i = 0; i < opts.length; i++) {

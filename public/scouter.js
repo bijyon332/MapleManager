@@ -10,8 +10,8 @@
 // 保存（localStorage）:
 //   { 'char:<id>': entry, 'free': entry }   — 'free' はキャラに紐付けない仮入力
 //   entry = { form: {...}, result: {...} | null, history: [{at, b300, b300h}],
-//             hyperOpt: { pdr, critBuff, locked }, hyperRun: {...} | null,   — hyperRun は「ハイパーを計算する」の結果
-//             hstatOpt: { pdr, critBuff }, hstatRun: {...} | null,   — hstatRun は「HEXAステを計算する」の結果
+//             hyperOpt: { locked, crLv }, hyperRun: {...} | null,   — hyperRun は「ハイパーを計算する」の結果
+//             hstatRun: {...} | null,   — hstatRun は「HEXAステを計算する」の結果
 //             calib: { min, scale, at, on } | undefined }   — ボスカットの実測補正（EXスウのソロ実測タイムと火力の倍率、on はトグル）
 //   form.hexaStat = [{ main, mainLv, a1, a1Lv, a2, a2Lv } ×3]   — HEXAステータスのコア I〜III（種類は scouter_hexastat.js の TYPES）
 //   form.symbol = { cernium: true, ... }   — Lv11 以上のオーセンティックシンボル（その地域のボスだけダメージ +20%）
@@ -320,8 +320,10 @@ const scouter = (() => {
         }
         // 少しのあいだ Baby Dragon Food だった枠は Potion IV に置き換えた。
         if ('dragonFood' in e.form.doping) { if (e.form.doping.dragonFood) e.form.doping.potion4 = true; delete e.form.doping.dragonFood; }
-        e.hyperOpt = { pdr: 300, critBuff: '0', locked: {}, ...(e.hyperOpt || {}) };
-        e.hstatOpt = { pdr: 380, critBuff: '0', ...(e.hstatOpt || {}) };
+        // ボス防御率は 380% だけ、クリ率のバフ上乗せはなし（bi 指定 2026-11-01）。
+        // crLv はハイパーでクリティカル率に振る Lv（自分で決める。'' なら今の Lv）。最適化はそれを差し引いた残りで行う。
+        e.hyperOpt = { locked: {}, crLv: '', ...(e.hyperOpt || {}) };
+        delete e.hyperOpt.pdr; delete e.hyperOpt.critBuff; delete e.hstatOpt;
         e.form.hexaStat = blankHexaStat().map((b, i) => ({ ...b, ...((e.form.hexaStat || [])[i] || {}) }));
         // リンクスキルと Wild Hunter ユニオンは全キャラ共通（シードリングはキャラごと）。
         // link は共通の入れ物をそのまま指すので、入力すると全キャラに効く。
@@ -646,17 +648,21 @@ const scouter = (() => {
             ? `<p class="text-[11px] text-warning">画面の残り ${fmt(left)}pt と合いません（Lv${esc(f.level)} の所持 ${fmt(total)}pt − 使用 ${fmt(used)}pt = ${fmt(total - used)}pt）。Lv かレベルの読み取りを確かめてください。</p>` : '';
         const opts = (v) => Array.from({ length: 16 }, (_, i) => `<option value="${i}" ${i === v ? 'selected' : ''}>${i}</option>`).join('');
         const pct = (x) => (x >= 0 ? '+' : '') + (x * 100).toFixed(2) + '%';
-        const pdrBtn = (v) => `<button data-sc="hpdr" data-v="${v}" class="btn btn-xs ${num(o.pdr) === v ? 'btn-primary' : ''}">${v}%</button>`;
+        const crLv = hyperCrLv(e);
         const rows = HYPER_KEYS.map((k) => {
             const a = now[k], b = r ? (r.levels[k] || 0) : null, d = r ? b - a : 0;
             const lockOn = !!o.locked[k];
+            // クリティカル率は条件で決めた Lv に固定（固定ボタンは出さない）。
+            const lockCell = k === 'cr'
+                ? `<span class="btn btn-xs btn-square btn-warning btn-soft pointer-events-none" title="条件の「クリティカル率に振る Lv」で固定"><i data-lucide="lock" class="w-3 h-3"></i></span>`
+                : `<button data-sc="hlock" data-key="${k}" class="btn btn-xs btn-square ${lockOn ? 'btn-warning btn-soft' : 'btn-ghost text-base-content/30'}" title="${lockOn ? '固定を外す' : '今のレベルで固定する'}"><i data-lucide="${lockOn ? 'lock' : 'lock-open'}" class="w-3 h-3"></i></button>`;
             return `<tr class="${d ? 'sc-hy-chg' : ''}">
                 <th><span class="text-base-content/85" title="${esc(H.ITEMS.find((x) => x.key === k).name)}">${esc(HYPER_JA[k])}</span></th>
                 <td class="text-right whitespace-nowrap"><select class="select select-xs w-14 font-mono ${a ? 'font-bold' : 'text-base-content/35'}" data-k="hyper.${k}">${opts(a)}</select><small>${esc(effText(k, a))}</small></td>
                 <td class="font-mono text-right font-bold ${b ? 'text-white' : 'text-base-content/30'}">${r ? b : '—'}<small>${r ? esc(effText(k, b)) : ''}</small></td>
                 <td class="font-mono text-right ${d > 0 ? 'text-success font-bold' : d < 0 ? 'text-error font-bold' : 'text-base-content/25'}">${d > 0 ? '+' + d : d < 0 ? d : '·'}</td>
                 <td class="font-mono text-right text-base-content/60">${r ? fmt(H.CUM[b]) : ''}</td>
-                <td class="text-center"><button data-sc="hlock" data-key="${k}" class="btn btn-xs btn-square ${lockOn ? 'btn-warning btn-soft' : 'btn-ghost text-base-content/30'}" title="${lockOn ? '固定を外す' : '今のレベルで固定する'}"><i data-lucide="${lockOn ? 'lock' : 'lock-open'}" class="w-3 h-3"></i></button></td>
+                <td class="text-center">${lockCell}</td>
             </tr>`;
         }).join('');
         const same = r && HYPER_KEYS.every((k) => (r.levels[k] || 0) === now[k]);
@@ -664,13 +670,11 @@ const scouter = (() => {
         // 伸びは最終ダメージで出す。MapleScouter の HEXA 込みダメージ（calculatedHexaDamage）の比が取れたらそれ、
         // 取れるまで・取れなかったときは手元の計算（scouter_hyper.js）の見込み。
         const fd = (a, b) => a > 0 && b > 0 ? b / a - 1 : null;
-        const api300 = chk && !chk.error ? fd(chk.nowD300, chk.newD300) : null;
         const api380 = chk && !chk.error ? fd(chk.nowD380, chk.newD380) : null;
-        const useApi = api300 !== null && api380 !== null;
-        const g300 = useApi ? api300 : r && r.gain300, g380 = useApi ? api380 : r && r.gain380;
-        const is380 = r && num(r.pdr) === 380;
+        const useApi = api380 !== null;
+        const g380 = useApi ? api380 : r && r.gain380;
         const srcNote = !r || same ? '' : useApi
-            ? `<p class="text-[11px] text-base-content/50">${ENGINE_NAME} で今とおすすめのダメージを出した比です（6次スキルの進捗込み）。手元の見込みは ${esc(pct(is380 ? r.gain380 : r.gain300))}。</p>`
+            ? `<p class="text-[11px] text-base-content/50">${ENGINE_NAME} で今とおすすめのダメージを出した比です（6次スキルの進捗込み）。手元の見込みは ${esc(pct(r.gain380))}。</p>`
             : chk && chk.error ? `<p class="text-xs text-error">${esc(chk.error)}</p><p class="text-[11px] text-base-content/50">上は手元の計算の見込みです。</p>`
             : chk && chk.nowError ? `<p class="text-[11px] text-warning">今の振り方は ${ENGINE_NAME} で計算できませんでした（${esc(chk.nowError.replace(/^\S+ が計算できませんでした: /, ''))}）。上は手元の計算の見込みです。</p>`
             : chk ? `<p class="text-[11px] text-base-content/50">手元の計算の見込みです。もう一度「ハイパーを計算する」を押すと ${ENGINE_NAME} の値になります。</p>`
@@ -678,7 +682,7 @@ const scouter = (() => {
         const staleNote = stale ? '<p class="text-[11px] text-warning">計算したあとに入力や条件が変わりました。もう一度「ハイパーを計算する」を押してください。</p>' : '';
         const gainBox = r && !why ? card('伸び', same ? '今の振り方が一番です' : '今の振り方と比べた最終ダメージ', `
                     ${staleNote}
-                    <div class="sc-big"><span>最終ダメージ（ボス防御率 ${num(r.pdr)}%）</span><b>${pct(is380 ? g380 : g300)}</b><small>${is380 ? '300%' : '380%'}: ${pct(is380 ? g300 : g380)}</small></div>
+                    <div class="sc-big"><span>最終ダメージ（ボス防御率 380%）</span><b>${pct(g380)}</b></div>
                     ${srcNote}`)
             : card('伸び', '', `<div class="sc-res-empty ${err && !why ? 'sc-err' : ''}">${esc(err || '上の「ハイパーを計算する」を押すと、一番伸びる振り方と、最終ダメージが何％上がるかが出ます。')}</div>${err && !why ? '' : staleNote}`);
         return `${stepsHTML(['hyper'])}
@@ -692,10 +696,8 @@ const scouter = (() => {
             <div class="flex flex-col gap-3">
                 ${gainBox}
                 ${card('条件', '', `<div class="flex flex-col gap-2 text-xs">
-                    <div class="flex items-center gap-2"><span class="w-32 text-base-content/60">ボス防御率</span>${pdrBtn(300)}${pdrBtn(380)}</div>
-                    <label class="flex items-center gap-2"><span class="w-32 text-base-content/60">クリ率のバフ上乗せ</span><input class="input input-xs w-16 font-mono text-right" data-ho="critBuff" value="${esc(o.critBuff)}" inputmode="decimal"><span class="text-base-content/40">%</span></label>
-                    <p class="text-[11px] text-base-content/50 leading-relaxed">ボス戦でステータス画面の値より上がるクリティカル率（シャープアイズを入れていない場合など）。クリティカル率が 100% に届かない分は期待値で計算します。<br>
-                    ダメージにかからない項目（一般モンスターダメージ・獲得経験値・アーケインフォースなど）は固定しない限り 0 にします。${total ? `所持ポイントは Lv${esc(f.level)} から出しています（${fmt(total)}pt）。` : ''}</p>
+                    <label class="flex items-center gap-2"><span class="w-40 text-base-content/60">クリティカル率に振る Lv</span><select class="select select-xs w-14 font-mono font-bold" data-ho="crLv">${opts(crLv)}</select><small class="text-base-content/50">${esc(effText('cr', crLv) || '+0%')}</small></label>
+                    <p class="text-[11px] text-base-content/50 leading-relaxed">ダメージにかからない項目（一般モンスターダメージ・獲得経験値・アーケインフォースなど）は固定しない限り 0 にします。${total ? `所持ポイントは Lv${esc(f.level)} から出しています（${fmt(total)}pt）。` : ''}</p>
                 </div>`)}
             </div>
         </div>`;
@@ -714,7 +716,7 @@ const scouter = (() => {
     const hstatVal = (slot, t, lv) => { const X = HX(); return !X || !t ? 0 : slot === 'main' ? X.mainVal(t, lv) : X.addVal(t, lv); };
     // HEXAステ最適化タブ。Lv は今のまま、各枠の種類だけ選び直したときに一番伸びる置き方を出す（bi 指定）。
     function hstatPageHTML(e) {
-        const f = e.form, o = e.hstatOpt, X = HX();
+        const f = e.form, X = HX();
         const cls = CLASSES[f.classId];
         if (!X) return '<div class="sc-res-empty">読み込み中です。</div>';
         const why = !cls || !num(f.main.base) || !num(f.atk.base) ? '「入力」で職業と主ステータス・攻撃力の内訳を入れると、一番伸びる置き方が出ます。' : '';
@@ -724,7 +726,6 @@ const scouter = (() => {
         const bad = X.check(f.hexaStat);
         const err = why || (run && run.error) || '';
         const pct = (x) => (x >= 0 ? '+' : '') + (x * 100).toFixed(2) + '%';
-        const pdrBtn = (v) => `<button data-sc="xpdr" data-v="${v}" class="btn btn-xs ${num(o.pdr) === v ? 'btn-primary' : ''}">${v}%</button>`;
         const typeSel = (path, v) => `<select class="select select-xs w-44 ${v ? 'font-bold' : 'text-base-content/35'}" data-k="${path}"><option value="">—</option>${
             X.TYPES.map((t) => `<option value="${t}" ${t === v ? 'selected' : ''}>${esc(X.NAME[t])}</option>`).join('')}</select>`;
         const lvSel = (path, v) => `<select class="select select-xs w-14 font-mono ${num(v) ? 'font-bold' : 'text-base-content/35'}" data-k="${path}">${
@@ -753,13 +754,11 @@ const scouter = (() => {
         const chk = r && r.check ? r.check : null;
         // 伸びは最終ダメージ。計算元の HEXA 込みダメージの比が取れたらそれ、取れるまでは手元の計算の見込み。
         const fd = (a, b) => a > 0 && b > 0 ? b / a - 1 : null;
-        const api300 = chk && !chk.error ? fd(chk.nowD300, chk.newD300) : null;
         const api380 = chk && !chk.error ? fd(chk.nowD380, chk.newD380) : null;
-        const useApi = api300 !== null && api380 !== null;
-        const g300 = useApi ? api300 : r && r.gain300, g380 = useApi ? api380 : r && r.gain380;
-        const is380 = r && num(r.pdr) === 380;
+        const useApi = api380 !== null;
+        const g380 = useApi ? api380 : r && r.gain380;
         const srcNote = !r || same ? '' : useApi
-            ? `<p class="text-[11px] text-base-content/50">${ENGINE_NAME} で今とおすすめのダメージを出した比です。手元の見込みは ${esc(pct(is380 ? r.gain380 : r.gain300))}。</p>`
+            ? `<p class="text-[11px] text-base-content/50">${ENGINE_NAME} で今とおすすめのダメージを出した比です。手元の見込みは ${esc(pct(r.gain380))}。</p>`
             : chk && chk.error ? `<p class="text-xs text-error">${esc(chk.error)}</p><p class="text-[11px] text-base-content/50">上は手元の計算の見込みです。</p>`
             : chk && chk.nowError ? `<p class="text-[11px] text-warning">今の置き方は ${ENGINE_NAME} で計算できませんでした（${esc(chk.nowError)}）。上は手元の計算の見込みです。</p>`
             : `<p class="text-[11px] text-base-content/50">${ENGINE_NAME} で確かめています。いま出ているのは手元の計算の見込みです。</p>`;
@@ -768,7 +767,7 @@ const scouter = (() => {
         const effNote = r && !r.byEff ? '<p class="text-[11px] text-warning">「入力」で一度「計算する」をしてから押すと、計算元のスペック効率で置き方を選びます（今は手元の式で、防御率無視を高めに見ています）。</p>' : '';
         const gainBox = r && !why ? card('伸び', same ? '今の置き方が一番です' : `選び直すコア ${r.changed} 個`, `
                     ${staleNote}
-                    <div class="sc-big"><span>最終ダメージ（ボス防御率 ${num(r.pdr)}%）</span><b>${pct(is380 ? g380 : g300)}</b><small>${is380 ? '300%' : '380%'}: ${pct(is380 ? g300 : g380)}</small></div>
+                    <div class="sc-big"><span>最終ダメージ（ボス防御率 380%）</span><b>${pct(g380)}</b></div>
                     ${srcNote}${effNote}`)
             : card('伸び', '', `<div class="sc-res-empty ${err && !why ? 'sc-err' : ''}">${esc(err || '「HEXAステを計算する」を押すと、一番伸びる置き方と、最終ダメージが何％上がるかが出ます。')}</div>${err && !why ? '' : staleNote}`);
         return `<div class="flex">${actionsHTML()}</div>
@@ -779,28 +778,24 @@ const scouter = (() => {
             </table></div>${bad ? `<p class="text-[11px] text-warning">${esc(bad)}</p>` : ''}`)}
             <div class="flex flex-col gap-3">
                 ${gainBox}
-                ${card('条件', '', `<div class="flex flex-col gap-2 text-xs">
-                    <div class="flex items-center gap-2"><span class="w-32 text-base-content/60">ボス防御率</span>${pdrBtn(300)}${pdrBtn(380)}</div>
-                    <label class="flex items-center gap-2"><span class="w-32 text-base-content/60">クリ率のバフ上乗せ</span><input class="input input-xs w-16 font-mono text-right" data-xo="critBuff" value="${esc(o.critBuff)}" inputmode="decimal"><span class="text-base-content/40">%</span></label>
-                </div>`)}
             </div>
         </div>`;
     }
     function hstatSig(e) {
-        const f = e.form, o = e.hstatOpt;
+        const f = e.form;
         return JSON.stringify([f.classId, f.main, f.sub, f.sub2, f.atk, f.dmg, f.bossDmg, f.ignoreDef, f.critical, f.criticalDmg,
-            f.hexaStat, num(o.pdr), num(o.critBuff), e.result && e.result.at]);
+            f.hexaStat, e.result && e.result.at]);
     }
     // 「HEXAステを計算する」: 置き方の探索は手元だけ。計算元に送るのは今とおすすめの2回だけ（今が一番なら送らない）。
     async function runHexaStat() {
         if (!cur || cur.busy) return;
-        const e = cur.e, f = e.form, o = e.hstatOpt, X = HX(), cls = CLASSES[f.classId];
+        const e = cur.e, f = e.form, X = HX(), cls = CLASSES[f.classId];
         if (!X) return;
         if (!cls || !num(f.main.base) || !num(f.atk.base)) { setMsg('「入力」で職業・主ステータスと攻撃力の内訳を入れてください。', 'err'); return; }
         const sig = hstatSig(e), at = new Date().toISOString();
-        const r = X.optimize(f, cls, f.classId, f.hexaStat, { pdr: o.pdr, critBuff: o.critBuff, eff: e.result && e.result.eff });
+        const r = X.optimize(f, cls, f.classId, f.hexaStat, { pdr: 380, critBuff: 0, eff: e.result && e.result.eff });
         if (r.error) { e.hstatRun = { sig, at, error: r.error }; save(); renderModal(); return; }
-        e.hstatRun = { nodes: r.nodes, changed: r.changed, gain300: r.gain300, gain380: r.gain380, byEff: r.byEff, sig, at, pdr: num(o.pdr), check: null };
+        e.hstatRun = { nodes: r.nodes, changed: r.changed, gain300: r.gain300, gain380: r.gain380, byEff: r.byEff, sig, at, pdr: 380, check: null };
         if (!r.changed) { save(); renderModal(); setMsg('今の置き方が一番です。', 'ok'); return; }
         const st = X.shift(f, cls, f.classId, X.sumOf(f.hexaStat), X.sumOf(r.nodes));
         const g = JSON.parse(JSON.stringify(f));
@@ -849,7 +844,12 @@ const scouter = (() => {
     function hyperSig(e) {
         const f = e.form, o = e.hyperOpt;
         return JSON.stringify([f.classId, f.level, f.main, f.sub, f.sub2, f.atk, f.dmg, f.bossDmg, f.ignoreDef, f.critical, f.criticalDmg,
-            hyperLv(f), o.locked, num(o.pdr), num(o.critBuff)]);
+            hyperLv(f), o.locked, hyperCrLv(e)]);
+    }
+    // ハイパーでクリティカル率に振る Lv（条件で決める。未設定なら今の Lv）。
+    function hyperCrLv(e) {
+        const v = e.hyperOpt && e.hyperOpt.crLv;
+        return v === '' || v === undefined ? num(e.form.hyper && e.form.hyper.cr) : Math.max(0, Math.min(15, Math.floor(num(v))));
     }
     // 「ハイパーを計算する」: 一番伸びる振り方を出し、今とおすすめを計算元に投げて最終ダメージの比を出す。
     async function runHyper() {
@@ -860,9 +860,9 @@ const scouter = (() => {
         if (!cls || !num(f.main.base) || !num(f.atk.base) || !total) { setMsg('「入力」で職業・Lv・主ステータスと攻撃力の内訳を入れてください。', 'err'); return; }
         const now = hyperLv(f);
         const sig = hyperSig(e), at = new Date().toISOString();
-        const r = H.optimize(f, cls, f.classId, now, { total, locked: o.locked, pdr: o.pdr, critBuff: o.critBuff });
-        if (!r) { e.hyperRun = { sig, at, error: '固定した項目だけで所持ポイントを超えています。固定を外してください。' }; save(); renderModal(); return; }
-        e.hyperRun = { ...r, sig, at, pdr: num(o.pdr), check: null };
+        const r = H.optimize(f, cls, f.classId, now, { total, locked: o.locked, fixed: { cr: hyperCrLv(e) }, pdr: 380, critBuff: 0 });
+        if (!r) { e.hyperRun = { sig, at, error: 'クリティカル率と固定した項目だけで所持ポイントを超えています。Lv か固定を見直してください。' }; save(); renderModal(); return; }
+        e.hyperRun = { ...r, sig, at, pdr: 380, check: null };
         if (HYPER_KEYS.every((k) => (r.levels[k] || 0) === now[k])) { save(); renderModal(); setMsg('今の振り方が一番です。', 'ok'); return; }
         const st = H.shift(f, cls, now, r.levels);
         const g = JSON.parse(JSON.stringify(f));
@@ -1252,9 +1252,7 @@ const scouter = (() => {
             else if (k === 'tab') { cur.tab = t.dataset.tab; renderModal(); }
             else if (k === 'hlock') toggleLock(t.dataset.key);
             else if (k === 'step') { cur.step = t.dataset.step; renderModal(); }
-            else if (k === 'hpdr') { cur.e.hyperOpt.pdr = Number(t.dataset.v); save(); renderModal(); }
             else if (k === 'hcalc') runHyper();
-            else if (k === 'xpdr') { cur.e.hstatOpt.pdr = Number(t.dataset.v); save(); renderModal(); }
             else if (k === 'xcalc') runHexaStat();
             else if (k === 'cutcopy') exportCuts('copy');
             else if (k === 'cutsave') exportCuts('save');
@@ -1273,7 +1271,6 @@ const scouter = (() => {
             if (t.dataset.sc === 'calib') { const v = t.value; setTimeout(() => setCalib(v)); return; }
             if (t.dataset.sc === 'calibon') { if (cur.e.calib) { cur.e.calib.on = t.checked; save(); } setTimeout(renderModal); return; }
             if (t.dataset.ho) { cur.e.hyperOpt[t.dataset.ho] = t.value.trim(); save(); setTimeout(renderModal); return; }
-            if (t.dataset.xo) { cur.e.hstatOpt[t.dataset.xo] = t.value.trim(); save(); setTimeout(renderModal); return; }
             if (!t.dataset.k) return;
             const f = cur.e.form;
             if (t.type === 'checkbox') setPath(f, t.dataset.k, t.checked);
