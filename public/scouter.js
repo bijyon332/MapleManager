@@ -708,7 +708,8 @@ const scouter = (() => {
 
     /* ---------- HEXAステータス ---------- */
     const HSTAT_SLOTS = [['main', 'メイン'], ['a1', '追加1'], ['a2', '追加2']];
-    const CORE_NAME = ['I', 'II', 'III'];
+    const CORE_NAME = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+    const CORE_LOCKED = 3;   // IV〜VI はまだ解放されていないので、枠だけグレーで出す（bi 指定 2026-11-01）
     // その枠の値（メインは表の累計、追加は Lv × 1Lv分）。
     const hstatVal = (slot, t, lv) => { const X = HX(); return !X || !t ? 0 : slot === 'main' ? X.mainVal(t, lv) : X.addVal(t, lv); };
     // HEXAステ最適化タブ。Lv は今のまま、各枠の種類だけ選び直したときに一番伸びる置き方を出す（bi 指定）。
@@ -735,14 +736,19 @@ const scouter = (() => {
                 const t = n[slot], lv = n[slot + 'Lv'];
                 const rt = rec ? rec[slot] : '';
                 const chg = rec && rt !== t;
-                return `<tr class="${chg ? 'sc-hy-chg' : ''} ${j === 2 && i < 2 ? 'sc-hx-end' : ''}">
+                return `<tr class="${chg ? 'sc-hy-chg' : ''} ${j === 2 ? 'sc-hx-end' : ''}">
                     ${j === 0 ? `<th rowspan="3" class="sc-hx-core ${on ? 'text-white' : 'text-base-content/30'}">${CORE_NAME[i]}</th>` : ''}
                     <td class="whitespace-nowrap ${slot === 'main' ? 'font-bold text-base-content/85' : 'text-base-content/60'}">${label}</td>
                     <td class="whitespace-nowrap">${typeSel(`hexaStat.${i}.${slot}`, t)} ${lvSel(`hexaStat.${i}.${slot}Lv`, lv)}<small>${esc(on ? X.valText(t, hstatVal(slot, t, lv)) : '')}</small></td>
                     <td class="whitespace-nowrap ${chg ? 'text-white font-bold' : rec ? 'text-base-content/45' : 'text-base-content/25'}">${rec ? esc(X.NAME[rt]) : '—'}<small>${rec ? esc(X.valText(rt, hstatVal(slot, rt, lv))) : ''}</small></td>
                 </tr>`;
             }).join('');
-        }).join('');
+        }).join('') + CORE_NAME.slice(CORE_LOCKED).map((name, k) => HSTAT_SLOTS.map(([, label], j) => `<tr class="sc-hx-lock ${j === 2 && k < CORE_NAME.length - CORE_LOCKED - 1 ? 'sc-hx-end' : ''}" title="まだ解放されていません">
+                    ${j === 0 ? `<th rowspan="3" class="sc-hx-core">${name}<i data-lucide="lock" class="w-3 h-3 mx-auto mt-1"></i></th>` : ''}
+                    <td class="whitespace-nowrap">${label}</td>
+                    <td class="whitespace-nowrap"><select class="select select-xs w-44" disabled><option>—</option></select> <select class="select select-xs w-14" disabled><option>0</option></select><small></small></td>
+                    <td>—</td>
+                </tr>`).join('')).join('');
         const same = r && !r.changed;
         const chk = r && r.check ? r.check : null;
         // 伸びは最終ダメージ。計算元の HEXA 込みダメージの比が取れたらそれ、取れるまでは手元の計算の見込み。
