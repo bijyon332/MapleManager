@@ -680,10 +680,11 @@ const scouter = (() => {
             : chk ? `<p class="text-[11px] text-base-content/50">手元の計算の見込みです。もう一度「ハイパーを計算する」を押すと ${ENGINE_NAME} の値になります。</p>`
             : `<p class="text-[11px] text-base-content/50">${ENGINE_NAME} で確かめています。いま出ているのは手元の計算の見込みです。</p>`;
         const staleNote = stale ? '<p class="text-[11px] text-warning">計算したあとに入力や条件が変わりました。もう一度「ハイパーを計算する」を押してください。</p>' : '';
+        const effNote = r && !r.byEff ? '<p class="text-[11px] text-warning">「入力」で一度「計算する」をしてから押すと、計算元のスペック効率で振り方を選びます（今は手元の式で、防御率無視を高めに見ています）。</p>' : '';
         const gainBox = r && !why ? card('伸び', same ? '今の振り方が一番です' : '今の振り方と比べた最終ダメージ', `
                     ${staleNote}
                     <div class="sc-big"><span>最終ダメージ（ボス防御率 380%）</span><b>${pct(g380)}</b></div>
-                    ${srcNote}`)
+                    ${srcNote}${effNote}`)
             : card('伸び', '', `<div class="sc-res-empty ${err && !why ? 'sc-err' : ''}">${esc(err || '上の「ハイパーを計算する」を押すと、一番伸びる振り方と、最終ダメージが何％上がるかが出ます。')}</div>${err && !why ? '' : staleNote}`);
         return `${stepsHTML(['hyper'])}
             <div id="sc-reads">${readsHTML()}</div>
@@ -844,7 +845,7 @@ const scouter = (() => {
     function hyperSig(e) {
         const f = e.form, o = e.hyperOpt;
         return JSON.stringify([f.classId, f.level, f.main, f.sub, f.sub2, f.atk, f.dmg, f.bossDmg, f.ignoreDef, f.critical, f.criticalDmg,
-            hyperLv(f), o.locked, hyperCrLv(e)]);
+            hyperLv(f), o.locked, hyperCrLv(e), e.result && e.result.at]);
     }
     // ハイパーでクリティカル率に振る Lv（条件で決める。未設定なら今の Lv）。
     function hyperCrLv(e) {
@@ -860,7 +861,7 @@ const scouter = (() => {
         if (!cls || !num(f.main.base) || !num(f.atk.base) || !total) { setMsg('「入力」で職業・Lv・主ステータスと攻撃力の内訳を入れてください。', 'err'); return; }
         const now = hyperLv(f);
         const sig = hyperSig(e), at = new Date().toISOString();
-        const r = H.optimize(f, cls, f.classId, now, { total, locked: o.locked, fixed: { cr: hyperCrLv(e) }, pdr: 380, critBuff: 0 });
+        const r = H.optimize(f, cls, f.classId, now, { total, locked: o.locked, fixed: { cr: hyperCrLv(e) }, pdr: 380, critBuff: 0, eff: e.result && e.result.eff });
         if (!r) { e.hyperRun = { sig, at, error: 'クリティカル率と固定した項目だけで所持ポイントを超えています。Lv か固定を見直してください。' }; save(); renderModal(); return; }
         e.hyperRun = { ...r, sig, at, pdr: 380, check: null };
         if (HYPER_KEYS.every((k) => (r.levels[k] || 0) === now[k])) { save(); renderModal(); setMsg('今の振り方が一番です。', 'ok'); return; }
