@@ -6,7 +6,7 @@
 （data:URI）を別ファイルに書き出して public/updates/<id>/ に置く。
 要約（data-panel="summary"）が入っていたら捨て、全訳側のタブ用の印と「← 要約へ」も外す。
 最後に目次のリンク切れと「↑ 目次へ」のない節を調べて表示する。
-一覧への登録は public/gms_updates.js の LIST に手で1行足す。
+一覧への登録は public/updates/list.json の先頭に手で1件足す。
 
     python3 -I tools/import_gms_update.py <和訳.html> <id>
     例: python3 -I tools/import_gms_update.py maplayer-one-ja.html 2026-winter-maplayer-one

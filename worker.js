@@ -403,6 +403,54 @@ async function handleUsage(env, url) {
   }, 200);
 }
 
+// Journal の回を人に渡す用の URL（/journal/<id>）。
+// 画面の方はハッシュ（/#updates/<id>）で開くが、Discord などのプレビューは # より後ろを見ないので、
+// ここでその回のタイトル・概要・カバー画像のタグを返してから、ブラウザを /#updates/<id> へ送る。
+// 回の一覧は public/updates/list.json（gms_updates.js と同じもの）。知らない id も送り先で一覧に戻る。
+const htmlEsc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+async function handleJournal(env, url) {
+  let id = url.pathname.slice('/journal'.length).replace(/^\/+|\/+$/g, '');
+  try { id = decodeURIComponent(id); } catch (e) { /* 壊れた %xx は一覧へ */ id = ''; }
+  const target = id ? `/#updates/${encodeURIComponent(id)}` : '/#updates';
+
+  let list = [];
+  try {
+    const res = await env.ASSETS.fetch(new URL('/updates/list.json', url));
+    if (res.ok) list = await res.json();
+  } catch (e) { /* 読めなくても送り先へは送る */ }
+  const u = Array.isArray(list) ? list.find(x => x && x.id === id) : null;
+  if (!u) return Response.redirect(new URL(target, url).toString(), 302);
+
+  const label = u.region === 'COLUMN' ? 'Column' : u.region;
+  const title = u.title || 'Journal';
+  const desc = [u.period, u.subtitle].filter(Boolean).join(' ・ ') + (u.summary ? `\n${u.summary}` : '');
+  const image = new URL(u.cover || '/site-icon.png', url.origin + '/').toString();
+  const page = `<!doctype html>
+<html lang="ja"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${htmlEsc(title)} | BijyonTools Journal</title>
+<meta name="description" content="${htmlEsc(desc)}">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="BijyonTools Journal ${htmlEsc(label)}">
+<meta property="og:title" content="${htmlEsc(title)}">
+<meta property="og:description" content="${htmlEsc(desc)}">
+<meta property="og:url" content="${htmlEsc(url.origin + url.pathname)}">
+<meta property="og:image" content="${htmlEsc(image)}">
+<meta name="twitter:card" content="${u.cover ? 'summary_large_image' : 'summary'}">
+<meta name="theme-color" content="${u.region === 'COLUMN' ? '#f59e0b' : '#6366f1'}">
+<link rel="icon" href="/favicon-32.png">
+<meta http-equiv="refresh" content="0; url=${htmlEsc(target)}">
+<script>location.replace(${JSON.stringify(target)});</script>
+</head><body style="background:#0f172a;color:#e2e8f0;font-family:sans-serif">
+<p><a href="${htmlEsc(target)}" style="color:#818cf8">${htmlEsc(title)} を開く</a></p>
+</body></html>`;
+  return new Response(page, {
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' }
+  });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -414,6 +462,7 @@ export default {
     if (url.pathname === '/api/hit')       return handleHit(request, env, url);
     if (url.pathname === '/api/usage')     return handleUsage(env, url);
     if (url.pathname === '/api')           return handleApi(url);
+    if (url.pathname === '/journal' || url.pathname.startsWith('/journal/')) return handleJournal(env, url);
     return env.ASSETS.fetch(request);
   }
 };

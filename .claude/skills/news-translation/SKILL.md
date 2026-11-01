@@ -15,9 +15,10 @@ KMS 公式の告知（업데이트 안내、패치노트、이벤트 공지な�
 - 1回分は **目次＋全訳の1ページ**。要約や「要約／詳細」のタブは作らない（review-html-pair スキルの形は使わない）。
 - ページの先頭に目次（`id="toc"`）を置き、各項目から該当する節へ飛べるようにする。
 - 各節の見出しの右に「↑ 目次へ」（`href="#toc"`）を置き、目次へ戻れるようにする。
-- 一覧の行に出す1〜2行の説明は `public/gms_updates.js` の `LIST` の `summary` に書く（ページの中身とは別）。
-- 各回は `LIST` の `region` に `'GMS'` か `'KMS'` を持ち、その地域のタブにだけ出る。
-- 過去の回は消さない。新しい回は `LIST` の先頭に足す。
+- 一覧の行に出す1〜2行の説明は `public/updates/list.json` の `summary` に書く（ページの中身とは別）。
+- 各回は `list.json` の `region` に `'GMS'` か `'KMS'` を持ち、その地域のタブにだけ出る。
+- 過去の回は消さない。新しい回は `list.json` の先頭に足す。
+- 各回の `id` はそのまま URL（`/journal/<id>`、`/#updates/<id>`）になる。配った後で変えると開けなくなるので変えない。
 
 ## 訳し方
 
@@ -81,7 +82,8 @@ daisyUI 5 + Tailwind 4 の CDN を読み、`data-theme="maple"` 相当の暗い�
    ```
    → `public/updates/<id>/content.html` と `img-NN.*` が出来る。最後に出る「要確認」（目次のリンク切れ、
    「↑ 目次へ」のない節、id の重複）がなくなるまで直す。
-3. `public/gms_updates.js` の `LIST` の先頭に1件足す（`id` `region` `date` `kind` `title` `subtitle` `period` `cover` `summary`）。
-   `cover` は一覧のサムネイルにする画像（`updates/<id>/img-NN.jpg`）。
+3. `public/updates/list.json` の先頭に1件足す（`id` `region` `date` `kind` `title` `subtitle` `period` `cover` `summary`）。
+   `cover` は一覧のサムネイルと、Discord などに貼ったときのプレビュー画像（`updates/<id>/img-NN.jpg`）。
+   `title` `subtitle` `period` `summary` もプレビューに出る。
 4. 画面で確かめる: 該当する地域のタブの一覧に出る、回が開く、目次から各節へ飛ぶ、「↑ 目次へ」で戻る。
    スクショを撮って返信に添付する（プロジェクトのルール）。

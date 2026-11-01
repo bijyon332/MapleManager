@@ -1,0 +1,23 @@
+[
+  {
+    "id": "col-3rd-hexa-history",
+    "region": "COLUMN",
+    "date": "2026-10-21",
+    "kind": "Column",
+    "title": "KMS 1.2.417以降の職業調整の推移",
+    "subtitle": "by Bijyon",
+    "period": "",
+    "summary": "3rd HEXAスキル実装（KMS 1.2.417）から10月22日の KMS 1.2.420 まで、全職業のスキル調整を職業別に。3rd HEXA関連は色分けし、系統・傾向・キーワードで絞り込めます。"
+  },
+  {
+    "id": "2026-winter-maplayer-one",
+    "region": "GMS",
+    "date": "2026-10-17",
+    "kind": "GMS Update",
+    "title": "Inkwell's Note: Maplayer One",
+    "subtitle": "2026年冬アップデート プレビュー",
+    "period": "2026/11/11〜",
+    "cover": "updates/2026-winter-maplayer-one/img-02.jpg",
+    "summary": "冬アップデートのプレビュー。新イベントワールド Quanah、新職業レテ、HEXA第3弾、新ボス2体（ベローナ・メイリン）、QoL改善。"
+  }
+]
