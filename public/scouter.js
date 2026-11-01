@@ -89,12 +89,13 @@ const scouter = (() => {
     ];
     // オーセンティックシンボル。Lv11 以上にすると、その地域のボスを攻撃するときだけダメージ +20%（Nexon 公式ガイド）。
     // HEXA換算などの全体の値には入れず、ボスカットの該当ボスだけに掛ける（symbolCuts）。
+    // アイコンは assets/scouter/symbol/<key>.png（GMS のアイテム 1713000〜1713005・1714000〜1714001、maplestory.io から）。
     // 凶星・ベローナはアルテリア扱い（MapleScouter の対応表 78547 と同じ。公式ガイドの一覧には無い）。
     const SYMBOL_DMG = 20;
     const SYMBOLS = [
         ['cernium', 'Cernium', ['세렌']], ['arcus', 'Hotel Arcus', ['칼로스']], ['odium', 'Odium', ['대적자']],
         ['shangrila', 'Shangri-La', ['카링']], ['arteria', 'Arteria', ['흉성', '벨로나']], ['carcion', 'Carcion', ['림보']],
-        ['tallahart', 'Tallahart', ['발드릭스']], ['geardrak', 'Geardrak', ['유피테르']],
+        ['tallahart', 'Tallahart', ['발드릭스']], ['geardock', 'Geardock', ['유피테르']],
     ];
     const SEEDS = [
         ['restraintRing', 'Restraint Ring', 'seed/restraint.png'], ['continuosRing', 'Continuous Ring', 'seed/continuos.png'],
@@ -582,15 +583,14 @@ const scouter = (() => {
             ${img(icon)}<span class="truncate text-xs ${on ? 'text-base-content font-semibold' : 'text-base-content/45'}">${esc(label)}</span><span class="ml-auto text-[10px] font-mono font-bold ${on ? 'text-secondary' : 'text-base-content/30'}">${on ? 'ON' : 'OFF'}</span></button>`;
     }
 
-    // オーセンティックシンボル Lv11 以上の地域。アイコンはその地域のボス（ダメージ +20% が掛かる相手）。
+    // オーセンティックシンボル Lv11 以上の地域。ボタンにカーソルを合わせると効くボスが出る。
     function symbolHTML(f) {
         const n = SYMBOLS.filter(([k]) => f.symbol[k]).length;
         const tiles = SYMBOLS.map(([k, region, bosses]) => {
             const on = !!f.symbol[k];
             const names = bosses.map((b) => { const m = bossOf(b); return m ? (m.short || m.ja) : b; }).join('・');
-            const icons = bosses.map((b) => { const m = bossOf(b); return m && m.image ? `<img class="w-6 h-6 shrink-0 object-cover rounded-sm" src="assets/bosses/${esc(m.image)}.webp" alt="" loading="lazy">` : ''; }).join('');
             return `<button type="button" class="btn btn-sm h-9 justify-start gap-2 px-1.5 font-normal ${on ? 'btn-soft btn-secondary' : 'btn-ghost border-base-content/10 [&_img]:grayscale [&_img]:opacity-50'}" data-sc="sym" data-key="${k}" title="${esc(`${region}（${names}）: Lv11 以上でダメージ +${SYMBOL_DMG}%`)}">
-                <span class="flex shrink-0 -space-x-2">${icons}</span><span class="truncate text-xs ${on ? 'text-base-content font-semibold' : 'text-base-content/45'}">${esc(region)}</span><span class="ml-auto text-[10px] font-mono font-bold ${on ? 'text-secondary' : 'text-base-content/30'}">${on ? 'ON' : 'OFF'}</span></button>`;
+                ${img(`symbol/${k}.png`)}<span class="truncate text-xs ${on ? 'text-base-content font-semibold' : 'text-base-content/45'}">${esc(region)}</span><span class="ml-auto text-[10px] font-mono font-bold ${on ? 'text-secondary' : 'text-base-content/30'}">${on ? 'ON' : 'OFF'}</span></button>`;
         }).join('');
         return card('オーセンティックシンボル', `Lv11 以上の地域。そのボスにだけダメージ +${SYMBOL_DMG}%`, grid4(tiles), `Lv11 ${n} / ${SYMBOLS.length}`);
     }
@@ -801,6 +801,11 @@ const scouter = (() => {
         const rank = (ko) => { const b = bossOf(ko); const i = b ? order.indexOf(b.en) : -1; return i < 0 ? 99 : i; };
         return Object.keys(by).sort((x, y) => rank(x) - rank(y)).map((ko) => ({ ko, boss: bossOf(ko), cuts: by[ko] }));
     }
+    // シンボルが効いているボスの名前の横に、その地域のシンボルを出す。
+    function symbolMark(ko) {
+        const s = SYMBOLS.find(([, , b]) => b.includes(ko));
+        return s ? `<img class="sc-bc-sym" src="${ICON}symbol/${s[0]}.png" alt="" title="${esc(s[1])} シンボル Lv11（ダメージ +${SYMBOL_DMG}%）">` : '';
+    }
     function cutCell(c) {
         if (!c) return '<td class="sc-bc-none"></td>';
         const [txt, cls] = CUT_LABEL[c.v] || [c.v, 'c-no'];
@@ -896,7 +901,7 @@ const scouter = (() => {
         const count = {};
         for (const x of rows) for (const c of x.cuts) { const cls = (CUT_LABEL[c.v] || [, 'c-no'])[1]; count[cls] = (count[cls] || 0) + 1; }
         const body = rows.map(({ ko, boss, cuts }) => `<tr>
-            <th><b>${esc(boss ? (boss.short || boss.ja) : ko)}</b>${cuts.some((c) => c.sym) ? `<img class="sc-bc-sym" src="${ICON}buff/authentic_symbol.png" alt="" title="オーセンティックシンボル Lv11（ダメージ +${SYMBOL_DMG}%）">` : ''}</th>
+            <th><b>${esc(boss ? (boss.short || boss.ja) : ko)}</b>${cuts.some((c) => c.sym) ? symbolMark(ko) : ''}</th>
             ${CUT_COLS.map((ds) => cutCell(cuts.find((c) => ds.includes(c.d)))).join('')}
         </tr>`).join('');
         return `<h3 class="sc-bc-h"><i data-lucide="skull"></i>ボスカット
