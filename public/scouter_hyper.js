@@ -4,7 +4,8 @@
 // 差し引き、ポイントの範囲で全部の振り方から一番伸びるものを探す（動的計画法）。
 // ダメージは次の積で見る（最終ダメージ・スキル倍率などハイパーで変わらないものは省く）:
 //   主ステ項 × 攻撃力 × (1 + ダメージ + ボス) × クリティカルの期待値 × (1 − 防御率 × (1 − 防御率無視))
-// 決まった振り方は scouter.js が MapleScouter に投げて、換算主ステの差も出す。
+// 決まった振り方は scouter.js が計算元に投げて、換算主ステの差も出す。
+// 計算元のスペック効率があれば、伸びは上の式ではなくそちらで出す（effRatio）。
 //
 // 数値は GMS のもの。ポイントは Lv140 から1レベルごとに 3pt、10レベルごとに +1pt
 // （bi のキャラ Lv294 の画面の合計 1,590pt と一致を確認）。
@@ -92,6 +93,32 @@
             * (1 + (st.dmg + st.bossDmg) / 100) * (1 - crit + crit * (1.35 + st.criticalDmg / 100)) * def;
     }
 
+    /* ---------- 計算元のスペック効率で見る ---------- */
+    // 手元の式（value）はステータス画面の値しか知らず、職業のスキル・バフの防御率無視やダメージが入らない。
+    // そのため防御率無視とダメージを高く見すぎる（アデルの例で 防御率無視1% の伸びが計算元の約1.6倍）。
+    // 計算元（kinokohub）の結果のスペック効率があれば、そちらで伸びを出す（bi 指定 2026-11-01: 計算元を信頼する）。
+    // ハイパーの項目はどれも足し算で効くので、今の状態での効率から正確に出せる:
+    //   主ステ類・攻撃力・ダメージ+ボス・クリダメ は 1 + 効率 × 増えた量、
+    //   防御率無視は (1 − P×残り×m) / (1 − P×残り)。P×残り は効率から逆算する。
+    const EFF_KEYS = ['mainStatAbseff1', 'atkeff1', 'dmgeff1', 'cridmgeff1', 'igreff1', 'igreff1_380'];
+    const hasEff = (e) => !!e && EFF_KEYS.every((k) => typeof e[k] === 'number' && e[k] > 0);
+    // from → to のハイパーで火力が何倍になるか（効率は from の状態のもの）。
+    function effRatio(cls, eff, from, to, pdr) {
+        const d = (k) => effOf(k, lvOf(to, k)) - effOf(k, lvOf(from, k));
+        const absEff = [eff.mainStatAbseff1, eff.subStatAbseff1 || 0, eff.ssubStatAbseff1 || 0];
+        let stat = 1;
+        if (cls[1] === 'HP') stat += (eff.mainStatPereff1 || 0) * d('hp');      // デーモンアヴェンジャーは HP%
+        else [cls[1], cls[2], cls[3]].forEach((label, i) => {
+            const k = label && label.toLowerCase();
+            if (k && ['str', 'dex', 'int', 'luk'].includes(k)) stat += absEff[i] * d(k);
+        });
+        const eI = pdr === 380 ? eff.igreff1_380 : eff.igreff1;
+        const PR = eI / (0.01 + eI);
+        const m = (1 - effOf('ied', lvOf(to, 'ied')) / 100) / (1 - effOf('ied', lvOf(from, 'ied')) / 100);
+        return stat * (1 + eff.atkeff1 * d('att')) * (1 + eff.dmgeff1 * (d('dmg') + d('boss'))) * (1 + eff.cridmgeff1 * d('cd'))
+            * Math.max(1e-9, 1 - PR * m) / (1 - PR);
+    }
+
     /* ---------- 最適化 ---------- */
     // ダメージにかかる項目のまとまり。中で足し合う／掛け合うものは同じまとまりにして、
     // まとまり同士は掛け算（＝対数で足し算）になるようにしてある。
@@ -99,36 +126,43 @@
         const statKeys = [cls[1], cls[2], cls[3]].filter(Boolean).map((s) => s.toLowerCase()).filter((k) => KEYS.includes(k));
         return [statKeys, ['dmg', 'boss'], ['cr', 'cd'], ['att'], ['ied']];
     }
-    function combos(keys, locked, current) {
+    function combos(keys, locked, current, pinned) {
         let out = [{}];
         for (const k of keys) {
-            const lvs = locked[k] ? [lvOf(current, k)] : Array.from({ length: MAX + 1 }, (_, i) => i);
+            const lvs = k in pinned ? [pinned[k]] : locked[k] ? [lvOf(current, k)] : Array.from({ length: MAX + 1 }, (_, i) => i);
             out = out.flatMap((o) => lvs.map((lv) => ({ ...o, [k]: lv })));
         }
         return out;
     }
 
     // f: Scouter の入力、cls: CLASSES の行、current: 今のハイパー、
-    // opt: { total（所持ポイント）, locked: {key: true}, pdr: 300|380, critBuff }
+    // opt: { total（所持ポイント）, locked: {key: true}, fixed: {key: lv}（そのレベルに決め打ち。クリティカル率など）, pdr: 300|380, critBuff,
+    //        eff（計算元のスペック効率。あればこちらで伸びを出す） }
     function optimize(f, cls, classId, current, opt) {
         const locked = opt.locked || {};
+        const pinned = {};
+        for (const [k, v] of Object.entries(opt.fixed || {})) if (KEYS.includes(k)) pinned[k] = lvOf({ [k]: v }, k);
         const groups = groupsFor(cls);
         const inGroup = new Set(groups.flat());
         // まとまりに入らない項目は、固定なら今のまま、そうでなければ 0。
         const fixed = {};
-        for (const k of KEYS) if (!inGroup.has(k)) fixed[k] = locked[k] ? lvOf(current, k) : 0;
+        for (const k of KEYS) if (!inGroup.has(k)) fixed[k] = k in pinned ? pinned[k] : locked[k] ? lvOf(current, k) : 0;
         const total = Math.max(0, Math.floor(num(opt.total)));
         const B = total - costOf(fixed);
         const zero = Object.fromEntries(KEYS.map((k) => [k, 0]));
         // まとまりごとの対数の値。ほかの項目は 0 にして測る（積なので比は変わらない）。
         const ref = { ...zero };
-        const val = (lv) => Math.log(Math.max(1e-300, value(shift(f, cls, current, { ...ref, ...lv }), cls, classId, opt)));
+        const byEff = hasEff(opt.eff);
+        const pdr = num(opt.pdr) === 380 ? 380 : 300;
+        const val = byEff
+            ? (lv) => Math.log(Math.max(1e-300, effRatio(cls, opt.eff, current, { ...ref, ...lv }, pdr)))
+            : (lv) => Math.log(Math.max(1e-300, value(shift(f, cls, current, { ...ref, ...lv }), cls, classId, opt)));
         const base = val({});
         let dp = new Float64Array(Math.max(0, B) + 1);   // dp[b]: b pt 以内で取れる一番の値
         const picks = [];
         if (B < 0) return null;
         for (const keys of groups) {
-            const opts = combos(keys, locked, current).map((o) => ({ o, c: costOf(o), v: val(o) - base })).filter((x) => x.c <= B);
+            const opts = combos(keys, locked, current, pinned).map((o) => ({ o, c: costOf(o), v: val(o) - base })).filter((x) => x.c <= B);
             const nd = new Float64Array(B + 1).fill(-Infinity);
             const pick = new Int32Array(B + 1).fill(-1);
             for (let i = 0; i < opts.length; i++) {
@@ -152,14 +186,15 @@
             b -= x.c;
         }
         // 固定の項目は今のまま（まとまりに入るものも combos で今のレベルだけにしてある）。
-        const gain = (pdr) => {
-            const o = { ...opt, pdr };
+        const gain = (p) => {
+            if (byEff) return effRatio(cls, opt.eff, current, levels, p) - 1;
+            const o = { ...opt, pdr: p };
             return value(shift(f, cls, current, levels), cls, classId, o) / value(shift(f, cls, current, current), cls, classId, o) - 1;
         };
-        return { levels, total, used: costOf(levels), gain300: gain(300), gain380: gain(380) };
+        return { levels, total, used: costOf(levels), gain300: gain(300), gain380: gain(380), byEff };
     }
 
-    const api = { ITEMS, KEYS, COST, CUM, MAX, effOf, pointsAt, costOf, shift, value, optimize };
+    const api = { ITEMS, KEYS, COST, CUM, MAX, effOf, pointsAt, costOf, shift, value, hasEff, effRatio, optimize };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.scouterHyper = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -525,6 +525,13 @@ body {
 .sc-hytbl th, .sc-hytbl td { padding: 3px 8px; }
 .sc-hytbl td small { display: inline-block; min-width: 46px; margin-left: 6px; font-weight: 400; font-size: 10.5px; color: #64748b; text-align: left; }
 .sc-hytbl tr.sc-hy-chg th { box-shadow: inset 3px 0 0 #818cf8; }
+.sc-hxtbl td small { min-width: 54px; }
+.sc-hxtbl tr.sc-hy-chg th { box-shadow: none; }
+.sc-hxtbl tr.sc-hy-chg td:nth-last-child(1) { box-shadow: inset 3px 0 0 #818cf8; }
+.sc-hxtbl th.sc-hx-core { font-size: 15px; font-weight: 800; text-align: center; vertical-align: middle; border-right: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent); }
+.sc-hxtbl tr.sc-hx-lock > * { color: color-mix(in oklab, var(--color-base-content) 25%, transparent); }
+.sc-hxtbl tr.sc-hx-lock select { opacity: .45; }
+.sc-hxtbl tr.sc-hx-end td, .sc-hxtbl tr.sc-hx-end th { border-bottom: 1px solid color-mix(in oklab, var(--color-base-content) 18%, transparent); }
 .sc-side h3 svg { width: 14px; height: 14px; color: #818cf8; }
  { margin-left: auto; }
 .sc-cutpage { padding: 10px 12px; min-width: 0; }
