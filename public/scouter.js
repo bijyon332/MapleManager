@@ -11,7 +11,9 @@
 //   { 'char:<id>': entry, 'free': entry }   — 'free' はキャラに紐付けない仮入力
 //   entry = { form: {...}, result: {...} | null, history: [{at, b300, b300h}],
 //             hyperOpt: { pdr, critBuff, locked }, hyperRun: {...} | null,   — hyperRun は「ハイパーを計算する」の結果
+//             hstatOpt: { pdr, critBuff }, hstatRun: {...} | null,   — hstatRun は「HEXAステを計算する」の結果
 //             calib: { min, scale, at, on } | undefined }   — ボスカットの実測補正（EXスウのソロ実測タイムと火力の倍率、on はトグル）
+//   form.hexaStat = [{ main, mainLv, a1, a1Lv, a2, a2Lv } ×3]   — HEXAステータスのコア I〜III（種類は scouter_hexastat.js の TYPES）
 //   form.symbol = { cernium: true, ... }   — Lv11 以上のオーセンティックシンボル（その地域のボスだけダメージ +20%）
 // form は画面の項目そのまま。送るときに buildUserStat() で先方の形に組み立てる。
 
@@ -169,6 +171,8 @@ const scouter = (() => {
 
     const blankStat = () => ({ base: '', per: '', abs: '' });
     const HY = () => (typeof scouterHyper !== 'undefined' ? scouterHyper : null);
+    const HX = () => (typeof scouterHexaStat !== 'undefined' ? scouterHexaStat : null);
+    const blankHexaStat = () => [0, 1, 2].map(() => ({ main: '', mainLv: '0', a1: '', a1Lv: '0', a2: '', a2Lv: '0' }));
     const HYPER_KEYS = ['str', 'dex', 'int', 'luk', 'hp', 'mp', 'df', 'cr', 'cd', 'ied', 'dmg', 'boss', 'normal', 'status', 'att', 'exp', 'arcane'];
     // 画面の項目名（GMS の表記）と日本語。
     const HYPER_JA = {
@@ -192,6 +196,7 @@ const scouter = (() => {
             wildhunterUnion: '0',
             // ハイパーステータスの今のレベル（scouter_hyper.js の KEYS）と、画面の残りポイント。
             hyper: Object.fromEntries(HYPER_KEYS.map((k) => [k, '0'])), hyperPoint: '',
+            hexaStat: blankHexaStat(),
             screen: {},   // 画面から読んだ最終値（STR などの検算用）と戦闘力
         };
     }
@@ -316,6 +321,8 @@ const scouter = (() => {
         // 少しのあいだ Baby Dragon Food だった枠は Potion IV に置き換えた。
         if ('dragonFood' in e.form.doping) { if (e.form.doping.dragonFood) e.form.doping.potion4 = true; delete e.form.doping.dragonFood; }
         e.hyperOpt = { pdr: 300, critBuff: '0', locked: {}, ...(e.hyperOpt || {}) };
+        e.hstatOpt = { pdr: 380, critBuff: '0', ...(e.hstatOpt || {}) };
+        e.form.hexaStat = blankHexaStat().map((b, i) => ({ ...b, ...((e.form.hexaStat || [])[i] || {}) }));
         // リンクスキルと Wild Hunter ユニオンは全キャラ共通（シードリングはキャラごと）。
         // link は共通の入れ物をそのまま指すので、入力すると全キャラに効く。
         const sh = shared();
@@ -401,6 +408,7 @@ const scouter = (() => {
         document.addEventListener('keydown', cur.esc);
         cur.paste = (ev) => {
             if (page && !(rootEl && rootEl.offsetParent)) return;   // ページが隠れているときは読まない
+            if (cur && cur.tab === 'hstat') return;   // HEXAステのタブには読み取るものがない
             const item = [...((ev.clipboardData && ev.clipboardData.items) || [])].find((x) => x.type.startsWith('image/'));
             if (!item) return;
             ev.preventDefault();
@@ -436,14 +444,14 @@ const scouter = (() => {
         const portrait = char ? ((char.image && char.image.startsWith('http')) ? char.image : (char.classImage || '')) : (info ? info.path : '');
         const tabNow = cur.tab || 'input';
         const result = tabNow === 'result';
-        // ページでは入力／結果／ハイパーの切り替えを上部のヘッダー（#scouter-nav）に置く。モーダルでは枠のヘッダーに置く。
+        // ページでは入力／結果／ハイパー／HEXAステの切り替えを上部のヘッダー（#scouter-nav）に置く。モーダルでは枠のヘッダーに置く。
         syncNav();
         const tab = (id, icon, label) => `<button role="tab" data-sc="tab" data-tab="${id}" class="tab gap-1.5 ${id === tabNow ? 'tab-active' : ''}"><i data-lucide="${icon}" class="w-3.5 h-3.5"></i>${label}</button>`;
         const head = cur.page ? '' : `<div class="flex items-center gap-3 h-12 px-3 shrink-0 bg-base-100 border-b border-base-content/10">
                 ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-8 h-8 object-contain bg-base-300 border border-base-content/10">` : ''}
                 <b class="text-white">${esc(char ? char.name : '仮入力')}</b>
                 <span class="text-xs text-base-content/50">の Scouter</span>
-                <nav role="tablist" class="tabs tabs-box tabs-sm ml-2">${tab('input', 'pencil-line', '入力')}${tab('result', 'gauge', '結果')}${tab('hyper', 'sliders-horizontal', 'ハイパー最適化')}</nav>
+                <nav role="tablist" class="tabs tabs-box tabs-sm ml-2">${tab('input', 'pencil-line', '入力')}${tab('result', 'gauge', '結果')}${tab('hyper', 'sliders-horizontal', 'ハイパー最適化')}${tab('hstat', 'hexagon', 'HEXAステ最適化')}</nav>
                 <button data-sc="close" class="btn btn-sm btn-ghost btn-square ml-auto" title="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>
             </div>`;
         veil.innerHTML = `<div class="sc-modal ${cur.page ? '' : 'modal-box max-w-[1400px] w-[96vw] max-h-[94vh] p-0 flex flex-col bg-base-200 border border-base-content/15'}">
@@ -455,7 +463,7 @@ const scouter = (() => {
                 ${result ? `<div class="card card-sm bg-base-100 border border-base-content/10 overflow-hidden"><div class="sc-body sc-resbody">
                     <div class="sc-side" id="sc-result">${resultHTML(e)}</div>
                     <div class="sc-cutpage">${cutPageHTML(e)}</div>
-                </div></div>` : tabNow === 'hyper' ? hyperPageHTML(e) : `${stepsHTML(inputSteps())}
+                </div></div>` : tabNow === 'hyper' ? hyperPageHTML(e) : tabNow === 'hstat' ? hstatPageHTML(e) : `${stepsHTML(inputSteps())}
                 <div id="sc-reads">${readsHTML()}</div>
                 ${formHTML(e.form)}`}
             </div>
@@ -480,9 +488,10 @@ const scouter = (() => {
     function actionsHTML() {
         const tab = cur.tab || 'input';
         return `<div class="ml-auto flex gap-1 shrink-0">
-                ${tab !== 'result' ? `<button data-sc="file" class="btn btn-sm" title="ステータス画面のスクショを読み取る（貼り付け・ドロップでも可）"><i data-lucide="image" class="w-3.5 h-3.5"></i>スクショ読み取り</button>` : ''}
-                ${tab !== 'result' || cur.live ? `<button data-sc="live" class="btn btn-sm ${cur.live ? 'btn-error btn-soft' : ''}" title="ゲーム画面を共有して、ステータス画面を読み取り続ける"><i data-lucide="monitor" class="w-3.5 h-3.5"></i>${cur.live ? 'ライブ停止' : 'ライブ読み取り'}</button>` : ''}
+                ${tab !== 'result' && tab !== 'hstat' ? `<button data-sc="file" class="btn btn-sm" title="ステータス画面のスクショを読み取る（貼り付け・ドロップでも可）"><i data-lucide="image" class="w-3.5 h-3.5"></i>スクショ読み取り</button>` : ''}
+                ${(tab !== 'result' && tab !== 'hstat') || cur.live ? `<button data-sc="live" class="btn btn-sm ${cur.live ? 'btn-error btn-soft' : ''}" title="ゲーム画面を共有して、ステータス画面を読み取り続ける"><i data-lucide="monitor" class="w-3.5 h-3.5"></i>${cur.live ? 'ライブ停止' : 'ライブ読み取り'}</button>` : ''}
                 ${tab === 'input' ? `<button data-sc="calc" class="btn btn-sm btn-primary" ${cur.busy ? 'disabled' : ''}><i data-lucide="calculator" class="w-3.5 h-3.5"></i>${cur.busy ? '計算中…' : '計算する'}</button>` : ''}
+                ${tab === 'hstat' ? `<button data-sc="xcalc" class="btn btn-sm btn-primary" ${cur.busy ? 'disabled' : ''}><i data-lucide="hexagon" class="w-3.5 h-3.5"></i>${cur.busy ? '計算中…' : 'HEXAステを計算する'}</button>` : ''}
                 ${tab === 'hyper' ? `<button data-sc="hcalc" class="btn btn-sm btn-primary" ${cur.busy ? 'disabled' : ''}><i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>${cur.busy ? '計算中…' : 'ハイパーを計算する'}</button>` : ''}
                 <input type="file" accept="image/*" multiple data-sc="input" hidden>
             </div>`;
@@ -695,6 +704,122 @@ const scouter = (() => {
         const L = cur.e.hyperOpt.locked;
         if (L[k]) delete L[k]; else L[k] = true;
         save(); renderModal();
+    }
+
+    /* ---------- HEXAステータス ---------- */
+    const HSTAT_SLOTS = [['main', 'メイン'], ['a1', '追加1'], ['a2', '追加2']];
+    const CORE_NAME = ['I', 'II', 'III'];
+    // その枠の値（メインは表の累計、追加は Lv × 1Lv分）。
+    const hstatVal = (slot, t, lv) => { const X = HX(); return !X || !t ? 0 : slot === 'main' ? X.mainVal(t, lv) : X.addVal(t, lv); };
+    // HEXAステ最適化タブ。Lv は今のまま、各枠の種類だけ選び直したときに一番伸びる置き方を出す（bi 指定）。
+    function hstatPageHTML(e) {
+        const f = e.form, o = e.hstatOpt, X = HX();
+        const cls = CLASSES[f.classId];
+        if (!X) return '<div class="sc-res-empty">読み込み中です。</div>';
+        const why = !cls || !num(f.main.base) || !num(f.atk.base) ? '「入力」で職業と主ステータス・攻撃力の内訳を入れると、一番伸びる置き方が出ます。' : '';
+        const run = e.hstatRun || null;
+        const r = run && run.nodes ? run : null;
+        const stale = !!run && run.sig !== hstatSig(e);
+        const bad = X.check(f.hexaStat);
+        const err = why || (run && run.error) || '';
+        const pct = (x) => (x >= 0 ? '+' : '') + (x * 100).toFixed(2) + '%';
+        const pdrBtn = (v) => `<button data-sc="xpdr" data-v="${v}" class="btn btn-xs ${num(o.pdr) === v ? 'btn-primary' : ''}">${v}%</button>`;
+        const typeSel = (path, v) => `<select class="select select-xs w-44 ${v ? 'font-bold' : 'text-base-content/35'}" data-k="${path}"><option value="">—</option>${
+            X.TYPES.map((t) => `<option value="${t}" ${t === v ? 'selected' : ''}>${esc(X.NAME[t])}</option>`).join('')}</select>`;
+        const lvSel = (path, v) => `<select class="select select-xs w-14 font-mono ${num(v) ? 'font-bold' : 'text-base-content/35'}" data-k="${path}">${
+            Array.from({ length: X.MAX_LV + 1 }, (_, i) => `<option value="${i}" ${i === num(v) ? 'selected' : ''}>${i}</option>`).join('')}</select>`;
+        const rows = f.hexaStat.map((n, i) => {
+            const on = X.created(n);
+            const rec = r && r.nodes[i];
+            return HSTAT_SLOTS.map(([slot, label], j) => {
+                const t = n[slot], lv = n[slot + 'Lv'];
+                const rt = rec ? rec[slot] : '';
+                const chg = rec && rt !== t;
+                return `<tr class="${chg ? 'sc-hy-chg' : ''} ${j === 2 && i < 2 ? 'sc-hx-end' : ''}">
+                    ${j === 0 ? `<th rowspan="3" class="sc-hx-core ${on ? 'text-white' : 'text-base-content/30'}">${CORE_NAME[i]}</th>` : ''}
+                    <td class="whitespace-nowrap ${slot === 'main' ? 'font-bold text-base-content/85' : 'text-base-content/60'}">${label}</td>
+                    <td class="whitespace-nowrap">${typeSel(`hexaStat.${i}.${slot}`, t)} ${lvSel(`hexaStat.${i}.${slot}Lv`, lv)}<small>${esc(on ? X.valText(t, hstatVal(slot, t, lv)) : '')}</small></td>
+                    <td class="whitespace-nowrap ${chg ? 'text-white font-bold' : rec ? 'text-base-content/45' : 'text-base-content/25'}">${rec ? esc(X.NAME[rt]) : '—'}<small>${rec ? esc(X.valText(rt, hstatVal(slot, rt, lv))) : ''}</small></td>
+                </tr>`;
+            }).join('');
+        }).join('');
+        const same = r && !r.changed;
+        const chk = r && r.check ? r.check : null;
+        // 伸びは最終ダメージ。計算元の HEXA 込みダメージの比が取れたらそれ、取れるまでは手元の計算の見込み。
+        const fd = (a, b) => a > 0 && b > 0 ? b / a - 1 : null;
+        const api300 = chk && !chk.error ? fd(chk.nowD300, chk.newD300) : null;
+        const api380 = chk && !chk.error ? fd(chk.nowD380, chk.newD380) : null;
+        const useApi = api300 !== null && api380 !== null;
+        const g300 = useApi ? api300 : r && r.gain300, g380 = useApi ? api380 : r && r.gain380;
+        const is380 = r && num(r.pdr) === 380;
+        const srcNote = !r || same ? '' : useApi
+            ? `<p class="text-[11px] text-base-content/50">${ENGINE_NAME} で今とおすすめのダメージを出した比です。手元の見込みは ${esc(pct(is380 ? r.gain380 : r.gain300))}。</p>`
+            : chk && chk.error ? `<p class="text-xs text-error">${esc(chk.error)}</p><p class="text-[11px] text-base-content/50">上は手元の計算の見込みです。</p>`
+            : chk && chk.nowError ? `<p class="text-[11px] text-warning">今の置き方は ${ENGINE_NAME} で計算できませんでした（${esc(chk.nowError)}）。上は手元の計算の見込みです。</p>`
+            : `<p class="text-[11px] text-base-content/50">${ENGINE_NAME} で確かめています。いま出ているのは手元の計算の見込みです。</p>`;
+        const staleNote = stale ? '<p class="text-[11px] text-warning">計算したあとに入力や条件が変わりました。もう一度「HEXAステを計算する」を押してください。</p>' : '';
+        // 置き方は計算元のスペック効率で選ぶ。まだ「計算する」をしていないと手元の式になり、防御率無視を高く見がち。
+        const effNote = r && !r.byEff ? '<p class="text-[11px] text-warning">「入力」で一度「計算する」をしてから押すと、計算元のスペック効率で置き方を選びます（今は手元の式で、防御率無視を高めに見ています）。</p>' : '';
+        const gainBox = r && !why ? card('伸び', same ? '今の置き方が一番です' : `選び直すコア ${r.changed} 個`, `
+                    ${staleNote}
+                    <div class="sc-big"><span>最終ダメージ（ボス防御率 ${num(r.pdr)}%）</span><b>${pct(is380 ? g380 : g300)}</b><small>${is380 ? '300%' : '380%'}: ${pct(is380 ? g300 : g380)}</small></div>
+                    ${srcNote}${effNote}`)
+            : card('伸び', '', `<div class="sc-res-empty ${err && !why ? 'sc-err' : ''}">${esc(err || '「HEXAステを計算する」を押すと、一番伸びる置き方と、最終ダメージが何％上がるかが出ます。')}</div>${err && !why ? '' : staleNote}`);
+        return `<div class="flex">${actionsHTML()}</div>
+            <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,7fr)_minmax(0,4fr)] gap-3 items-start">
+            ${card('HEXAステータス', '', `<div class="overflow-x-auto"><table class="table table-sm sc-hytbl sc-hxtbl border border-base-content/10">
+                <thead><tr><th>コア</th><th></th><th>今（種類・Lv）</th><th>おすすめ</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table></div>${bad ? `<p class="text-[11px] text-warning">${esc(bad)}</p>` : ''}`)}
+            <div class="flex flex-col gap-3">
+                ${gainBox}
+                ${card('条件', '', `<div class="flex flex-col gap-2 text-xs">
+                    <div class="flex items-center gap-2"><span class="w-32 text-base-content/60">ボス防御率</span>${pdrBtn(300)}${pdrBtn(380)}</div>
+                    <label class="flex items-center gap-2"><span class="w-32 text-base-content/60">クリ率のバフ上乗せ</span><input class="input input-xs w-16 font-mono text-right" data-xo="critBuff" value="${esc(o.critBuff)}" inputmode="decimal"><span class="text-base-content/40">%</span></label>
+                </div>`)}
+            </div>
+        </div>`;
+    }
+    function hstatSig(e) {
+        const f = e.form, o = e.hstatOpt;
+        return JSON.stringify([f.classId, f.main, f.sub, f.sub2, f.atk, f.dmg, f.bossDmg, f.ignoreDef, f.critical, f.criticalDmg,
+            f.hexaStat, num(o.pdr), num(o.critBuff), e.result && e.result.at]);
+    }
+    // 「HEXAステを計算する」: 置き方の探索は手元だけ。計算元に送るのは今とおすすめの2回だけ（今が一番なら送らない）。
+    async function runHexaStat() {
+        if (!cur || cur.busy) return;
+        const e = cur.e, f = e.form, o = e.hstatOpt, X = HX(), cls = CLASSES[f.classId];
+        if (!X) return;
+        if (!cls || !num(f.main.base) || !num(f.atk.base)) { setMsg('「入力」で職業・主ステータスと攻撃力の内訳を入れてください。', 'err'); return; }
+        const sig = hstatSig(e), at = new Date().toISOString();
+        const r = X.optimize(f, cls, f.classId, f.hexaStat, { pdr: o.pdr, critBuff: o.critBuff, eff: e.result && e.result.eff });
+        if (r.error) { e.hstatRun = { sig, at, error: r.error }; save(); renderModal(); return; }
+        e.hstatRun = { nodes: r.nodes, changed: r.changed, gain300: r.gain300, gain380: r.gain380, byEff: r.byEff, sig, at, pdr: num(o.pdr), check: null };
+        if (!r.changed) { save(); renderModal(); setMsg('今の置き方が一番です。', 'ok'); return; }
+        const st = X.shift(f, cls, f.classId, X.sumOf(f.hexaStat), X.sumOf(r.nodes));
+        const g = JSON.parse(JSON.stringify(f));
+        for (const k of ['main', 'sub', 'sub2', 'atk']) g[k] = { base: String(st[k].base), per: String(st[k].per), abs: String(Math.round(st[k].abs)) };
+        for (const k of ['dmg', 'bossDmg', 'criticalDmg']) g[k] = String(Math.round(st[k] * 100) / 100);
+        g.ignoreDef = String(Math.round(st.ignoreDef * 1e4) / 1e4);
+        const run = e.hstatRun;
+        cur.busy = true;
+        renderModal();
+        setMsg(`${ENGINE_NAME} で最終ダメージを確かめています…`);
+        const mine = cur;
+        try {
+            const [a, b] = await Promise.allSettled([calcForm(f), calcForm(g)]);
+            if (b.status === 'rejected') throw b.reason;
+            const A = a.status === 'fulfilled' ? a.value : {};
+            run.check = { nowD300: A.calculatedHexaDamage_300, nowD380: A.calculatedHexaDamage_380, newD300: b.value.calculatedHexaDamage_300, newD380: b.value.calculatedHexaDamage_380,
+                nowError: a.status === 'rejected' ? String(a.reason && a.reason.message || a.reason) : '' };
+            if (cur === mine) setMsg('計算しました。', 'ok');
+        } catch (err) {
+            run.check = { error: `${ENGINE_NAME} の計算に失敗しました: ` + (err && err.message || err) };
+            if (cur === mine) setMsg('', '');
+        } finally {
+            save();
+            if (cur === mine) { cur.busy = false; renderModal(); }
+        }
     }
 
     // 計算元に送って、MapleScouter の calculatedData の形で受け取る。
@@ -1123,6 +1248,8 @@ const scouter = (() => {
             else if (k === 'step') { cur.step = t.dataset.step; renderModal(); }
             else if (k === 'hpdr') { cur.e.hyperOpt.pdr = Number(t.dataset.v); save(); renderModal(); }
             else if (k === 'hcalc') runHyper();
+            else if (k === 'xpdr') { cur.e.hstatOpt.pdr = Number(t.dataset.v); save(); renderModal(); }
+            else if (k === 'xcalc') runHexaStat();
             else if (k === 'cutcopy') exportCuts('copy');
             else if (k === 'cutsave') exportCuts('save');
             else if (k === 'togear') applyToGear();
@@ -1140,6 +1267,7 @@ const scouter = (() => {
             if (t.dataset.sc === 'calib') { const v = t.value; setTimeout(() => setCalib(v)); return; }
             if (t.dataset.sc === 'calibon') { if (cur.e.calib) { cur.e.calib.on = t.checked; save(); } setTimeout(renderModal); return; }
             if (t.dataset.ho) { cur.e.hyperOpt[t.dataset.ho] = t.value.trim(); save(); setTimeout(renderModal); return; }
+            if (t.dataset.xo) { cur.e.hstatOpt[t.dataset.xo] = t.value.trim(); save(); setTimeout(renderModal); return; }
             if (!t.dataset.k) return;
             const f = cur.e.form;
             if (t.type === 'checkbox') setPath(f, t.dataset.k, t.checked);
@@ -1147,7 +1275,7 @@ const scouter = (() => {
             syncShared(f);
             save();
             // 入力欄が消えるときの blur からも change が来るので、作り直しは後に回す。
-            if (t.dataset.k === 'classId' || /^(doping|link|seed|hexa|hyper)\.|^wildhunterUnion$|^level$/.test(t.dataset.k)) setTimeout(renderModal);
+            if (t.dataset.k === 'classId' || /^(doping|link|seed|hexa|hyper|hexaStat)\.|^wildhunterUnion$|^level$/.test(t.dataset.k)) setTimeout(renderModal);
         });
         // 打っている間は作り直さない（フォーカスが外れる）。最終値の欄だけ書き換える。
         veil.addEventListener('input', (ev) => {
@@ -1167,6 +1295,7 @@ const scouter = (() => {
         box.addEventListener('dragover', (ev) => { if ([...ev.dataTransfer.types].includes('Files')) { ev.preventDefault(); box.classList.add('drop'); } });
         box.addEventListener('dragleave', (ev) => { if (!box.contains(ev.relatedTarget)) box.classList.remove('drop'); });
         box.addEventListener('drop', async (ev) => {
+            if (cur && cur.tab === 'hstat') return;
             const files = [...ev.dataTransfer.files].filter((x) => x.type.startsWith('image/'));
             if (!files.length) return;
             ev.preventDefault();
