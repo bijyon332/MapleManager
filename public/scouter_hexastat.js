@@ -7,7 +7,7 @@
 //
 // 数値・ルールは gms-upgrade-tracker（gms-upgrade-tracker.vercel.app）の表に合わせた（2026-11-01）:
 //   - 種類は 主ステ・攻撃力/魔力・ダメージ・ボスダメージ・防御率無視・クリティカルダメージ の6つ。
-//   - 主ステと攻撃力は固定値（% が乗らない「% Value Not Applied」）。ゼノンは STR・DEX・LUK に 0.48 倍ずつ、
+//   - 主ステは固定値（% が乗らない「% Value Not Applied」）。攻撃力は Base Value 側で、攻撃力%が乗る（bi 確認 2026-11-02）。ゼノンは STR・DEX・LUK に 0.48 倍ずつ、
 //     デーモンアヴェンジャーは HP に 21 倍。防御率無視は枠ごとに掛け算で重なる。
 //   - 1コアの中の3枠は別々の種類。メインはコア同士で重ならない。追加の同じ種類は全体で2回まで。
 (function (root) {
@@ -79,7 +79,7 @@
         if (cls[1] === 'HP') st.main.abs += 21 * d('mainStat');
         else if (classId === 'xenon') for (const k of ['main', 'sub', 'sub2']) st[k].abs += 0.48 * d('mainStat');
         else st.main.abs += d('mainStat');
-        st.atk.abs += d('attack');
+        st.atk.base += d('attack');   // 攻撃力は Base 側（攻撃力%が乗る）
         const ied = 1 - (1 - num(f.ignoreDef) / 100) / Math.max(1e-9, from.iedMul) * to.iedMul;
         return {
             ...st,
@@ -113,8 +113,8 @@
         const eS = cls[1] === 'HP' ? 21 * eff.mainStatAbseff1
             : classId === 'xenon' ? 0.48 * (eff.mainStatAbseff1 + (eff.subStatAbseff1 || 0) + (eff.ssubStatAbseff1 || 0))
             : eff.mainStatAbseff1;
-        // 計算元の攻撃力の効率は「基礎値 1」あたり。HEXAステの攻撃力は % が乗らないので割り戻す。
-        const eA = eff.atkeff1 / (1 + num((f.atk || {}).per) / 100);
+        // 計算元の攻撃力の効率は「基礎値 1」あたり。HEXAステの攻撃力も Base 側なのでそのまま使う。
+        const eA = eff.atkeff1;
         const eI = pdr === 380 ? eff.igreff1_380 : eff.igreff1;
         const PR = eI / (0.01 + eI);
         return (s) => (1 + eS * (s.mainStat - from.mainStat)) * (1 + eA * (s.attack - from.attack))
@@ -126,7 +126,8 @@
     function localScore(f, cls, classId, from, opt, pdr) {
         const base = shift(f, cls, classId, from, sumOf([]));
         const fin = (s) => Math.floor(s.base * (1 + s.per / 100)) + s.abs;
-        const m0 = fin(base.main), s0 = fin(base.sub), t0 = cls[3] ? fin(base.sub2) : 0, a0 = fin(base.atk);
+        const m0 = fin(base.main), s0 = fin(base.sub), t0 = cls[3] ? fin(base.sub2) : 0;
+        const atkOf = (add) => fin({ ...base.atk, base: base.atk.base + add });
         const crit = Math.min(1, Math.max(0, (base.critical + num(opt.critBuff)) / 100));
         const ied0 = 1 - base.ignoreDef / 100;   // 防御率のうち残る割合
         const hp = cls[1] === 'HP', xenon = classId === 'xenon';
@@ -135,7 +136,7 @@
                 : xenon ? m0 + s0 + t0 + 3 * 0.48 * s.mainStat
                 : 4 * (m0 + s.mainStat) + s0 + t0;
             const def = Math.max(1e-9, 1 - pdr / 100 * ied0 * s.iedMul);
-            return st * Math.max(1, a0 + s.attack) * (1 + (base.dmg + base.bossDmg + s.damage + s.bossDmg) / 100)
+            return st * Math.max(1, atkOf(s.attack)) * (1 + (base.dmg + base.bossDmg + s.damage + s.bossDmg) / 100)
                 * (1 - crit + crit * (1.35 + (base.criticalDmg + s.critDmg) / 100)) * def;
         };
     }

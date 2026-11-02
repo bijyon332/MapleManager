@@ -799,6 +799,13 @@ const scouter = (() => {
         e.hstatRun = { nodes: r.nodes, changed: r.changed, gain300: r.gain300, gain380: r.gain380, byEff: r.byEff, sig, at, pdr: 380, check: null };
         if (!r.changed) { save(); renderModal(); setMsg('今の置き方が一番です。', 'ok'); return; }
         const st = X.shift(f, cls, f.classId, X.sumOf(f.hexaStat), X.sumOf(r.nodes));
+        // 今のHEXAステ分を差し引くと入力の値を下回る（入力の内訳とHEXAステの入力が合っていない）なら、計算元には送らない。
+        const neg = [['main', '主ステ'], ['sub', '副ステ'], ['sub2', '第3ステ'], ['atk', isMagic(f.classId) ? '魔力' : '攻撃力']]
+            .find(([k]) => st[k].base < 0 || st[k].abs < 0);
+        if (neg) {
+            e.hstatRun.check = { error: `入力の${neg[1]}の内訳より今のHEXAステの${neg[1]}の方が大きくなっています。「入力」の${neg[1]}の Base Value・% Value Not Applied と、HEXAステの種類・Lv を確かめてください。` };
+            save(); renderModal(); return;
+        }
         const g = JSON.parse(JSON.stringify(f));
         for (const k of ['main', 'sub', 'sub2', 'atk']) g[k] = { base: String(st[k].base), per: String(st[k].per), abs: String(Math.round(st[k].abs)) };
         for (const k of ['dmg', 'bossDmg', 'criticalDmg']) g[k] = String(Math.round(st[k] * 100) / 100);
