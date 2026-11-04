@@ -598,13 +598,16 @@
                     </div>
                 </div>
 
+                <!-- レンタル装備（Arthur's Equipment Rental）。アイコンを押すと借りる／外す。費用は週の見込みから引く。 -->
+                <div id="bc-rental" class="flex items-center gap-3 px-4 py-2 border-b border-base-content/10 shrink-0"></div>
+
                 <!-- ボス一覧（1列、はみ出す分はスクロール）。難易度を押すと登録、同じ難易度をもう一度押すと解除。
                      結晶は人数で割る前の価格、獲得メルは結晶 ÷ PT人数。 -->
                 <div id="bc-grid" class="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-3 pb-1"></div>
 
                 <div class="flex items-center gap-5 px-4 h-12 border-t border-base-content/10 shrink-0 bg-base-200">
                     <span class="text-[11px] font-bold text-violet-400">WEEKLY <span id="bc-counter" class="font-mono text-sm text-white ml-1">0/14</span></span>
-                    <span class="text-[11px] text-slate-500">週の見込み <span id="bc-weekly-earnings" class="ml-1 font-['Saira_Condensed'] text-xl font-bold text-amber-300 tabular-nums">0</span></span>
+                    <span class="text-[11px] text-slate-500">週の見込み <span id="bc-weekly-earnings" class="ml-1 font-['Saira_Condensed'] text-xl font-bold text-amber-300 tabular-nums">0</span><span id="bc-rental-note" class="ml-2 text-[11px] text-rose-400 tabular-nums"></span></span>
                     <div class="ml-auto flex gap-2">
                         <button type="button" onclick="app.closeCharModal()" class="btn btn-sm btn-ghost">Cancel</button>
                         <button type="submit" class="btn btn-sm btn-primary gap-1.5"><i data-lucide="save" class="w-3.5 h-3.5"></i>Save</button>
