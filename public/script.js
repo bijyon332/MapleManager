@@ -1013,7 +1013,7 @@ const app = {
                 .filter(b => (settings.boss_ids || []).includes(b.id) && b.type === 'MONTHLY')
                 .map(b => b.meso / (ps[b.id] || 1))
                 .reduce((s, v) => s + v, 0);
-            return wk + monthly / 4; // normalize monthly to weekly-equivalent
+            return wk + monthly / 4 - rentalWeeklyCost(settings); // normalize monthly to weekly-equivalent
         };
         const activeChars = this.data.characters
             .filter(char => (this.data.config.activeServer === 'ALL' || char.server === this.data.config.activeServer) && !char.hidden)
@@ -1024,9 +1024,10 @@ const app = {
         const revMode = this.data.config.revenueMode || 'weekly';
 
         const calcStats = (chars) => {
-            let allCrystals = [], monthlyRev = 0;
+            let allCrystals = [], monthlyRev = 0, rental = 0;
             chars.filter(c => !c.hidden).forEach(char => {
                 const settings = char.settings || { boss_ids: [] };
+                rental += rentalWeeklyCost(settings);
                 const partySizes = settings.boss_party_sizes || {};
                 const charWeekly = this.data.masterBosses
                     .filter(b => (settings.boss_ids || []).includes(b.id) && b.type === 'WEEKLY')
@@ -1040,7 +1041,8 @@ const app = {
             });
             allCrystals.sort((a, b) => b.effectiveMeso - a.effectiveMeso);
             const valid = allCrystals.slice(0, worldLimit);
-            const weeklyRev = valid.reduce((sum, b) => sum + b.effectiveMeso, 0);
+            // レンタル費は週の収入から引く（月表示では4週分）。
+            const weeklyRev = valid.reduce((sum, b) => sum + b.effectiveMeso, 0) - rental;
             return { count: valid.length, weekly: weeklyRev, monthly: monthlyRev };
         };
 
@@ -1080,7 +1082,8 @@ const app = {
             const partySizes = settings.boss_party_sizes || {};
             const cB = this.data.masterBosses.filter(b => (settings.boss_ids || []).includes(b.id)).map(b => ({ ...b, pSize: partySizes[b.id] || 1, effectiveMeso: b.meso / (partySizes[b.id] || 1) })).sort((a, b) => b.effectiveMeso - a.effectiveMeso);
             const dB = cB.filter(b => b.type === 'DAILY'), wB = cB.filter(b => b.type === 'WEEKLY'), mB = cB.filter(b => b.type === 'MONTHLY');
-            const localMaxTotal = wB.slice(0, charLimit).reduce((s, b) => s + b.effectiveMeso, 0);
+            const rentCost = rentalWeeklyCost(settings);
+            const localMaxTotal = wB.slice(0, charLimit).reduce((s, b) => s + b.effectiveMeso, 0) - rentCost;
 
             const isKronos = char.server === 'KRONOS';
             const sCol = isKronos ? (this.data.config.serverKColor || 'emerald') : (this.data.config.serverCColor || 'purple');
@@ -1131,7 +1134,7 @@ const app = {
                 </div>
                 <div class="mx-main">
                     <div class="mx-top">
-                        <div class="mx-meso" title="週の収入（上位${charLimit}体）">${Math.floor(localMaxTotal).toLocaleString()}<small>mesos</small></div>
+                        <div class="mx-meso" title="週の収入（上位${charLimit}体）${rentCost ? `\nレンタル費 −${Math.floor(rentCost).toLocaleString()} を引いた額` : ''}">${Math.floor(localMaxTotal).toLocaleString()}<small>mesos</small></div>
                         <div class="mx-count"><b>${countAll}</b>/${wkSorted.length}</div>
                     </div>
                     ${mB.length ? `
@@ -1531,10 +1534,11 @@ const app = {
         });
 
         if (c) this.initBossConfigState(c);
-        else { this.bcCharId = null; this.bcSelected = {}; this.bcParty = {}; this.bcDiff = {}; }
+        else { this.bcCharId = null; this.bcSelected = {}; this.bcParty = {}; this.bcDiff = {}; this.bcRental = { ids: [], cross: false }; }
 
         this.applyImagePosToUI(c);
         this.updateCharAvatar();
+        this.renderRentalRow();
         this.renderBossConfigGrid();
         lucide.createIcons();
     },
@@ -1616,7 +1620,7 @@ const app = {
             hidden: hiddenVal,
             server: f.server.value || 'KRONOS',
             // 画面に無い項目（旧タスク機能の選択など）は消さずに引き継ぐ。
-            settings: { ...(pc?.settings || {}), boss_ids, boss_party_sizes },
+            settings: { ...(pc?.settings || {}), boss_ids, boss_party_sizes, rental: { ids: [...(this.bcRental?.ids || [])], cross: !!this.bcRental?.cross } },
             // 週・月の消し込み（charDone / charMonthlyDone）も引き継ぐ。以前は編集して保存すると外れていた。
             progress: { daily: [], weekly: [], boss: [], ...(pc?.progress || {}) }
         };
@@ -1667,6 +1671,8 @@ const app = {
         this.bcDiff = {};
         const settings = c.settings || { boss_ids: [], boss_party_sizes: {} };
         const partySizes = settings.boss_party_sizes || {};
+        const r = settings.rental || {};
+        this.bcRental = { ids: (r.ids || []).filter(id => RENTAL_ITEMS.some(x => x.id === id)), cross: !!r.cross };
         (settings.boss_ids || []).forEach(bid => {
             const b = this.data.masterBosses.find(x => x.id === bid);
             if (!b) return;
@@ -1779,7 +1785,48 @@ const app = {
             counter.innerText = `${weekly.length}/${charLimit}`;
             counter.className = `font-mono text-sm ml-1 ${weekly.length > charLimit ? 'text-rose-400' : 'text-white'}`;
         }
-        if (earnEl) earnEl.innerText = Math.floor(capped).toLocaleString();
+        const rent = rentalWeeklyCost({ rental: this.bcRental });
+        if (earnEl) earnEl.innerText = Math.floor(capped - rent).toLocaleString();
+        const note = document.getElementById('bc-rental-note');
+        if (note) note.textContent = rent ? `レンタル −${Math.floor(rent).toLocaleString()}` : '';
+    },
+
+    // レンタル装備の列。アイコンを押すと借りる／外す。週跨ぎにチェックすると費用は半分（2週で割る）。
+    fmtMesoShort(n) {
+        if (n >= 1e9) return `${+(n / 1e9).toFixed(2)}B`;
+        if (n >= 1e6) return `${+(n / 1e6).toFixed(1)}M`;
+        return n.toLocaleString();
+    },
+    renderRentalRow() {
+        const el = document.getElementById('bc-rental');
+        if (!el) return;
+        const r = this.bcRental || (this.bcRental = { ids: [], cross: false });
+        const rent = rentalWeeklyCost({ rental: r });
+        const items = RENTAL_ITEMS.map(it => {
+            const on = r.ids.includes(it.id);
+            return `<button type="button" onclick="app.toggleRental('${it.id}')" class="ed-rt ${on ? 'ed-rt-on' : ''}" title="${it.ja}\n${it.en}\n1回目 ${it.price.toLocaleString()} メル（2日間）">
+                <span class="ed-rt-ic"><img src="assets/rental/${it.image}.png" alt=""></span>
+                <span class="ed-rt-p">${this.fmtMesoShort(it.price)}</span></button>`;
+        }).join('');
+        el.innerHTML = `<span class="text-[11px] font-bold text-rose-400 w-[52px] shrink-0">RENTAL</span>
+            <div class="flex gap-1">${items}</div>
+            <label class="flex items-center gap-1.5 ml-2 cursor-pointer select-none text-[12px] ${r.cross ? 'text-rose-300 font-bold' : 'text-slate-400'}" title="週リセットをまたいで借りたとき（2日間を2週で使う）は費用を半分にして引きます">
+                <input type="checkbox" class="checkbox checkbox-xs" ${r.cross ? 'checked' : ''} onchange="app.setRentalCross(this.checked)">週跨ぎ（½）</label>
+            <div class="ml-auto text-right leading-tight">
+                <div class="text-[10px] text-slate-500">週のレンタル費</div>
+                <div class="font-mono text-[15px] tabular-nums ${rent ? 'text-rose-400 font-bold' : 'text-slate-600'}">${rent ? '−' + Math.floor(rent).toLocaleString() : '—'}</div>
+            </div>`;
+    },
+    toggleRental(id) {
+        const r = this.bcRental || (this.bcRental = { ids: [], cross: false });
+        r.ids = r.ids.includes(id) ? r.ids.filter(x => x !== id) : RENTAL_ITEMS.map(x => x.id).filter(x => x === id || r.ids.includes(x));
+        this.renderRentalRow();
+        this.updateBossConfigCounter();
+    },
+    setRentalCross(on) {
+        (this.bcRental || (this.bcRental = { ids: [], cross: false })).cross = !!on;
+        this.renderRentalRow();
+        this.updateBossConfigCounter();
     },
 
 };

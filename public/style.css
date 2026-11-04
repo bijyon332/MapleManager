@@ -660,6 +660,15 @@ header .tabs-box > .tab-active svg { color: #a5b4fc; }
 #char-modal .ed-db.btn-ghost { color: #94a3b8; border-color: #ffffff1a; }
 #char-modal .ed-db.ed-on { font-weight: 700; }
 .ed-db-na { width: 46px; flex: none; }
+/* レンタル装備のアイコン。押したもの（借りる）は赤い枠＋明るく、押していないものは沈める。 */
+#char-modal .ed-rt { display: flex; flex-direction: column; align-items: center; gap: 1px; width: 46px; padding: 3px 0 2px; border: 1px solid #ffffff14; background: #0b1222; cursor: pointer; }
+#char-modal .ed-rt:hover { border-color: #fb718580; }
+#char-modal .ed-rt-ic { display: grid; place-items: center; width: 34px; height: 34px; }
+#char-modal .ed-rt-ic img { max-width: 34px; max-height: 34px; image-rendering: pixelated; opacity: .35; filter: grayscale(.8); }
+#char-modal .ed-rt-p { font: 400 10px/1.2 "IBM Plex Mono", monospace; color: #475569; }
+#char-modal .ed-rt-on { border-color: #fb7185; background: color-mix(in oklab, #fb7185 14%, #0b1222); }
+#char-modal .ed-rt-on .ed-rt-ic img { opacity: 1; filter: none; }
+#char-modal .ed-rt-on .ed-rt-p { color: #fda4af; font-weight: 700; }
 #char-modal .ed-pb { width: 20px; height: 20px; min-height: 0; font: 400 11px "IBM Plex Mono", monospace; }
 #char-modal .ed-pb.btn-ghost { color: #94a3b8; }
 #char-modal .ed-pb:disabled { color: #334155; background: transparent; }
