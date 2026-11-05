@@ -1121,7 +1121,8 @@ const scouter = (() => {
         const q = quickCuts(e.form, min);
         if (!q) return `<div class="sc-res-empty">計算できませんでした。</div>`;
         const { legend, table } = cutTableHTML(q.cuts);
-        return `<h3 class="sc-bc-h"><i data-lucide="skull"></i>ボスカット</h3>
+        return `<h3 class="sc-bc-h"><i data-lucide="skull"></i>ボスカット
+                <span class="sc-bc-out"><button data-sc="cutcopy" class="btn btn-xs" title="コンパクトな表を画像にしてクリップボードへ"><i data-lucide="copy" class="w-3 h-3"></i>画像をコピー</button><button data-sc="cutsave" class="btn btn-xs" title="コンパクトな表を PNG で保存"><i data-lucide="download" class="w-3 h-3"></i>画像を保存</button></span></h3>
             <div class="sc-bc-head">${legend}</div>
             ${table}`;
     }
@@ -1164,10 +1165,34 @@ const scouter = (() => {
     const CUT_COLOR = { 'c-solo2': '#34d399', 'c-solo1': '#6ee7b7', 'c-solo0': '#fbbf24', 'c-pt1': '#a5b4fc', 'c-pt0': '#818cf8', 'c-no': '#475569' };
     const DIFF_COLOR = { Easy: '#9ca3af', Normal: '#22d3ee', Hard: '#f87171', Chaos: '#ca8a04', Extreme: '#ef4444', Destiny: '#e879f9', Champion: '#fbbf24' };
     const loadImg = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
-    async function cutImage(e, char) {
+    // 画像に入れる中身。結果タブは保存した計算結果、簡易換算タブは EXスウのタイムからその場で出した表。
+    function cutSpec(e, char, quick) {
+        const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        if (quick) {
+            const min = quickMin(e), q = quickCuts(e.form, min);
+            if (!q) return null;
+            const info = classInfo(e.form.classId);
+            return {
+                cuts: q.cuts, sub: '推定 HEXA換算（防御率380%）', val: q.stat,
+                tag: `簡易換算 EXスウ ${fmtMinutes(min)}`, tagSub: pctText(q.lotus),
+                lv: char ? null : `Lv${num(e.form.level)} ${info ? info.name : ''}`, date: ymd(new Date()),
+                foot: '％は EXスウのソロタイムから逆算した火力での目安（100% 前後でソロの最低ライン）',
+            };
+        }
         const r = e.result;
         if (!r || r.error || !r.cuts) return null;
-        const rows = cutRows(shownCuts(e));
+        const cal = e.calib && e.calib.on;
+        return {
+            cuts: shownCuts(e), sub: 'HEXA換算（防御率380%）', val: r.b380h,
+            tag: cal ? `実測補正 ×${e.calib.scale.toFixed(2)}` : '', tagSub: cal ? `EXスウ ${fmtMinutes(e.calib.min)}` : '',
+            lv: null, date: r.at ? ymd(new Date(r.at)) : '',
+            foot: '％は MapleScouter のボスカットに対する今の火力（100% 前後でソロの最低ライン）',
+        };
+    }
+    async function cutImage(e, char, quick) {
+        const sp = cutSpec(e, char, quick);
+        if (!sp) return null;
+        const rows = cutRows(sp.cuts);
         if (!rows.length) return null;
         const cols = CUT_COLS.filter((ds) => rows.some((x) => x.cuts.some((c) => ds.includes(c.d))));
         const S = 2, PAD = 12, NAME_W = 92, CW = 112, RH = 42, HEAD = 46, CH = 18, FOOT = 22;
@@ -1187,25 +1212,25 @@ const scouter = (() => {
         g.fillStyle = '#f1f5f9'; g.font = `700 16px ${JP}`;
         g.fillText(name, PAD, PAD + 13);
         const nw = g.measureText(name).width;
-        if (char && (char.level || char.job)) { g.fillStyle = '#64748b'; g.font = `400 11px ${JP}`; g.fillText(`Lv${char.level || ''} ${char.job || ''}`, PAD + nw + 8, PAD + 14); }
+        const lv = char && (char.level || char.job) ? `Lv${char.level || ''} ${char.job || ''}` : sp.lv;
+        if (lv) { g.fillStyle = '#64748b'; g.font = `400 11px ${JP}`; g.fillText(lv, PAD + nw + 8, PAD + 14); }
         g.fillStyle = '#94a3b8'; g.font = `400 11px ${JP}`;
-        const sub = 'HEXA換算（防御率380%）';
-        g.fillText(sub, PAD, PAD + 34);
-        const sw = g.measureText(sub).width;
+        g.fillText(sp.sub, PAD, PAD + 34);
+        const sw = g.measureText(sp.sub).width;
         g.fillStyle = '#fbbf24'; g.font = `700 14px ${MONO}`;
-        g.fillText(fmt(r.b380h), PAD + sw + 4, PAD + 34);
-        if (e.calib && e.calib.on) {
-            const hw = g.measureText(fmt(r.b380h)).width;
+        g.fillText(fmt(sp.val), PAD + sw + 4, PAD + 34);
+        if (sp.tag) {
+            const hw = g.measureText(fmt(sp.val)).width;
             g.fillStyle = '#fbbf24'; g.font = `700 11px ${JP}`;
-            g.fillText(`実測補正 ×${e.calib.scale.toFixed(2)}`, PAD + sw + hw + 16, PAD + 34);
-            const cw = g.measureText(`実測補正 ×${e.calib.scale.toFixed(2)}`).width;
+            g.fillText(sp.tag, PAD + sw + hw + 16, PAD + 34);
+            const cw = g.measureText(sp.tag).width;
             g.fillStyle = '#64748b'; g.font = `400 10px ${JP}`;
-            g.fillText(`EXスウ ${fmtMinutes(e.calib.min)}`, PAD + sw + hw + 16 + cw + 6, PAD + 34);
+            g.fillText(sp.tagSub, PAD + sw + hw + 16 + cw + 6, PAD + 34);
         }
         g.textAlign = 'right';
         g.fillStyle = '#818cf8'; g.font = `800 13px ${CON}`;
         g.fillText('BOSS CUT', W - PAD, PAD + 13);
-        if (r.at) { g.fillStyle = '#64748b'; g.font = `400 10px ${MONO}`; const d = new Date(r.at); g.fillText(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, W - PAD, PAD + 34); }
+        if (sp.date) { g.fillStyle = '#64748b'; g.font = `400 10px ${MONO}`; g.fillText(sp.date, W - PAD, PAD + 34); }
         g.textAlign = 'left';
         // 列見出し
         let y = PAD + HEAD;
@@ -1244,15 +1269,16 @@ const scouter = (() => {
             y += RH;
         }
         g.fillStyle = '#475569'; g.font = `400 9px ${JP}`;
-        g.fillText('％は MapleScouter のボスカットに対する今の火力（100% 前後でソロの最低ライン）', PAD, y + FOOT / 2 + 2);
+        g.fillText(sp.foot, PAD, y + FOOT / 2 + 2);
         g.textAlign = 'right'; g.fillStyle = '#64748b'; g.font = `700 9px ${CON}`;
         g.fillText('BijyonTools', W - PAD, y + FOOT / 2 + 2);
         return cv;
     }
     async function exportCuts(mode) {
         if (!cur) return;
-        const cv = await cutImage(cur.e, cur.char);
-        if (!cv) { setMsg('画像にできるボスカットがありません。「計算する」を押してから試してください。', 'err'); return; }
+        const quick = cur.tab === 'quick';
+        const cv = await cutImage(cur.e, cur.char, quick);
+        if (!cv) { setMsg(quick ? '画像にできるボスカットがありません。Lv と EXスウのソロタイムを入れてから試してください。' : '画像にできるボスカットがありません。「計算する」を押してから試してください。', 'err'); return; }
         const blob = await new Promise((ok) => cv.toBlob(ok, 'image/png'));
         if (!blob) { setMsg('画像を作れませんでした。', 'err'); return; }
         if (mode === 'copy') {
