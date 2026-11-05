@@ -265,5 +265,5 @@ const scouterBossCut = (() => {
       return { error: null, rows, shown };
     }
 
-    return { GMS_BOSSES, computeBossCuts, verdict };
+    return { GMS_BOSSES, computeBossCuts, verdict, splineEval, splineInverse };
 })();

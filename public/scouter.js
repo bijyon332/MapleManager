@@ -410,7 +410,7 @@ const scouter = (() => {
         document.addEventListener('keydown', cur.esc);
         cur.paste = (ev) => {
             if (page && !(rootEl && rootEl.offsetParent)) return;   // ページが隠れているときは読まない
-            if (cur && cur.tab === 'hstat') return;   // HEXAステのタブには読み取るものがない
+            if (cur && (cur.tab === 'hstat' || cur.tab === 'quick')) return;   // HEXAステ・簡易換算のタブには読み取るものがない
             const item = [...((ev.clipboardData && ev.clipboardData.items) || [])].find((x) => x.type.startsWith('image/'));
             if (!item) return;
             ev.preventDefault();
@@ -453,7 +453,7 @@ const scouter = (() => {
                 ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-8 h-8 object-contain bg-base-300 border border-base-content/10">` : ''}
                 <b class="text-white">${esc(char ? char.name : '仮入力')}</b>
                 <span class="text-xs text-base-content/50">の Scouter</span>
-                <nav role="tablist" class="tabs tabs-box tabs-sm ml-2">${tab('input', 'pencil-line', '入力')}${tab('result', 'gauge', '結果')}${tab('hyper', 'sliders-horizontal', 'ハイパー最適化')}${tab('hstat', 'hexagon', 'HEXAステ最適化')}</nav>
+                <nav role="tablist" class="tabs tabs-box tabs-sm ml-2">${tab('input', 'pencil-line', '入力')}${tab('result', 'gauge', '結果')}${tab('quick', 'timer', '簡易換算')}${tab('hyper', 'sliders-horizontal', 'ハイパー最適化')}${tab('hstat', 'hexagon', 'HEXAステ最適化')}</nav>
                 <button data-sc="close" class="btn btn-sm btn-ghost btn-square ml-auto" title="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>
             </div>`;
         veil.innerHTML = `<div class="sc-modal ${cur.page ? '' : 'modal-box max-w-[1400px] w-[96vw] max-h-[94vh] p-0 flex flex-col bg-base-200 border border-base-content/15'}">
@@ -465,7 +465,7 @@ const scouter = (() => {
                 ${result ? `<div class="card card-sm bg-base-100 border border-base-content/10 overflow-hidden"><div class="sc-body sc-resbody">
                     <div class="sc-side" id="sc-result">${resultHTML(e)}</div>
                     <div class="sc-cutpage">${cutPageHTML(e)}</div>
-                </div></div>` : tabNow === 'hyper' ? hyperPageHTML(e) : tabNow === 'hstat' ? hstatPageHTML(e) : `${stepsHTML(inputSteps())}
+                </div></div>` : tabNow === 'quick' ? quickPageHTML(e) : tabNow === 'hyper' ? hyperPageHTML(e) : tabNow === 'hstat' ? hstatPageHTML(e) : `${stepsHTML(inputSteps())}
                 <div id="sc-reads">${readsHTML()}</div>
                 ${formHTML(e.form)}`}
             </div>
@@ -1036,24 +1036,128 @@ const scouter = (() => {
         const r = e.result;
         if (!r || r.error) return '';
         if (!r.cuts) return `<div class="sc-res-empty">もう一度「計算する」を押すと出ます（ボスカットを足す前の計算結果です）。</div>`;
-        const rows = cutRows(shownCuts(e));
-        const count = {};
-        for (const x of rows) for (const c of x.cuts) { const cls = (CUT_LABEL[c.v] || [, 'c-no'])[1]; count[cls] = (count[cls] || 0) + 1; }
-        const body = rows.map(({ ko, boss, cuts }) => `<tr>
-            <th><b>${esc(boss ? (boss.short || boss.ja) : ko)}</b>${cuts.some((c) => c.sym) ? symbolMark(ko) : ''}</th>
-            ${CUT_COLS.map((ds) => cutCell(cuts.find((c) => ds.includes(c.d)))).join('')}
-        </tr>`).join('');
+        const { legend, table } = cutTableHTML(shownCuts(e));
         return `<h3 class="sc-bc-h"><i data-lucide="skull"></i>ボスカット
                 <span class="sc-bc-out"><button data-sc="cutcopy" class="btn btn-xs" title="コンパクトな表を画像にしてクリップボードへ"><i data-lucide="copy" class="w-3 h-3"></i>画像をコピー</button><button data-sc="cutsave" class="btn btn-xs" title="コンパクトな表を PNG で保存"><i data-lucide="download" class="w-3 h-3"></i>画像を保存</button></span></h3>
             ${calibHTML(e)}
             <div class="sc-bc-head">
-                <div class="sc-bc-legend">${CUT_LEGEND.map(([cls, t]) => `<span class="${cls}"><i></i>${t}<b>${count[cls] || 0}</b></span>`).join('')}</div>
+                ${legend}
                 <p>％は MapleScouter のボスカット（そのボスに必要な火力）に対する今の火力です。100% 前後でソロの最低ライン。<i>PT</i> はパーティ前提のボスで、人数ごとの目安を出しています。レベル・フォース不足も反映しています。500% を超えたものは出していません。<i class="sc-bc-est">推測</i> は MapleScouter に GMS の値が無いボス（ベローナ）で、KMS の値から推し量ったものです。</p>
             </div>
-            <table class="sc-bctbl">
+            ${table}`;
+    }
+    // ボスカットの凡例（判定ごとの数）と表。結果タブと簡易換算タブで使う。
+    function cutTableHTML(cuts) {
+        const rows = cutRows(cuts || []);
+        const count = {};
+        for (const x of rows) for (const c of x.cuts) { const cls = (CUT_LABEL[c.v] || [, 'c-no'])[1]; count[cls] = (count[cls] || 0) + 1; }
+        const body = rows.map(({ ko, boss, cuts: cs }) => `<tr>
+            <th><b>${esc(boss ? (boss.short || boss.ja) : ko)}</b>${cs.some((c) => c.sym) ? symbolMark(ko) : ''}</th>
+            ${CUT_COLS.map((ds) => cutCell(cs.find((c) => ds.includes(c.d)))).join('')}
+        </tr>`).join('');
+        return {
+            legend: `<div class="sc-bc-legend">${CUT_LEGEND.map(([cls, t]) => `<span class="${cls}"><i></i>${t}<b>${count[cls] || 0}</b></span>`).join('')}</div>`,
+            table: `<table class="sc-bctbl">
                 <thead><tr><th></th>${CUT_COLS.map((ds) => `<th>${ds.join(' / ')}</th>`).join('')}</tr></thead>
                 <tbody>${body}</tbody>
-            </table>`;
+            </table>`,
+        };
+    }
+
+    /* ---------- 簡易換算（EXスウのソロタイムから） ---------- */
+    // ステータスを使わずにボスカットを出す（bi 依頼 2026-11-05）。計算元（kinokohub）に無い職（シア・エレルライト）でも使える。
+    // EXスウはフォースもシンボルも関係ないので、率＝30分÷ソロ実測時間（実測補正と同じ考え方）から自分の火力を逆算し、
+    // その火力で表の全ボスを出す（要求値・easyRate・Lv差・フォース差は scouter_bosscut.js のまま）。
+    //   - 防御率 300% のボスは、換算主ステが 380% と同じとみる（防御無視の差は見られない）。
+    //   - 職業ごとの時間補正（timeFactor）は掛けない。
+    //   - シンボルはダメージの値が無いので、該当地域のボスに最終ダメージ QUICK_SYM_FD % を掛ける（bi 指定）。
+    // 入力の Lv・フォース・シンボルは「入力」タブと同じ値（form）を使う。時間だけ e.quick.min（分）に持つ。
+    const QUICK_SYM_FD = 0.4;
+    function quickCuts(f, min) {
+        const B = typeof scouterBossCut !== 'undefined' ? scouterBossCut : null;
+        const K = typeof scouterKinoko !== 'undefined' ? scouterKinoko : null;
+        if (!B || !K || !K.SPLINE_380 || !B.splineEval || !(min > 0) || !(num(f.level) > 0)) return null;
+        const sp3 = K.SPLINE_300, sp8 = K.SPLINE_380;
+        const zero = { cridmgeff1: 0, atkeff1: 0, dmgeff1: 0, mainStateff1: 0, atkPereff1: 0 };
+        const us = { stat: { level: String(num(f.level)), arcaneForce: String(num(f.arcane)), authenticForce: String(num(f.sacred)), myClass: '' } };
+        const run = (stat) => {
+            const d3 = B.splineEval(sp3, stat), d8 = B.splineEval(sp8, stat);
+            const out = B.computeBossCuts({
+                calculatedHexaDamage_300: d3, calculatedHexaDamage_380: d8, calculatedHexaDamage_kaling: d8, calculatedDamage_380: d8,
+                spline_300: sp3, spline_380: sp8, specEfficiency: zero, elixir: 3,
+                ascent_const: 0, ignoreDefConst_300: 1, ignoreDefConst_380: 1, genePassConst: 1,
+            }, us);
+            return out.error ? null : out.rows;
+        };
+        const lotus = (rows) => rows && rows.find((x) => x.boss === '스우' && x.difficulty === 'Extreme');
+        // 仮の火力で1回出し、EXスウの率が実測に合うように火力を直してから出し直す（率は火力に比例）。
+        const S0 = 100000;
+        const r0 = lotus(run(S0));
+        if (!r0 || !(r0.clearRate > 0)) return null;
+        const stat = B.splineInverse(sp8, B.splineEval(sp8, S0) * (CALIB_MIN / min) / r0.clearRate);
+        const rows = run(stat);
+        if (!rows) return null;
+        const on = symbolBosses(f), k = 1 + QUICK_SYM_FD / 100;
+        const cuts = rows.map((x) => {
+            const sym = on.has(x.boss);
+            const r = x.clearRate * (sym ? k : 1);
+            const v = x.label === '입장 불가능' || !sym ? x.label : B.verdict(r, x.isPartyBoss, x.partyLimit);
+            return { b: x.boss, n: x.name, d: x.difficulty, s: x.bossStat, r, p: x.isPartyBoss ? 1 : 0, l: x.partyLimit, v, ...(x.estimate ? { e: 1 } : {}), ...(sym ? { sym: 1 } : {}) };
+        });
+        return { cuts, stat, lotus: CALIB_MIN / min };
+    }
+    // まだ入れていなければ、結果タブの実測補正の時間を借りる。
+    const quickMin = (e) => (e.quick ? e.quick.min : (e.calib && e.calib.min)) || null;
+    function quickSumHTML(e) {
+        const q = quickCuts(e.form, quickMin(e));
+        return `<div class="sc-q-sum">
+                <div><span>EXスウ</span><b>${q ? pctText(q.lotus) : '—'}</b></div>
+                <div title="EXスウのタイムから逆算した、防御率 380% の HEXA換算の目安"><span>推定 HEXA換算</span><b class="sc-q-big">${q ? fmt(q.stat) : '—'}</b></div>
+            </div>`;
+    }
+    function quickOutHTML(e) {
+        const min = quickMin(e);
+        if (!(num(e.form.level) > 0) || !min) return `<div class="sc-res-empty">Lv と EXスウのソロタイムを入れると出ます。</div>`;
+        const q = quickCuts(e.form, min);
+        if (!q) return `<div class="sc-res-empty">計算できませんでした。</div>`;
+        const { legend, table } = cutTableHTML(q.cuts);
+        return `<h3 class="sc-bc-h"><i data-lucide="skull"></i>ボスカット</h3>
+            <div class="sc-bc-head">${legend}</div>
+            ${table}`;
+    }
+    function quickPageHTML(e) {
+        const f = e.form, min = quickMin(e);
+        const field = (label, html) => `<label class="sc-q-f"><span>${label}</span>${html}</label>`;
+        const tiles = SYMBOLS.map(([k, region, bosses]) => {
+            const on = !!f.symbol[k];
+            const names = bosses.map((b) => { const m = bossOf(b); return m ? (m.short || m.ja) : b; }).join('・');
+            return `<button type="button" class="btn btn-sm h-8 justify-start gap-1.5 px-1.5 font-normal ${on ? 'btn-soft btn-secondary' : 'btn-ghost border-base-content/10 [&_img]:grayscale [&_img]:opacity-50'}" data-sc="sym" data-key="${k}" title="${esc(`${region}（${names}）: Lv11 以上で最終ダメージ +${QUICK_SYM_FD}% として計算`)}">
+                ${img(`symbol/${k}.png`)}<span class="truncate text-xs ${on ? 'text-base-content font-semibold' : 'text-base-content/45'}">${esc(region)}</span><span class="ml-auto text-[10px] font-mono font-bold ${on ? 'text-secondary' : 'text-base-content/30'}">${on ? 'ON' : 'OFF'}</span></button>`;
+        }).join('');
+        return `<div class="card card-sm bg-base-100 border border-base-content/10 overflow-hidden"><div class="sc-body sc-resbody">
+                <div class="sc-side sc-q-side">
+                    <h3><i data-lucide="timer"></i>EXスウのソロタイムから</h3>
+                    <div class="sc-q-grid">
+                        ${field('Lv', inp('level', f.level))}
+                        ${field('EXスウ ソロ（秒）', `<input data-sc="qmin" inputmode="numeric" class="input input-xs w-full font-mono text-right ${min ? 'font-bold' : 'text-base-content/35'}" value="${min ? fmtSeconds(min) : ''}" placeholder="秒" title="EXスウをソロで倒した時間を秒数で（例 10分30秒なら 630）">`)}
+                        ${field('アーケインフォース', inp('arcane', f.arcane))}
+                        ${field('オーセンティックフォース', inp('sacred', f.sacred))}
+                    </div>
+                    <div id="sc-quick-sum">${quickSumHTML(e)}</div>
+                    <h3 class="mt-3"><i data-lucide="gem"></i>シンボル Lv11 以上<small>最終ダメージ +${QUICK_SYM_FD}%</small></h3>
+                    <div class="grid grid-cols-2 gap-1">${tiles}</div>
+                </div>
+                <div class="sc-cutpage" id="sc-quick-out">${quickOutHTML(e)}</div>
+            </div></div>`;
+    }
+    // 打っている間は表と左の数字だけ書き換える（入力欄を作り直すとフォーカスが外れる）。
+    function refreshQuick() {
+        const veil = document.getElementById('sc-overlay');
+        if (!veil || !cur || cur.tab !== 'quick') return;
+        const out = veil.querySelector('#sc-quick-out'), sum = veil.querySelector('#sc-quick-sum');
+        if (out) out.innerHTML = quickOutHTML(cur.e);
+        if (sum) sum.innerHTML = quickSumHTML(cur.e);
+        if (window.lucide) lucide.createIcons();
     }
 
     // ボスカットのコンパクト版を画像にする（Discord などに貼る用）。表に出ているマスだけ、空の難易度の列は詰める。
@@ -1291,6 +1395,14 @@ const scouter = (() => {
         // 打っている間は作り直さない（フォーカスが外れる）。最終値の欄だけ書き換える。
         veil.addEventListener('input', (ev) => {
             const t = ev.target;
+            if (t.dataset.sc === 'qmin') {
+                const v = String(t.value || '').trim(), min = parseSeconds(v);
+                if (!v) cur.e.quick = { min: null }; else if (min) cur.e.quick = { min };
+                t.classList.toggle('font-bold', !!min); t.classList.toggle('text-base-content/35', !min);
+                save();
+                refreshQuick();
+                return;
+            }
             if (!t.dataset.k || t.type === 'checkbox' || t.tagName === 'SELECT') return;
             setPath(cur.e.form, t.dataset.k, t.value.trim());
             syncShared(cur.e.form);
@@ -1298,6 +1410,7 @@ const scouter = (() => {
             const k = t.dataset.k.split('.')[0];
             const cell = veil.querySelector(`[data-fin="${k}"]`);
             if (cell) cell.textContent = fmt(finalOf(cur.e.form[k]));
+            refreshQuick();
         });
     }
     // .sc-modal は描き直すたびに作り直すので、こちらは毎回付ける。
@@ -1306,7 +1419,7 @@ const scouter = (() => {
         box.addEventListener('dragover', (ev) => { if ([...ev.dataTransfer.types].includes('Files')) { ev.preventDefault(); box.classList.add('drop'); } });
         box.addEventListener('dragleave', (ev) => { if (!box.contains(ev.relatedTarget)) box.classList.remove('drop'); });
         box.addEventListener('drop', async (ev) => {
-            if (cur && cur.tab === 'hstat') return;
+            if (cur && (cur.tab === 'hstat' || cur.tab === 'quick')) return;
             const files = [...ev.dataTransfer.files].filter((x) => x.type.startsWith('image/'));
             if (!files.length) return;
             ev.preventDefault();

@@ -172,7 +172,7 @@ const scouterKinoko = (() => {
     }
 
     async function calculate(f, cls, magic) {
-        if (!supported(f.classId)) throw new Error('この職業は計算元（kinokohub）が対応していません');
+        if (!supported(f.classId)) throw new Error('この職業は計算元（kinokohub）が対応していません。「簡易換算」タブなら EXスウのソロタイムからボスカットを出せます。');
         const res = await fetch(API, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(buildPayload(f, cls, magic)),
@@ -184,5 +184,5 @@ const scouterKinoko = (() => {
         return toCalculatedData(out.payload, f);
     }
 
-    return { calculate, supported, buildPayload, toCalculatedData };
+    return { calculate, supported, buildPayload, toCalculatedData, SPLINE_300, SPLINE_380 };
 })();
