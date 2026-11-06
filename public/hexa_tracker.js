@@ -16,6 +16,7 @@ const hexaTracker = {
         mastery: { label: 'M', badge: '#f97316', color: '#fdba74', title: 'Mastery' },
         origin:  { label: 'O', badge: '#facc15', color: '#fde68a', title: 'Origin' },
         ascent:  { label: 'A', badge: '#eab308', color: '#fde047', title: 'Ascent' },
+        third:   { label: '3', badge: '#ca8a04', color: '#fde047', title: '3rd Skill' },
         enhance: { label: 'B', badge: '#38bdf8', color: '#7dd3fc', title: 'Boost' },
         common:  { label: 'C', badge: '#a78bfa', color: '#c4b5fd', title: 'Common' },
     },
@@ -81,6 +82,7 @@ const hexaTracker = {
     },
 
     getSkillIcon(skill) {
+        if (skill && skill.iconSrc) return skill.iconSrc;
         return skill && skill.icon ? this.ICON_BASE + skill.icon + '.png' : null;
     },
 
@@ -88,8 +90,10 @@ const hexaTracker = {
 
     // Which HEXA_COST table a node pays from. Origin has its own table because
     // its Lv.1 is granted free when you hit 6th job; the 3rd Common core is
-    // cheaper than the first two.
+    // cheaper than the first two. The 3rd skill core (Skill Node slot 2, added by
+    // hexa_third.js) has its own table too.
     costKey(skill) {
+        if (skill.type === 'third' || (skill.tier === 'skillNodes' && skill.slot === 2)) return 'skill3';
         if (skill.type === 'origin') return 'origin';
         if (skill.type === 'ascent') return 'ascent';
         if (skill.type === 'mastery') return 'mastery';
@@ -200,11 +204,23 @@ const hexaTracker = {
         return this.activeSkills(trackingId, classId).filter(s => this.countsForDamage(s));
     },
 
+    // The 3rd skill core (hexa_third.js) is not in GMS yet: it has no FD weight,
+    // so it stays out of the FD math and the plan, but its fragment / Sol Erda
+    // cost still counts toward the resource totals and the HEXA %.
+    isThird(skill) {
+        return skill.type === 'third';
+    },
+
+    // Nodes whose cost goes into the フラグメント / ソルエルダ totals.
+    costSkills(trackingId, classId) {
+        return this.activeSkills(trackingId, classId).filter(s => this.countsForDamage(s) || this.isThird(s));
+    },
+
     // The ones left out, for the note under the board.
     nonDamageSkills(classId) {
         const cls = this.getClassSkills(classId);
         if (!cls) return [];
-        return cls.skills.filter(s => !this.countsForDamage(s) && s.name !== 'TBD');
+        return cls.skills.filter(s => !this.countsForDamage(s) && !this.isThird(s) && s.name !== 'TBD');
     },
 
     // trackingId selects which saved data set to use; classId selects the board.
@@ -220,7 +236,7 @@ const hexaTracker = {
         if (!this.getClassSkills(classId)) return empty;
 
         const out = { ...empty };
-        for (const s of this.damageSkills(trackingId, classId)) {
+        for (const s of this.costSkills(trackingId, classId)) {
             const lv = this.levelOf(trackingId, s);
             const tg = this.targetOf(trackingId, s);
             out.fragSpent += this.fragAt(s, lv);
@@ -848,9 +864,15 @@ const hexaTracker = {
     // Same sentence, for tabs that already have a footnote to append it to.
     exclusionSentence(classId) {
         const left = this.nonDamageSkills(classId);
-        if (!left.length) return '';
-        const names = [...new Set(left.map(s => s.name))].join('、');
-        return `${this.escHtml(names)} は最終ダメージに寄与しないため、フラグメント・エルダ・FDのすべての集計から除外しています（レベルの記録のみ可）。`;
+        const cls = this.getClassSkills(classId);
+        const third = cls && cls.skills.some(s => this.isThird(s));
+        const out = [];
+        if (left.length) {
+            const names = [...new Set(left.map(s => s.name))].join('、');
+            out.push(`${this.escHtml(names)} は最終ダメージに寄与しないため、フラグメント・エルダ・FDのすべての集計から除外しています（レベルの記録のみ可）。`);
+        }
+        if (third) out.push('3rd Skill Core はGMS未実装のため、最終ダメージと強化順の計算には入れていません（必要なフラグメント・エルダはKMSの値で集計に入れています）。');
+        return out.join('');
     },
 
     // Secondary: the three running totals, each as its own 現在 / 目標 / 最大 stack
@@ -900,21 +922,28 @@ const hexaTracker = {
             const pct = fragMax > 0 ? Math.round(fragNow / fragMax * 100) : 0;
             const tgtPct = fragMax > 0 ? Math.round(fragTgt / fragMax * 100) : 0;
             const counts = this.countsForDamage(s);
+            const third = this.isThird(s);
             const fdNow = this.fdAt(s, lvl);
-            const hint = counts
+            const hint = third
+                ? `${s.name}${s.kmsName ? `（KMS: ${s.kmsName}）` : ''}\nGMS未実装のため、最終ダメージと強化順の計算には入れていません。`
+                    + `\nフラグメント ${fragNow.toLocaleString()} / 全取得 ${fragMax.toLocaleString()}`
+                    + `\nソルエルダ ${this.erdaAt(s, lvl).toLocaleString()} / 全取得 ${this.erdaAt(s, this.MAX_LEVEL).toLocaleString()}（KMSの値）`
+                : counts
                 ? `${s.name}\n最終ダメージ 現在 +${fdNow.toFixed(2)}% / 全取得 +${s.fd.toFixed(2)}%`
                     + `\nフラグメント ${fragNow.toLocaleString()} / 全取得 ${fragMax.toLocaleString()}`
                 : `${s.name}\n最終ダメージに寄与しないため、画面上のすべての集計から除外しています。`
                     + `\nレベルの記録だけできます（フラグメント ${fragNow.toLocaleString()}）。`;
             const stat = isExcl ? '<span class="text-base-content/40">除外</span>'
+                : third ? `<span class="text-base-content/40">FD未計算</span><span class="text-base-content/20 mx-1">·</span><span class="text-base-content/50">${fragNow.toLocaleString()}</span>`
                 : !counts ? '<span class="text-base-content/40">火力計算外</span>'
                 : `<span class="text-accent">+${fdNow.toFixed(1)}%</span><span class="text-base-content/20 mx-1">·</span><span class="text-base-content/50">${fragNow.toLocaleString()}</span>`;
 
             const iconUrl = this.getSkillIcon(s);
             const iconHtml = iconUrl
-                ? `<img src="${iconUrl}" class="w-6 h-6 object-contain ${counts && !isExcl ? '' : 'grayscale'}" loading="lazy" alt="">`
+                ? `<img src="${iconUrl}" class="w-6 h-6 object-contain ${(counts || third) && !isExcl ? '' : 'grayscale'}" loading="lazy" alt="">`
                 : `<div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style="background:${sCfg.badge}">${sCfg.label}</div>`;
-            rows += `<li class="grid grid-cols-[24px_minmax(0,1fr)_auto_auto] items-center gap-x-2 py-1 ${isExcl || !counts ? 'opacity-50' : ''}">
+            const tracked = counts || third;
+            rows += `<li class="grid grid-cols-[24px_minmax(0,1fr)_auto_auto] items-center gap-x-2 py-1 ${isExcl || !tracked ? 'opacity-50' : ''}">
                 ${iconHtml}
                 <div class="min-w-0">
                     <div class="flex items-baseline gap-2" title="${this.escHtml(hint)}">
@@ -933,9 +962,9 @@ const hexaTracker = {
                     <select title="目標値" class="select select-xs w-14 font-mono text-violet-200"
                         onchange="hexaTracker.updateTarget('${trackingId}','${classId}','${s.key}',this.value)">${this.levelOptions(lvl, tgt)}</select>
                 </div>
-                <input type="checkbox" class="checkbox checkbox-xs" ${counts ? '' : 'disabled'} ${counts && !isExcl ? 'checked' : ''}
-                    title="${!counts ? '最終ダメージに寄与しないため集計外' : isExcl ? '進捗に含める' : '進捗から除外'}"
-                    ${counts ? `onchange="hexaTracker.toggleExclude('${trackingId}','${s.key}')"` : ''}>
+                <input type="checkbox" class="checkbox checkbox-xs" ${tracked ? '' : 'disabled'} ${tracked && !isExcl ? 'checked' : ''}
+                    title="${!tracked ? '最終ダメージに寄与しないため集計外' : isExcl ? '進捗に含める' : '進捗から除外'}"
+                    ${tracked ? `onchange="hexaTracker.toggleExclude('${trackingId}','${s.key}')"` : ''}>
             </li>`;
         }
 
