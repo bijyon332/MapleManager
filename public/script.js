@@ -609,6 +609,13 @@ const app = {
             init() { scouter.init('view-scouter'); },
             reopen() { scouter.render(); }
         },
+        ptscouter: {
+            view: 'view-ptscouter',
+            // ボスカットの表と換算の曲線は Scouter と同じファイル（読み込み済みなら読み直さない）。
+            scripts: ['scouter_bosscut.js', 'scouter_kinoko.js', 'party_scouter.js'],
+            init() { partyScouter.init('view-ptscouter'); },
+            reopen() { partyScouter.render(); }
+        },
         kmsvideos: {
             view: 'view-kmsvideos',
             scripts: ['kms_videos.js'],
