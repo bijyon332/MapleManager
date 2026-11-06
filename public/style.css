@@ -594,6 +594,11 @@ body {
 .sc-bc-bar span { display: block; height: 100%; background: var(--cc); }
 .sc-bctbl .df-easy { color: #9ca3af; } .sc-bctbl .df-normal { color: #22d3ee; } .sc-bctbl .df-hard { color: #f87171; }
 .sc-bctbl .df-chaos { color: #ca8a04; } .sc-bctbl .df-extreme { color: #ef4444; } .sc-bctbl .df-destiny { color: #e879f9; } .sc-bctbl .df-champion { color: #fbbf24; }
+/* Party Scouter（3人PTの推定討伐時間）。表は Scouter のボスカット表と同じ部品 */
+.ps-tbl td.sc-bc { cursor: pointer; }
+.ps-tbl td.sc-bc:hover { background-color: #1e293b80; }
+.ps-tbl td.ps-ref { outline: 2px solid #fbbf24; outline-offset: -2px; }
+.ps-mmss { display: flex; align-items: center; height: 24px; font: 700 13px "IBM Plex Mono", monospace; color: #cbd5e1; }
 
 /* 上部バーの収入欄のサーバー枠（左線の色はサーバー色のユーティリティで付ける）。 */
 .mm-srv { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px 0 10px; border: 1px solid color-mix(in oklab, var(--color-base-content) 15%, transparent); border-left-width: 3px; background: var(--color-base-200); white-space: nowrap; flex-shrink: 0; transition: opacity 0.15s; }
