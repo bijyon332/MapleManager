@@ -616,6 +616,13 @@ const app = {
             init() { partyScouter.init('view-ptscouter'); },
             reopen() { partyScouter.render(); }
         },
+        libae: {
+            view: 'view-libae',
+            nav: 'libae-nav',
+            scripts: ['libae_gear.js'],
+            init() { libaeGear.init('view-libae'); },
+            reopen() { libaeGear.render(); }
+        },
         kmsvideos: {
             view: 'view-kmsvideos',
             scripts: ['kms_videos.js'],

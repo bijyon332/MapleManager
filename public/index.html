@@ -113,6 +113,13 @@
                     <i data-lucide="book-open" class="w-5 h-5"></i>
                     <span class="nav-label">Guide</span>
                 </button></li>
+                <!-- 期間限定のイベント用のアプリ。 -->
+                <li class="menu-title">Event</li>
+                <li><button onclick="app.switchApp('libae')" id="app-libae"
+                    class="nav-item" title="Libae's Gear（Quanah の Libae's Supercharged 装備のスキルラインとジュエル）">
+                    <i data-lucide="gem" class="w-5 h-5"></i>
+                    <span class="nav-label">Libae's Gear</span>
+                </button></li>
                 <li class="menu-title">Tools</li>
                 <li><button onclick="app.switchApp('planner')" id="app-planner"
                     class="nav-item menu-active" title="Character Manager（自分のキャラの管理）">
@@ -272,6 +279,18 @@
                     </button>
                 </nav>
             </div>
+            <!-- Libae's Gear の 装備管理／ジュエル強化／資料（Libae's Gear のときだけ出す）。押したときの切り替えは libae_gear.js -->
+            <nav id="libae-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
+                <button onclick="libaeGear.setTab('gear')" data-tab="gear" role="tab" class="tab tab-active gap-1.5">
+                    <i data-lucide="shirt" class="w-3.5 h-3.5"></i>装備管理
+                </button>
+                <button onclick="libaeGear.setTab('jewel')" data-tab="jewel" role="tab" class="tab gap-1.5">
+                    <i data-lucide="gem" class="w-3.5 h-3.5"></i>ジュエル強化
+                </button>
+                <button onclick="libaeGear.setTab('reference')" data-tab="reference" role="tab" class="tab gap-1.5">
+                    <i data-lucide="book-open" class="w-3.5 h-3.5"></i>資料
+                </button>
+            </nav>
             <!-- Boss Scheduler sub navigation (shown only for the scheduler app) -->
             <nav id="scheduler-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="app.schedulerTab('members')" id="snav-members"
@@ -410,6 +429,8 @@
                 <div id="view-scouter" class="hidden-page fade-in"></div>
                 <!-- 中身は party_scouter.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
                 <div id="view-ptscouter" class="hidden-page fade-in"></div>
+                <!-- 中身は libae_gear.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
+                <div id="view-libae" class="hidden-page fade-in"></div>
                 <!-- 中身は kms_videos.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
                 <div id="view-kmsvideos" class="hidden-page fade-in"></div>
                 <!-- 中身は gms_updates.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
