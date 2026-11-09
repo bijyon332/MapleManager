@@ -5,7 +5,7 @@
  *  bi がアップロードした単体版（Libae's gear 管理アプリ 公開版、2026-11-08 調査の PTS 情報）を移植（2026-11-09）。
  *
  *  - 上部ヘッダーのタブ（#libae-nav）で 装備管理／ジュエル強化／資料 を切り替える。
- *  - 保存はこのブラウザだけ（mm-libae-gear / mm-libae-settings）。JSON の書き出し・読み込みは単体版と同じ形
+ *  - 保存はこのブラウザだけ（libae-gear-public-v1 / libae-jewel-settings-public-v1、単体版と同じキー）。JSON の書き出し・読み込みは単体版と同じ形
  *    （app: 'libae-gear', version: 1）なので、単体版で書き出した JSON をそのまま読み込める。
  *  - 数値（強化コスト・ステータスボーナス）はクライアントデータ、スキルの効果は PTS 時点の情報。
  *    正式実装（GMS 2026-11-11）で変わったら下の定数を直す。
@@ -26,17 +26,18 @@ const libaeGear = (() => {
         { name: 'Magician Attack Skill', group: 'attack', label: 'Magician 攻撃', effect: '通常: Chain Lightning / 強化: Bolt Barrage', note: '強化版は不明な確率で発動（PTS）。ダメージ%は未公開。' },
         { name: 'Bowman Attack Skill', group: 'attack', label: 'Bowman 攻撃', effect: '通常: Snipe / 強化: Ultimate Snipe', note: '強化版は不明な確率で発動（PTS）。ダメージ%は未公開。' },
         { name: 'Thief Attack Skill', group: 'attack', label: 'Thief 攻撃', effect: '通常: Showdown / 強化: Shurikane', note: '綴りはツールチップ表示どおり。強化版は不明な確率で発動（PTS）。' },
-        { name: 'Pirate Attack Skill', group: 'attack', label: 'Pirate 攻撃', effect: '通常: Cannon Barrage / 強化: Max Cannon R…', note: '強化版の正式名は唯一のスクリーンショットで途切れており未確定。Banhmi ガイドは Pirate 攻撃を最も強いと評価。' },
-        { name: 'Attack Power & Magic ATT Enhancement', group: 'passive', label: '攻撃力＆魔力 強化', effect: '1レベルごとに 攻撃力 +5% / 魔力 +5%（Lv.2 表示: +10% / +10%）', note: '一定スタック数で追加のファイナルダメージが付く（閾値表は Lv.3 以降が未確認）。' },
+        { name: 'Pirate Attack Skill', group: 'attack', label: 'Pirate 攻撃', effect: '通常: Cannon Barrage / 強化: Max Cannon R…', note: '強化版の正式名は唯一のスクリーンショットで途切れており未確定。Banhmi ガイドは Pirate 攻撃を最も高火力と推奨（著者の意見）。' },
+        { name: 'Attack Power & Magic ATT Enhancement', group: 'passive', label: '攻撃力＆魔力 強化', effect: '1レベルごとに 攻撃力 +5% / 魔力 +5%（Lv.2 表示: +10% / +10%）', note: '一定スタック数で追加のファイナルダメージが付くとされる（閾値表は未公開）。' },
         { name: 'Critical Damage Enhancement', group: 'passive', label: 'クリティカルダメージ 強化', effect: '1レベルごとに クリティカルダメージ +5%（Lv.2 表示: +10%）' },
         { name: 'Damage Enhancement', group: 'passive', label: 'ダメージ 強化', effect: '1レベルごとに ダメージ +5%' },
         { name: 'Boss Damage Enhancement', group: 'passive', label: 'ボスダメージ 強化', effect: '1レベルごとに ボスダメージ +5%', note: '資料によっては「Boss Damage Increase Enhancement」とも表記されます。' },
         { name: 'Ignore Defense Enhancement', group: 'passive', label: '防御率無視 強化', effect: '1レベルごとに 防御率無視 +5%' },
-        { name: 'Registry', group: 'exclusive', label: 'Registry', effect: 'Hologram スキルで命中した敵に [Hologram] Format を付与（Lv.1: 20秒）。Format 中の敵に指定の強化攻撃を当てると Defrag 爆発（Lv.1: 4155%）。Defrag 後5秒は再付与不可。', note: 'Banhmi ガイドのおすすめ配分では最優先（×3）。' },
-        { name: 'White Hole', group: 'exclusive', label: 'White Hole', effect: '効果・数値は未公開', note: 'Banhmi ガイドが Quanah 専用スキルとして名前のみ記載（White Hole / Black Hole）。ツールチップはどの情報源にも出ていません。' },
-        { name: 'Black Hole', group: 'exclusive', label: 'Black Hole', effect: '効果・数値は未公開', note: 'Banhmi ガイドが Quanah 専用スキルとして名前のみ記載（White Hole / Black Hole）。ツールチップはどの情報源にも出ていません。' },
-        { name: 'Dimensional Leap', group: 'exclusive', label: 'Dimensional Leap', effect: '効果・数値は未公開', note: '下（Pants）のスクリーンショットで装備ラインとして確認（[Hologram] 接頭辞なし）。所属システムは情報源によって不明。' },
+        { name: 'Registry', group: 'exclusive', label: 'Registry', effect: 'Hologram スキルで命中した敵に [Hologram] Format を付与（Lv.1: 20秒）。Format 中の敵に指定の強化攻撃を当てると Defrag 爆発（Lv.1: 4155%）。Defrag 後5秒は再付与不可。パッシブ: ファイナルダメージ +5%（Lv.1）', note: '機能するにはジョブ攻撃スキルが合計4つ以上必要（Banhmi ガイド）。' },
+        { name: 'White Hole', group: 'exclusive', label: 'White Hole', effect: '効果・数値は未公開', note: 'Banhmi ガイドが Quanah 専用スキルとして名前のみ記載（White Hole / Black Hole）。ツールチップはどの情報源にも出ていない。' },
+        { name: 'Black Hole', group: 'exclusive', label: 'Black Hole', effect: '効果・数値は未公開', note: 'Banhmi ガイドが Quanah 専用スキルとして名前のみ記載（White Hole / Black Hole）。ツールチップはどの情報源にも出ていない。' },
+        { name: 'Dimensional Leap', group: 'exclusive', label: 'Dimensional Leap', effect: '効果・数値は未公開', note: '下（Pants）のスクリーンショットで装備ラインとして確認（[Hologram] 接頭辞なし）。所属システムは情報源だけでは確定できない。' },
     ];
+
     const SKILL_NAMES = SKILLS.map((s) => s.name);
     const JEWEL_COLORS = [
         { id: 'red', label: 'Red Jewel', hex: '#f87171' },
@@ -52,8 +53,9 @@ const libaeGear = (() => {
         { color: 'purple', name: 'Purple Jewel', archetype: 'Thief', statPool: 'ATT / LUK / DEX（+ HP / MP）', example: 'Lv.1 実例: DEX +50、Attack Power +15', dustPrice: 500 },
         { color: 'green', name: 'Green Jewel', archetype: 'Bowman', statPool: 'ATT / DEX / STR（+ HP / MP）', dustPrice: 500 },
         { color: 'gray', name: 'Gray Jewel', archetype: 'Pirate', statPool: 'ATT / STR / DEX（+ HP / MP）', dustPrice: 500 },
-        { color: 'prismatic', name: 'Prismatic Jewel', archetype: '全ジョブ', statPool: 'ステータスの代わり／追加で [Hologram] スキルのレベルを持つ', example: 'Lv.1 実例: [Hologram] Boss Damage Enhancement +1 と [Hologram] Pirate Attack Skill +1', dustPrice: 3000 },
+        { color: 'prismatic', name: 'Prismatic Jewel', archetype: '全ジョブ', statPool: 'ステータスの代わり／追加で [Hologram] スキルのレベルを持つ', example: 'Lv.1 実例: [Hologram] Boss Damage Enhancement +1 と [Hologram] Pirate Attack Skill +1（1個に2ライン）', dustPrice: 3000 },
     ];
+
     const JEWEL_ABILITIES = {
         red: ['Attack Power', 'STR', 'DEX', 'Max HP', 'Max MP'],
         blue: ['Magic ATT', 'INT', 'LUK', 'Max HP', 'Max MP'],
@@ -88,7 +90,8 @@ const libaeGear = (() => {
     const DUST = { colored: 500, prismatic: 3000 };
 
     /* ---------- 保存（このブラウザだけ） ---------- */
-    const LS_GEAR = 'mm-libae-gear', LS_SETTINGS = 'mm-libae-settings', LS_TAB = 'mm-libae-tab';
+    // キーは単体版と同じ（仕様書 §4.3。オリジンが違うので中身は引き継がれないが、形をそろえておく）。
+    const LS_GEAR = 'libae-gear-public-v1', LS_SETTINGS = 'libae-jewel-settings-public-v1', LS_TAB = 'mm-libae-tab';
     const presetSettings = () => ({ maxLevel: 5, coloredStepCosts: COLORED_STEP_COSTS.slice(), prismaticStepCosts: PRISMATIC_STEP_COSTS.slice(), isPreset: true });
     const blankGear = () => Object.fromEntries(GRID_ORDER.map((s) => [s, null]));
     function loadJSON(key, fallback) {
@@ -245,8 +248,8 @@ const libaeGear = (() => {
             lines.forEach((name, pi) => {
                 h += `<select data-act="pline" ${at} data-pos="${pi}" class="select select-xs w-full min-w-0" aria-label="プリズマティックのライン ${pi + 1}">
                     <option value="">ライン${pi + 1}</option>
-                    <optgroup label="[Hologram] スキル（+${s.jewelLevel}）">${SKILLS.map((sk) => `<option value="${esc(sk.name)}" ${name === sk.name ? 'selected' : ''}>${esc(sk.name)} +${s.jewelLevel}</option>`).join('')}</optgroup>
-                    <optgroup label="ステータス">${PRISMATIC_LINE_ABILITIES.map((a) => { const b = jewelStatBonus(a, s.jewelLevel); return `<option value="${esc(a)}" ${name === a ? 'selected' : ''}>${esc(b > 0 ? `${a} +${fmt(b)}` : a)}</option>`; }).join('')}</optgroup>
+                    <optgroup label="Hologram スキル（Designated skill level +${s.jewelLevel}）">${SKILLS.map((sk) => `<option value="${esc(sk.name)}" ${name === sk.name ? 'selected' : ''}>${esc(sk.name)} +${s.jewelLevel}</option>`).join('')}</optgroup>
+                    <optgroup label="ジュエル能力（ステータス）">${PRISMATIC_LINE_ABILITIES.map((a) => { const b = jewelStatBonus(a, s.jewelLevel); return `<option value="${esc(a)}" ${name === a ? 'selected' : ''}>${esc(b > 0 ? `${a} +${fmt(b)}` : a)}</option>`; }).join('')}</optgroup>
                 </select>`;
             });
             h += '</div>';
@@ -284,7 +287,7 @@ const libaeGear = (() => {
                 <div class="lg-stat"><span>装備</span><b>${agg.gearCount}<small> / 6</small></b></div>
                 <div class="lg-stat"><span>スキルライン</span><b>${agg.lines}<small> / ${MAX_LINES}</small></b></div>
             </div>`;
-        h += `<section class="mt-4">${h3('layers', 'スキルスタック', '<span class="lg-legend-key"><i class="bg-primary"></i>装備<i class="lg-bj"></i>ジュエル</span>')}`;
+        h += `<section class="mt-4">${h3('layers', 'スキルスタック状況', '<span class="lg-legend-key"><i class="bg-primary"></i>装備<i class="lg-bj"></i>ジュエル</span>')}`;
         if (!agg.names.length) h += '<p class="lg-empty">スキルライン未登録</p>';
         else {
             h += '<ul class="flex flex-col gap-1">';
@@ -301,16 +304,18 @@ const libaeGear = (() => {
             });
             h += '</ul>';
         }
-        h += `</section><section class="mt-4">${h3('gem', 'ジュエルのステータス')}`;
-        if (!agg.stats.length) h += '<p class="lg-empty">なし</p>';
+        h += `</section><section class="mt-4">${h3('gem', 'ジュエルによるステータス増加')}`;
+        if (!agg.stats.length) h += '<p class="lg-empty">ステータス能力を持つジュエルがありません</p>';
         else h += `<ul class="lg-statlist">${agg.stats.map((x) => `<li><span>${esc(x.ability)}</span><b class="font-mono text-white">+${fmt(x.total)}</b></li>`).join('')}</ul>`;
-        h += `</section><section class="mt-4">${h3('arrow-up-narrow-wide', 'ジュエルを一括で', `<span class="text-[11px] text-base-content/50 font-normal">${agg.equippedJewels}個</span>`)}
+        h += `</section><section class="mt-4">${h3('arrow-up-narrow-wide', 'ジュエルを一括でレベル変更', `<span class="text-[11px] text-base-content/50 font-normal">${agg.equippedJewels}個</span>`)}
             <div class="join w-full" role="group" aria-label="一括変更先のレベル">`;
         for (let lv = 1; lv <= settings.maxLevel; lv++) {
             const on = allAt(lv);
             h += `<button type="button" data-act="bulk" data-level="${lv}" ${agg.equippedJewels === 0 ? 'disabled' : ''} class="btn btn-sm join-item flex-1 font-mono ${on ? 'btn-primary' : ''}" aria-pressed="${on}" title="装着中のジュエルを全部 Lv.${lv} にする（空きソケットはそのまま）">Lv.${lv}</button>`;
         }
-        h += '</div></section>';
+        h += '</div>';
+        if (agg.equippedJewels === 0) h += '<p class="lg-empty mt-1">装着中のジュエルがありません</p>';
+        h += '</section>';
         return h;
     }
     function gearHTML() {
@@ -357,11 +362,11 @@ const libaeGear = (() => {
             <div class="grid grid-cols-4 gap-1.5 mt-1">${costs.map((cost, i) => `<label class="lg-field"><span>Lv.${i + 1}→${i + 2}</span><input type="number" min="0" max="9999" value="${cost}" class="input input-xs w-full font-mono text-right lg-set-cost" data-kind="${kind}" data-idx="${i}"></label>`).join('')}</div></div>`;
         return `<div class="flex items-end gap-2">
                 <label class="lg-field w-24"><span>最大レベル</span><input type="number" min="2" max="20" value="${settings.maxLevel}" id="lg-set-max" class="input input-xs w-full font-mono text-right"></label>
-                <span class="badge badge-sm ${settings.isPreset ? 'badge-ghost' : 'badge-warning badge-soft'} ml-auto">${settings.isPreset ? 'クライアントデータ' : 'カスタム'}</span>
+                <span class="badge badge-sm ${settings.isPreset ? 'badge-ghost' : 'badge-warning badge-soft'} ml-auto">${settings.isPreset ? 'クライアントデータ（確定値）' : 'カスタム設定'}</span>
             </div>
             ${row('colored', 'カラージュエル', settings.coloredStepCosts)}
             ${row('prismatic', 'プリズマティックジュエル', settings.prismaticStepCosts)}
-            <div class="flex gap-1.5 mt-3"><button type="button" class="btn btn-sm btn-primary" data-act="save-settings">保存</button>
+            <div class="flex gap-1.5 mt-3"><button type="button" class="btn btn-sm btn-primary" data-act="save-settings">設定を保存</button>
                 ${settings.isPreset ? '' : '<button type="button" class="btn btn-sm btn-ghost" data-act="preset-settings">クライアントデータに戻す</button>'}</div>`;
     }
     function jewelHTML() {
@@ -370,7 +375,7 @@ const libaeGear = (() => {
         // 全体の進捗
         h += `<section class="card card-sm bg-base-100 border border-base-content/10 p-4">
             ${h3('gem', `強化の進捗<span class="text-base-content/50 font-normal ml-1">Lv.${maxLevel}まで</span>`, sum.equipped > 0 ? `<span class="font-mono text-[11px] text-base-content/50 font-normal">全${sum.equipped}個 · 完了${sum.maxed}個 · 空き${sum.emptySockets}個</span>` : '')}`;
-        if (sum.equipped === 0) h += '<p class="lg-empty">装着中のジュエルがありません。装備管理のソケットにジュエルを入れると出ます。</p>';
+        if (sum.equipped === 0) h += '<p class="lg-empty">装着中のジュエルがまだありません。装備管理タブのソケットにジュエルを入れると、ここに進捗が出ます。</p>';
         else {
             const done = sum.remaining === 0;
             h += `<div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-end mt-1">
@@ -380,19 +385,19 @@ const libaeGear = (() => {
                         <div class="text-right"><div class="lg-k">残り</div><div class="font-mono lg-big ${done ? 'text-success' : 'text-white'}">${sum.remaining}<span class="text-[13px] font-bold"> 個</span></div></div>
                     </div>
                     <div class="mt-2">${gaugeHTML(sum.grandSpent, sum.grandTotal, null, '全体', true)}</div>
-                    <div class="flex justify-between mt-1 font-mono text-[11px] text-base-content/50"><span>${pct(sum.grandSpent, sum.grandTotal)}%</span>${done ? doneBadge : `<span>残りを Dust で <b class="text-[14px] text-amber-300">${fmt(sum.remainingDust)}</b> Dust</span>`}</div>
+                    <div class="flex justify-between mt-1 font-mono text-[11px] text-base-content/50"><span>${pct(sum.grandSpent, sum.grandTotal)}% 消化</span>${done ? doneBadge : `<span>残りを Dust で買うと <b class="text-[14px] text-amber-300">${fmt(sum.remainingDust)}</b> Dust</span>`}</div>
                 </div>
                 <div class="lg-inset">
-                    <div class="lg-k">全部 Dust で買うと（Lv.1 → ${maxLevel}）</div>
-                    <div class="font-mono text-[16px] font-black mt-0.5 text-white">${sum.grandTotal}個 <span class="text-base-content/40 font-normal">＝</span> <span class="text-amber-300">${fmt(sum.fullDust)}</span> Dust</div>
-                    <div class="font-mono text-[11px] text-base-content/50 mt-0.5">カラー ${sum.coloredFull}個（${fmt(dustFor(sum.coloredFull, 'red'))}）　プリズマティック ${sum.prismaticFull}個（${fmt(dustFor(sum.prismaticFull, 'prismatic'))}）</div>
+                    <div class="lg-k">全てDustで賄う場合（Lv.1 → Lv.${maxLevel} の総量）</div>
+                    <div class="font-mono text-[16px] font-black mt-0.5 text-white">ジェム ${sum.grandTotal}個 <span class="text-base-content/40 font-normal">＝</span> <span class="text-amber-300">${fmt(sum.fullDust)}</span> Dust</div>
+                    <div class="font-mono text-[11px] text-base-content/50 mt-0.5">カラー ${sum.coloredFull}個（${fmt(dustFor(sum.coloredFull, 'red'))} Dust）　プリズマ ${sum.prismaticFull}個（${fmt(dustFor(sum.prismaticFull, 'prismatic'))} Dust）</div>
                 </div>
             </div>`;
         }
         h += '</section>';
         // 色別
         if (sum.perColor.length) {
-            h += `<section>${h3('palette', '色別の残り')}<ul class="lg-colorgrid">`;
+            h += `<section>${h3('palette', '色別の残り<span class="text-base-content/50 font-normal ml-1">同色素材</span>')}<ul class="lg-colorgrid">`;
             sum.perColor.forEach((c) => {
                 const done = c.remaining === 0;
                 h += `<li class="card card-sm bg-base-100 border border-base-content/10 p-3">
@@ -438,13 +443,13 @@ const libaeGear = (() => {
                 <summary class="collapse-title text-[13px] font-bold min-h-0 py-2.5 flex items-center gap-2"><i data-lucide="${icon}" class="w-3.5 h-3.5 text-indigo-400"></i>${title}</summary>
                 <div class="collapse-content text-[12px]">${body}</div></details>`;
         h += `<div class="grid gap-3 lg:grid-cols-3 items-start">
-            ${fold('settings', 'settings-2', 'ジュエル設定（コスト）', settingsHTML())}
+            ${fold('settings', 'settings-2', 'ジュエル設定（コスト編集）', settingsHTML())}
             ${fold('dust', 'calculator', 'Dust 交換計算', `<div class="grid grid-cols-2 gap-2">
                     <label class="lg-field"><span>カラージュエル数</span><input type="number" min="0" max="99" value="${dustCalc.colored}" data-dust="colored" class="input input-xs w-full font-mono text-right"></label>
                     <label class="lg-field"><span>プリズマティック数</span><input type="number" min="0" max="99" value="${dustCalc.prismatic}" data-dust="prismatic" class="input input-xs w-full font-mono text-right"></label>
                 </div>
-                <p class="font-mono text-[16px] font-black mt-3">必要 <span class="text-amber-300" id="lg-dust-total">${fmt(dustCalc.colored * DUST.colored + dustCalc.prismatic * DUST.prismatic)}</span> Dust</p>`)}
-            ${fold('tables', 'table-2', 'レベル別ボーナスと強化コスト', `${statBonusTableHTML()}<div class="lg-k mt-3 mb-1">強化コスト（その Lv に上げる素材数）</div>${costTableHTML()}`)}
+                <p class="font-mono text-[16px] font-black mt-3">必要 Dust: <span class="text-amber-300" id="lg-dust-total">${fmt(dustCalc.colored * DUST.colored + dustCalc.prismatic * DUST.prismatic)}</span></p>`)}
+            ${fold('tables', 'table-2', 'レベル別ステータスボーナス（クライアントデータ）', `${statBonusTableHTML()}<div class="lg-k mt-3 mb-1">強化コスト（その Lv に上げる素材数）</div>${costTableHTML()}`)}
         </div>`;
         return h + '</div>';
     }
@@ -464,16 +469,10 @@ const libaeGear = (() => {
             h += '</ul></div>';
         });
         h += '</section>';
+        // 並びは単体版（仕様書 §9）と同じ: おすすめ配分 → ジュエル仕様 → 強化コスト・ボーナス表 → 装備セット・未確認事項 → 出典。
         h += `<div class="grid gap-5 lg:grid-cols-2 items-start">
             <section>${h3('thumbs-up', 'ガイド著者のおすすめ配分<span class="text-base-content/50 font-normal ml-1">意見</span>')}
                 <ul class="${box} px-4 py-2">${RECOMMENDED.map((r) => `<li class="flex justify-between py-0.5 text-[12px]"><span>${esc(r.skill)}</span><b class="font-mono text-white">×${r.count}</b></li>`).join('')}</ul></section>
-            <section>${h3('shirt', '装備セットについて')}${ul([
-                '名称は「Libae\'s Supercharged [部位]」。狩り場と Battlesim ダンジョンでドロップし、トレード不可。',
-                'スターフォース上限は 30。強化はすべて Quanah Crystal を使い、通常のキューブ／フレーム／スクロールは使えません。',
-                'Banhmi ガイドによれば全8部位で、ラインが付くのは6部位（武器・肩を除く）、最大18ライン。',
-                '装備スキルラインは1スキル合計 Lv.3 が上限で、ジュエル込みの Master Level は Lv.8。',
-                'ラインの移動は Orb システム（コスト未公表）。',
-            ])}</section>
         </div>`;
         h += `<section>${h3('gem', 'ジュエル仕様')}<ul class="lg-refgrid">`;
         JEWELS.forEach((j) => {
@@ -486,6 +485,13 @@ const libaeGear = (() => {
             <section>${h3('table-2', 'レベル別ステータスボーナス<span class="text-base-content/50 font-normal ml-1">クライアントデータ・能力1種あたり</span>')}<div class="${box} overflow-x-auto">${statBonusTableHTML()}</div></section>
         </div>`;
         h += `<div class="grid gap-5 lg:grid-cols-2 items-start">
+            <section>${h3('shirt', '装備セットについて')}${ul([
+                '名称は「Libae\'s Supercharged [部位]」。狩り場と Battlesim ダンジョンでドロップし、トレード不可。',
+                'スターフォース上限は 30。強化はすべて Quanah Crystal を使い、通常のキューブ／フレーム／スクロールは使えません。',
+                'Banhmi ガイドによれば全8部位で、ラインが付くのは6部位（武器・肩を除く）、最大18ライン。',
+                '装備スキルラインは1スキル合計 Lv.3 が上限で、ジュエル込みの Master Level は Lv.8。',
+                'ラインの移動は Orb システム（コスト未公表）。',
+            ])}</section>
             <section>${h3('circle-help', '未確認事項')}${ul([
                 'Pirate 強化攻撃の正式名（「Max Cannon R…」までしか写っていない）',
                 'White Hole / Black Hole と Dimensional Leap の効果・数値',
@@ -493,8 +499,8 @@ const libaeGear = (() => {
                 '強化パッシブのファイナルダメージ閾値表（Lv.3 以降）',
                 '以上すべて PTS（10/29〜11/1）時点の情報で、11月11日の正式実装で変わる可能性あり',
             ])}</section>
-            <section>${h3('link', '出典<span class="text-base-content/50 font-normal ml-1">2026-11-08 調査</span>')}<ul class="flex flex-col gap-1.5">${SOURCES.map((s) => `<li class="${box} px-3 py-2"><a href="${esc(s.url)}" target="_blank" rel="noreferrer" class="link link-hover text-indigo-300 text-[13px] font-bold">${esc(s.label)}</a><p class="text-[11px] text-base-content/50 mt-0.5">${esc(s.kind)}</p></li>`).join('')}</ul></section>
         </div>`;
+        h += `<section>${h3('link', '出典')}<ul class="flex flex-col gap-1.5">${SOURCES.map((s) => `<li class="${box} px-3 py-2"><a href="${esc(s.url)}" target="_blank" rel="noreferrer" class="link link-hover text-indigo-300 text-[13px] font-bold">${esc(s.label)}</a><p class="text-[11px] text-base-content/50 mt-0.5">${esc(s.kind)}（2026-11-08 調査）</p></li>`).join('')}</ul></section>`;
         return h + '</div>';
     }
 
@@ -503,13 +509,13 @@ const libaeGear = (() => {
         return `<section class="card card-sm bg-base-100 border border-base-content/10 px-3 py-2 mt-4">
             <div class="flex flex-wrap items-center gap-1.5">
                 <span class="text-[12px] font-bold flex items-center gap-1.5 mr-2" title="登録内容はこのブラウザに自動で保存されます。別の端末に移すときは JSON で書き出して読み込みます。"><i data-lucide="database" class="w-3.5 h-3.5 text-indigo-400"></i>データ<span class="text-base-content/45 font-normal">このブラウザに保存</span></span>
-                <button type="button" class="btn btn-xs" data-act="export-dl"><i data-lucide="download" class="w-3 h-3"></i>JSON を保存</button>
-                <button type="button" class="btn btn-xs" data-act="export-copy"><i data-lucide="copy" class="w-3 h-3"></i>JSON をコピー</button>
-                <label class="btn btn-xs"><i data-lucide="upload" class="w-3 h-3"></i>JSON を読み込む<input type="file" data-act="import" accept="application/json,.json" hidden></label>
+                <button type="button" class="btn btn-xs" data-act="export-dl"><i data-lucide="download" class="w-3 h-3"></i>JSONをダウンロード</button>
+                <button type="button" class="btn btn-xs" data-act="export-copy"><i data-lucide="copy" class="w-3 h-3"></i>JSONをコピー</button>
+                <label class="btn btn-xs"><i data-lucide="upload" class="w-3 h-3"></i>JSONをインポート<input type="file" data-act="import" accept="application/json,.json" hidden></label>
                 <span id="lg-msg" class="text-[11px] font-bold ml-1" role="status"></span>
                 <span class="ml-auto flex gap-1.5">${resetAsk
-                    ? '<button type="button" class="btn btn-xs btn-error" data-act="reset-yes">本当にすべて初期化する</button><button type="button" class="btn btn-xs btn-ghost" data-act="reset-no">やめる</button>'
-                    : '<button type="button" class="btn btn-xs btn-ghost text-error" data-act="reset" title="登録した装備すべてとジュエル設定を初期状態に戻します（元に戻せません）"><i data-lucide="rotate-ccw" class="w-3 h-3"></i>初期化</button>'}</span>
+                    ? '<button type="button" class="btn btn-xs btn-error" data-act="reset-yes">本当にすべて初期化する</button><button type="button" class="btn btn-xs btn-ghost" data-act="reset-no">キャンセル</button>'
+                    : '<button type="button" class="btn btn-xs btn-ghost text-error" data-act="reset" title="登録した装備すべてとジュエル設定を初期状態に戻します（元に戻せません）"><i data-lucide="rotate-ccw" class="w-3 h-3"></i>設定内容をすべて初期化</button>'}</span>
             </div>
         </section>`;
     }
@@ -530,7 +536,7 @@ const libaeGear = (() => {
             ng[slot] = {
                 skillLines: [sl[0] || '', sl[1] || '', sl[2] || ''],
                 sockets: Array.isArray(it.sockets) ? it.sockets.slice(0, 3).map((s) => ({
-                    color: colorOf(s.color) ? s.color : 'red',
+                    color: s.color || 'red',
                     jewelLevel: Number(s.jewelLevel) || 0,
                     abilities: Array.isArray(s.abilities) ? [s.abilities[0] || '', s.abilities[1] || ''] : ['', ''],
                     prismaticSkills: Array.isArray(s.prismaticSkills) ? [s.prismaticSkills[0] || '', s.prismaticSkills[1] || ''] : ['', ''],
@@ -589,8 +595,8 @@ const libaeGear = (() => {
                 const file = el.files && el.files[0]; if (!file) return;
                 const reader = new FileReader();
                 reader.onload = () => {
-                    try { importData(JSON.parse(String(reader.result || ''))); render(); setMsg('読み込みました'); }
-                    catch (e) { setMsg('読み込めませんでした。JSON ファイルを確認してください。', false); }
+                    try { importData(JSON.parse(String(reader.result || ''))); render(); setMsg('インポートしました'); }
+                    catch (e) { setMsg('インポートに失敗しました。JSONファイルを確認してください。', false); }
                 };
                 reader.readAsText(file);
                 el.value = '';
@@ -639,7 +645,7 @@ const libaeGear = (() => {
             } else if (act === 'bulk') {
                 const lv = Number(el.dataset.level);
                 GRID_ORDER.forEach((slot) => { const it = gear[slot]; if (it) it.sockets.forEach((s) => { if (s.jewelLevel > 0) s.jewelLevel = lv; }); });
-                saveGear(); render(); setMsg(`全ジュエルを Lv.${lv} にしました`);
+                saveGear(); render(); setMsg(`全ジュエルを Lv.${lv} に変更しました`);
             } else if (act === 'save-settings') {
                 const newMax = Math.max(2, Math.min(20, Number(rootEl.querySelector('#lg-set-max')?.value) || 5));
                 const read = (kind, preset) => {
@@ -656,13 +662,13 @@ const libaeGear = (() => {
                 const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'libae-gear-data.json';
                 document.body.appendChild(a); a.click(); a.remove();
                 setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-                setMsg('JSON を保存しました');
+                setMsg('JSONをダウンロードしました');
             } else if (act === 'export-copy') {
-                copyText(JSON.stringify(exportData(), null, 2)).then(() => setMsg('JSON をコピーしました'));
+                copyText(JSON.stringify(exportData(), null, 2)).then(() => setMsg('JSONをコピーしました'));
             } else if (act === 'reset') { resetAsk = true; render(); }
             else if (act === 'reset-no') { resetAsk = false; render(); }
             else if (act === 'reset-yes') {
-                resetAsk = false; gear = blankGear(); settings = presetSettings(); saveGear(); saveSettings(); render(); setMsg('すべて初期化しました');
+                resetAsk = false; gear = blankGear(); settings = presetSettings(); saveGear(); saveSettings(); render(); setMsg('初期化しました');
             }
         });
     }
