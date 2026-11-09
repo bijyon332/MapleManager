@@ -599,6 +599,52 @@ body {
 .ps-tbl td.sc-bc:hover { background-color: #1e293b80; }
 .ps-tbl td.ps-ref { outline: 2px solid #fbbf24; outline-offset: -2px; }
 .ps-mmss { display: flex; align-items: center; height: 24px; font: 700 13px "IBM Plex Mono", monospace; color: #cbd5e1; }
+/* Libae's Gear（Event）。装備欄は1マス 290px 以上で並べ、右に合計の列 */
+.lg-root { max-width: 1600px; }
+.lg-gear { display: grid; gap: 12px; align-items: start; }
+@media (min-width: 1280px) { .lg-gear { grid-template-columns: minmax(0, 1fr) 340px; } #lg-side { position: sticky; top: 0; } }
+.lg-equip-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; font-size: 12px; font-weight: 900; letter-spacing: 0.04em; color: #e2e8f0; border-bottom: 1px solid #1e293b; background: var(--color-base-200); }
+.lg-equip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 8px; padding: 8px; }
+.lg-cell { display: flex; flex-direction: column; border: 1px dashed #334155; border-radius: 0.25rem; background: #0b1222; color: #64748b; }
+.lg-cell.lg-filled { border: 1px solid #6366f1; border-left-width: 3px; background: var(--color-base-100); color: #e2e8f0; }
+.lg-cell-head { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 8px; }
+.lg-sname { font-size: 13px; font-weight: 900; color: #cbd5e1; }
+.lg-filled .lg-sname { color: #fff; }
+.lg-dots { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.lg-dotwrap { display: inline-flex; align-items: center; gap: 3px; font: 700 11px "IBM Plex Mono", monospace; color: #e2e8f0; }
+.lg-dot { display: inline-block; flex-shrink: 0; border-radius: 9999px; border: 1.5px solid #475569; }
+.lg-editor { padding: 0 8px 8px; flex: 1; }
+.lg-legend { font-size: 10.5px; font-weight: 700; color: #64748b; margin-bottom: 3px; }
+.lg-socket { border: 1px solid #1e293b; border-radius: 0.25rem; background: #0b1222; padding: 6px; margin-top: 4px; }
+.lg-h { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #e2e8f0; margin-bottom: 6px; }
+.lg-h > svg { width: 14px; height: 14px; color: #818cf8; flex-shrink: 0; }
+.lg-stat { display: flex; flex-direction: column; align-items: center; padding: 6px 4px; border: 1px solid #1e293b; border-radius: 0.25rem; background: #0b1222; }
+.lg-stat span { font-size: 11px; color: #64748b; }
+.lg-stat b { font: 900 18px "IBM Plex Mono", monospace; color: #fff; line-height: 1.3; }
+.lg-stat small { font-size: 12px; font-weight: 700; color: #64748b; }
+.lg-empty { font-size: 12px; color: #64748b; }
+.lg-stack { padding: 5px 8px; border: 1px solid #1e293b; border-radius: 0.25rem; background: #0b1222; }
+.lg-bar { margin-top: 4px; height: 6px; border-radius: 9999px; background: #1e293b; overflow: hidden; display: flex; }
+.lg-bar > div { height: 100%; }
+.lg-bj { background: linear-gradient(90deg, #f472b6, #c084fc); }
+.lg-legend-key { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 400; color: #64748b; }
+.lg-legend-key i { display: inline-block; width: 10px; height: 6px; border-radius: 9999px; margin-left: 4px; }
+.lg-statlist { padding: 2px 10px; border: 1px solid #1e293b; border-radius: 0.25rem; background: #0b1222; }
+.lg-statlist li { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; border-top: 1px solid #1e293b; }
+.lg-statlist li:first-child { border-top: 0; }
+.lg-gauge { height: 8px; width: 100%; border-radius: 9999px; background: #1e293b; overflow: hidden; display: flex; }
+.lg-gauge.lg-gauge-tall { height: 12px; }
+.lg-gauge > div { height: 100%; }
+.lg-k { font-size: 11px; font-weight: 700; color: #64748b; }
+.lg-big { font-size: 30px; font-weight: 900; line-height: 1; color: #fff; }
+.lg-inset { padding: 10px 12px; border: 1px solid #1e293b; border-radius: 0.25rem; background: #0b1222; }
+.lg-colorgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.lg-slotgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 8px; align-items: start; }
+.lg-jrow { border-top: 1px solid #1e293b; padding: 6px 0; }
+.lg-field { display: flex; flex-direction: column; gap: 2px; }
+.lg-field > span { font-size: 10.5px; font-weight: 700; color: #94a3b8; }
+.lg-refgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 6px; }
+.lg-table th { color: #94a3b8; font-weight: 700; font-size: 11px; }
 
 /* 上部バーの収入欄のサーバー枠（左線の色はサーバー色のユーティリティで付ける）。 */
 .mm-srv { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px 0 10px; border: 1px solid color-mix(in oklab, var(--color-base-content) 15%, transparent); border-left-width: 3px; background: var(--color-base-200); white-space: nowrap; flex-shrink: 0; transition: opacity 0.15s; }
@@ -726,3 +772,6 @@ header .tabs-box > .tab-active svg { color: #a5b4fc; }
 .guide .guide-ol li::marker { color: var(--color-primary); font-weight: 700; }
 .guide .guide-table th, .guide .guide-table td { padding-top: 7px; padding-bottom: 7px; }
 .guide .guide-table th, .guide .guide-table td { vertical-align: top; }
+
+/* Libae's Gear: 長いスキル名が選択欄の矢印にかからないように（daisyUI の select は utilities 層なので層の外で上書き） */
+.lg-root select.select { padding-inline-end: 1.75rem; overflow: hidden; text-overflow: ellipsis; }
