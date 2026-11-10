@@ -802,6 +802,9 @@ i.expp-ico, svg.expp-ico { width: 15px; height: 15px; margin: 0 1.5px; }
 .expp-sec { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 10.5px; font-weight: 700; color: #64748b; letter-spacing: .06em; }
 .expp-sec::after { content: ''; flex: 1; height: 1px; background: color-mix(in oklab, var(--color-base-content) 10%, transparent); }
 .expp-chip:disabled { opacity: .35; cursor: not-allowed; }
+/* 入力欄の枠の中にプルダウンを入れる（狩りの時間。数値の入力欄と同じ大きさ） */
+.expp-insel select { appearance: none; background: transparent; border: 0; outline: 0; font: inherit; color: inherit; flex: 1; min-width: 0; cursor: pointer; padding: 0; }
+.expp-insel select option { background: var(--color-base-200); }
 .expp-dgrp { display: grid; grid-template-columns: 138px 1fr; align-items: start; gap: 4px; }
 .expp-grp { width: 138px; white-space: nowrap; height: 24px; text-align: left; font-size: 11px; font-weight: 700; color: #64748b; cursor: pointer; }
 .expp-grp:hover { color: #cbd5e1; }

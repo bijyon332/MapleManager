@@ -1070,7 +1070,7 @@ const expPlan = {
                 ${this.rowLbl('hunt', '狩り')}
                 <div class="flex flex-wrap items-center gap-1.5">
                     <label class="input input-xs font-mono w-28" title="1時間あたりの討伐数（自分の Lv の敵）"><input type="number" min="0" step="1000" value="${hunt.kills}" onchange="expPlan.setHunt('${ch.id}','kills',this.value)"><span class="text-slate-500">体/時</span></label>
-                    <label class="expp-cnt ${hunt.hours ? 'on' : ''}" style="--c:${this.srcColor('hunt')}"><select class="select select-xs font-mono w-16" onchange="expPlan.setHunt('${ch.id}','hours',this.value)">${hourOpts}</select>${this.stableText('時間/日')}</label>
+                    <label class="input input-xs font-mono w-28 expp-insel" title="1日に狩る時間"><select onchange="expPlan.setHunt('${ch.id}','hours',this.value)">${hourOpts}</select><i data-lucide="chevron-down" class="w-3 h-3 text-slate-500 shrink-0"></i><span class="text-slate-500">時間/日</span></label>
                     <label class="input input-xs font-mono w-32" title="ステータス画面の経験値（+N%）。基礎の100%に足して計算します"><span class="text-slate-500">EXP +</span><input type="number" min="0" step="10" value="${hunt.pct}" onchange="expPlan.setHunt('${ch.id}','pct',this.value)"><span class="text-slate-500">%</span></label>
                     ${huntDay > 0 ? `<span class="text-[11px] text-slate-500">1日 ${expFmt(huntDay)}</span>` : ''}
                 </div>
