@@ -215,7 +215,6 @@ const expSim = {
         const mpeRunsWeekly = parseInt(document.getElementById('exp-mpeRuns').value) || 0;
         const mpeMultVal = parseFloat(document.getElementById('exp-mpeMult').value) || 1;
         const edChoice = document.getElementById('exp-edDungeon').value;
-        const edReward = parseInt(document.getElementById('exp-edReward').value) || 1;
         const edBonusPct = parseFloat(document.getElementById('exp-edBonus').value) || 0;
         const weeklyQuests = arcaneWeeklyData.filter(w => {
             const cbEl = document.getElementById(`exp-wk-${w.id}`);
@@ -227,6 +226,7 @@ const expSim = {
         const monpaBaseMultVal = parseFloat(document.getElementById('exp-monpaMult').value);
         // イベントバフ（exp_plan.js）。その日に効いている％の合計を足す。
         const buff = (key, d) => (typeof expBuffs !== 'undefined' ? expBuffs.pct(key, `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`) : 0) / 100;
+        const dailyBuff = (reg, d) => (typeof expBuffs !== 'undefined' ? expBuffs.dailyPct(reg, `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`) : 0) / 100;
 
         const startD = new Date(document.getElementById('exp-startDate').value);
         startD.setHours(0, 0, 0, 0);
@@ -347,7 +347,7 @@ const expSim = {
                 if (reg.daily === 0) return;
                 const cbEl = document.getElementById(`exp-${reg.id}`);
                 if (!cbEl || !cbEl.checked || reg.lv > curLv) return;
-                [curLv, curExp] = self.addExp(reg.daily * (dailyMultVal + buff('daily', loopDate)), curLv, curExp, goalLv);
+                [curLv, curExp] = self.addExp(reg.daily * (dailyMultVal + dailyBuff(reg, loopDate)), curLv, curExp, goalLv);
             });
 
             // Arcane River Weekly Quests
@@ -378,7 +378,7 @@ const expSim = {
             if (!thursdayWeekly.epic) {
                 const dungeon = this.pickEpicDungeon(edChoice, curLv);
                 if (dungeon) {
-                    gain(lv => (epicDungeonBase[lv] || 0) * (edReward + edBonusPct / 100 + buff('epic', loopDate)) * dungeon.mult);
+                    gain(lv => (epicDungeonBase[lv] || 0) * (1 + edBonusPct / 100 + buff('epic', loopDate)) * dungeon.mult);
                     thursdayWeekly.epic = true;
                 }
             }
