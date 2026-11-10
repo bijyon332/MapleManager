@@ -279,6 +279,24 @@
                     </button>
                 </nav>
             </div>
+            <!-- EXP Simulator の 1キャラ／アカウント計画／イベントバフ と、計画のときだけ Kronos／Challenger（EXP Simulator のときだけ出す）。押したときの切り替えは exp_plan.js -->
+            <div id="exp-nav" class="hidden items-center gap-4 mr-3 shrink-0">
+                <nav role="tablist" class="tabs tabs-box tabs-sm flex-nowrap shrink-0">
+                    <button onclick="expPlan.setTab('sim')" data-tab="sim" role="tab" class="tab tab-active gap-1.5">
+                        <i data-lucide="user" class="w-3.5 h-3.5"></i>1キャラ
+                    </button>
+                    <button onclick="expPlan.setTab('plan')" data-tab="plan" role="tab" class="tab gap-1.5">
+                        <i data-lucide="users" class="w-3.5 h-3.5"></i>アカウント計画
+                    </button>
+                    <button onclick="expPlan.setTab('buffs')" data-tab="buffs" role="tab" class="tab gap-1.5">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>イベントバフ
+                    </button>
+                </nav>
+                <nav id="exp-world-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap shrink-0 hidden">
+                    <button onclick="expPlan.setWorld('KRONOS')" data-world="KRONOS" role="tab" class="tab tab-active">Kronos</button>
+                    <button onclick="expPlan.setWorld('CHALLENGER')" data-world="CHALLENGER" role="tab" class="tab">Challenger</button>
+                </nav>
+            </div>
             <!-- Libae's Gear の 装備管理／ジュエル強化／資料（Libae's Gear のときだけ出す）。押したときの切り替えは libae_gear.js -->
             <nav id="libae-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="libaeGear.setTab('gear')" data-tab="gear" role="tab" class="tab tab-active gap-1.5">

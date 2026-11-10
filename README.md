@@ -28,7 +28,7 @@ Cloudflare Worker + 静的アセットとして配信している。ビルド工
 | Monitoring | EXP Tracker | `ranks` | `public/ranks.js` |
 | Community | Party Builder | `scheduler` | `public/boss_scheduler.html`（同一オリジンの iframe） |
 | Community | Community Members | `community` | `public/community.js`, `public/community_import.js` |
-| DEV（開発中） | EXP Simulator | `exp` | `public/exp_sim.js` |
+| DEV（開発中） | EXP Simulator | `exp` | `public/exp_sim.js`、`public/exp_plan.js`（アカウント計画・イベントバフ） |
 | DEV（開発中） | Gear Cost Calculator | `cost` | `public/cost_calc.js` |
 | DEV（開発中） | Weapon Liberation | `liberation` | `public/liberation_calc.js` ほか |
 | DEV（開発中） | Job Art Position | `jobart` | `public/job_art_tool.js`（値は `public/job_art.js`） |

@@ -1,6 +1,7 @@
 <!-- EXP Simulator のマークアップ。
      index.html の #view-exp-sim に、初回オープン時に読み込まれる
      （script.js の APPS テーブルを参照）。動かすのは exp_sim.js。 -->
+<div id="exp-tab-sim">
 <div class="grid grid-cols-1 xl:grid-cols-[480px_1fr] gap-0 h-[calc(100vh-7rem)]">
     <!-- Left: Settings -->
     <div class="overflow-y-auto custom-scrollbar pr-3 space-y-2 pb-6">
@@ -213,13 +214,7 @@
                                 class="input input-sm w-full font-mono">
                         </div>
                     </div>
-                    <p class="text-[9px] text-slate-500">+250% Event Days</p>
-                    <div id="exp-monpaEventRows"></div>
-                    <button id="exp-addMonpaEventBtn"
-                        class="btn btn-xs btn-dash w-full gap-1">
-                        <i data-lucide="plus" class="w-3 h-3"></i>Add Event Day
-                    </button>
-                    <p class="text-[9px] text-slate-600 italic">* Sun: +0.5, Event: +2.5</p>
+                    <p class="text-[9px] text-slate-600 italic">* Sun: +0.5 / イベントは「イベントバフ」タブの一覧を反映</p>
                 </div>
             </div>
 
@@ -340,3 +335,7 @@
         </div>
     </div>
 </div>
+</div>
+<!-- アカウント計画とイベントバフ（中身は exp_plan.js が描く） -->
+<div id="exp-tab-plan" class="hidden"></div>
+<div id="exp-tab-buffs" class="hidden"></div>

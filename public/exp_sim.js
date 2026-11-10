@@ -4,7 +4,6 @@
 
 const expSim = {
     potionRowCount: 0,
-    monpaEventCount: 0,
 
     init() {
         const startDateEl = document.getElementById('exp-startDate');
@@ -76,9 +75,6 @@ const expSim = {
         const nameInput = document.getElementById('exp-charNameInput');
         if (nameInput) nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') this.fetchCharacter(); });
 
-        const addMonpaBtn = document.getElementById('exp-addMonpaEventBtn');
-        if (addMonpaBtn) addMonpaBtn.addEventListener('click', () => this.addMonpaEventRow());
-
         const addPotionBtn = document.getElementById('exp-addPotionBtn');
         if (addPotionBtn) addPotionBtn.addEventListener('click', () => this.addPotionRow());
 
@@ -127,31 +123,6 @@ const expSim = {
             const dl = document.getElementById(`exp-pt-dead-${rowId}`).value;
             const ptype = EXP_POTION_TYPES.find(p => p.id === typeId);
             return (qty > 0 && ptype) ? { capLv: ptype.capLv, minLv: ptype.minLv, qty, deadline: dl } : null;
-        }).filter(Boolean);
-    },
-
-    addMonpaEventRow(dateVal = '') {
-        const evId = ++this.monpaEventCount;
-        const evEl = document.createElement('div');
-        evEl.className = 'exp-event-row';
-        evEl.id = `exp-mev-${evId}`;
-        evEl.innerHTML = `
-        <input type="date" class="input input-sm font-mono" id="exp-mev-date-${evId}" value="${dateVal}">
-        <button class="btn btn-ghost btn-sm btn-square exp-del-btn" onclick="document.getElementById('exp-mev-${evId}').remove()">
-            <i data-lucide="x" class="w-3 h-3"></i>
-        </button>`;
-        document.getElementById('exp-monpaEventRows').appendChild(evEl);
-        lucide.createIcons();
-    },
-
-    getMonpaEventDates() {
-        return [...document.querySelectorAll('#exp-monpaEventRows .exp-event-row')].map(evEl => {
-            const evId = evEl.id.replace('exp-mev-', '');
-            const evVal = document.getElementById(`exp-mev-date-${evId}`).value;
-            if (!evVal) return null;
-            const evDate = new Date(evVal);
-            evDate.setHours(0, 0, 0, 0);
-            return evDate;
         }).filter(Boolean);
     },
 
@@ -254,7 +225,8 @@ const expSim = {
         this.hyperBurningBeyond = document.getElementById('exp-hyperBurningBeyond').classList.contains('active');
         const dailyMultVal = parseFloat(document.getElementById('exp-dailyMult').value);
         const monpaBaseMultVal = parseFloat(document.getElementById('exp-monpaMult').value);
-        const monpaEventDates = this.getMonpaEventDates();
+        // イベントバフ（exp_plan.js）。その日に効いている％の合計を足す。
+        const buff = (key, d) => (typeof expBuffs !== 'undefined' ? expBuffs.pct(key, `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`) : 0) / 100;
 
         const startD = new Date(document.getElementById('exp-startDate').value);
         startD.setHours(0, 0, 0, 0);
@@ -374,19 +346,20 @@ const expSim = {
                 if (reg.daily === 0) return;
                 const cbEl = document.getElementById(`exp-${reg.id}`);
                 if (!cbEl || !cbEl.checked || reg.lv > curLv) return;
-                [curLv, curExp] = self.addExp(reg.daily * dailyMultVal, curLv, curExp, goalLv);
+                [curLv, curExp] = self.addExp(reg.daily * (dailyMultVal + buff('daily', loopDate)), curLv, curExp, goalLv);
             });
 
             // Arcane River Weekly Quests
             weeklyQuests.forEach(w => {
                 if (arcaneDone.has(w.id) || w.lv > curLv) return;
-                [curLv, curExp] = self.addExp(w.exp, curLv, curExp, goalLv);
+                [curLv, curExp] = self.addExp(w.exp * (1 + buff('weekly', loopDate)), curLv, curExp, goalLv);
                 arcaneDone.add(w.id);
             });
 
             // Monster Park
-            const isEventDay = monpaEventDates.some(evD => evD.getTime() === loopDate.getTime());
-            const monpaEffMult = monpaBaseMultVal + (isSun ? 0.5 : 0) + (isEventDay ? 2.5 : 0);
+            const monpaBuff = buff('monpa', loopDate);
+            const isEventDay = monpaBuff > 0;
+            const monpaEffMult = monpaBaseMultVal + (isSun ? 0.5 : 0) + monpaBuff;
             for (let mi = 0; mi < monpaRunsVal; mi++) {
                 const availRegions = expRegionData.filter(reg => reg.lv <= curLv && reg.monpa > 0);
                 const monpaBase = availRegions.length ? availRegions[availRegions.length - 1].monpa : 0;
@@ -396,7 +369,7 @@ const expSim = {
 
             // Monster Park Extreme (Lv.260+)
             if (!thursdayWeekly.mpe && curLv >= 260) {
-                for (let mi = 0; mi < mpeRunsWeekly; mi++) gain(lv => (mpeTable[lv] || 0) * mpeMultVal);
+                for (let mi = 0; mi < mpeRunsWeekly; mi++) gain(lv => (mpeTable[lv] || 0) * (mpeMultVal + buff('mpe', loopDate)));
                 thursdayWeekly.mpe = true;
             }
 
@@ -404,7 +377,7 @@ const expSim = {
             if (!thursdayWeekly.epic) {
                 const dungeon = this.pickEpicDungeon(edChoice, curLv);
                 if (dungeon) {
-                    gain(lv => (epicDungeonBase[lv] || 0) * (edReward + edBonusPct / 100) * dungeon.mult);
+                    gain(lv => (epicDungeonBase[lv] || 0) * (edReward + edBonusPct / 100 + buff('epic', loopDate)) * dungeon.mult);
                     thursdayWeekly.epic = true;
                 }
             }
