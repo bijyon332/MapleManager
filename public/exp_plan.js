@@ -584,6 +584,8 @@ const expPlan = {
 
         const results = new Map();
         this.onChars().forEach(ch => results.set(ch.id, this.simulate(ch, this.cfg(ch.id), st.start, st.end)));
+        // 入力欄を変えるたびに描き直すので、入力側・結果側のスクロール位置を引き継ぐ
+        const keep = ['expp-inputs', 'expp-results'].map(id => [id, document.getElementById(id)?.scrollTop || 0]);
 
         const monpaLeft = L.monpaPerWorld - this.monpaUsed(world);
         const mpeLeft = L.mpePerWorld - this.mpeUsed(world);
@@ -599,8 +601,8 @@ const expPlan = {
         }
 
         root.innerHTML = `
-        <div class="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4 pb-6">
-            <div class="space-y-3 min-w-0">
+        <div class="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4 2xl:h-[calc(100vh-7rem)]">
+            <div id="expp-inputs" class="space-y-3 min-w-0 2xl:overflow-y-auto custom-scrollbar 2xl:pr-2 pb-6">
                 <div class="bg-base-100 border border-base-content/10 rounded-box p-3 flex flex-wrap items-end gap-3">
                     <label class="flex flex-col gap-1"><span class="expp-lbl">開始日</span>
                         <input type="date" class="input input-sm font-mono w-40" value="${st.start}" onchange="expPlan.setDate('start',this.value)"></label>
@@ -623,10 +625,11 @@ const expPlan = {
                 </div>
                 <div class="space-y-2">${mine.map(ch => this.charHTML(ch, results.get(ch.id))).join('') || `<p class="text-sm text-slate-500 px-1">${wName} のキャラがいません</p>`}</div>
             </div>
-            <div class="space-y-3 min-w-0">${this.resultHTML(results, st)}</div>
+            <div id="expp-results" class="space-y-3 min-w-0 order-first 2xl:order-none 2xl:overflow-y-auto custom-scrollbar 2xl:pr-1 2xl:pb-6">${this.resultHTML(results, st)}</div>
         </div>`;
         if (window.lucide) lucide.createIcons();
         this.drawChart(results);
+        keep.forEach(([id, top]) => { const el = document.getElementById(id); if (el) el.scrollTop = top; });
     },
 
     poolHTML(world) {
