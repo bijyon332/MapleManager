@@ -75,8 +75,12 @@ const expBuffs = {
     // その日に効いている上乗せ％の合計（重なった分は足し算）
     pct(target, ymd) {
         this.ensure();
+        return this.sum(this.list, target, ymd);
+    },
+    // バフの並び（list）から、その日・その対象の％の合計（ウルティマの計画も同じ形の並びを使う）
+    sum(list, target, ymd) {
         let s = 0;
-        for (const b of this.list) {
+        for (const b of list) {
             if (b.target !== target || !b.start) continue;
             if (ymd < b.start || (b.end && ymd > b.end)) continue;
             s += Number(b.pct) || 0;
@@ -86,22 +90,27 @@ const expBuffs = {
     // デイリーは「全地域」に、地域の側（アーケインリバー＝Lv255 以下の地域／グランディス＝セルニウム以降）の分を足す
     dailyPct(region, ymd) { return this.pct('daily', ymd) + this.pct(region.lv <= 255 ? 'darc' : 'dgrand', ymd); },
     target(id) { return this.TARGETS.find(t => t.id === id) || this.TARGETS[0]; },
+    // 一覧が変わったら、それを読んでいる計画（アカウント計画・ウルティマ）を描き直す
+    changed() {
+        expPlan.onBuffsChanged();
+        if (typeof expUltima !== 'undefined') expUltima.onBuffsChanged();
+    },
 
     add() {
         const t = expDate.today();
         this.list.push({ id: 'b' + Date.now(), target: 'monpa', pct: 50, start: t, end: expDate.add(t, 6), memo: '' });
-        this.save(); this.render(); expPlan.onBuffsChanged();
+        this.save(); this.render(); expBuffs.changed();
     },
     remove(id) {
         this.list = this.list.filter(b => b.id !== id);
-        this.save(); this.render(); expPlan.onBuffsChanged();
+        this.save(); this.render(); expBuffs.changed();
     },
     set(id, field, value) {
         const b = this.list.find(x => x.id === id);
         if (!b) return;
         b[field] = field === 'pct' ? Math.max(0, Number(value) || 0) : value;
         if (b.start && b.end && b.end < b.start) b.end = b.start;
-        this.save(); this.render(); expPlan.onBuffsChanged();
+        this.save(); this.render(); expBuffs.changed();
     },
 
     // ---- 共有（書き出し・読み込み） ----
@@ -180,7 +189,7 @@ const expBuffs = {
         this.importOpen = false;
         const skipped = got.length - added;
         this.flash(replace ? `${added}件に入れ替えました` : `${added}件を追加しました${skipped ? `（同じもの${skipped}件は飛ばしました）` : ''}`);
-        expPlan.onBuffsChanged();
+        expBuffs.changed();
     },
     flash(m) {
         this.msg = m;
@@ -287,6 +296,13 @@ const expBuffs = {
 //  アカウント計画
 // ---------------------------------------------------------
 const expPlan = {
+    // 同じ仕組みでウルティマ専用の計画（exp_ultima.js の expUltima）も作るので、
+    // 画面の onclick の呼び先・要素の id・保存キーはここで持つ
+    NS: 'expPlan',
+    ID: 'expp',
+    ROOT: 'exp-tab-plan',
+    WORLD_NAV: 'exp-world-nav',
+    KEY_PREFIX: 'mm-exp-plan::',
     tab: 'sim',
     picking: null, // キャラ選択の画面を開いているワールド（null で閉じている）
     world: 'ALL', // 'ALL'（両方）／'KRONOS'／'CHALLENGER'。入力欄に出すワールド
@@ -404,21 +420,31 @@ const expPlan = {
     },
 
     syncWorldNav() {
-        document.querySelectorAll('#exp-world-nav [data-world]').forEach(b => b.classList.toggle('tab-active', b.dataset.world === this.world));
+        document.querySelectorAll(`#${this.WORLD_NAV} [data-world]`).forEach(b => b.classList.toggle('tab-active', b.dataset.world === this.world));
     },
 
-    onBuffsChanged() { if (this.tab === 'plan') this.render(); },
+    visible() { return this.tab === 'plan'; },
+    onBuffsChanged() { if (this.visible()) this.render(); },
+    // その日のイベントバフ（％）。アカウント計画はイベントバフ一覧をそのまま使う
+    buffPct(target, ymd) { return expBuffs.pct(target, ymd); },
+    buffDaily(region, ymd) { return this.buffPct('daily', ymd) + this.buffPct(region.lv <= 255 ? 'darc' : 'dgrand', ymd); },
+    // その日に手に入るもの（ウルティマのパスなど）。アカウント計画にはない
+    arrivals(ch, ymd, lv, memo) { return null; },
+    // 入力欄の上・結果の下に足す欄（ウルティマのパスなど）。アカウント計画にはない
+    extraTopHTML() { return ''; },
+    extraResultHTML() { return ''; },
 
     // ---------- 保存 ----------
     key() {
         const k = (window.app && typeof app.plannerKey === 'function') ? app.plannerKey() : 'default';
-        return 'mm-exp-plan::' + k;
+        return this.KEY_PREFIX + k;
     },
     load() {
         const key = this.key();
         if (this.state && this.stateKey === key) return;
         let s = null;
         try { s = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { s = null; }
+        if (!s) s = this.seed();
         const t = expDate.today();
         this.state = Object.assign({ start: t, end: expDate.add(t, 27), world: 'KRONOS', chars: {}, pool: {} }, s || {});
         this.WORLDS.forEach(w => { this.state.pool[w.id] = Object.assign({ tix: {}, pot: {} }, this.state.pool[w.id] || {}); });
@@ -428,7 +454,11 @@ const expPlan = {
         this.stateKey = key;
         // 表示は view（既定は両方）。以前の world（Kronos／Challenger の二択）は引き継がない
         this.world = this.normWorld(this.state.view);
+        this.afterLoad();
     },
+    // 保存がないときの最初の中身（ウルティマはアカウント計画から写す）と、読み込んだあとの調整
+    seed() { return null; },
+    afterLoad() {},
     save() {
         try { localStorage.setItem(this.stateKey, JSON.stringify(this.state)); } catch (e) { /* 保存できなくても計算は出す */ }
     },
@@ -667,7 +697,7 @@ const expPlan = {
         };
         const add = (amt, key) => {
             if (!(amt > 0) || lv >= 300) return;
-            src[key] += amt;
+            src[key] = (src[key] || 0) + amt;
             exp += amt;
             while (lv < 300 && tnlData[lv] && exp >= tnlData[lv]) {
                 exp -= tnlData[lv];
@@ -678,8 +708,26 @@ const expPlan = {
         // 長いコンテンツは分けて足し、途中のレベルアップで表を引き直す
         const gain = (fn, key, parts = 1) => { for (let i = 0; i < parts; i++) add(fn(lv) / parts, key); };
 
-        const pendTix = this.TIX.map(t => ({ ...t, n: Number(c.tix[t.id]) || 0 })).filter(t => t.n > 0);
-        const pendPot = EXP_POTION_TYPES.map(p => ({ ...p, n: Number(c.pot[p.id]) || 0 })).filter(p => p.n > 0);
+        const pendTix = this.TIX.map(t => ({ ...t, n: Number(c.tix[t.id]) || 0 }));
+        const pendPot = EXP_POTION_TYPES.map(p => ({ ...p, n: Number(c.pot[p.id]) || 0 }));
+        let pendCoupon = 0;
+        const got0 = {}; // arrivals がもらい済みを覚えておく場所（このシミュレーションの間だけ）
+        // 途中で手に入るもの（ウルティマのパスの報酬）を、もらった日に持ち物に足す
+        const receive = (ymd) => {
+            const got = this.arrivals(ch, ymd, lv, got0);
+            if (!got) return;
+            for (const [k, n] of Object.entries(got.tix || {})) { const t = pendTix.find(x => x.id === k); if (t) t.n += n; }
+            for (const [k, n] of Object.entries(got.pot || {})) { const p = pendPot.find(x => x.id === k); if (p) p.n += n; }
+            pendCoupon += got.coupon || 0;
+        };
+        // 上級EXP交換券は、使える Lv（260）になっていればもらった日に全部使う。100枚ずつ足して途中のレベルアップで量を引き直す
+        const useCoupon = () => {
+            while (pendCoupon > 0 && lv >= 260 && lv < 300) {
+                const k = Math.min(100, pendCoupon);
+                add(expCouponExp(lv) * k, 'coupon');
+                pendCoupon -= k;
+            }
+        };
         const useTix = () => {
             for (const t of pendTix) {
                 if (!t.n || lv < t.minLv) continue;
@@ -702,9 +750,9 @@ const expPlan = {
         };
         // 週1のコンテンツは、その週の残りの日でいちばんバフが大きい日にやる
         const bestDay = (key, ymd, startDow) => {
-            const now = expBuffs.pct(key, ymd);
+            const now = this.buffPct(key, ymd);
             const last = expDate.weekEnd(ymd, startDow);
-            for (let d = expDate.add(ymd, 1); d <= last; d = expDate.add(d, 1)) if (expBuffs.pct(key, d) > now) return false;
+            for (let d = expDate.add(ymd, 1); d <= last; d = expDate.add(d, 1)) if (this.buffPct(key, d) > now) return false;
             return true;
         };
 
@@ -728,12 +776,14 @@ const expPlan = {
             if (done.epic && done.epic !== thuWeek) done.epic = null;
             if (done.weeklyWeek !== monWeek) { done.weekly.clear(); done.weeklyWeek = monWeek; }
 
+            receive(ymd);
             useTix();
+            useCoupon();
 
-            dailies.forEach(r => { if (lv >= r.lv) add(r.daily * (1 + expBuffs.dailyPct(r, ymd) / 100), 'daily'); });
+            dailies.forEach(r => { if (lv >= r.lv) add(r.daily * (1 + this.buffDaily(r, ymd) / 100), 'daily'); });
 
             if (c.weekly && bestDay('weekly', ymd, 1)) {
-                const bW = expBuffs.pct('weekly', ymd) / 100;
+                const bW = this.buffPct('weekly', ymd) / 100;
                 arcaneWeeklyData.forEach(w => {
                     if (done.weekly.has(w.id) || lv < w.lv) return;
                     add(w.exp * (1 + bW), 'weekly');
@@ -741,7 +791,7 @@ const expPlan = {
                 });
             }
 
-            const monpaMult = 1 + (dow === 0 ? 0.5 : 0) + expBuffs.pct('monpa', ymd) / 100;
+            const monpaMult = 1 + (dow === 0 ? 0.5 : 0) + this.buffPct('monpa', ymd) / 100;
             for (let i = 0; i < (Number(c.monpa) || 0); i++) {
                 const regs = expRegionData.filter(r => r.lv <= lv && r.monpa > 0);
                 if (!regs.length) break;
@@ -749,7 +799,7 @@ const expPlan = {
             }
 
             if (c.mpe && !done.mpe && lv >= 260 && bestDay('mpe', ymd, 4)) {
-                const b = expBuffs.pct('mpe', ymd) / 100;
+                const b = this.buffPct('mpe', ymd) / 100;
                 gain(l => (mpeTable[l] || 0) * (1 + b), 'mpe');
                 done.mpe = thuWeek;
             }
@@ -757,7 +807,7 @@ const expPlan = {
             if (c.epic !== 'none' && !done.epic && bestDay('epic', ymd, 4)) {
                 const dg = this.epicDungeons().find(d => d.id === c.epic);
                 if (dg && lv >= dg.lv) {
-                    gain(l => (epicDungeonBase[l] || 0) * (1 + expBuffs.pct('epic', ymd) / 100) * dg.mult, 'epic');
+                    gain(l => (epicDungeonBase[l] || 0) * (1 + this.buffPct('epic', ymd) / 100) * dg.mult, 'epic');
                     done.epic = thuWeek;
                 }
             }
@@ -793,8 +843,8 @@ const expPlan = {
     },
 
     render() {
-        const root = document.getElementById('exp-tab-plan');
-        if (!root || this.tab !== 'plan') return;
+        const root = document.getElementById(this.ROOT);
+        if (!root || !this.visible()) return;
         this.load();
         this.normalize();
         const st = this.state;
@@ -805,7 +855,7 @@ const expPlan = {
         this._saunaSched = this.saunaSchedule();
         this.onChars().forEach(ch => results.set(ch.id, this.simulate(ch, this.cfg(ch.id), st.start, st.end)));
         // 入力欄を変えるたびに描き直すので、入力側・結果側のスクロール位置を引き継ぐ
-        const keep = ['expp-inputs', 'expp-results'].map(id => [id, document.getElementById(id)?.scrollTop || 0]);
+        const keep = [`${this.ID}-inputs`, `${this.ID}-results`].map(id => [id, document.getElementById(id)?.scrollTop || 0]);
 
         const saunaHave = Number(st.sauna) || 0, saunaU = this.saunaUsed();
         const saunaDay = this.saunaPerDay();
@@ -827,11 +877,11 @@ const expPlan = {
             return `
                 <div class="flex flex-wrap items-center gap-2 px-1 pt-2">
                     <span class="text-base font-bold text-${col}-400">${wName}</span>
-                    <button class="btn btn-xs gap-1" onclick="expPlan.openPicker('${world}')"><i data-lucide="user-check" class="w-3.5 h-3.5"></i>キャラを選ぶ<span class="font-mono text-slate-400">${mine.length}/${all.length}</span></button>
+                    <button class="btn btn-xs gap-1" onclick="${this.NS}.openPicker('${world}')"><i data-lucide="user-check" class="w-3.5 h-3.5"></i>キャラを選ぶ<span class="font-mono text-slate-400">${mine.length}/${all.length}</span></button>
                     ${pill('モンパ/日 ', monpaLeft, L.monpaPerWorld)}
                     ${pill('MPE/週 ', mpeLeft, L.mpePerWorld)}
                     <div class="flex-1"></div>
-                    <button class="btn btn-xs btn-ghost gap-1" onclick="expPlan.fetchAll('${world}')"><i data-lucide="refresh-cw" class="w-3 h-3"></i>選んだキャラの Lv を取り直す</button>
+                    <button class="btn btn-xs btn-ghost gap-1" onclick="${this.NS}.fetchAll('${world}')"><i data-lucide="refresh-cw" class="w-3 h-3"></i>選んだキャラの Lv を取り直す</button>
                 </div>
                 ${this.poolHTML(world)}
                 <div class="space-y-2">${mine.map(ch => this.charHTML(ch, results.get(ch.id))).join('') || `<p class="text-sm text-slate-500 px-1 py-2">${all.length ? '「キャラを選ぶ」から計画に入れるキャラを選んでください' : `${wName} のキャラがいません`}</p>`}</div>`;
@@ -846,12 +896,12 @@ const expPlan = {
 
         root.innerHTML = `
         <div class="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4 2xl:h-[calc(100vh-7rem)]">
-            <div id="expp-inputs" class="space-y-3 min-w-0 2xl:overflow-y-auto custom-scrollbar 2xl:pr-2 pb-6">
+            <div id="${this.ID}-inputs" class="space-y-3 min-w-0 2xl:overflow-y-auto custom-scrollbar 2xl:pr-2 pb-6">
                 <div class="bg-base-100 border border-base-content/10 rounded-box p-3 flex flex-wrap items-end gap-3">
                     <label class="flex flex-col gap-1"><span class="expp-lbl">開始日</span>
-                        <input type="date" class="input input-sm font-mono w-40" value="${st.start}" onchange="expPlan.setDate('start',this.value)"></label>
+                        <input type="date" class="input input-sm font-mono w-40" value="${st.start}" onchange="${this.NS}.setDate('start',this.value)"></label>
                     <label class="flex flex-col gap-1"><span class="expp-lbl">期日</span>
-                        <input type="date" class="input input-sm font-mono w-40 border-amber-500/40" value="${st.end}" onchange="expPlan.setDate('end',this.value)"></label>
+                        <input type="date" class="input input-sm font-mono w-40 border-amber-500/40" value="${st.end}" onchange="${this.NS}.setDate('end',this.value)"></label>
                     <span class="text-xs text-slate-500 pb-2">${expDate.diff(st.start, st.end) + 1}日間</span>
                     <div class="flex-1"></div>
                     <div class="flex flex-wrap gap-1.5 pb-1">
@@ -859,16 +909,17 @@ const expPlan = {
                     </div>
                     <div class="expp-pool ${saunaHave ? 'has' : ''} w-full" title="VIP サウナの時間はアカウントで共有。1日に使う時間（最大8時間）をアカウントで分け合います">
                         <span class="truncate flex items-center gap-1.5">${this.iconHTML('sauna', 'expp-ico-s')}アカウント VIP サウナ <span class="text-slate-500">時間</span></span>
-                        <input type="number" min="0" step="0.5" class="input input-xs font-mono w-16 text-right" value="${saunaHave}" onchange="expPlan.setPoolSauna(this.value)">
+                        <input type="number" min="0" step="0.5" class="input input-xs font-mono w-16 text-right" value="${saunaHave}" onchange="${this.NS}.setPoolSauna(this.value)">
                         <span class="font-mono text-[10px] ${saunaHave && saunaU >= saunaHave ? 'text-amber-400' : 'text-slate-500'} w-12 text-right">${saunaHave ? `${saunaU}/${saunaHave}` : ''}</span>
                         <span class="text-slate-500 ml-2">1日</span>
-                        <select class="select select-xs font-mono w-16" onchange="expPlan.setSaunaDay(this.value)">${saunaDayOpts}</select>
+                        <select class="select select-xs font-mono w-16" onchange="${this.NS}.setSaunaDay(this.value)">${saunaDayOpts}</select>
                         <span class="text-slate-500">時間</span>
                     </div>
                 </div>
+                ${this.extraTopHTML()}
                 ${this.shownWorlds().map(w => worldHTML(w)).join('')}
             </div>
-            <div id="expp-results" class="space-y-3 min-w-0 order-first 2xl:order-none 2xl:overflow-y-auto custom-scrollbar 2xl:pr-1 2xl:pb-6">${this.resultHTML(results, st)}</div>
+            <div id="${this.ID}-results" class="space-y-3 min-w-0 order-first 2xl:order-none 2xl:overflow-y-auto custom-scrollbar 2xl:pr-1 2xl:pb-6">${this.resultHTML(results, st)}${this.extraResultHTML(results, st)}</div>
         </div>${this.pickerHTML(chars)}`;
         if (window.lucide) lucide.createIcons();
         this.drawChart(results);
@@ -888,7 +939,7 @@ const expPlan = {
             const on = this.cfg(ch.id).on;
             const img = ch.image || ch.classImage || '';
             return `
-                <button class="expp-pick ${on ? 'is-on' : ''}" onclick="expPlan.toggleChar('${ch.id}')">
+                <button class="expp-pick ${on ? 'is-on' : ''}" onclick="${this.NS}.toggleChar('${ch.id}')">
                     <span class="expp-pick-box">${on ? '<i data-lucide="check" class="w-3.5 h-3.5"></i>' : ''}</span>
                     <span class="w-8 h-8 shrink-0 rounded bg-base-300 overflow-hidden flex items-center justify-center">${img ? `<img src="${expEsc(img)}" class="w-full h-full object-cover object-top" onerror="this.style.display='none'">` : ''}</span>
                     <span class="min-w-0 flex-1 text-left">
@@ -905,16 +956,16 @@ const expPlan = {
                     <span class="text-sm text-white font-bold">計画に入れるキャラ</span>
                     <span class="text-xs text-slate-500 font-mono">${n}/${list.length}</span>
                     <div class="flex-1"></div>
-                    <button class="btn btn-ghost btn-sm btn-square" onclick="expPlan.closePicker()" title="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    <button class="btn btn-ghost btn-sm btn-square" onclick="${this.NS}.closePicker()" title="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>
                 </div>
                 <div class="p-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-[60vh] overflow-y-auto custom-scrollbar">
                     ${rows || '<p class="text-sm text-slate-500 p-2">このワールドのキャラがいません</p>'}
                 </div>
                 <div class="flex justify-end px-4 py-3 border-t border-base-content/10">
-                    <button class="btn btn-primary btn-sm" onclick="expPlan.closePicker()">決定</button>
+                    <button class="btn btn-primary btn-sm" onclick="${this.NS}.closePicker()">決定</button>
                 </div>
             </div>
-            <div class="modal-backdrop" onclick="expPlan.closePicker()"></div>
+            <div class="modal-backdrop" onclick="${this.NS}.closePicker()"></div>
         </div>`;
     },
 
@@ -925,12 +976,12 @@ const expPlan = {
             const have = Number(pool[kind][id]) || 0, u = used(kind, id);
             return `<label class="expp-pool ${have ? 'has' : ''}">
                 <span class="truncate flex items-center gap-1.5">${this.iconHTML(kind === 'tix' ? 'farm' : 'potion', 'expp-ico-s')}${label}</span>
-                <input type="number" min="0" class="input input-xs font-mono w-14 text-right" value="${have}" onchange="expPlan.setPool('${world}','${kind}','${id}',this.value)">
+                <input type="number" min="0" class="input input-xs font-mono w-14 text-right" value="${have}" onchange="${this.NS}.setPool('${world}','${kind}','${id}',this.value)">
                 <span class="font-mono text-[10px] ${have && u >= have ? 'text-amber-400' : 'text-slate-500'} w-9 text-right">${have ? `${u}/${have}` : ''}</span>
             </label>`;
         };
         return `
-        <details class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden" ${this.poolOpen ? 'open' : ''} ontoggle="expPlan.poolOpen=this.open">
+        <details class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden" ${this.poolOpen ? 'open' : ''} ontoggle="${this.NS}.poolOpen=this.open">
             <summary class="flex items-center gap-2 px-3 py-2 bg-base-200 cursor-pointer select-none">
                 <i data-lucide="backpack" class="w-4 h-4 text-pink-400"></i>
                 <span class="text-sm font-bold text-white">持ち物</span>
@@ -967,7 +1018,7 @@ const expPlan = {
                     <div class="text-[10px] text-slate-500">期日</div>
                     <div class="font-bold text-amber-300 font-mono">Lv ${res.endLv ?? '-'} <span class="text-xs text-slate-400">${res.endPct != null ? res.endPct.toFixed(1) + '%' : ''}</span></div>
                 </div>` : ''}
-                <button class="btn btn-ghost btn-xs btn-square text-slate-500 hover:text-white" title="計画から外す" onclick="expPlan.toggleChar('${ch.id}')"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                <button class="btn btn-ghost btn-xs btn-square text-slate-500 hover:text-white" title="計画から外す" onclick="${this.NS}.toggleChar('${ch.id}')"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
             </div>`;
         if (!c.on) return `<div class="expp-char is-off border-l-${col}-400">${head}</div>`;
 
@@ -982,9 +1033,9 @@ const expPlan = {
         const monpaOpts = Array.from({ length: L.monpaPerChar + 1 }, (_, i) => `<option value="${i}"${i === c.monpa ? ' selected' : ''}${i > monpaMax ? ' disabled' : ''}>${i}</option>`).join('');
         const mpeFull = !c.mpe && this.mpeUsed(ch.server, ch.id) >= L.mpePerWorld;
         // エピダンはボタンで選ぶ。ほかのキャラが選んだダンジョンは押せない（名前を添える）。
-        const epicChips = chip(c.epic === 'none', 'なし', `expPlan.set('${ch.id}','epic','none')`, false, '', 'epic') + this.epicDungeons().map(d => {
+        const epicChips = chip(c.epic === 'none', 'なし', `${this.NS}.set('${ch.id}','epic','none')`, false, '', 'epic') + this.epicDungeons().map(d => {
             const owner = this.epicOwner(d.id, ch.id);
-            return chip(c.epic === d.id, `${d.name}${owner ? ` <span class="font-normal">（${expEsc(owner.name)}）</span>` : ''}`, `expPlan.set('${ch.id}','epic','${d.id}')`, !!owner, owner ? `${owner.name} が選んでいます` : `Lv${d.lv}+`, 'epic');
+            return chip(c.epic === d.id, `${d.name}${owner ? ` <span class="font-normal">（${expEsc(owner.name)}）</span>` : ''}`, `${this.NS}.set('${ch.id}','epic','${d.id}')`, !!owner, owner ? `${owner.name} が選んでいます` : `Lv${d.lv}+`, 'epic');
         }).join('');
         const burnOpts = this.BURNS.map(b => `<option value="${b.id}"${b.id === c.burn ? ' selected' : ''}>${b.label}</option>`).join('');
 
@@ -994,7 +1045,7 @@ const expPlan = {
             if (!have) return '';
             const max = have - (kind === 'tix' ? this.tixUsed(ch.server, id, ch.id) : this.potUsed(ch.server, id, ch.id));
             const opts = Array.from({ length: have + 1 }, (_, i) => `<option value="${i}"${i === cur ? ' selected' : ''}${i > max ? ' disabled' : ''}>${i}</option>`).join('');
-            return `<label class="expp-cnt ${cur ? 'on' : ''}" style="--c:${this.srcColor(kind === 'tix' ? 'farm' : 'potion')}">${this.stableText(label)}<select class="select select-xs font-mono w-14" onchange="expPlan.${kind === 'tix' ? 'setTix' : 'setPot'}('${ch.id}','${id}',this.value)">${opts}</select></label>`;
+            return `<label class="expp-cnt ${cur ? 'on' : ''}" style="--c:${this.srcColor(kind === 'tix' ? 'farm' : 'potion')}">${this.stableText(label)}<select class="select select-xs font-mono w-14" onchange="${this.NS}.${kind === 'tix' ? 'setTix' : 'setPot'}('${ch.id}','${id}',this.value)">${opts}</select></label>`;
         };
         const tixItems = this.TIX.map(t => cntSel('tix', t.id, t.label, Number(c.tix[t.id]) || 0)).join('');
         const potItems = EXP_POTION_TYPES.map(p => cntSel('pot', p.id, this.potName(p), Number(c.pot[p.id]) || 0)).join('');
@@ -1008,7 +1059,7 @@ const expPlan = {
             const sch = (this._saunaSched && this._saunaSched[ch.id]) || [];
             const first = sch.findIndex(h => h > 0), last = sch.length - 1;
             const when = cur && first >= 0 ? `${expDate.short(expDate.add(this.state.start, first))}${last > first ? `〜${expDate.short(expDate.add(this.state.start, last))}` : ''}` : '';
-            return `<label class="expp-cnt ${cur ? 'on' : ''}" style="--c:${this.srcColor('sauna')}">${this.stableText('VIP サウナ')}<select class="select select-xs font-mono w-16" onchange="expPlan.setSauna('${ch.id}',this.value)">${opts}</select></label>
+            return `<label class="expp-cnt ${cur ? 'on' : ''}" style="--c:${this.srcColor('sauna')}">${this.stableText('VIP サウナ')}<select class="select select-xs font-mono w-16" onchange="${this.NS}.setSauna('${ch.id}',this.value)">${opts}</select></label>
                 <span class="text-[11px] text-slate-500">時間${when ? `（${when}）` : ''}</span>`;
         })() : '';
         const hunt = this.huntCfg(c);
@@ -1022,8 +1073,8 @@ const expPlan = {
             const regs = expRegionData.filter(r => r.daily > 0 && g.test(r) && !takenDaily.has(r.id));
             const allOn = regs.length && regs.every(r => c.dailyOn.includes(r.id));
             return `<div class="expp-dgrp">
-                <button type="button" class="expp-grp ${allOn ? 'on' : ''}" style="--c:${this.srcColor('daily')}" ${regs.length ? '' : 'disabled'} onclick="expPlan.toggleDailyGroup('${ch.id}','${g.id}')">${g.label}</button>
-                <div class="flex flex-wrap items-center gap-1">                ${regs.map(r => chip(c.dailyOn.includes(r.id), this.REGION_SHORT[r.id] || r.name, `expPlan.toggleDaily('${ch.id}','${r.id}')`, false, `${r.name} Lv${r.lv}+`, 'daily', this.REGION_ICON[r.id] || '')).join('') || '<span class="text-[11px] text-slate-600">—</span>'}</div>
+                <button type="button" class="expp-grp ${allOn ? 'on' : ''}" style="--c:${this.srcColor('daily')}" ${regs.length ? '' : 'disabled'} onclick="${this.NS}.toggleDailyGroup('${ch.id}','${g.id}')">${g.label}</button>
+                <div class="flex flex-wrap items-center gap-1">                ${regs.map(r => chip(c.dailyOn.includes(r.id), this.REGION_SHORT[r.id] || r.name, `${this.NS}.toggleDaily('${ch.id}','${r.id}')`, false, `${r.name} Lv${r.lv}+`, 'daily', this.REGION_ICON[r.id] || '')).join('') || '<span class="text-[11px] text-slate-600">—</span>'}</div>
             </div>`;
         }).join('');
 
@@ -1037,27 +1088,27 @@ const expPlan = {
             <div class="expp-grid">
                 ${this.rowLbl('start', '開始')}
                 <div class="flex flex-wrap items-center gap-1.5">
-                    <select class="select select-xs font-mono w-16" onchange="expPlan.set('${ch.id}','lv',this.value)">${lvOpts}</select>
-                    <label class="input input-xs font-mono w-24"><input type="number" step="0.01" min="0" max="99.99" value="${(Number(c.pct) || 0).toFixed(2)}" onchange="expPlan.set('${ch.id}','pct',this.value)">%</label>
-                    <button class="btn btn-xs btn-ghost btn-square" title="Nexon ランキングから取得" onclick="expPlan.fetchLevel('${ch.id}')"><i data-lucide="download" class="w-3 h-3"></i></button>
+                    <select class="select select-xs font-mono w-16" onchange="${this.NS}.set('${ch.id}','lv',this.value)">${lvOpts}</select>
+                    <label class="input input-xs font-mono w-24"><input type="number" step="0.01" min="0" max="99.99" value="${(Number(c.pct) || 0).toFixed(2)}" onchange="${this.NS}.set('${ch.id}','pct',this.value)">%</label>
+                    <button class="btn btn-xs btn-ghost btn-square" title="Nexon ランキングから取得" onclick="${this.NS}.fetchLevel('${ch.id}')"><i data-lucide="download" class="w-3 h-3"></i></button>
                     ${fetchNote}
                     <span class="expp-lbl ml-3">目標</span>
-                    <select class="select select-xs font-mono w-16" onchange="expPlan.set('${ch.id}','target',this.value)"><option value="0">-</option>${tgOpts}</select>
+                    <select class="select select-xs font-mono w-16" onchange="${this.NS}.set('${ch.id}','target',this.value)"><option value="0">-</option>${tgOpts}</select>
                 </div>
                 ${this.rowLbl('burn', 'バーニング')}
-                <div><select class="select select-xs w-56" onchange="expPlan.set('${ch.id}','burn',this.value)">${burnOpts}</select></div>
+                <div><select class="select select-xs w-56" onchange="${this.NS}.set('${ch.id}','burn',this.value)">${burnOpts}</select></div>
                 <div class="expp-sec">毎日・毎週のコンテンツ</div>
                 ${this.rowLbl('daily', 'デイリー', 'self-start pt-1')}
                 <div class="space-y-1">${dailyHTML}</div>
                 ${this.rowLbl('monpa', 'モンパ')}
                 <div class="flex flex-wrap items-center gap-1.5">
-                    <select class="select select-xs font-mono w-14" onchange="expPlan.set('${ch.id}','monpa',this.value)">${monpaOpts}</select>
+                    <select class="select select-xs font-mono w-14" onchange="${this.NS}.set('${ch.id}','monpa',this.value)">${monpaOpts}</select>
                     <span class="text-[11px] text-slate-500">回/日</span>
                 </div>
                 ${this.rowLbl('weekly', '毎週')}
                 <div class="flex flex-wrap items-center gap-1.5">
-                    ${chip(c.weekly, 'アーケイン週課', `expPlan.toggle('${ch.id}','weekly')`, false, '', 'weekly', this.ICON.weekly.img)}
-                    ${chip(c.mpe, 'モンパエクストリーム', `expPlan.toggle('${ch.id}','mpe')`, mpeFull, mpeFull ? `このワールドは週${L.mpePerWorld}キャラまで` : 'Lv260+', 'mpe', this.ICON.mpe.img)}
+                    ${chip(c.weekly, 'アーケイン週課', `${this.NS}.toggle('${ch.id}','weekly')`, false, '', 'weekly', this.ICON.weekly.img)}
+                    ${chip(c.mpe, 'モンパエクストリーム', `${this.NS}.toggle('${ch.id}','mpe')`, mpeFull, mpeFull ? `このワールドは週${L.mpePerWorld}キャラまで` : 'Lv260+', 'mpe', this.ICON.mpe.img)}
                 </div>
                 ${this.rowLbl('epic', 'エピダン')}
                 <div class="flex flex-wrap items-center gap-1.5">
@@ -1069,9 +1120,9 @@ const expPlan = {
                 <div class="expp-sec">狩り・放置</div>
                 ${this.rowLbl('hunt', '狩り')}
                 <div class="flex flex-wrap items-center gap-1.5">
-                    <label class="input input-xs font-mono w-28" title="1時間あたりの討伐数（自分の Lv の敵）"><input type="number" min="0" step="1000" value="${hunt.kills}" onchange="expPlan.setHunt('${ch.id}','kills',this.value)"><span class="text-slate-500">体/時</span></label>
-                    <label class="input input-xs font-mono w-28 expp-insel" title="1日に狩る時間"><select onchange="expPlan.setHunt('${ch.id}','hours',this.value)">${hourOpts}</select><i data-lucide="chevron-down" class="w-3 h-3 text-slate-500 shrink-0"></i><span class="text-slate-500">時間/日</span></label>
-                    <label class="input input-xs font-mono w-32" title="ステータス画面の経験値（+N%）。基礎の100%に足して計算します"><span class="text-slate-500">EXP +</span><input type="number" min="0" step="10" value="${hunt.pct}" onchange="expPlan.setHunt('${ch.id}','pct',this.value)"><span class="text-slate-500">%</span></label>
+                    <label class="input input-xs font-mono w-28" title="1時間あたりの討伐数（自分の Lv の敵）"><input type="number" min="0" step="1000" value="${hunt.kills}" onchange="${this.NS}.setHunt('${ch.id}','kills',this.value)"><span class="text-slate-500">体/時</span></label>
+                    <label class="input input-xs font-mono w-28 expp-insel" title="1日に狩る時間"><select onchange="${this.NS}.setHunt('${ch.id}','hours',this.value)">${hourOpts}</select><i data-lucide="chevron-down" class="w-3 h-3 text-slate-500 shrink-0"></i><span class="text-slate-500">時間/日</span></label>
+                    <label class="input input-xs font-mono w-32" title="ステータス画面の経験値（+N%）。基礎の100%に足して計算します"><span class="text-slate-500">EXP +</span><input type="number" min="0" step="10" value="${hunt.pct}" onchange="${this.NS}.setHunt('${ch.id}','pct',this.value)"><span class="text-slate-500">%</span></label>
                     ${huntDay > 0 ? `<span class="text-[11px] text-slate-500">1日 ${expFmt(huntDay)}</span>` : ''}
                 </div>
                 ${saunaItem ? `${this.rowLbl('sauna', '放置')}<div class="flex flex-wrap items-center gap-1.5">${saunaItem}</div>` : ''}
@@ -1124,12 +1175,12 @@ const expPlan = {
                 <i data-lucide="chart-line" class="w-4 h-4 text-indigo-400"></i>
                 <span class="text-sm font-bold text-white">Lv の推移</span>
             </div>
-            <div class="p-3 h-[340px]"><canvas id="expp-chart"></canvas></div>
+            <div class="p-3 h-[340px]"><canvas id="${this.ID}-chart"></canvas></div>
         </div>`;
     },
 
     drawChart(results) {
-        const cv = document.getElementById('expp-chart');
+        const cv = document.getElementById(`${this.ID}-chart`);
         if (this.chart) { this.chart.destroy(); this.chart = null; }
         if (!cv || typeof Chart === 'undefined') return;
         const palette = ['#818cf8', '#34d399', '#fbbf24', '#f472b6', '#22d3ee', '#c084fc', '#f87171', '#a3e635', '#fb923c', '#94a3b8'];

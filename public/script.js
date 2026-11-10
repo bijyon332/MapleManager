@@ -623,6 +623,15 @@ const app = {
             init() { libaeGear.init('view-libae'); },
             reopen() { libaeGear.render(); }
         },
+        ultima: {
+            view: 'view-ultima',
+            nav: 'ultima-nav',
+            // 計算と画面は EXP Simulator のアカウント計画（exp_plan.js）と共通。イベントが終わったらこの項目とサイドバーの行を外す
+            cdn: [CHART_JS],
+            scripts: ['exp_data.js', 'exp_plan.js', 'exp_ultima.js'],
+            init() { expUltima.init(); },
+            reopen() { expUltima.render(); }
+        },
         kmsvideos: {
             view: 'view-kmsvideos',
             scripts: ['kms_videos.js'],
