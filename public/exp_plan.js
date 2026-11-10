@@ -288,7 +288,7 @@ const expBuffs = {
 // ---------------------------------------------------------
 const expPlan = {
     tab: 'sim',
-    world: 'KRONOS',
+    world: 'ALL', // 'ALL'（両方）／'KRONOS'／'CHALLENGER'。入力欄に出すワールド
     state: null,
     stateKey: null,
     chart: null,
@@ -359,9 +359,11 @@ const expPlan = {
         this.syncWorldNav();
     },
 
+    normWorld(w) { return w === 'KRONOS' || w === 'CHALLENGER' ? w : 'ALL'; },
+    shownWorlds() { return this.WORLDS.map(w => w.id).filter(id => this.world === 'ALL' || this.world === id); },
     setWorld(w) {
-        this.world = w === 'CHALLENGER' ? 'CHALLENGER' : 'KRONOS';
-        if (this.state) { this.state.world = this.world; this.save(); }
+        this.world = this.normWorld(w);
+        if (this.state) { this.state.view = this.world; this.save(); }
         this.syncWorldNav();
         this.render();
     },
@@ -386,7 +388,8 @@ const expPlan = {
         this.state = Object.assign({ start: t, end: expDate.add(t, 27), world: 'KRONOS', chars: {}, pool: {} }, s || {});
         this.WORLDS.forEach(w => { this.state.pool[w.id] = Object.assign({ tix: {}, pot: {} }, this.state.pool[w.id] || {}); });
         this.stateKey = key;
-        this.world = this.state.world === 'CHALLENGER' ? 'CHALLENGER' : 'KRONOS';
+        // 表示は view（既定は両方）。以前の world（Kronos／Challenger の二択）は引き継がない
+        this.world = this.normWorld(this.state.view);
     },
     save() {
         try { localStorage.setItem(this.stateKey, JSON.stringify(this.state)); } catch (e) { /* 保存できなくても計算は出す */ }
@@ -561,7 +564,7 @@ const expPlan = {
         }
         this.render();
     },
-    fetchAll() { this.onChars(this.world).forEach(ch => this.fetchLevel(ch.id)); },
+    fetchAll(world) { this.onChars(world || null).filter(ch => this.shownWorlds().includes(ch.server)).forEach(ch => this.fetchLevel(ch.id)); },
 
     // ---------- 計算 ----------
     // キャラ1体を日ごとに進める。共有の上限は入力の時点で守っているので、ここでは1体ずつ独立に計算する。
@@ -699,22 +702,36 @@ const expPlan = {
         this.normalize();
         const st = this.state;
         const L = this.LIMITS;
-        const world = this.world;
         const chars = this.characters();
-        const mine = chars.filter(ch => ch.server === world).sort((a, b) => (this.cfg(b.id).on - this.cfg(a.id).on) || (b.level - a.level));
-        const wName = this.WORLDS.find(w => w.id === world).name;
-        const col = this.color(world);
 
         const results = new Map();
         this.onChars().forEach(ch => results.set(ch.id, this.simulate(ch, this.cfg(ch.id), st.start, st.end)));
         // 入力欄を変えるたびに描き直すので、入力側・結果側のスクロール位置を引き継ぐ
         const keep = ['expp-inputs', 'expp-results'].map(id => [id, document.getElementById(id)?.scrollTop || 0]);
 
-        const monpaLeft = L.monpaPerWorld - this.monpaUsed(world);
-        const mpeLeft = L.mpePerWorld - this.mpeUsed(world);
         const epicMax = this.epicDungeons().length;
         const epicLeft = epicMax - this.epicDungeons().filter(d => this.epicOwner(d.id)).length;
         const pill = (label, left, max) => `<span class="expp-limit ${left <= 0 ? 'is-full' : ''}">${label}<b>${max - left}/${max}</b></span>`;
+
+        // ワールドごとの入力（持ち物・上限・キャラ）。「両方」のときは Kronos → Challenger の順に並べる
+        const worldHTML = (world) => {
+            const mine = chars.filter(ch => ch.server === world).sort((a, b) => (this.cfg(b.id).on - this.cfg(a.id).on) || (b.level - a.level));
+            const wName = this.WORLDS.find(w => w.id === world).name;
+            const col = this.color(world);
+            const monpaLeft = L.monpaPerWorld - this.monpaUsed(world);
+            const mpeLeft = L.mpePerWorld - this.mpeUsed(world);
+            return `
+                <div class="flex flex-wrap items-center gap-2 px-1 pt-2">
+                    <span class="text-base font-bold text-${col}-400">${wName}</span>
+                    <span class="text-xs text-slate-500">${mine.length}キャラ</span>
+                    ${pill('モンパ/日 ', monpaLeft, L.monpaPerWorld)}
+                    ${pill('MPE/週 ', mpeLeft, L.mpePerWorld)}
+                    <div class="flex-1"></div>
+                    <button class="btn btn-xs btn-ghost gap-1" onclick="expPlan.fetchAll('${world}')"><i data-lucide="refresh-cw" class="w-3 h-3"></i>選んだキャラの Lv を取り直す</button>
+                </div>
+                ${this.poolHTML(world)}
+                <div class="space-y-2">${mine.map(ch => this.charHTML(ch, results.get(ch.id))).join('') || `<p class="text-sm text-slate-500 px-1">${wName} のキャラがいません</p>`}</div>`;
+        };
 
         if (!chars.length) {
             root.innerHTML = `<div class="flex flex-col items-center justify-center h-[60vh] text-slate-500 gap-2">
@@ -734,19 +751,10 @@ const expPlan = {
                     <span class="text-xs text-slate-500 pb-2">${expDate.diff(st.start, st.end) + 1}日間</span>
                     <div class="flex-1"></div>
                     <div class="flex flex-wrap gap-1.5 pb-1">
-                        ${pill(`${wName} モンパ/日 `, monpaLeft, L.monpaPerWorld)}
-                        ${pill(`${wName} MPE/週 `, mpeLeft, L.mpePerWorld)}
                         ${pill('アカウント エピダン/週 ', epicLeft, epicMax)}
                     </div>
                 </div>
-                ${this.poolHTML(world)}
-                <div class="flex items-center gap-2 px-1">
-                    <span class="text-sm font-bold text-${col}-400">${wName}</span>
-                    <span class="text-xs text-slate-500">${mine.length}キャラ</span>
-                    <div class="flex-1"></div>
-                    <button class="btn btn-xs btn-ghost gap-1" onclick="expPlan.fetchAll()"><i data-lucide="refresh-cw" class="w-3 h-3"></i>選んだキャラの Lv を取り直す</button>
-                </div>
-                <div class="space-y-2">${mine.map(ch => this.charHTML(ch, results.get(ch.id))).join('') || `<p class="text-sm text-slate-500 px-1">${wName} のキャラがいません</p>`}</div>
+                ${this.shownWorlds().map(w => worldHTML(w)).join('')}
             </div>
             <div id="expp-results" class="space-y-3 min-w-0 order-first 2xl:order-none 2xl:overflow-y-auto custom-scrollbar 2xl:pr-1 2xl:pb-6">${this.resultHTML(results, st)}</div>
         </div>`;
@@ -898,7 +906,8 @@ const expPlan = {
             return `<div class="bg-base-100 border border-base-content/10 rounded-box flex flex-col items-center justify-center py-16 text-slate-500 gap-2">
                 <i data-lucide="chart-line" class="w-10 h-10 opacity-30"></i><p class="text-sm">左のキャラをオンにすると計算します</p></div>`;
         }
-        rows.sort((a, b) => (a.ch.server === this.world ? 0 : 1) - (b.ch.server === this.world ? 0 : 1) || a.ch.server.localeCompare(b.ch.server) || b.r.endLv - a.r.endLv);
+        const focus = ch => this.world === 'ALL' || ch.server === this.world ? 0 : 1;
+        rows.sort((a, b) => focus(a.ch) - focus(b.ch) || b.ch.server.localeCompare(a.ch.server) || b.r.endLv - a.r.endLv);
         const pct = v => v == null ? '' : `${v.toFixed(2)}%`;
         const body = rows.map(({ ch, r }) => {
             const col = this.color(ch.server);
@@ -952,8 +961,8 @@ const expPlan = {
             data: results.get(ch.id).series.map(p => p.y),
             borderColor: palette[i % palette.length],
             backgroundColor: palette[i % palette.length],
-            borderWidth: ch.server === this.world ? 2 : 1,
-            borderDash: ch.server === this.world ? [] : [4, 3],
+            borderWidth: this.world === 'ALL' || ch.server === this.world ? 2 : 1,
+            borderDash: this.world === 'ALL' || ch.server === this.world ? [] : [4, 3],
             pointRadius: 0, tension: 0.15,
         }));
         this.chart = new Chart(cv, {
