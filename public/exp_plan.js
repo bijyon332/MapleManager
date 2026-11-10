@@ -433,6 +433,12 @@ const expPlan = {
     // 入力欄の上・結果の下に足す欄（ウルティマのパスなど）。アカウント計画にはない
     extraTopHTML() { return ''; },
     extraResultHTML() { return ''; },
+    // ウルティマで足すもの（クアナに移すキャラと後を継ぐキャラ）。アカウント計画にはない
+    stopAfter(ch, ymd, lv) { return false; },
+    extraResults(results, st) {},
+    planChars(world) { return this.onChars(world); },
+    worldExtraHTML(world, results) { return ''; },
+    rowNote(ch, r) { return ''; },
 
     // ---------- 保存 ----------
     key() {
@@ -787,7 +793,7 @@ const expPlan = {
         let endSrc = null;
         let endLv = null, endPct = null, reach = (target && lv >= target) ? start : null;
         const reachAt = {};
-        let reachLv = lv;
+        let reachLv = lv, stopped = null;
         const startLv = lv, startPct = exp / tnlData[lv] * 100;
         const limit = expDate.add(start, 3650);
 
@@ -856,8 +862,14 @@ const expPlan = {
             // Lv ごとに初めて届いた日（パスで何日縮んだかの比較に使う）
             for (let l = reachLv + 1; l <= lv; l++) reachAt[l] = ymd;
             if (lv > reachLv) reachLv = lv;
+            // 途中で計算を止めるキャラ（ウルティマのクアナに移すキャラ）。止めた日の Lv を期日の Lv にする
+            if (this.stopAfter(ch, ymd, lv)) {
+                stopped = ymd;
+                if (!endSrc) { endLv = lv; endPct = pct; endSrc = { ...src }; }
+                break;
+            }
         }
-        return { startLv, startPct, endLv, endPct, reach, target, src: endSrc || src, series, log: log.filter(e => e.ymd <= end), reachAt };
+        return { startLv, startPct, endLv, endPct, reach, target, src: endSrc || src, series, log: log.filter(e => e.ymd <= end), reachAt, stopped };
     },
 
     // ---------- 描画 ----------
@@ -881,6 +893,7 @@ const expPlan = {
         const results = new Map();
         this._saunaSched = this.saunaSchedule();
         this.onChars().forEach(ch => results.set(ch.id, this.simulate(ch, this.cfg(ch.id), st.start, st.end)));
+        this.extraResults(results, st);
         // 入力欄を変えるたびに描き直すので、入力側・結果側のスクロール位置を引き継ぐ
         const keep = [`${this.ID}-inputs`, `${this.ID}-results`].map(id => [id, document.getElementById(id)?.scrollTop || 0]);
 
@@ -911,7 +924,8 @@ const expPlan = {
                     <button class="btn btn-xs btn-ghost gap-1" onclick="${this.NS}.fetchAll('${world}')"><i data-lucide="refresh-cw" class="w-3 h-3"></i>選んだキャラの Lv を取り直す</button>
                 </div>
                 ${this.poolHTML(world)}
-                <div class="space-y-2">${mine.map(ch => this.charHTML(ch, results.get(ch.id))).join('') || `<p class="text-sm text-slate-500 px-1 py-2">${all.length ? '「キャラを選ぶ」から計画に入れるキャラを選んでください' : `${wName} のキャラがいません`}</p>`}</div>`;
+                <div class="space-y-2">${mine.map(ch => this.charHTML(ch, results.get(ch.id))).join('') || `<p class="text-sm text-slate-500 px-1 py-2">${all.length ? '「キャラを選ぶ」から計画に入れるキャラを選んでください' : `${wName} のキャラがいません`}</p>`}</div>
+                ${this.worldExtraHTML(world, results)}`;
         };
 
         if (!chars.length) {
@@ -1178,7 +1192,7 @@ const expPlan = {
     },
 
     resultHTML(results, st) {
-        const rows = this.onChars().map(ch => ({ ch, r: results.get(ch.id) })).filter(x => x.r);
+        const rows = this.planChars().map(ch => ({ ch, r: results.get(ch.id) })).filter(x => x.r);
         if (!rows.length) {
             return `<div class="bg-base-100 border border-base-content/10 rounded-box flex flex-col items-center justify-center py-16 text-slate-500 gap-2">
                 <i data-lucide="chart-line" class="w-10 h-10 opacity-30"></i><p class="text-sm">左のキャラをオンにすると計算します</p></div>`;
@@ -1196,7 +1210,7 @@ const expPlan = {
             const open = !!this.logOpen[ch.id];
             return `
             <tr>
-                <td class="border-l-[3px] border-l-${col}-400"><div class="font-bold text-white">${expEsc(ch.name)}</div><div class="text-[10px] text-slate-500">${ch.server === 'CHALLENGER' ? 'Challenger' : 'Kronos'}</div>
+                <td class="border-l-[3px] border-l-${col}-400"><div class="font-bold text-white">${expEsc(ch.name)}</div><div class="text-[10px] text-slate-500">${ch.server === 'CHALLENGER' ? 'Challenger' : 'Kronos'}</div>${this.rowNote(ch, r)}
                     ${(r.log || []).length ? `<button class="expp-logbtn ${open ? 'on' : ''}" onclick="${this.NS}.toggleLog('${ch.id}')"><i data-lucide="${open ? 'chevron-up' : 'chevron-down'}" class="w-3 h-3"></i>持ち物 ${used}回</button>` : ''}</td>
                 <td class="font-mono text-slate-300">Lv ${r.startLv}<div class="text-[10px] text-slate-500">${pct(r.startPct)}</div></td>
                 <td class="font-mono"><span class="text-amber-300 font-bold text-base">Lv ${r.endLv ?? '-'}</span><div class="text-[10px] text-slate-400">${pct(r.endPct)}${gained != null ? ` <span class="text-emerald-400">+${gained.toFixed(2)}</span>` : ''}</div></td>
@@ -1234,11 +1248,13 @@ const expPlan = {
         if (this.chart) { this.chart.destroy(); this.chart = null; }
         if (!cv || typeof Chart === 'undefined') return;
         const palette = ['#818cf8', '#34d399', '#fbbf24', '#f472b6', '#22d3ee', '#c084fc', '#f87171', '#a3e635', '#fb923c', '#94a3b8'];
-        const list = this.onChars().filter(ch => results.get(ch.id));
-        const labels = (results.get(list[0]?.id)?.series || []).map(p => p.x);
+        const list = this.planChars().filter(ch => results.get(ch.id));
+        // 横軸は開始日〜期日。途中から始まる（後を継ぐ）・途中で止まる（クアナに移す）キャラは、その日だけ線を引く
+        const labels = [];
+        for (let d = this.state.start; d <= this.state.end; d = expDate.add(d, 1)) labels.push(d);
         const datasets = list.map((ch, i) => ({
             label: ch.name,
-            data: results.get(ch.id).series.map(p => p.y),
+            data: (m => labels.map(d => m.has(d) ? m.get(d) : null))(new Map(results.get(ch.id).series.map(p => [p.x, p.y]))),
             borderColor: palette[i % palette.length],
             backgroundColor: palette[i % palette.length],
             borderWidth: this.world === 'ALL' || ch.server === this.world ? 2 : 1,

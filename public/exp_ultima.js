@@ -63,7 +63,7 @@ const expUltima = Object.assign(Object.create(expPlan), {
     // coupon = 上級EXP交換券の枚数、farm = 農場チケット（farm の種類）の枚数、pot = 成長の秘薬（EXP_POTION_TYPES の id）の本数。
     PASSES: [
         {
-            id: 'cp', name: 'チャレンジャーズパス', short: 'チャレンジャーズ', world: 'CHALLENGER', minLv: 260, week0: 0, farm: 'blue',
+            id: 'cp', name: 'チャレンジャーズパス', short: 'チャレンジャーズ', abbr: 'チャレ', world: 'CHALLENGER', minLv: 260, week0: 0, farm: 'blue',
             note: 'Challenger の Lv260 以上',
             tiers: [{ id: 'exp', label: 'EXPパス', price: '19,800NX' }],
             weeks: [
@@ -76,7 +76,7 @@ const expUltima = Object.assign(Object.create(expPlan), {
             ],
         },
         {
-            id: 'mp', name: 'モメンタムパス', short: 'モメンタム', world: null, minLv: 280, week0: 5, farm: 'mecha',
+            id: 'mp', name: 'モメンタムパス', short: 'モメンタム', abbr: 'モメ', world: null, minLv: 280, week0: 5, farm: 'mecha',
             note: 'Lv280 以上・1アカウント1キャラ',
             tiers: [{ id: 'prime', label: 'プライム', price: '49,800NX' }],
             weeks: [
@@ -87,7 +87,7 @@ const expUltima = Object.assign(Object.create(expPlan), {
             ],
         },
         {
-            id: 'mpp', name: 'モメンタムパス PLUS', short: 'モメンタム PLUS', world: null, minLv: 280, week0: 9, farm: 'crimson',
+            id: 'mpp', name: 'モメンタムパス PLUS', short: 'モメンタム PLUS', abbr: 'PLUS', world: null, minLv: 280, week0: 9, farm: 'crimson',
             note: 'Lv280 以上・1アカウント1キャラ',
             tiers: [{ id: 'premium', label: 'プレミアム', price: '29,800NX' }, { id: 'prime', label: 'プライム', price: '39,800NX' }],
             weeks: [
@@ -119,6 +119,8 @@ const expUltima = Object.assign(Object.create(expPlan), {
         st.pass = st.pass || {};
         this.PASSES.forEach(p => { st.pass[p.id] = Object.assign({ buy: {}, char: null }, st.pass[p.id] || {}); });
         if (st.ultimaBuff == null) st.ultimaBuff = true;
+        st.quanah = Object.assign({ char: null, mode: 'lv', lv: 270, date: this.START }, st.quanah || {});
+        st.quanah.heir = Object.assign({ name: '後継キャラ', lv: 260, pct: 0, burn: 'none', target: 270, hunt: { kills: 0, hours: 0, pct: 0 } }, st.quanah.heir || {});
         if (st.mineBuff == null) st.mineBuff = false;
         st.start = this.clampDate(st.start);
         st.end = this.clampDate(st.end);
@@ -138,6 +140,129 @@ const expUltima = Object.assign(Object.create(expPlan), {
         return (st.ultimaBuff !== false ? expBuffs.sum(this.BUFFS, target, ymd) : 0) + (st.mineBuff ? expBuffs.pct(target, ymd) : 0);
     },
     toggleBuff(field) { this.state[field] = !this.state[field]; this.commit(); },
+
+    // ---------- クアナに移すキャラと後を継ぐキャラ（Challenger だけ） ----------
+    // 移すキャラは、デイリー・週課をやる上限（Lv か日付）に届いた日で計算を止める（クアナに移ったあとは数えない）。
+    // その次の日から、後を継ぐキャラ（この計画の中だけの仮のキャラ）が、移すキャラのデイリーの地域・モンパ・MPE・
+    // エピダン・週課をそのまま引き継いでやる。後を継ぐキャラの Lv・バーニング・狩り・目標は自分で入れる。
+    HEIR_ID: 'heir',
+    quanahChar() {
+        const q = this.state.quanah;
+        return q.char ? this.onChars('CHALLENGER').find(ch => ch.id === q.char) || null : null;
+    },
+    stopAfter(ch, ymd, lv) {
+        const q = this.state.quanah;
+        if (!q.char || ch.id !== q.char) return false;
+        return q.mode === 'date' ? ymd >= q.date : lv >= Number(q.lv);
+    },
+    heirChar() {
+        const h = this.state.quanah.heir;
+        return { id: this.HEIR_ID, name: h.name || '後継キャラ', job: '', level: Number(h.lv) || 260, server: 'CHALLENGER', image: '', heir: true };
+    },
+    // 後を継ぐキャラの設定。やることは移すキャラのもの、Lv・バーニング・狩り・目標は自分のもの
+    heirCfg() {
+        const m = this.quanahChar(), mc = m ? this.cfg(m.id) : {}, h = this.state.quanah.heir;
+        return {
+            on: true, lv: Number(h.lv) || 260, pct: Number(h.pct) || 0, target: Number(h.target) || 0, burn: h.burn || 'none',
+            dailyOn: mc.dailyOn || [], weekly: !!mc.weekly, monpa: Number(mc.monpa) || 0, mpe: !!mc.mpe, epic: mc.epic || 'none',
+            tix: {}, pot: {}, sauna: 0, hunt: { ...h.hunt },
+        };
+    },
+    extraResults(results, st) {
+        this._heirStart = null;
+        const m = this.quanahChar();
+        const r = m && results.get(m.id);
+        if (!r || !r.stopped) return;
+        this._heirStart = expDate.add(r.stopped, 1);
+        const res = this.simulate(this.heirChar(), this.heirCfg(), this._heirStart, st.end);
+        if (res) results.set(this.HEIR_ID, res);
+    },
+    planChars(world) {
+        const list = this.onChars(world);
+        if (this._heirStart && (!world || world === 'CHALLENGER')) list.push(this.heirChar());
+        return list;
+    },
+    rowNote(ch, r) {
+        if (ch.heir) return `<div class="text-[10px] text-amber-300">${expDate.short(this._heirStart)} から</div>`;
+        if (r && r.stopped && this.state.quanah.char === ch.id) return `<div class="text-[10px] text-amber-300">${expDate.short(r.stopped)} クアナへ</div>`;
+        return '';
+    },
+    setQuanah(field, v) {
+        const q = this.state.quanah;
+        q[field] = field === 'lv' ? Number(v) || 0 : field === 'date' ? this.clampDate(v) : (v === '' ? null : v);
+        this.commit();
+    },
+    setHeir(field, v) {
+        const h = this.state.quanah.heir;
+        if (field === 'name' || field === 'burn') h[field] = String(v).slice(0, 30);
+        else if (field === 'pct') h.pct = Math.max(0, Math.min(99.9999, Number(v) || 0));
+        else h[field] = Number(v) || 0;
+        this.commit();
+    },
+    setHeirHunt(k, v) { this.state.quanah.heir.hunt[k] = Math.max(0, Number(v) || 0); this.commit(); },
+
+    worldExtraHTML(world, results) {
+        if (world !== 'CHALLENGER') return '';
+        const q = this.state.quanah, h = q.heir;
+        const cand = this.onChars('CHALLENGER').sort((a, b) => b.level - a.level);
+        const m = this.quanahChar();
+        const r = m && results.get(m.id);
+        const sel = `<select class="select select-xs w-48" onchange="${this.NS}.setQuanah('char',this.value)"><option value="">移さない</option>${cand.map(ch => `<option value="${ch.id}"${m && m.id === ch.id ? ' selected' : ''}>${expEsc(ch.name)}（Lv ${this.cfg(ch.id).lv || ch.level}）</option>`).join('')}</select>`;
+        const lvOpts = Array.from({ length: 100 }, (_, i) => 201 + i).map(l => `<option value="${l}"${l === Number(q.lv) ? ' selected' : ''}>${l}</option>`).join('');
+        const chip = (on, label, onclick) => `<button type="button" class="expp-chip ${on ? 'on' : ''}" style="--c:#fbbf24" onclick="${onclick}">${this.stableText(label)}</button>`;
+        const when = !m ? '' : r && r.stopped ? `<span class="text-[11px] text-amber-300">${expDate.short(r.stopped)}（Lv ${r.endLv} ${r.endPct.toFixed(1)}%）にクアナへ</span>`
+            : '<span class="text-[11px] text-slate-500">上限に届かないので移しません</span>';
+        let heirHTML = '';
+        if (m) {
+            const hr = results.get(this.HEIR_ID);
+            const burnOpts = this.BURNS.map(b => `<option value="${b.id}"${b.id === h.burn ? ' selected' : ''}>${b.label}</option>`).join('');
+            const hLv = Array.from({ length: 100 }, (_, i) => 200 + i).map(l => `<option value="${l}"${l === Number(h.lv) ? ' selected' : ''}>${l}</option>`).join('');
+            const tg = Array.from({ length: 300 - Number(h.lv) }, (_, i) => Number(h.lv) + 1 + i).map(l => `<option value="${l}"${l === Number(h.target) ? ' selected' : ''}>${l}</option>`).join('');
+            const hourOpts = Array.from({ length: 49 }, (_, i) => i / 2).map(v => `<option value="${v}"${v === Number(h.hunt.hours) ? ' selected' : ''}>${v}</option>`).join('');
+            const mc = this.cfg(m.id);
+            const inherit = [mc.dailyOn.length ? `デイリー ${mc.dailyOn.length}地域` : '', mc.monpa ? `モンパ ${mc.monpa}回/日` : '', mc.weekly ? 'アーケイン週課' : '', mc.mpe ? 'MPE' : '',
+                mc.epic !== 'none' ? (this.epicDungeons().find(d => d.id === mc.epic) || {}).name : ''].filter(Boolean).join('・') || 'なし';
+            heirHTML = `
+            <div class="expp-grid">
+                <div class="expp-sec">後を継ぐキャラ ${this._heirStart ? `<span class="font-normal text-amber-300">${expDate.short(this._heirStart)} から</span>` : ''}</div>
+                ${this.rowLbl('name', '名前')}
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <input type="text" class="input input-xs w-40" value="${expEsc(h.name)}" onchange="${this.NS}.setHeir('name',this.value)">
+                    ${hr ? `<span class="text-[11px] text-slate-400">期日 <b class="text-amber-300 font-mono">${hr.endLv != null ? `Lv ${hr.endLv} ${hr.endPct.toFixed(1)}%` : '-'}</b></span>` : ''}
+                </div>
+                ${this.rowLbl('start', '開始')}
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <select class="select select-xs font-mono w-16" onchange="${this.NS}.setHeir('lv',this.value)">${hLv}</select>
+                    <label class="input input-xs font-mono w-24"><input type="number" step="0.01" min="0" max="99.99" value="${(Number(h.pct) || 0).toFixed(2)}" onchange="${this.NS}.setHeir('pct',this.value)">%</label>
+                    <span class="expp-lbl ml-3">目標</span>
+                    <select class="select select-xs font-mono w-16" onchange="${this.NS}.setHeir('target',this.value)"><option value="0">-</option>${tg}</select>
+                </div>
+                ${this.rowLbl('burn', 'バーニング')}
+                <div><select class="select select-xs w-56" onchange="${this.NS}.setHeir('burn',this.value)">${burnOpts}</select></div>
+                ${this.rowLbl('daily', '引き継ぎ')}
+                <div class="text-[11px] text-slate-300">${expEsc(m.name)} の ${inherit}</div>
+                ${this.rowLbl('hunt', '狩り')}
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <label class="input input-xs font-mono w-28"><input type="number" min="0" step="1000" value="${h.hunt.kills}" onchange="${this.NS}.setHeirHunt('kills',this.value)"><span class="text-slate-500">体/時</span></label>
+                    <label class="input input-xs font-mono w-28 expp-insel"><select onchange="${this.NS}.setHeirHunt('hours',this.value)">${hourOpts}</select><i data-lucide="chevron-down" class="w-3 h-3 text-slate-500 shrink-0"></i><span class="text-slate-500">時間/日</span></label>
+                    <label class="input input-xs font-mono w-32"><span class="text-slate-500">EXP +</span><input type="number" min="0" step="10" value="${h.hunt.pct}" onchange="${this.NS}.setHeirHunt('pct',this.value)"><span class="text-slate-500">%</span></label>
+                </div>
+            </div>`;
+        }
+        return `
+        <div class="expp-char border-l-amber-400">
+            <div class="flex flex-wrap items-center gap-2">
+                <i data-lucide="plane" class="w-4 h-4 text-amber-400"></i>
+                <span class="font-bold text-white text-sm">クアナに移すキャラ</span>
+                ${sel}
+                ${m ? `${chip(q.mode === 'lv', 'Lv まで', `${this.NS}.setQuanah('mode','lv')`)}${chip(q.mode === 'date', '日付まで', `${this.NS}.setQuanah('mode','date')`)}
+                    ${q.mode === 'lv' ? `<select class="select select-xs font-mono w-16" onchange="${this.NS}.setQuanah('lv',this.value)">${lvOpts}</select>`
+                        : `<input type="date" class="input input-xs font-mono w-36" min="${this.START}" max="${this.END}" value="${q.date}" onchange="${this.NS}.setQuanah('date',this.value)">`}
+                    ${when}` : ''}
+            </div>
+            ${heirHTML}
+        </div>`;
+    },
 
     // ---------- パス ----------
     passDate(p, i) { return expDate.add(this.START, 7 * (p.week0 + i)); },
@@ -286,6 +411,13 @@ const expUltima = Object.assign(Object.create(expPlan), {
     reachStudy() {
         const none = Object.fromEntries(this.PASSES.map(p => [p.id, {}]));
         const bought = this.PASSES.filter(p => p.tiers.some(t => this.state.pass[p.id].buy[t.id]) && this.passChar(p));
+        // 受け取るパスの組み合わせ（1種・2種・3種）。買うパスは有料分を全部（PLUS はプレミアムとプライムの両方）
+        const combos = list => {
+            const out = [];
+            for (let mask = 1; mask < (1 << list.length); mask++) out.push(list.filter((_, i) => mask & (1 << i)));
+            return out.sort((a, b) => a.length - b.length);
+        };
+        const buyOf = set => Object.fromEntries(this.PASSES.map(p => [p.id, set.includes(p) ? Object.fromEntries(p.tiers.map(t => [t.id, true])) : {}]));
         return this.onChars().filter(ch => Number(this.cfg(ch.id).target) > 0).sort((a, b) => b.level - a.level).map(ch => {
             const c = this.cfg(ch.id);
             const run = (buy, cc = c) => this.withBuy(buy, () => this.simulate(ch, cc, this.state.start, this.state.end));
@@ -295,17 +427,20 @@ const expUltima = Object.assign(Object.create(expPlan), {
             const lvs = [];
             for (let l = Math.floor(now.startLv / 5) * 5 + 5; l <= target; l += 5) lvs.push(l);
             if (target > now.startLv && !lvs.includes(target)) lvs.push(target);
+            // クアナに移すキャラは、移した日の Lv までを比べる（その先は数えない）
+            if (now.stopped) lvs.splice(0, lvs.length, ...lvs.filter(l => l <= now.endLv));
             if (!lvs.length) return null;
-            const mine = bought.filter(p => this.passChar(p).id === ch.id);
-            const pass = mine.length ? { free: run(none), without: mine.map(p => ({ p, r: run({ [p.id]: {} }) })) } : null;
+            const mine = this.PASSES.filter(p => this.passChar(p) && this.passChar(p).id === ch.id);
+            const pass = mine.length ? { free: run(none), combos: combos(mine).map(set => ({ set, r: run(buyOf(set)) })) } : null;
+            const curFree = bought.some(p => this.passChar(p).id === ch.id);
             const hunt = this.huntCfg(c);
             const cur = Number(hunt.hours) || 0;
             const hours = hunt.kills > 0 ? [...new Set([...this.HUNT_HOURS, cur])].sort((a, b) => a - b) : [];
             const byHour = hours.map(h => {
                 const cc = { ...c, hunt: { ...hunt, hours: h } };
-                return { h, r: h === cur ? now : run(null, cc), free: pass ? run(none, cc) : null };
+                return { h, r: h === cur ? now : run(null, cc), free: curFree ? run(none, cc) : null };
             });
-            return { ch, target, lvs, now, pass, hunt, cur, byHour };
+            return { ch, target, lvs, now, pass, hunt, cur, byHour, curFree };
         }).filter(Boolean);
     },
     studyOpen: true,
@@ -317,29 +452,29 @@ const expUltima = Object.assign(Object.create(expPlan), {
         const cut = n => n == null ? '<span class="text-slate-600">—</span>' : n > 0 ? `<span class="text-emerald-400 font-bold">${n}日</span>` : '<span class="text-slate-500">0日</span>';
         // 今の設定より早い・遅い日数
         const diff = n => n == null || n === 0 ? '' : `<span class="${n > 0 ? 'text-emerald-400' : 'text-red-400'}">${n > 0 ? '−' : '+'}${Math.abs(n)}</span>`;
-        const blocks = list.map(({ ch, target, lvs, now, pass, hunt, cur, byHour }) => {
+        const blocks = list.map(({ ch, target, lvs, now, pass, hunt, cur, byHour, curFree }) => {
             const passTable = pass ? `
-            <div class="expu-sub">パス <span>パス名の列は、そのパスだけ買わなかったときに遅れる日数（足し算にはなりません）</span></div>
+            <div class="expu-sub">パスの組み合わせ <span>無料だけのときより何日早く届くか。買うパスは有料分を全部（PLUS はプレミアムとプライムの両方）</span></div>
             <div class="overflow-x-auto"><table class="table table-xs expu-saved">
-                <thead><tr><th></th><th>無料だけ</th><th>今の買い方</th><th>短縮</th>${pass.without.map(({ p }) => `<th>${p.short}</th>`).join('')}</tr></thead>
+                <thead><tr><th></th><th>無料だけ</th>${pass.combos.map(({ set }) => `<th>${set.map(p => p.abbr).join('＋')}</th>`).join('')}</tr></thead>
                 <tbody>${lvs.map(l => {
-                    const a = now.reachAt[l], b = pass.free.reachAt[l];
-                    return `<tr><td class="font-bold text-white">Lv ${l}</td><td>${day(b)}</td><td>${day(a)}</td><td>${cut(gap(a, b))}</td>
-                        ${pass.without.map(({ r }) => `<td>${cut(gap(a, r.reachAt[l]))}</td>`).join('')}</tr>`;
+                    const b = pass.free.reachAt[l];
+                    return `<tr><td class="font-bold text-white">Lv ${l}</td><td>${day(b)}</td>
+                        ${pass.combos.map(({ r }) => `<td>${cut(gap(r.reachAt[l], b))}</td>`).join('')}</tr>`;
                 }).join('')}</tbody>
             </table></div>` : '';
             const huntTable = byHour.length ? `
-            <div class="expu-sub">1日の狩りの時間 <span>${hunt.kills.toLocaleString()} 体/時・EXP +${Number(hunt.pct) || 0}%。日付は今の買い方、横の数字は今の ${cur} 時間との差${pass ? '、右端は目標でのパスの短縮' : ''}</span></div>
+            <div class="expu-sub">1日の狩りの時間 <span>${hunt.kills.toLocaleString()} 体/時・EXP +${Number(hunt.pct) || 0}%。日付は今の買い方、横の数字は今の ${cur} 時間との差${curFree ? '、右端は今の買い方で目標に何日早く届くか' : ''}</span></div>
             <div class="overflow-x-auto"><table class="table table-xs expu-saved">
-                <thead><tr><th>時間/日</th>${lvs.map(l => `<th>Lv ${l}</th>`).join('')}${pass ? `<th>パスの短縮</th>` : ''}</tr></thead>
+                <thead><tr><th>時間/日</th>${lvs.map(l => `<th>Lv ${l}</th>`).join('')}${curFree ? `<th>パスの短縮</th>` : ''}</tr></thead>
                 <tbody>${byHour.map(({ h, r, free }) => `<tr class="${h === cur ? 'expu-cur' : ''}">
                     <td class="font-bold text-white">${h} 時間</td>
                     ${lvs.map(l => `<td>${day(r.reachAt[l])} ${h === cur ? '' : diff(gap(r.reachAt[l], now.reachAt[l]))}</td>`).join('')}
-                    ${pass ? `<td>${cut(gap(r.reachAt[target], free.reachAt[target]))}</td>` : ''}
+                    ${curFree ? `<td>${cut(gap(r.reachAt[target], free.reachAt[target]))}</td>` : ''}
                 </tr>`).join('')}</tbody>
             </table></div>` : `<div class="expu-sub"><span>狩りの「体/時」を入れると、1日の狩りの時間ごとの到達日も出ます</span></div>`;
             return `
-            <div class="px-3 pt-3 text-sm font-bold text-white">${expEsc(ch.name)} <span class="text-[11px] font-normal text-slate-500">Lv ${now.startLv} → 目標 Lv ${target}</span></div>
+            <div class="px-3 pt-3 text-sm font-bold text-white">${expEsc(ch.name)} <span class="text-[11px] font-normal text-slate-500">Lv ${now.startLv} → 目標 Lv ${target}${now.stopped ? `（${expDate.short(now.stopped)} にクアナへ移すので Lv ${now.endLv} まで）` : ''}</span></div>
             ${passTable}${huntTable}`;
         }).join('');
         return `
