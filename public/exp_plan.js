@@ -413,7 +413,7 @@ const expPlan = {
         const def = {
             on: false, lv: null, pct: 0, fetchedAt: null, target: null,
             dailyOn: null, weekly: true,
-            monpa: 0, mpe: false, epic: 'none', epicBonus: 0, burn: 'none',
+            monpa: 0, mpe: false, epic: 'none', burn: 'none',
             tix: {}, pot: {},
             hunt: null, sauna: 0,
         };
@@ -523,7 +523,6 @@ const expPlan = {
         const c = this.cfg(id);
         if (field === 'lv' || field === 'target' || field === 'monpa') c[field] = Number(value) || 0;
         else if (field === 'pct') c.pct = Math.max(0, Math.min(99.9999, Number(value) || 0));
-        else if (field === 'epicBonus') c.epicBonus = Math.max(0, Number(value) || 0);
         else c[field] = value;
         if (field === 'lv' || field === 'pct') c.fetchedAt = null;
         this.commit();
@@ -728,8 +727,7 @@ const expPlan = {
             if (c.epic !== 'none' && !done.epic && bestDay('epic', ymd, 4)) {
                 const dg = this.epicDungeons().find(d => d.id === c.epic);
                 if (dg && lv >= dg.lv) {
-                    const b = (Number(c.epicBonus) || 0) + expBuffs.pct('epic', ymd);
-                    gain(l => (epicDungeonBase[l] || 0) * (1 + b / 100) * dg.mult, 'epic');
+                    gain(l => (epicDungeonBase[l] || 0) * (1 + expBuffs.pct('epic', ymd) / 100) * dg.mult, 'epic');
                     done.epic = thuWeek;
                 }
             }
@@ -1033,10 +1031,6 @@ const expPlan = {
                 <div class="flex flex-wrap items-center gap-1.5">
                     ${epicChips}
                 </div>
-                ${c.epic !== 'none' ? `<span class="expp-lbl">ボーナス</span>
-                <div class="flex flex-wrap items-center gap-1.5">
-                    <label class="input input-xs font-mono w-24" title="基本EXPボーナス"><span class="text-slate-500">+</span><input type="number" min="0" step="10" value="${c.epicBonus}" onchange="expPlan.set('${ch.id}','epicBonus',this.value)">%</label>
-                </div>` : ''}
                 ${tixItems ? `<span class="expp-lbl">農場</span><div class="flex flex-wrap items-center gap-1.5">${tixItems}</div>` : ''}
                 ${potItems ? `<span class="expp-lbl">秘薬</span><div class="flex flex-wrap items-center gap-1.5">${potItems}</div>` : ''}
                 <span class="expp-lbl">狩り</span>

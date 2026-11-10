@@ -215,7 +215,6 @@ const expSim = {
         const mpeRunsWeekly = parseInt(document.getElementById('exp-mpeRuns').value) || 0;
         const mpeMultVal = parseFloat(document.getElementById('exp-mpeMult').value) || 1;
         const edChoice = document.getElementById('exp-edDungeon').value;
-        const edBonusPct = parseFloat(document.getElementById('exp-edBonus').value) || 0;
         const weeklyQuests = arcaneWeeklyData.filter(w => {
             const cbEl = document.getElementById(`exp-wk-${w.id}`);
             return cbEl && cbEl.checked;
@@ -378,7 +377,7 @@ const expSim = {
             if (!thursdayWeekly.epic) {
                 const dungeon = this.pickEpicDungeon(edChoice, curLv);
                 if (dungeon) {
-                    gain(lv => (epicDungeonBase[lv] || 0) * (1 + edBonusPct / 100 + buff('epic', loopDate)) * dungeon.mult);
+                    gain(lv => (epicDungeonBase[lv] || 0) * (1 + buff('epic', loopDate)) * dungeon.mult);
                     thursdayWeekly.epic = true;
                 }
             }
