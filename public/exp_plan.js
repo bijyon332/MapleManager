@@ -339,6 +339,36 @@ const expPlan = {
         { id: 'sauna', label: 'サウナ', color: '#a3e635' },
     ],
     SAUNA_PER_DAY: 8, // 放置マップは1日8時間まで（bi 指定）。実際に1日何時間使うかは state.saunaDay（アカウント共有、既定は上限）
+    // 入力欄の見出しのアイコン（GMS のアイテム画像。public/assets/exp/）。画像がないものは lucide
+    ICON: {
+        daily: { img: 'assets/exp/sym-r1.png' }, weekly: { img: 'assets/exp/sym-r4.png' },
+        monpa: { img: 'assets/exp/monpa.png' }, mpe: { img: 'assets/exp/mpe.png' },
+        epic: { lucide: 'castle' }, farm: { img: 'assets/exp/farm.png' }, potion: { img: 'assets/exp/potion.png' },
+        hunt: { lucide: 'swords' }, sauna: { img: 'assets/exp/sauna.png' },
+        start: { lucide: 'flag' }, burn: { lucide: 'flame' },
+    },
+    // デイリーの地域のシンボル（テネブリスはシンボルがないので出さない）
+    REGION_ICON: {
+        r1: 'assets/exp/sym-r1.png', r2: 'assets/exp/sym-r2.png', r3: 'assets/exp/sym-r3.png', r4: 'assets/exp/sym-r4.png', r5: 'assets/exp/sym-r5.png', r6: 'assets/exp/sym-r6.png',
+        r11: 'assets/scouter/symbol/cernium.png', r12: 'assets/scouter/symbol/arcus.png', r13: 'assets/scouter/symbol/odium.png', r14: 'assets/scouter/symbol/shangrila.png',
+        r15: 'assets/scouter/symbol/arteria.png', r16: 'assets/scouter/symbol/carcion.png', r17: 'assets/scouter/symbol/tallahart.png', r18: 'assets/scouter/symbol/geardock.png',
+    },
+    srcColor(id) { const s = this.SRC.find(x => x.id === id); return s ? s.color : '#818cf8'; },
+    iconHTML(key, cls = 'expp-ico') {
+        const ic = this.ICON[key];
+        if (!ic) return '';
+        return ic.img ? `<img src="${ic.img}" class="${cls}" alt="">` : `<i data-lucide="${ic.lucide}" class="${cls}"></i>`;
+    },
+    // 行の見出し（内訳と同じ色＋アイコン）
+    rowLbl(key, text, extra = '') {
+        const col = this.SRC.some(x => x.id === key) ? this.srcColor(key) : '#94a3b8';
+        return `<span class="expp-lbl expp-row ${extra}" style="--c:${col}">${this.iconHTML(key)}<span>${text}</span></span>`;
+    },
+    // 太字にしても幅が変わらないラベル（太字の幅を先に取っておく）
+    stableText(html, plain) {
+        const t = (plain != null ? plain : String(html).replace(/<[^>]*>/g, '')).replace(/"/g, '&quot;');
+        return `<span class="expp-t" data-t="${t}"><span>${html}</span></span>`;
+    },
 
     init() {
         expBuffs.load();
@@ -828,7 +858,7 @@ const expPlan = {
                         ${pill('アカウント エピダン/週 ', epicLeft, epicMax)}
                     </div>
                     <div class="expp-pool ${saunaHave ? 'has' : ''} w-full" title="VIP サウナの時間はアカウントで共有。1日に使う時間（最大8時間）をアカウントで分け合います">
-                        <span class="truncate">アカウント VIP サウナ <span class="text-slate-500">時間</span></span>
+                        <span class="truncate flex items-center gap-1.5">${this.iconHTML('sauna', 'expp-ico-s')}アカウント VIP サウナ <span class="text-slate-500">時間</span></span>
                         <input type="number" min="0" step="0.5" class="input input-xs font-mono w-16 text-right" value="${saunaHave}" onchange="expPlan.setPoolSauna(this.value)">
                         <span class="font-mono text-[10px] ${saunaHave && saunaU >= saunaHave ? 'text-amber-400' : 'text-slate-500'} w-12 text-right">${saunaHave ? `${saunaU}/${saunaHave}` : ''}</span>
                         <span class="text-slate-500 ml-2">1日</span>
@@ -894,7 +924,7 @@ const expPlan = {
         const cell = (kind, id, label) => {
             const have = Number(pool[kind][id]) || 0, u = used(kind, id);
             return `<label class="expp-pool ${have ? 'has' : ''}">
-                <span class="truncate">${label}</span>
+                <span class="truncate flex items-center gap-1.5">${this.iconHTML(kind === 'tix' ? 'farm' : 'potion', 'expp-ico-s')}${label}</span>
                 <input type="number" min="0" class="input input-xs font-mono w-14 text-right" value="${have}" onchange="expPlan.setPool('${world}','${kind}','${id}',this.value)">
                 <span class="font-mono text-[10px] ${have && u >= have ? 'text-amber-400' : 'text-slate-500'} w-9 text-right">${have ? `${u}/${have}` : ''}</span>
             </label>`;
@@ -944,16 +974,17 @@ const expPlan = {
         const lvOpts = Array.from({ length: 100 }, (_, i) => 200 + i).map(l => `<option value="${l}"${l === lvNow ? ' selected' : ''}>${l}</option>`).join('');
         const tgOpts = Array.from({ length: 300 - Math.max(200, lvNow) }, (_, i) => Math.max(200, lvNow) + 1 + i)
             .map(l => `<option value="${l}"${l === c.target ? ' selected' : ''}>${l}</option>`).join('');
-        const chip = (on, label, onclick, disabled, title) =>
-            `<button type="button" class="expp-chip ${on ? 'on' : ''}" ${disabled ? 'disabled' : ''} title="${title || ''}" onclick="${onclick}">${label}</button>`;
+        // src: 内訳の色（SRC の id）、icon: 左に出す画像
+        const chip = (on, label, onclick, disabled, title, src = 'daily', icon = '') =>
+            `<button type="button" class="expp-chip ${on ? 'on' : ''}" style="--c:${this.srcColor(src)}" ${disabled ? 'disabled' : ''} title="${title || ''}" onclick="${onclick}">${icon ? `<img src="${icon}" class="expp-ico-s" alt="">` : ''}${this.stableText(label)}</button>`;
 
         const monpaMax = Math.min(L.monpaPerChar, L.monpaPerWorld - this.monpaUsed(ch.server, ch.id));
         const monpaOpts = Array.from({ length: L.monpaPerChar + 1 }, (_, i) => `<option value="${i}"${i === c.monpa ? ' selected' : ''}${i > monpaMax ? ' disabled' : ''}>${i}</option>`).join('');
         const mpeFull = !c.mpe && this.mpeUsed(ch.server, ch.id) >= L.mpePerWorld;
         // エピダンはボタンで選ぶ。ほかのキャラが選んだダンジョンは押せない（名前を添える）。
-        const epicChips = chip(c.epic === 'none', 'なし', `expPlan.set('${ch.id}','epic','none')`) + this.epicDungeons().map(d => {
+        const epicChips = chip(c.epic === 'none', 'なし', `expPlan.set('${ch.id}','epic','none')`, false, '', 'epic') + this.epicDungeons().map(d => {
             const owner = this.epicOwner(d.id, ch.id);
-            return chip(c.epic === d.id, `${d.name}${owner ? ` <span class="font-normal">（${expEsc(owner.name)}）</span>` : ''}`, `expPlan.set('${ch.id}','epic','${d.id}')`, !!owner, owner ? `${owner.name} が選んでいます` : `Lv${d.lv}+`);
+            return chip(c.epic === d.id, `${d.name}${owner ? ` <span class="font-normal">（${expEsc(owner.name)}）</span>` : ''}`, `expPlan.set('${ch.id}','epic','${d.id}')`, !!owner, owner ? `${owner.name} が選んでいます` : `Lv${d.lv}+`, 'epic');
         }).join('');
         const burnOpts = this.BURNS.map(b => `<option value="${b.id}"${b.id === c.burn ? ' selected' : ''}>${b.label}</option>`).join('');
 
@@ -963,7 +994,7 @@ const expPlan = {
             if (!have) return '';
             const max = have - (kind === 'tix' ? this.tixUsed(ch.server, id, ch.id) : this.potUsed(ch.server, id, ch.id));
             const opts = Array.from({ length: have + 1 }, (_, i) => `<option value="${i}"${i === cur ? ' selected' : ''}${i > max ? ' disabled' : ''}>${i}</option>`).join('');
-            return `<label class="expp-cnt ${cur ? 'on' : ''}"><span>${label}</span><select class="select select-xs font-mono w-14" onchange="expPlan.${kind === 'tix' ? 'setTix' : 'setPot'}('${ch.id}','${id}',this.value)">${opts}</select></label>`;
+            return `<label class="expp-cnt ${cur ? 'on' : ''}" style="--c:${this.srcColor(kind === 'tix' ? 'farm' : 'potion')}">${this.stableText(label)}<select class="select select-xs font-mono w-14" onchange="expPlan.${kind === 'tix' ? 'setTix' : 'setPot'}('${ch.id}','${id}',this.value)">${opts}</select></label>`;
         };
         const tixItems = this.TIX.map(t => cntSel('tix', t.id, t.label, Number(c.tix[t.id]) || 0)).join('');
         const potItems = EXP_POTION_TYPES.map(p => cntSel('pot', p.id, this.potName(p), Number(c.pot[p.id]) || 0)).join('');
@@ -977,7 +1008,7 @@ const expPlan = {
             const sch = (this._saunaSched && this._saunaSched[ch.id]) || [];
             const first = sch.findIndex(h => h > 0), last = sch.length - 1;
             const when = cur && first >= 0 ? `${expDate.short(expDate.add(this.state.start, first))}${last > first ? `〜${expDate.short(expDate.add(this.state.start, last))}` : ''}` : '';
-            return `<label class="expp-cnt ${cur ? 'on' : ''}"><span>VIP サウナ</span><select class="select select-xs font-mono w-16" onchange="expPlan.setSauna('${ch.id}',this.value)">${opts}</select></label>
+            return `<label class="expp-cnt ${cur ? 'on' : ''}" style="--c:${this.srcColor('sauna')}">${this.stableText('VIP サウナ')}<select class="select select-xs font-mono w-16" onchange="expPlan.setSauna('${ch.id}',this.value)">${opts}</select></label>
                 <span class="text-[11px] text-slate-500">時間${when ? `（${when}）` : ''}</span>`;
         })() : '';
         const hunt = this.huntCfg(c);
@@ -990,9 +1021,9 @@ const expPlan = {
         const dailyHTML = this.DAILY_GROUPS.map(g => {
             const regs = expRegionData.filter(r => r.daily > 0 && g.test(r) && !takenDaily.has(r.id));
             const allOn = regs.length && regs.every(r => c.dailyOn.includes(r.id));
-            return `<div class="flex flex-wrap items-center gap-1">
-                <button type="button" class="expp-grp ${allOn ? 'on' : ''}" ${regs.length ? '' : 'disabled'} onclick="expPlan.toggleDailyGroup('${ch.id}','${g.id}')">${g.label}</button>
-                ${regs.map(r => chip(c.dailyOn.includes(r.id), this.REGION_SHORT[r.id] || r.name, `expPlan.toggleDaily('${ch.id}','${r.id}')`, false, `${r.name} Lv${r.lv}+`)).join('') || '<span class="text-[11px] text-slate-600">—</span>'}
+            return `<div class="expp-dgrp">
+                <button type="button" class="expp-grp ${allOn ? 'on' : ''}" style="--c:${this.srcColor('daily')}" ${regs.length ? '' : 'disabled'} onclick="expPlan.toggleDailyGroup('${ch.id}','${g.id}')">${g.label}</button>
+                <div class="flex flex-wrap items-center gap-1">                ${regs.map(r => chip(c.dailyOn.includes(r.id), this.REGION_SHORT[r.id] || r.name, `expPlan.toggleDaily('${ch.id}','${r.id}')`, false, `${r.name} Lv${r.lv}+`, 'daily', this.REGION_ICON[r.id] || '')).join('') || '<span class="text-[11px] text-slate-600">—</span>'}</div>
             </div>`;
         }).join('');
 
@@ -1004,7 +1035,7 @@ const expPlan = {
         <div class="expp-char border-l-${col}-400">
             ${head}
             <div class="expp-grid">
-                <span class="expp-lbl">開始</span>
+                ${this.rowLbl('start', '開始')}
                 <div class="flex flex-wrap items-center gap-1.5">
                     <select class="select select-xs font-mono w-16" onchange="expPlan.set('${ch.id}','lv',this.value)">${lvOpts}</select>
                     <label class="input input-xs font-mono w-24"><input type="number" step="0.01" min="0" max="99.99" value="${(Number(c.pct) || 0).toFixed(2)}" onchange="expPlan.set('${ch.id}','pct',this.value)">%</label>
@@ -1013,34 +1044,37 @@ const expPlan = {
                     <span class="expp-lbl ml-3">目標</span>
                     <select class="select select-xs font-mono w-16" onchange="expPlan.set('${ch.id}','target',this.value)"><option value="0">-</option>${tgOpts}</select>
                 </div>
-                <span class="expp-lbl">バーニング</span>
+                ${this.rowLbl('burn', 'バーニング')}
                 <div><select class="select select-xs w-56" onchange="expPlan.set('${ch.id}','burn',this.value)">${burnOpts}</select></div>
-                <span class="expp-lbl self-start pt-1">デイリー</span>
+                <div class="expp-sec">毎日・毎週のコンテンツ</div>
+                ${this.rowLbl('daily', 'デイリー', 'self-start pt-1')}
                 <div class="space-y-1">${dailyHTML}</div>
-                <span class="expp-lbl">モンパ</span>
+                ${this.rowLbl('monpa', 'モンパ')}
                 <div class="flex flex-wrap items-center gap-1.5">
                     <select class="select select-xs font-mono w-14" onchange="expPlan.set('${ch.id}','monpa',this.value)">${monpaOpts}</select>
                     <span class="text-[11px] text-slate-500">回/日</span>
                 </div>
-                <span class="expp-lbl">毎週</span>
+                ${this.rowLbl('weekly', '毎週')}
                 <div class="flex flex-wrap items-center gap-1.5">
-                    ${chip(c.weekly, 'アーケイン週課', `expPlan.toggle('${ch.id}','weekly')`)}
-                    ${chip(c.mpe, 'モンパエクストリーム', `expPlan.toggle('${ch.id}','mpe')`, mpeFull, mpeFull ? `このワールドは週${L.mpePerWorld}キャラまで` : 'Lv260+')}
+                    ${chip(c.weekly, 'アーケイン週課', `expPlan.toggle('${ch.id}','weekly')`, false, '', 'weekly', this.ICON.weekly.img)}
+                    ${chip(c.mpe, 'モンパエクストリーム', `expPlan.toggle('${ch.id}','mpe')`, mpeFull, mpeFull ? `このワールドは週${L.mpePerWorld}キャラまで` : 'Lv260+', 'mpe', this.ICON.mpe.img)}
                 </div>
-                <span class="expp-lbl">エピダン</span>
+                ${this.rowLbl('epic', 'エピダン')}
                 <div class="flex flex-wrap items-center gap-1.5">
                     ${epicChips}
                 </div>
-                ${tixItems ? `<span class="expp-lbl">農場</span><div class="flex flex-wrap items-center gap-1.5">${tixItems}</div>` : ''}
-                ${potItems ? `<span class="expp-lbl">秘薬</span><div class="flex flex-wrap items-center gap-1.5">${potItems}</div>` : ''}
-                <span class="expp-lbl">狩り</span>
+                ${tixItems || potItems ? '<div class="expp-sec">持ち物</div>' : ''}
+                ${tixItems ? `${this.rowLbl('farm', '農場')}<div class="flex flex-wrap items-center gap-1.5">${tixItems}</div>` : ''}
+                ${potItems ? `${this.rowLbl('potion', '秘薬')}<div class="flex flex-wrap items-center gap-1.5">${potItems}</div>` : ''}
+                <div class="expp-sec">狩り・放置</div>
+                ${this.rowLbl('hunt', '狩り')}
                 <div class="flex flex-wrap items-center gap-1.5">
                     <label class="input input-xs font-mono w-28" title="1時間あたりの討伐数（自分の Lv の敵）"><input type="number" min="0" step="1000" value="${hunt.kills}" onchange="expPlan.setHunt('${ch.id}','kills',this.value)"><span class="text-slate-500">体/時</span></label>
-                    <label class="expp-cnt ${hunt.hours ? 'on' : ''}"><select class="select select-xs font-mono w-16" onchange="expPlan.setHunt('${ch.id}','hours',this.value)">${hourOpts}</select><span>時間/日</span></label>
+                    <label class="input input-xs font-mono w-28 expp-insel" title="1日に狩る時間"><select onchange="expPlan.setHunt('${ch.id}','hours',this.value)">${hourOpts}</select><i data-lucide="chevron-down" class="w-3 h-3 text-slate-500 shrink-0"></i><span class="text-slate-500">時間/日</span></label>
                     <label class="input input-xs font-mono w-32" title="ステータス画面の経験値（+N%）。基礎の100%に足して計算します"><span class="text-slate-500">EXP +</span><input type="number" min="0" step="10" value="${hunt.pct}" onchange="expPlan.setHunt('${ch.id}','pct',this.value)"><span class="text-slate-500">%</span></label>
                     ${huntDay > 0 ? `<span class="text-[11px] text-slate-500">1日 ${expFmt(huntDay)}</span>` : ''}
                 </div>
-                ${saunaItem ? `<span class="expp-lbl">放置</span><div class="flex flex-wrap items-center gap-1.5">${saunaItem}</div>` : ''}
+                ${saunaItem ? `${this.rowLbl('sauna', '放置')}<div class="flex flex-wrap items-center gap-1.5">${saunaItem}</div>` : ''}
             </div>
         </div>`;
     },
