@@ -12,7 +12,9 @@
 //   entry = { form: {...}, result: {...} | null, history: [{at, b300, b300h}],
 //             hyperOpt: { locked, crLv }, hyperRun: {...} | null,   — hyperRun は「ハイパーを計算する」の結果
 //             hstatRun: {...} | null,   — hstatRun は「HEXAステを計算する」の結果
-//             calib: { min, scale, at, on } | undefined }   — ボスカットの実測補正（EXスウのソロ実測タイムと火力の倍率、on はトグル）
+//             calib: { min, scale, at, on, m20 } | undefined,   — ボスカットの実測補正（EXスウのソロ実測タイムと火力の倍率、on はトグル）
+//             quick: { min, at, m20 } | undefined }   — 簡易換算の EXスウ ソロタイム
+//   m20 は「20分化前に測った時間を 3分の2 に換算した」印（LIMIT_SWITCH を参照）。
 //   form.hexaStat = [{ main, mainLv, a1, a1Lv, a2, a2Lv } ×3]   — HEXAステータスのコア I〜III（種類は scouter_hexastat.js の TYPES）
 //   form.symbol = { cernium: true, ... }   — Lv11 以上のオーセンティックシンボル（その地域のボスだけダメージ +20%）
 // form は画面の項目そのまま。送るときに buildUserStat() で先方の形に組み立てる。
@@ -330,6 +332,7 @@ const scouter = (() => {
         const sh = shared();
         e.form.link = sh.link;
         e.form.wildhunterUnion = sh.wildhunterUnion;
+        if (migrate20(e)) save();
         return e;
     }
     // 全キャラ共通の値。初めて作るときは、最後に計算したキャラ（なければ仮入力）の値を引き継ぐ。
@@ -958,10 +961,27 @@ const scouter = (() => {
         </td>`;
     }
     // 実測補正（bi 指定）: EXスウのソロ実測タイムから火力の倍率を出し、全ボスの％に一律で掛ける。
-    // ％は火力に比例し、EXスウ 100% で 30分、時間は火力に反比例とみる（200% なら 15分。10分で倒せたら 300% 扱いで ×1.5）。
+    // ％は火力に比例し、EXスウ 100% で制限時間（20分。20分化の前は 30分）、時間は火力に反比例とみる
+    // （20分なら 200% で 10分。5分で倒せたら 400% 扱い）。
     // 倍率は保存して、再計算したあとも掛け続ける（ずれは職業ごとの計算の癖なので、装備が変わってもほぼ同じ）。
     // 掛けるかどうかはトグル（on）で切り替える。時間は残したまま外せる（bi 指定）。
-    const CALIB_MIN = 30;
+    // GMS v.272（2026-11-11）のボス20分化: 主要ボスの HP が 3分の2、制限時間が 30分 → 20分。
+    // 切り替えはメンテ明け（2026-11-12 0:00 JST ごろ、Party Scouter の LIMIT_SWITCH と同じ）。
+    // それより前に測った時間は、切り替え後に開いたとき 3分の2 に換算して置き換える（bi 決定、migrate20）。
+    // 倍率（calib.scale）は 30分÷(率×T) = 20分÷(率×T×2/3) で変わらないので、そのまま使う。
+    const LIMIT_SWITCH = Date.parse('2026-11-11T15:00:00Z');
+    const CALIB_MIN = Date.now() >= LIMIT_SWITCH ? 20 : 30;
+    function migrate20(e) {
+        if (CALIB_MIN !== 20) return false;
+        let changed = false;
+        for (const x of [e.calib, e.quick]) {
+            if (!x || !(x.min > 0) || x.m20 || Date.parse(x.at) >= LIMIT_SWITCH) continue;
+            x.min = x.min * 2 / 3;
+            x.m20 = 1;
+            changed = true;
+        }
+        return changed;
+    }
     const calibBase = (cuts) => (cuts || []).find((c) => c.b === '스우' && c.d === 'Extreme') || null;
     // シンボルのダメージ +20% で火力が何倍になるか。ダメージは足し算なので、ダメージ 1% の伸び（スペック効率）の 20 倍。
     // スペック効率が無い古い結果は画面の値から出す（+18 は計算元の補正、scouter_kinoko.js の DMG_FIX）。
@@ -1423,7 +1443,7 @@ const scouter = (() => {
             const t = ev.target;
             if (t.dataset.sc === 'qmin') {
                 const v = String(t.value || '').trim(), min = parseSeconds(v);
-                if (!v) cur.e.quick = { min: null }; else if (min) cur.e.quick = { min };
+                if (!v) cur.e.quick = { min: null }; else if (min) cur.e.quick = { min, at: new Date().toISOString() };
                 t.classList.toggle('font-bold', !!min); t.classList.toggle('text-base-content/35', !min);
                 save();
                 refreshQuick();
