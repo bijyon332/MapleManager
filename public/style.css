@@ -807,3 +807,9 @@ header .tabs-box > .tab-active svg { color: #a5b4fc; }
 .expb-bar { position: absolute; top: 0; bottom: 0; border-radius: 3px; opacity: .85; }
 .expb-sum th, .expb-sum td { text-align: center; padding: 4px 6px; font-size: 11px; }
 .expb-sum td:first-child { text-align: left; white-space: nowrap; }
+/* EXP 計画: キャラ選択の画面 */
+.expp-pick { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--color-base-300); background: var(--color-base-100); cursor: pointer; }
+.expp-pick:hover { border-color: #6366f180; }
+.expp-pick.is-on { border-color: #6366f1; background: #6366f11f; }
+.expp-pick-box { width: 18px; height: 18px; flex-shrink: 0; border-radius: 4px; border: 1.5px solid #475569; display: flex; align-items: center; justify-content: center; color: #fff; }
+.expp-pick.is-on .expp-pick-box { background: #6366f1; border-color: #6366f1; }
