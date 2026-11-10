@@ -157,7 +157,7 @@ const expUltima = Object.assign(Object.create(expPlan), {
     togglePassTier(pid, tid) { const b = this.state.pass[pid].buy; b[tid] = !b[tid]; this.commit(); },
     // その週にもらえるもの（無料＋買った分）
     passWeek(p, i) {
-        const w = p.weeks[i], buy = this.state.pass[p.id].buy;
+        const w = p.weeks[i], buy = (this._buy && this._buy[p.id]) || this.state.pass[p.id].buy;
         const out = { coupon: 0, farm: 0, pot: {} };
         ['free', ...p.tiers.filter(t => buy[t.id]).map(t => t.id)].forEach(k => {
             const r = w[k];
@@ -276,7 +276,83 @@ const expUltima = Object.assign(Object.create(expPlan), {
         </ul>`;
     },
 
-    // 結果の下に、週ごとのバフとパスの受け取り
+    // ---------- パス・狩りの時間で変わる到達日 ----------
+    // 目標 Lv を入れたキャラごとに、同じ条件で計算し直して、今の Lv より上で目標までの 5 の倍数の Lv（と目標）に届く日を比べる。
+    //   パス: 「無料分だけ」「今の買い方」「1つのパスだけ買わない」（パスを受け取るキャラだけ）
+    //   狩り: 1日の狩りの時間を HUNT_HOURS に変えたとき（体/時と EXP +% はそのキャラの値）
+    // 期日を過ぎても目標までは日を進める（イベントのバフは 2/9 まで）。
+    HUNT_HOURS: [0, 1, 2, 3, 4, 6, 8],
+    withBuy(buy, fn) { this._buy = buy; try { return fn(); } finally { this._buy = null; } },
+    reachStudy() {
+        const none = Object.fromEntries(this.PASSES.map(p => [p.id, {}]));
+        const bought = this.PASSES.filter(p => p.tiers.some(t => this.state.pass[p.id].buy[t.id]) && this.passChar(p));
+        return this.onChars().filter(ch => Number(this.cfg(ch.id).target) > 0).sort((a, b) => b.level - a.level).map(ch => {
+            const c = this.cfg(ch.id);
+            const run = (buy, cc = c) => this.withBuy(buy, () => this.simulate(ch, cc, this.state.start, this.state.end));
+            const now = run(null);
+            if (!now) return null;
+            const target = Math.min(300, Number(c.target) || 0);
+            const lvs = [];
+            for (let l = Math.floor(now.startLv / 5) * 5 + 5; l <= target; l += 5) lvs.push(l);
+            if (target > now.startLv && !lvs.includes(target)) lvs.push(target);
+            if (!lvs.length) return null;
+            const mine = bought.filter(p => this.passChar(p).id === ch.id);
+            const pass = mine.length ? { free: run(none), without: mine.map(p => ({ p, r: run({ [p.id]: {} }) })) } : null;
+            const hunt = this.huntCfg(c);
+            const cur = Number(hunt.hours) || 0;
+            const hours = hunt.kills > 0 ? [...new Set([...this.HUNT_HOURS, cur])].sort((a, b) => a - b) : [];
+            const byHour = hours.map(h => {
+                const cc = { ...c, hunt: { ...hunt, hours: h } };
+                return { h, r: h === cur ? now : run(null, cc), free: pass ? run(none, cc) : null };
+            });
+            return { ch, target, lvs, now, pass, hunt, cur, byHour };
+        }).filter(Boolean);
+    },
+    studyOpen: true,
+    studyHTML() {
+        const list = this.reachStudy();
+        if (!list.length) return '';
+        const day = d => d ? expDate.short(d) : '<span class="text-slate-600">10年以上</span>';
+        const gap = (a, b) => (a && b) ? expDate.diff(a, b) : null;
+        const cut = n => n == null ? '<span class="text-slate-600">—</span>' : n > 0 ? `<span class="text-emerald-400 font-bold">${n}日</span>` : '<span class="text-slate-500">0日</span>';
+        // 今の設定より早い・遅い日数
+        const diff = n => n == null || n === 0 ? '' : `<span class="${n > 0 ? 'text-emerald-400' : 'text-red-400'}">${n > 0 ? '−' : '+'}${Math.abs(n)}</span>`;
+        const blocks = list.map(({ ch, target, lvs, now, pass, hunt, cur, byHour }) => {
+            const passTable = pass ? `
+            <div class="expu-sub">パス <span>パス名の列は、そのパスだけ買わなかったときに遅れる日数（足し算にはなりません）</span></div>
+            <div class="overflow-x-auto"><table class="table table-xs expu-saved">
+                <thead><tr><th></th><th>無料だけ</th><th>今の買い方</th><th>短縮</th>${pass.without.map(({ p }) => `<th>${p.short}</th>`).join('')}</tr></thead>
+                <tbody>${lvs.map(l => {
+                    const a = now.reachAt[l], b = pass.free.reachAt[l];
+                    return `<tr><td class="font-bold text-white">Lv ${l}</td><td>${day(b)}</td><td>${day(a)}</td><td>${cut(gap(a, b))}</td>
+                        ${pass.without.map(({ r }) => `<td>${cut(gap(a, r.reachAt[l]))}</td>`).join('')}</tr>`;
+                }).join('')}</tbody>
+            </table></div>` : '';
+            const huntTable = byHour.length ? `
+            <div class="expu-sub">1日の狩りの時間 <span>${hunt.kills.toLocaleString()} 体/時・EXP +${Number(hunt.pct) || 0}%。日付は今の買い方、横の数字は今の ${cur} 時間との差${pass ? '、右端は目標でのパスの短縮' : ''}</span></div>
+            <div class="overflow-x-auto"><table class="table table-xs expu-saved">
+                <thead><tr><th>時間/日</th>${lvs.map(l => `<th>Lv ${l}</th>`).join('')}${pass ? `<th>パスの短縮</th>` : ''}</tr></thead>
+                <tbody>${byHour.map(({ h, r, free }) => `<tr class="${h === cur ? 'expu-cur' : ''}">
+                    <td class="font-bold text-white">${h} 時間</td>
+                    ${lvs.map(l => `<td>${day(r.reachAt[l])} ${h === cur ? '' : diff(gap(r.reachAt[l], now.reachAt[l]))}</td>`).join('')}
+                    ${pass ? `<td>${cut(gap(r.reachAt[target], free.reachAt[target]))}</td>` : ''}
+                </tr>`).join('')}</tbody>
+            </table></div>` : `<div class="expu-sub"><span>狩りの「体/時」を入れると、1日の狩りの時間ごとの到達日も出ます</span></div>`;
+            return `
+            <div class="px-3 pt-3 text-sm font-bold text-white">${expEsc(ch.name)} <span class="text-[11px] font-normal text-slate-500">Lv ${now.startLv} → 目標 Lv ${target}</span></div>
+            ${passTable}${huntTable}`;
+        }).join('');
+        return `
+        <div class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden pb-2">
+            <div class="flex items-center gap-2 px-3 py-2 bg-base-200 border-b border-base-content/10">
+                <i data-lucide="timer-reset" class="w-4 h-4 text-emerald-400"></i>
+                <span class="text-sm font-bold text-white">パスと狩りの時間で変わる到達日</span>
+            </div>
+            ${blocks}
+        </div>`;
+    },
+
+    // 結果の下に、パスで短縮できた日数と、週ごとのバフとパスの受け取り
     extraResultHTML(results, st) {
         const today = expDate.today();
         const cols = [['monpa', 'モンパ'], ['epic', 'エピダン'], ['darc', 'アーケイン日課'], ['dgrand', 'グランディス日課']];
@@ -300,7 +376,7 @@ const expUltima = Object.assign(Object.create(expPlan), {
                 <td class="text-[11px] text-slate-300">${pass}</td>
             </tr>`;
         }).join('');
-        return `
+        return `${this.studyHTML()}
         <div class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden">
             <div class="flex items-center gap-2 px-3 py-2 bg-base-200 border-b border-base-content/10">
                 <i data-lucide="calendar-range" class="w-4 h-4 text-indigo-400"></i>
