@@ -152,6 +152,11 @@
                     <i data-lucide="users" class="w-5 h-5"></i>
                     <span class="nav-label">Party Scouter</span>
                 </button></li>
+                <li><button onclick="app.switchApp('exp')" id="app-exp"
+                    class="nav-item" title="EXP Simulator（Lv の伸びの計算、アカウント全体の経験値の割り振り）">
+                    <i data-lucide="chart-no-axes-combined" class="w-5 h-5"></i>
+                    <span class="nav-label">EXP Simulator</span>
+                </button></li>
                 <li><button onclick="app.switchApp('cheatsheet')" id="app-cheatsheet"
                     class="nav-item" title="Cheat Sheet（ボスの必要フォース・レベル差補正の早見表）">
                     <i data-lucide="table-2" class="w-5 h-5"></i>
@@ -181,12 +186,6 @@
                 </button></li>
                 <!-- In-development apps -->
                 <li class="menu-title nav-group-dev" title="開発中 / In Development">DEV</li>
-                <li><button onclick="app.switchApp('exp')" id="app-exp"
-                    class="nav-item dev-app" title="EXP Simulator(開発中)">
-                    <i data-lucide="flask-conical" class="w-5 h-5"></i>
-                    <span class="nav-label">EXP Simulator</span>
-                    <span class="dev-dot"></span>
-                </button></li>
                 <li><button onclick="app.switchApp('cost')" id="app-cost"
                     class="nav-item dev-app" title="Gear Cost Calculator(開発中)">
                     <i data-lucide="coins" class="w-5 h-5"></i>

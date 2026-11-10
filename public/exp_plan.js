@@ -52,7 +52,9 @@ const expBuffs = {
         { id: 'monpa', label: 'モンパ', color: '#818cf8' },
         { id: 'mpe', label: 'モンパエクストリーム', color: '#c084fc' },
         { id: 'epic', label: 'エピックダンジョン', color: '#fbbf24' },
-        { id: 'daily', label: 'デイリー', color: '#34d399' },
+        { id: 'daily', label: 'デイリー（全地域）', color: '#34d399' },
+        { id: 'darc', label: 'デイリー（アーケイン）', color: '#6ee7b7' },
+        { id: 'dgrand', label: 'デイリー（グランディス）', color: '#10b981' },
         { id: 'weekly', label: '週課（アーケイン）', color: '#22d3ee' },
     ],
     list: [],
@@ -81,6 +83,8 @@ const expBuffs = {
         }
         return s;
     },
+    // デイリーは「全地域」に、地域の側（アーケインリバー＝Lv255 以下の地域／グランディス＝セルニウム以降）の分を足す
+    dailyPct(region, ymd) { return this.pct('daily', ymd) + this.pct(region.lv <= 255 ? 'darc' : 'dgrand', ymd); },
     target(id) { return this.TARGETS.find(t => t.id === id) || this.TARGETS[0]; },
 
     add() {
@@ -208,7 +212,7 @@ const expBuffs = {
             const w = b.start ? ((expDate.diff(b.start, b.end || b.start) + 1) / span) * 100 : 0;
             return `
             <tr class="${live ? 'expb-live' : ''}">
-                <td><select class="select select-sm w-44" onchange="expBuffs.set('${b.id}','target',this.value)">${opt(b.target)}</select></td>
+                <td><select class="select select-sm w-52" onchange="expBuffs.set('${b.id}','target',this.value)">${opt(b.target)}</select></td>
                 <td><label class="input input-sm w-24 font-mono"><span class="text-slate-500">+</span><input type="number" min="0" step="10" value="${Number(b.pct) || 0}" onchange="expBuffs.set('${b.id}','pct',this.value)"><span class="text-slate-500">%</span></label></td>
                 <td><input type="date" class="input input-sm w-36 font-mono" value="${b.start || ''}" onchange="expBuffs.set('${b.id}','start',this.value)"></td>
                 <td><input type="date" class="input input-sm w-36 font-mono" value="${b.end || ''}" onchange="expBuffs.set('${b.id}','end',this.value)"></td>
@@ -635,8 +639,7 @@ const expPlan = {
 
             useTix();
 
-            const bDaily = expBuffs.pct('daily', ymd) / 100;
-            dailies.forEach(r => { if (lv >= r.lv) add(r.daily * (1 + bDaily), 'daily'); });
+            dailies.forEach(r => { if (lv >= r.lv) add(r.daily * (1 + expBuffs.dailyPct(r, ymd) / 100), 'daily'); });
 
             if (c.weekly && bestDay('weekly', ymd, 1)) {
                 const bW = expBuffs.pct('weekly', ymd) / 100;

@@ -227,6 +227,7 @@ const expSim = {
         const monpaBaseMultVal = parseFloat(document.getElementById('exp-monpaMult').value);
         // イベントバフ（exp_plan.js）。その日に効いている％の合計を足す。
         const buff = (key, d) => (typeof expBuffs !== 'undefined' ? expBuffs.pct(key, `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`) : 0) / 100;
+        const dailyBuff = (reg, d) => (typeof expBuffs !== 'undefined' ? expBuffs.dailyPct(reg, `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`) : 0) / 100;
 
         const startD = new Date(document.getElementById('exp-startDate').value);
         startD.setHours(0, 0, 0, 0);
@@ -347,7 +348,7 @@ const expSim = {
                 if (reg.daily === 0) return;
                 const cbEl = document.getElementById(`exp-${reg.id}`);
                 if (!cbEl || !cbEl.checked || reg.lv > curLv) return;
-                [curLv, curExp] = self.addExp(reg.daily * (dailyMultVal + buff('daily', loopDate)), curLv, curExp, goalLv);
+                [curLv, curExp] = self.addExp(reg.daily * (dailyMultVal + dailyBuff(reg, loopDate)), curLv, curExp, goalLv);
             });
 
             // Arcane River Weekly Quests
