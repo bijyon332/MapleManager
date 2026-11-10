@@ -260,7 +260,8 @@ const expSim = {
                     if (deadlineHit) { lbls.push(`Potion×${pot.qty}(wasted)`); pot.qty = 0; }
                     continue;
                 }
-                const optimalHit = curLv >= pot.capLv;
+                // 全部使い切ってちょうど上限 Lv を越えるように、上限 Lv から本数分さかのぼった Lv で使い始める（〜259 が3本なら Lv257）
+                const optimalHit = curLv >= pot.capLv - pot.qty + 1;
                 if (!deadlineHit && !optimalHit) continue;
                 const useQty = pot.qty; pot.qty = 0;
                 for (let qi = 0; qi < useQty; qi++) {

@@ -190,8 +190,13 @@ const expPlan = {
     chart: null,
     fetching: {},
 
-    // 共有の上限（GMS パッチノート: v.269 モンパ、v.260 MPE、v.267 エピックダンジョン）
-    LIMITS: { monpaPerChar: 7, monpaPerWorld: 14, mpePerWorld: 2, epicPerAccount: 2 },
+    // 共有の上限（GMS パッチノート: v.269 モンパ、v.260 MPE）
+    // エピックダンジョンは「ダンジョンごとにアカウントで週1回、1キャラは週1種類」（bi 確認 2026-11-11。
+    // v.271 の Express Pass の説明 'once per account' とも合う）。今は3種類なのでアカウントで週3回。
+    LIMITS: { monpaPerChar: 7, monpaPerWorld: 14, mpePerWorld: 2 },
+    // デイリーの地域（expRegionData の id）の短い名前と、まとめて切り替える区切り
+    REGION_SHORT: { r1: 'VJ', r2: 'Chu Chu', r3: 'Lachelein', r4: 'Arcana', r5: 'Morass', r6: 'Esfera', r8: 'Moonbridge', r9: 'Labyrinth', r10: 'Limen',
+        r11: 'Cernium', r12: 'Arcus', r13: 'Odium', r14: 'Shangri-La', r15: 'Arteria', r16: 'Carcion', r17: 'Tallahart', r18: 'Geardock' },
     WORLDS: [
         { id: 'KRONOS', name: 'Kronos' },
         { id: 'CHALLENGER', name: 'Challenger' },
@@ -211,7 +216,10 @@ const expPlan = {
         { id: 'none', label: 'なし' },
         { id: 'hyper', label: 'Hyper Burning（〜260）' },
         { id: 'beyond', label: 'Burning Beyond（260〜270）' },
-        { id: 'both', label: '両方' },
+        { id: 'both', label: 'Hyper + Beyond（〜270）' },
+        // 次のチャレンジャーサーバーは Burning Beyond が 280 まで（+2/Lv）
+        { id: 'beyond280', label: 'Burning Beyond（260〜280）' },
+        { id: 'both280', label: 'Hyper + Beyond（〜280）' },
     ],
     SRC: [
         { id: 'daily', label: 'デイリー', color: '#34d399' },
@@ -288,11 +296,17 @@ const expPlan = {
         const c = this.state.chars[id] || (this.state.chars[id] = {});
         const def = {
             on: false, lv: null, pct: 0, fetchedAt: null, target: null,
-            daily: { arcane: true, tenebris: true, grandis: true }, weekly: true,
+            dailyOff: null, weekly: true,
             monpa: 0, mpe: false, epic: 'none', epicTier: 1, epicBonus: 0, burn: 'none',
             tix: {}, pot: {},
         };
         for (const k of Object.keys(def)) if (c[k] === undefined) c[k] = def[k];
+        // デイリーは地域ごとに外せる（外した地域の id を持つ）。前の版の3区分の選択から引き継ぐ。
+        if (!Array.isArray(c.dailyOff)) {
+            const old = c.daily || {};
+            c.dailyOff = expRegionData.filter(r => r.daily > 0 && this.DAILY_GROUPS.some(g => g.test(r) && old[g.id] === false)).map(r => r.id);
+            delete c.daily;
+        }
         return c;
     },
 
@@ -300,7 +314,8 @@ const expPlan = {
     onChars(world) { return this.characters().filter(ch => (!world || ch.server === world) && this.cfg(ch.id).on); },
     monpaUsed(world, exceptId) { return this.onChars(world).filter(ch => ch.id !== exceptId).reduce((s, ch) => s + (Number(this.cfg(ch.id).monpa) || 0), 0); },
     mpeUsed(world, exceptId) { return this.onChars(world).filter(ch => ch.id !== exceptId && this.cfg(ch.id).mpe).length; },
-    epicUsed(exceptId) { return this.onChars().filter(ch => ch.id !== exceptId && this.cfg(ch.id).epic !== 'none').length; },
+    epicDungeons() { return EPIC_DUNGEONS.filter(d => d.gms); },
+    epicOwner(dgId, exceptId) { return this.onChars().find(ch => ch.id !== exceptId && this.cfg(ch.id).epic === dgId) || null; },
     tixUsed(world, k, exceptId) { return this.onChars(world).filter(ch => ch.id !== exceptId).reduce((s, ch) => s + (Number(this.cfg(ch.id).tix[k]) || 0), 0); },
     potUsed(world, k, exceptId) { return this.onChars(world).filter(ch => ch.id !== exceptId).reduce((s, ch) => s + (Number(this.cfg(ch.id).pot[k]) || 0), 0); },
 
@@ -328,10 +343,17 @@ const expPlan = {
                 });
             });
         });
-        let epic = 0;
+        // エピダンはダンジョンごとにアカウントで1キャラまで。前の版の「自動」は、入れる最上位の空いているものに置き換える。
+        const taken = new Set();
         this.onChars().forEach(ch => {
             const c = this.cfg(ch.id);
-            if (c.epic !== 'none') { if (epic >= L.epicPerAccount) c.epic = 'none'; else epic++; }
+            if (c.epic === 'auto') {
+                const lv = c.lv || ch.level;
+                const d = [...this.epicDungeons()].reverse().find(x => lv >= x.lv && !taken.has(x.id));
+                c.epic = d ? d.id : 'none';
+            }
+            if (c.epic !== 'none' && (taken.has(c.epic) || !this.epicDungeons().some(d => d.id === c.epic))) c.epic = 'none';
+            if (c.epic !== 'none') taken.add(c.epic);
         });
     },
 
@@ -367,6 +389,19 @@ const expPlan = {
         const c = this.cfg(id);
         if (sub) c[field][sub] = !c[field][sub];
         else c[field] = !c[field];
+        this.commit();
+    },
+    toggleDaily(id, rid) {
+        const c = this.cfg(id);
+        c.dailyOff = c.dailyOff.includes(rid) ? c.dailyOff.filter(x => x !== rid) : [...c.dailyOff, rid];
+        this.commit();
+    },
+    toggleDailyGroup(id, gid) {
+        const c = this.cfg(id);
+        const g = this.DAILY_GROUPS.find(x => x.id === gid);
+        const ids = expRegionData.filter(r => r.daily > 0 && g.test(r)).map(r => r.id);
+        const allOn = ids.every(r => !c.dailyOff.includes(r));
+        c.dailyOff = allOn ? [...new Set([...c.dailyOff, ...ids])] : c.dailyOff.filter(x => !ids.includes(x));
         this.commit();
     },
     setTix(id, k, v) { this.cfg(id).tix[k] = Number(v) || 0; this.commit(); },
@@ -414,8 +449,9 @@ const expPlan = {
         const src = {}; this.SRC.forEach(s => { src[s.id] = 0; });
 
         const burn = (l) => {
-            if ((c.burn === 'hyper' || c.burn === 'both') && l < 260) return Math.min(260, l + 4);
-            if ((c.burn === 'beyond' || c.burn === 'both') && l >= 260 && l < 270) return Math.min(270, l + 1);
+            if (['hyper', 'both', 'both280'].includes(c.burn) && l < 260) return Math.min(260, l + 4);
+            const beyondTo = ['beyond280', 'both280'].includes(c.burn) ? 280 : ['beyond', 'both'].includes(c.burn) ? 270 : 0;
+            if (beyondTo && l >= 260 && l < beyondTo) return Math.min(beyondTo, l + 1);
             return l;
         };
         const add = (amt, key) => {
@@ -444,11 +480,12 @@ const expPlan = {
                 }
             }
         };
-        // 秘薬は上限 Lv に届いたら使う。届かなくても期日には使い切る。
+        // 秘薬は全部使い切ってちょうど上限 Lv を越えるように使う（1本で1Lv なので、上限 Lv から本数分さかのぼった Lv で使い始める。
+        // 例: 〜259 が3本なら Lv257 で使う）。そこまで届かなくても期日には使い切る。
         const usePot = (ymd) => {
             for (const p of pendPot) {
                 if (!p.n || lv < p.minLv) continue;
-                if (lv < p.capLv && ymd !== end) continue;
+                if (lv < p.capLv - p.n + 1 && ymd !== end) continue;
                 for (; p.n > 0; p.n--) add(tnlData[Math.min(lv, p.capLv)] || 0, 'potion');
             }
         };
@@ -460,8 +497,7 @@ const expPlan = {
             return true;
         };
 
-        const groups = this.DAILY_GROUPS.filter(g => c.daily[g.id]);
-        const dailies = expRegionData.filter(r => r.daily > 0 && groups.some(g => g.test(r)));
+        const dailies = expRegionData.filter(r => r.daily > 0 && !c.dailyOff.includes(r.id));
         const done = { mpe: null, epic: null, weekly: new Set() };
         const series = [];
         let endSrc = null;
@@ -505,8 +541,8 @@ const expPlan = {
             }
 
             if (c.epic !== 'none' && !done.epic && bestDay('epic', ymd, 4)) {
-                const dg = expSim.pickEpicDungeon(c.epic, lv);
-                if (dg) {
+                const dg = this.epicDungeons().find(d => d.id === c.epic);
+                if (dg && lv >= dg.lv) {
                     const b = (Number(c.epicBonus) || 0) + expBuffs.pct('epic', ymd);
                     gain(l => (epicDungeonBase[l] || 0) * ((Number(c.epicTier) || 1) + b / 100) * dg.mult, 'epic');
                     done.epic = thuWeek;
@@ -551,7 +587,8 @@ const expPlan = {
 
         const monpaLeft = L.monpaPerWorld - this.monpaUsed(world);
         const mpeLeft = L.mpePerWorld - this.mpeUsed(world);
-        const epicLeft = L.epicPerAccount - this.epicUsed();
+        const epicMax = this.epicDungeons().length;
+        const epicLeft = epicMax - this.epicDungeons().filter(d => this.epicOwner(d.id)).length;
         const pill = (label, left, max) => `<span class="expp-limit ${left <= 0 ? 'is-full' : ''}">${label}<b>${max - left}/${max}</b></span>`;
 
         if (!chars.length) {
@@ -574,7 +611,7 @@ const expPlan = {
                     <div class="flex flex-wrap gap-1.5 pb-1">
                         ${pill(`${wName} モンパ/日 `, monpaLeft, L.monpaPerWorld)}
                         ${pill(`${wName} MPE/週 `, mpeLeft, L.mpePerWorld)}
-                        ${pill('アカウント エピダン/週 ', epicLeft, L.epicPerAccount)}
+                        ${pill('アカウント エピダン/週 ', epicLeft, epicMax)}
                     </div>
                 </div>
                 ${this.poolHTML(world)}
@@ -609,9 +646,15 @@ const expPlan = {
                 <i data-lucide="backpack" class="w-4 h-4 text-pink-400"></i>
                 <span class="text-sm font-bold text-white">持ち物</span>
             </summary>
-            <div class="p-3 space-y-2">
-                <div class="grid grid-cols-2 gap-1.5">${this.TIX.map(t => cell('tix', t.id, `${t.label}${t.minLv > 200 ? ` <span class="text-slate-500">${t.minLv}+</span>` : ''}`)).join('')}</div>
-                <div class="grid grid-cols-2 gap-1.5">${EXP_POTION_TYPES.map(p => cell('pot', p.id, this.potName(p))).join('')}</div>
+            <div class="p-3 space-y-3">
+                <div class="space-y-1.5">
+                    <div class="expp-lbl">農場チケット</div>
+                    <div class="grid grid-cols-2 gap-1.5">${this.TIX.map(t => cell('tix', t.id, `${t.label}${t.minLv > 200 ? ` <span class="text-slate-500">${t.minLv}+</span>` : ''}`)).join('')}</div>
+                </div>
+                <div class="space-y-1.5 pt-3 border-t border-base-content/10">
+                    <div class="expp-lbl">成長の秘薬</div>
+                    <div class="grid grid-cols-2 gap-1.5">${EXP_POTION_TYPES.map(p => cell('pot', p.id, this.potName(p))).join('')}</div>
+                </div>
             </div>
         </details>`;
     },
@@ -648,9 +691,10 @@ const expPlan = {
         const monpaMax = Math.min(L.monpaPerChar, L.monpaPerWorld - this.monpaUsed(ch.server, ch.id));
         const monpaOpts = Array.from({ length: L.monpaPerChar + 1 }, (_, i) => `<option value="${i}"${i === c.monpa ? ' selected' : ''}${i > monpaMax ? ' disabled' : ''}>${i}</option>`).join('');
         const mpeFull = !c.mpe && this.mpeUsed(ch.server, ch.id) >= L.mpePerWorld;
-        const epicFull = c.epic === 'none' && this.epicUsed(ch.id) >= L.epicPerAccount;
-        const epicOpts = [['none', 'なし'], ['auto', '自動（入れる最上位）'], ...EPIC_DUNGEONS.filter(d => d.gms).map(d => [d.id, `${d.name} ${d.lv}+`])]
-            .map(([v, l]) => `<option value="${v}"${v === c.epic ? ' selected' : ''}${epicFull && v !== 'none' ? ' disabled' : ''}>${l}</option>`).join('');
+        const epicOpts = `<option value="none"${c.epic === 'none' ? ' selected' : ''}>なし</option>` + this.epicDungeons().map(d => {
+            const owner = this.epicOwner(d.id, ch.id);
+            return `<option value="${d.id}"${d.id === c.epic ? ' selected' : ''}${owner ? ' disabled' : ''}>${d.name} ${d.lv}+${owner ? `（${expEsc(owner.name)}）` : ''}</option>`;
+        }).join('');
         const tierOpts = [1, 5, 9].map(t => `<option value="${t}"${t === c.epicTier ? ' selected' : ''}>x${t}</option>`).join('');
         const burnOpts = this.BURNS.map(b => `<option value="${b.id}"${b.id === c.burn ? ' selected' : ''}>${b.label}</option>`).join('');
 
@@ -662,8 +706,18 @@ const expPlan = {
             const opts = Array.from({ length: have + 1 }, (_, i) => `<option value="${i}"${i === cur ? ' selected' : ''}${i > max ? ' disabled' : ''}>${i}</option>`).join('');
             return `<label class="expp-cnt ${cur ? 'on' : ''}"><span>${label}</span><select class="select select-xs font-mono w-14" onchange="expPlan.${kind === 'tix' ? 'setTix' : 'setPot'}('${ch.id}','${id}',this.value)">${opts}</select></label>`;
         };
-        const items = [...this.TIX.map(t => cntSel('tix', t.id, t.label, Number(c.tix[t.id]) || 0)),
-            ...EXP_POTION_TYPES.map(p => cntSel('pot', p.id, this.potName(p), Number(c.pot[p.id]) || 0))].join('');
+        const tixItems = this.TIX.map(t => cntSel('tix', t.id, t.label, Number(c.tix[t.id]) || 0)).join('');
+        const potItems = EXP_POTION_TYPES.map(p => cntSel('pot', p.id, this.potName(p), Number(c.pot[p.id]) || 0)).join('');
+
+        // デイリーは地域ごと。区分の名前を押すとその区分をまとめて入れる／外す。
+        const dailyHTML = this.DAILY_GROUPS.map(g => {
+            const regs = expRegionData.filter(r => r.daily > 0 && g.test(r));
+            const allOn = regs.every(r => !c.dailyOff.includes(r.id));
+            return `<div class="flex flex-wrap items-center gap-1">
+                <button type="button" class="expp-grp ${allOn ? 'on' : ''}" onclick="expPlan.toggleDailyGroup('${ch.id}','${g.id}')">${g.label}</button>
+                ${regs.map(r => chip(!c.dailyOff.includes(r.id), this.REGION_SHORT[r.id] || r.name, `expPlan.toggleDaily('${ch.id}','${r.id}')`, false, `${r.name} Lv${r.lv}+`)).join('')}
+            </div>`;
+        }).join('');
 
         const fetchNote = fetching === 'loading' ? '<span class="loading loading-spinner loading-xs"></span>'
             : fetching === 'error' ? '<span class="text-[10px] text-red-400">取得できません</span>'
@@ -681,13 +735,13 @@ const expPlan = {
                     ${fetchNote}
                     <span class="expp-lbl ml-3">目標</span>
                     <select class="select select-xs font-mono w-16" onchange="expPlan.set('${ch.id}','target',this.value)"><option value="0">-</option>${tgOpts}</select>
-                    <span class="expp-lbl ml-3">バーニング</span>
-                    <select class="select select-xs w-44" onchange="expPlan.set('${ch.id}','burn',this.value)">${burnOpts}</select>
                 </div>
-                <span class="expp-lbl">毎日</span>
+                <span class="expp-lbl">バーニング</span>
+                <div><select class="select select-xs w-56" onchange="expPlan.set('${ch.id}','burn',this.value)">${burnOpts}</select></div>
+                <span class="expp-lbl self-start pt-1">デイリー</span>
+                <div class="space-y-1">${dailyHTML}</div>
+                <span class="expp-lbl">モンパ</span>
                 <div class="flex flex-wrap items-center gap-1.5">
-                    ${this.DAILY_GROUPS.map(g => chip(c.daily[g.id], g.label, `expPlan.toggle('${ch.id}','daily','${g.id}')`)).join('')}
-                    <span class="expp-lbl ml-3">モンパ</span>
                     <select class="select select-xs font-mono w-14" onchange="expPlan.set('${ch.id}','monpa',this.value)">${monpaOpts}</select>
                     <span class="text-[11px] text-slate-500">回/日</span>
                 </div>
@@ -698,11 +752,12 @@ const expPlan = {
                 </div>
                 <span class="expp-lbl">エピダン</span>
                 <div class="flex flex-wrap items-center gap-1.5">
-                    <select class="select select-xs w-48" onchange="expPlan.set('${ch.id}','epic',this.value)" title="${epicFull ? `アカウントで週${L.epicPerAccount}回まで` : ''}">${epicOpts}</select>
+                    <select class="select select-xs w-60" onchange="expPlan.set('${ch.id}','epic',this.value)">${epicOpts}</select>
                     ${c.epic !== 'none' ? `<select class="select select-xs font-mono w-14" onchange="expPlan.set('${ch.id}','epicTier',this.value)">${tierOpts}</select>
                     <label class="input input-xs font-mono w-24" title="基本EXPボーナス"><span class="text-slate-500">+</span><input type="number" min="0" step="10" value="${c.epicBonus}" onchange="expPlan.set('${ch.id}','epicBonus',this.value)">%</label>` : ''}
                 </div>
-                ${items ? `<span class="expp-lbl">持ち物</span><div class="flex flex-wrap items-center gap-1.5">${items}</div>` : ''}
+                ${tixItems ? `<span class="expp-lbl">農場</span><div class="flex flex-wrap items-center gap-1.5">${tixItems}</div>` : ''}
+                ${potItems ? `<span class="expp-lbl">秘薬</span><div class="flex flex-wrap items-center gap-1.5">${potItems}</div>` : ''}
             </div>
         </div>`;
     },
