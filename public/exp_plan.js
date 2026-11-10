@@ -338,7 +338,7 @@ const expPlan = {
         { id: 'hunt', label: '狩り', color: '#fb923c' },
         { id: 'sauna', label: 'サウナ', color: '#a3e635' },
     ],
-    SAUNA_PER_DAY: 8, // 放置マップは1日8時間まで（bi 指定）
+    SAUNA_PER_DAY: 8, // 放置マップは1日8時間まで（bi 指定）。実際に1日何時間使うかは state.saunaDay（アカウント共有、既定は上限）
 
     init() {
         expBuffs.load();
@@ -413,7 +413,7 @@ const expPlan = {
         const def = {
             on: false, lv: null, pct: 0, fetchedAt: null, target: null,
             dailyOn: null, weekly: true,
-            monpa: 0, mpe: false, epic: 'none', epicBonus: 0, burn: 'none',
+            monpa: 0, mpe: false, epic: 'none', burn: 'none',
             tix: {}, pot: {},
             hunt: null, sauna: 0,
         };
@@ -523,7 +523,6 @@ const expPlan = {
         const c = this.cfg(id);
         if (field === 'lv' || field === 'target' || field === 'monpa') c[field] = Number(value) || 0;
         else if (field === 'pct') c.pct = Math.max(0, Math.min(99.9999, Number(value) || 0));
-        else if (field === 'epicBonus') c.epicBonus = Math.max(0, Number(value) || 0);
         else c[field] = value;
         if (field === 'lv' || field === 'pct') c.fetchedAt = null;
         this.commit();
@@ -566,17 +565,20 @@ const expPlan = {
     },
     setSauna(id, v) { this.cfg(id).sauna = Math.max(0, Number(v) || 0); this.commit(); },
     setPoolSauna(v) { this.state.sauna = Math.max(0, Math.round((Number(v) || 0) * 2) / 2); this.commit(); },
-    // サウナの日ごとの割り当て。時間はアカウントで共有し、同時に入れるのは1キャラなので、1日8時間をアカウントで分け合う。
+    // 1日に使うサウナの時間（アカウント全体、0.5 時間単位、上限 8 時間）
+    saunaPerDay() { const v = Number(this.state.saunaDay); return v > 0 ? Math.min(this.SAUNA_PER_DAY, Math.round(v * 2) / 2) : this.SAUNA_PER_DAY; },
+    setSaunaDay(v) { this.state.saunaDay = Math.max(0.5, Math.min(this.SAUNA_PER_DAY, Math.round((Number(v) || 0) * 2) / 2)); this.commit(); },
+    // サウナの日ごとの割り当て。時間はアカウントで共有し、同時に入れるのは1キャラなので、1日の時間（saunaPerDay）をアカウントで分け合う。
     // キャラの並び順（Kronos → Challenger、各ワールドは Lv の高い順）に、開始日から空いている時間を前から埋める。
     // 戻り値: キャラ id → 開始日からの日ごとの時間の配列
     saunaSchedule() {
-        const used = [], out = {};
+        const used = [], out = {}, perDay = this.saunaPerDay();
         const order = this.WORLDS.flatMap(w => this.onChars(w.id).sort((a, b) => b.level - a.level));
         order.forEach(ch => {
             let left = Number(this.cfg(ch.id).sauna) || 0;
             const days = [];
             for (let d = 0; left > 0 && d < 3650; d++) {
-                const free = this.SAUNA_PER_DAY - (used[d] || 0);
+                const free = perDay - (used[d] || 0);
                 const h = Math.min(free, left);
                 days[d] = h > 0 ? h : 0;
                 if (h > 0) { used[d] = (used[d] || 0) + h; left -= h; }
@@ -725,8 +727,7 @@ const expPlan = {
             if (c.epic !== 'none' && !done.epic && bestDay('epic', ymd, 4)) {
                 const dg = this.epicDungeons().find(d => d.id === c.epic);
                 if (dg && lv >= dg.lv) {
-                    const b = (Number(c.epicBonus) || 0) + expBuffs.pct('epic', ymd);
-                    gain(l => (epicDungeonBase[l] || 0) * (1 + b / 100) * dg.mult, 'epic');
+                    gain(l => (epicDungeonBase[l] || 0) * (1 + expBuffs.pct('epic', ymd) / 100) * dg.mult, 'epic');
                     done.epic = thuWeek;
                 }
             }
@@ -737,7 +738,7 @@ const expPlan = {
                 const parts = Math.ceil(huntH);
                 for (let i = 0; i < parts; i++) add(mobExpAt(lv) * hunt.kills * huntMult * Math.min(1, huntH - i), 'hunt');
             }
-            // 放置マップ（サウナ）は狩りのあと。割り当てた時間を1日8時間まで使う
+            // 放置マップ（サウナ）は狩りのあと。割り当てた時間をアカウントの1日の時間の中で使う
             dayIdx++;
             for (let h = saunaDays[dayIdx] || 0; h > 0; h -= 1) add(saunaExpPerHour(lv) * Math.min(1, h), 'sauna');
 
@@ -777,6 +778,9 @@ const expPlan = {
         const keep = ['expp-inputs', 'expp-results'].map(id => [id, document.getElementById(id)?.scrollTop || 0]);
 
         const saunaHave = Number(st.sauna) || 0, saunaU = this.saunaUsed();
+        const saunaDay = this.saunaPerDay();
+        const saunaDayOpts = Array.from({ length: this.SAUNA_PER_DAY * 2 }, (_, i) => (i + 1) / 2)
+            .map(v => `<option value="${v}"${v === saunaDay ? ' selected' : ''}>${v}</option>`).join('');
         const epicMax = this.epicDungeons().length;
         const epicLeft = epicMax - this.epicDungeons().filter(d => this.epicOwner(d.id)).length;
         const pill = (label, left, max) => `<span class="expp-limit ${left <= 0 ? 'is-full' : ''}">${label}<b>${max - left}/${max}</b></span>`;
@@ -823,11 +827,14 @@ const expPlan = {
                     <div class="flex flex-wrap gap-1.5 pb-1">
                         ${pill('アカウント エピダン/週 ', epicLeft, epicMax)}
                     </div>
-                    <label class="expp-pool ${saunaHave ? 'has' : ''} w-full" title="VIP サウナの時間はアカウントで共有。1日8時間をアカウントで分け合います">
+                    <div class="expp-pool ${saunaHave ? 'has' : ''} w-full" title="VIP サウナの時間はアカウントで共有。1日に使う時間（最大8時間）をアカウントで分け合います">
                         <span class="truncate">アカウント VIP サウナ <span class="text-slate-500">時間</span></span>
                         <input type="number" min="0" step="0.5" class="input input-xs font-mono w-16 text-right" value="${saunaHave}" onchange="expPlan.setPoolSauna(this.value)">
                         <span class="font-mono text-[10px] ${saunaHave && saunaU >= saunaHave ? 'text-amber-400' : 'text-slate-500'} w-12 text-right">${saunaHave ? `${saunaU}/${saunaHave}` : ''}</span>
-                    </label>
+                        <span class="text-slate-500 ml-2">1日</span>
+                        <select class="select select-xs font-mono w-16" onchange="expPlan.setSaunaDay(this.value)">${saunaDayOpts}</select>
+                        <span class="text-slate-500">時間</span>
+                    </div>
                 </div>
                 ${this.shownWorlds().map(w => worldHTML(w)).join('')}
             </div>
@@ -966,7 +973,7 @@ const expPlan = {
             const max = saunaHave - this.saunaUsed(ch.id), cur = Number(c.sauna) || 0;
             const opts = Array.from({ length: Math.floor(saunaHave * 2) + 1 }, (_, i) => i / 2)
                 .map(v => `<option value="${v}"${v === cur ? ' selected' : ''}${v > max ? ' disabled' : ''}>${v}</option>`).join('');
-            // いつ使うか（アカウントで1日8時間を分け合うので、前のキャラが使い終わってから）
+            // いつ使うか（アカウントで1日の時間を分け合うので、前のキャラが使い終わってから）
             const sch = (this._saunaSched && this._saunaSched[ch.id]) || [];
             const first = sch.findIndex(h => h > 0), last = sch.length - 1;
             const when = cur && first >= 0 ? `${expDate.short(expDate.add(this.state.start, first))}${last > first ? `〜${expDate.short(expDate.add(this.state.start, last))}` : ''}` : '';
@@ -1024,10 +1031,6 @@ const expPlan = {
                 <div class="flex flex-wrap items-center gap-1.5">
                     ${epicChips}
                 </div>
-                ${c.epic !== 'none' ? `<span class="expp-lbl">ボーナス</span>
-                <div class="flex flex-wrap items-center gap-1.5">
-                    <label class="input input-xs font-mono w-24" title="基本EXPボーナス"><span class="text-slate-500">+</span><input type="number" min="0" step="10" value="${c.epicBonus}" onchange="expPlan.set('${ch.id}','epicBonus',this.value)">%</label>
-                </div>` : ''}
                 ${tixItems ? `<span class="expp-lbl">農場</span><div class="flex flex-wrap items-center gap-1.5">${tixItems}</div>` : ''}
                 ${potItems ? `<span class="expp-lbl">秘薬</span><div class="flex flex-wrap items-center gap-1.5">${potItems}</div>` : ''}
                 <span class="expp-lbl">狩り</span>
