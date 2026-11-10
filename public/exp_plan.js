@@ -288,6 +288,7 @@ const expBuffs = {
 // ---------------------------------------------------------
 const expPlan = {
     tab: 'sim',
+    picking: null, // キャラ選択の画面を開いているワールド（null で閉じている）
     world: 'ALL', // 'ALL'（両方）／'KRONOS'／'CHALLENGER'。入力欄に出すワールド
     state: null,
     stateKey: null,
@@ -339,6 +340,7 @@ const expPlan = {
     init() {
         expBuffs.load();
         this.setTab(this.savedTab() || 'sim');
+        document.addEventListener('keydown', e => { if (e.key === 'Escape' && this.picking) this.closePicker(); });
     },
 
     savedTab() { try { return localStorage.getItem('mm-exp-tab'); } catch (e) { return null; } },
@@ -482,6 +484,8 @@ const expPlan = {
         if (this.state.end < this.state.start) this.state.end = this.state.start;
         this.commit();
     },
+    openPicker(world) { this.picking = world; this.render(); },
+    closePicker() { this.picking = null; this.render(); },
     toggleChar(id) {
         const c = this.cfg(id);
         c.on = !c.on;
@@ -715,7 +719,9 @@ const expPlan = {
 
         // ワールドごとの入力（持ち物・上限・キャラ）。「両方」のときは Kronos → Challenger の順に並べる
         const worldHTML = (world) => {
-            const mine = chars.filter(ch => ch.server === world).sort((a, b) => (this.cfg(b.id).on - this.cfg(a.id).on) || (b.level - a.level));
+            const all = chars.filter(ch => ch.server === world);
+            // 一覧に出すのは計画に入れたキャラだけ。入れる・外すは「キャラを選ぶ」の画面で
+            const mine = all.filter(ch => this.cfg(ch.id).on).sort((a, b) => b.level - a.level);
             const wName = this.WORLDS.find(w => w.id === world).name;
             const col = this.color(world);
             const monpaLeft = L.monpaPerWorld - this.monpaUsed(world);
@@ -723,14 +729,14 @@ const expPlan = {
             return `
                 <div class="flex flex-wrap items-center gap-2 px-1 pt-2">
                     <span class="text-base font-bold text-${col}-400">${wName}</span>
-                    <span class="text-xs text-slate-500">${mine.length}キャラ</span>
+                    <button class="btn btn-xs gap-1" onclick="expPlan.openPicker('${world}')"><i data-lucide="user-check" class="w-3.5 h-3.5"></i>キャラを選ぶ<span class="font-mono text-slate-400">${mine.length}/${all.length}</span></button>
                     ${pill('モンパ/日 ', monpaLeft, L.monpaPerWorld)}
                     ${pill('MPE/週 ', mpeLeft, L.mpePerWorld)}
                     <div class="flex-1"></div>
                     <button class="btn btn-xs btn-ghost gap-1" onclick="expPlan.fetchAll('${world}')"><i data-lucide="refresh-cw" class="w-3 h-3"></i>選んだキャラの Lv を取り直す</button>
                 </div>
                 ${this.poolHTML(world)}
-                <div class="space-y-2">${mine.map(ch => this.charHTML(ch, results.get(ch.id))).join('') || `<p class="text-sm text-slate-500 px-1">${wName} のキャラがいません</p>`}</div>`;
+                <div class="space-y-2">${mine.map(ch => this.charHTML(ch, results.get(ch.id))).join('') || `<p class="text-sm text-slate-500 px-1 py-2">${all.length ? '「キャラを選ぶ」から計画に入れるキャラを選んでください' : `${wName} のキャラがいません`}</p>`}</div>`;
         };
 
         if (!chars.length) {
@@ -757,10 +763,53 @@ const expPlan = {
                 ${this.shownWorlds().map(w => worldHTML(w)).join('')}
             </div>
             <div id="expp-results" class="space-y-3 min-w-0 order-first 2xl:order-none 2xl:overflow-y-auto custom-scrollbar 2xl:pr-1 2xl:pb-6">${this.resultHTML(results, st)}</div>
-        </div>`;
+        </div>${this.pickerHTML(chars)}`;
         if (window.lucide) lucide.createIcons();
         this.drawChart(results);
         keep.forEach(([id, top]) => { const el = document.getElementById(id); if (el) el.scrollTop = top; });
+    },
+
+    // 計画に入れるキャラを選ぶ画面（ワールドごと）。押すたびに入れる・外すが切り替わる
+    pickerHTML(chars) {
+        const world = this.picking;
+        if (!world) return '';
+        const w = this.WORLDS.find(x => x.id === world);
+        if (!w) return '';
+        const col = this.color(world);
+        const list = chars.filter(ch => ch.server === world).sort((a, b) => b.level - a.level);
+        const n = list.filter(ch => this.cfg(ch.id).on).length;
+        const rows = list.map(ch => {
+            const on = this.cfg(ch.id).on;
+            const img = ch.image || ch.classImage || '';
+            return `
+                <button class="expp-pick ${on ? 'is-on' : ''}" onclick="expPlan.toggleChar('${ch.id}')">
+                    <span class="expp-pick-box">${on ? '<i data-lucide="check" class="w-3.5 h-3.5"></i>' : ''}</span>
+                    <span class="w-8 h-8 shrink-0 rounded bg-base-300 overflow-hidden flex items-center justify-center">${img ? `<img src="${expEsc(img)}" class="w-full h-full object-cover object-top" onerror="this.style.display='none'">` : ''}</span>
+                    <span class="min-w-0 flex-1 text-left">
+                        <span class="block font-bold text-white truncate">${expEsc(ch.name)}</span>
+                        <span class="block text-[11px] text-slate-400 truncate">Lv ${ch.level} ${expEsc(ch.job || '')}</span>
+                    </span>
+                </button>`;
+        }).join('');
+        return `
+        <div class="modal modal-open" role="dialog">
+            <div class="modal-box max-w-xl p-0 overflow-hidden">
+                <div class="flex items-center gap-2 px-4 py-3 bg-base-200 border-b border-base-content/10">
+                    <span class="font-bold text-${col}-400">${w.name}</span>
+                    <span class="text-sm text-white font-bold">計画に入れるキャラ</span>
+                    <span class="text-xs text-slate-500 font-mono">${n}/${list.length}</span>
+                    <div class="flex-1"></div>
+                    <button class="btn btn-ghost btn-sm btn-square" onclick="expPlan.closePicker()" title="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+                <div class="p-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                    ${rows || '<p class="text-sm text-slate-500 p-2">このワールドのキャラがいません</p>'}
+                </div>
+                <div class="flex justify-end px-4 py-3 border-t border-base-content/10">
+                    <button class="btn btn-primary btn-sm" onclick="expPlan.closePicker()">決定</button>
+                </div>
+            </div>
+            <div class="modal-backdrop" onclick="expPlan.closePicker()"></div>
+        </div>`;
     },
 
     poolHTML(world) {
@@ -803,7 +852,6 @@ const expPlan = {
 
         const head = `
             <div class="flex items-center gap-3">
-                <input type="checkbox" class="toggle toggle-sm toggle-primary" title="計画に入れる" ${c.on ? 'checked' : ''} onchange="expPlan.toggleChar('${ch.id}')">
                 <div class="w-9 h-9 shrink-0 rounded bg-base-300 overflow-hidden flex items-center justify-center">${img ? `<img src="${expEsc(img)}" class="w-full h-full object-cover object-top" onerror="this.style.display='none'">` : ''}</div>
                 <div class="min-w-0 flex-1">
                     <div class="font-bold text-white truncate">${expEsc(ch.name)}</div>
@@ -813,6 +861,7 @@ const expPlan = {
                     <div class="text-[10px] text-slate-500">期日</div>
                     <div class="font-bold text-amber-300 font-mono">Lv ${res.endLv ?? '-'} <span class="text-xs text-slate-400">${res.endPct != null ? res.endPct.toFixed(1) + '%' : ''}</span></div>
                 </div>` : ''}
+                <button class="btn btn-ghost btn-xs btn-square text-slate-500 hover:text-white" title="計画から外す" onclick="expPlan.toggleChar('${ch.id}')"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
             </div>`;
         if (!c.on) return `<div class="expp-char is-off border-l-${col}-400">${head}</div>`;
 
