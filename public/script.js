@@ -674,9 +674,14 @@ const app = {
         },
         exp: {
             view: 'view-exp-sim',
+            nav: 'exp-nav',
             html: 'exp_sim.html',
-            scripts: ['exp_data.js', 'exp_sim.js'],
-            init() { expSim.init(); lucide.createIcons(); }
+            // アカウント計画の Lv の推移グラフに使う（読めなくても表は出す）
+            cdn: [CHART_JS],
+            scripts: ['exp_data.js', 'exp_sim.js', 'exp_plan.js'],
+            init() { expSim.init(); expPlan.init(); lucide.createIcons(); },
+            // ダッシュボードでキャラを足したり「自分」を変えたりしたあとに開き直したとき
+            reopen() { expPlan.render(); }
         },
         cost: {
             view: 'view-cost-calc',
