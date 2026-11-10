@@ -100,6 +100,91 @@ const expBuffs = {
         this.save(); this.render(); expPlan.onBuffsChanged();
     },
 
+    // ---- 共有（書き出し・読み込み） ----
+    // 形式: { app: 'mm-exp-buffs', version: 1, buffs: [{ target, pct, start, end, memo }] }。
+    // id は受け取った側で振り直すので書き出さない。Discord などにそのまま貼れるよう1行の JSON にする。
+    importOpen: false,
+    msg: '',
+    exportText() {
+        this.ensure();
+        const buffs = [...this.list].sort((a, b) => (a.start || '').localeCompare(b.start || ''))
+            .map(b => ({ target: b.target, pct: Number(b.pct) || 0, start: b.start || '', end: b.end || '', memo: b.memo || '' }));
+        return JSON.stringify({ app: 'mm-exp-buffs', version: 1, buffs });
+    },
+    copyExport() {
+        if (!this.list.length) { this.flash('書き出すバフがありません'); return; }
+        const text = this.exportText();
+        const done = () => this.flash(`${this.list.length}件をコピーしました。Discord などに貼って共有できます`);
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => { this.fallbackCopy(text); done(); });
+        else { this.fallbackCopy(text); done(); }
+    },
+    fallbackCopy(text) {
+        const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) { /* 何もしない */ } ta.remove();
+    },
+    downloadExport() {
+        if (!this.list.length) { this.flash('書き出すバフがありません'); return; }
+        const blob = new Blob([this.exportText()], { type: 'application/json' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `exp-buffs-${expDate.today()}.json`;
+        document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    },
+    // 貼られた文字から読める分だけ取り出す（前後の文や ``` で囲まれていても JSON 部分を拾う）
+    parseImport(text) {
+        const t = String(text || '');
+        const i = t.search(/[\[{]/);
+        if (i < 0) return null;
+        const j = Math.max(t.lastIndexOf('}'), t.lastIndexOf(']'));
+        let v;
+        try { v = JSON.parse(t.slice(i, j + 1)); } catch (e) { return null; }
+        const arr = Array.isArray(v) ? v : (v && Array.isArray(v.buffs) ? v.buffs : null);
+        if (!arr) return null;
+        const ok = this.TARGETS.map(x => x.id);
+        const ymd = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : '';
+        return arr.filter(b => b && ok.includes(b.target) && ymd(b.start)).map(b => {
+            const start = ymd(b.start); let end = ymd(b.end);
+            if (end && end < start) end = start;
+            return { target: b.target, pct: Math.max(0, Number(b.pct) || 0), start, end, memo: String(b.memo || '').slice(0, 100) };
+        });
+    },
+    toggleImport() { this.importOpen = !this.importOpen; this.msg = ''; this.render(); if (this.importOpen) document.getElementById('expb-import-text')?.focus(); },
+    importFile(input) {
+        const f = input.files && input.files[0];
+        if (!f) return;
+        f.text().then(t => { const ta = document.getElementById('expb-import-text'); if (ta) ta.value = t; this.flash('ファイルを読み込みました。追加か入れ替えを選んでください'); const ta2 = document.getElementById('expb-import-text'); if (ta2) ta2.value = t; });
+        input.value = '';
+    },
+    // replace=false は今の一覧に足す（対象・％・期間が同じものは足さない）。true は今の一覧と入れ替える。
+    doImport(replace, text) {
+        const src = text ?? document.getElementById('expb-import-text')?.value;
+        const got = this.parseImport(src);
+        if (!got) { this.flash('読み込めませんでした。書き出した文字をそのまま貼ってください'); return; }
+        if (!got.length) { this.flash('読み込めるバフがありませんでした'); return; }
+        this.ensure();
+        if (replace && this.list.length && !confirm(`今の一覧（${this.list.length}件）を消して、${got.length}件に入れ替えます。よろしいですか？`)) return;
+        const sig = b => [b.target, Number(b.pct) || 0, b.start, b.end || ''].join('|');
+        const have = new Set(replace ? [] : this.list.map(sig));
+        const base = replace ? [] : this.list;
+        let added = 0, n = Date.now();
+        for (const b of got) {
+            if (have.has(sig(b))) continue;
+            have.add(sig(b));
+            base.push({ id: 'b' + (n++), ...b });
+            added++;
+        }
+        this.list = base;
+        this.save();
+        this.importOpen = false;
+        const skipped = got.length - added;
+        this.flash(replace ? `${added}件に入れ替えました` : `${added}件を追加しました${skipped ? `（同じもの${skipped}件は飛ばしました）` : ''}`);
+        expPlan.onBuffsChanged();
+    },
+    flash(m) {
+        this.msg = m;
+        this.render();
+        clearTimeout(this._msgT);
+        this._msgT = setTimeout(() => { this.msg = ''; const el = document.getElementById('expb-msg'); if (el) el.textContent = ''; }, 5000);
+    },
+
     render() {
         const root = document.getElementById('exp-tab-buffs');
         if (!root) return;
@@ -148,9 +233,24 @@ const expBuffs = {
             <div class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden">
                 <div class="flex items-center gap-2 px-3 py-2 bg-base-200 border-b border-base-content/10">
                     <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
-                    <span class="text-sm font-bold text-white flex-1">イベントバフ</span>
-                    <span class="text-[11px] text-slate-500">${lo === hi ? '' : `${expDate.short(lo)} 〜 ${expDate.short(hi)}`}</span>
+                    <span class="text-sm font-bold text-white">イベントバフ</span>
+                    <span class="text-[11px] text-slate-500 flex-1">${lo === hi ? '' : `${expDate.short(lo)} 〜 ${expDate.short(hi)}`}</span>
+                    <span id="expb-msg" class="text-[11px] text-emerald-400">${expEsc(this.msg)}</span>
+                    <button class="btn btn-xs gap-1" onclick="expBuffs.copyExport()" title="一覧を文字にしてコピーします。Discord などに貼って共有できます"><i data-lucide="copy" class="w-3 h-3"></i>共有用にコピー</button>
+                    <button class="btn btn-xs btn-square" onclick="expBuffs.downloadExport()" title="JSON ファイルで保存"><i data-lucide="download" class="w-3 h-3"></i></button>
+                    <button class="btn btn-xs gap-1 ${this.importOpen ? 'btn-primary' : ''}" onclick="expBuffs.toggleImport()"><i data-lucide="clipboard-paste" class="w-3 h-3"></i>読み込み</button>
                 </div>
+                ${this.importOpen ? `
+                <div class="p-3 border-b border-base-content/10 bg-base-200/50 space-y-2">
+                    <textarea id="expb-import-text" class="textarea textarea-sm w-full font-mono h-20" placeholder="共有されたバフの文字（{&quot;app&quot;:&quot;mm-exp-buffs&quot;,…}）をここに貼る"></textarea>
+                    <div class="flex items-center gap-2">
+                        <button class="btn btn-sm btn-primary" onclick="expBuffs.doImport(false)">今の一覧に追加</button>
+                        <button class="btn btn-sm" onclick="expBuffs.doImport(true)">今の一覧と入れ替え</button>
+                        <label class="btn btn-sm btn-ghost gap-1"><i data-lucide="file-up" class="w-3.5 h-3.5"></i>ファイルから<input type="file" accept=".json,application/json,text/plain" class="hidden" onchange="expBuffs.importFile(this)"></label>
+                        <span class="flex-1"></span>
+                        <button class="btn btn-sm btn-ghost" onclick="expBuffs.toggleImport()">閉じる</button>
+                    </div>
+                </div>` : ''}
                 <div class="overflow-x-auto">
                     <table class="table table-sm expb-table">
                         <thead><tr><th>対象</th><th>上乗せ</th><th>開始</th><th>終了</th><th>メモ</th><th>期間</th><th></th></tr></thead>
@@ -204,7 +304,8 @@ const expPlan = {
     DAILY_GROUPS: [
         { id: 'arcane', label: 'アーケイン', test: r => r.lv <= 235 },
         { id: 'tenebris', label: 'テネブリス', test: r => r.lv >= 245 && r.lv <= 255 },
-        { id: 'grandis', label: 'グランディス', test: r => r.lv >= 260 },
+        { id: 'authentic', label: 'オーセンティック', test: r => r.lv >= 260 && r.lv <= 285 },
+        { id: 'grand', label: 'グランドオーセンティック', test: r => r.lv >= 290 },
     ],
     TIX: [
         { id: 'straw', label: 'いちご農場', minLv: 200, note: '1回' },
@@ -296,16 +397,18 @@ const expPlan = {
         const c = this.state.chars[id] || (this.state.chars[id] = {});
         const def = {
             on: false, lv: null, pct: 0, fetchedAt: null, target: null,
-            dailyOff: null, weekly: true,
+            dailyOn: null, weekly: true,
             monpa: 0, mpe: false, epic: 'none', epicTier: 1, epicBonus: 0, burn: 'none',
             tix: {}, pot: {},
         };
         for (const k of Object.keys(def)) if (c[k] === undefined) c[k] = def[k];
-        // デイリーは地域ごとに外せる（外した地域の id を持つ）。前の版の3区分の選択から引き継ぐ。
-        if (!Array.isArray(c.dailyOff)) {
-            const old = c.daily || {};
-            c.dailyOff = expRegionData.filter(r => r.daily > 0 && this.DAILY_GROUPS.some(g => g.test(r) && old[g.id] === false)).map(r => r.id);
-            delete c.daily;
+        // デイリーは地域ごとに選ぶ（選んだ地域の id を持つ）。デイリーの EXP はワールド内で1日1回しか
+        // 受け取れないので、同じ地域はワールドで1キャラまで（normalize で重複を外す）。
+        // 前の版（外した地域を持つ dailyOff／3区分の daily）から引き継ぐ。
+        if (!Array.isArray(c.dailyOn)) {
+            const off = Array.isArray(c.dailyOff) ? c.dailyOff : null, old = c.daily || {};
+            c.dailyOn = (off || c.daily) ? expRegionData.filter(r => r.daily > 0 && (off ? !off.includes(r.id) : !(old.arcane === false && r.lv <= 235) && !(old.tenebris === false && r.lv >= 245 && r.lv <= 255) && !(old.grandis === false && r.lv >= 260))).map(r => r.id) : [];
+            delete c.dailyOff; delete c.daily;
         }
         return c;
     },
@@ -314,6 +417,12 @@ const expPlan = {
     onChars(world) { return this.characters().filter(ch => (!world || ch.server === world) && this.cfg(ch.id).on); },
     monpaUsed(world, exceptId) { return this.onChars(world).filter(ch => ch.id !== exceptId).reduce((s, ch) => s + (Number(this.cfg(ch.id).monpa) || 0), 0); },
     mpeUsed(world, exceptId) { return this.onChars(world).filter(ch => ch.id !== exceptId && this.cfg(ch.id).mpe).length; },
+    // そのワールドでほかのキャラが選んでいるデイリーの地域
+    dailyTaken(world, exceptId) {
+        const set = new Set();
+        this.onChars(world).forEach(ch => { if (ch.id !== exceptId) this.cfg(ch.id).dailyOn.forEach(r => set.add(r)); });
+        return set;
+    },
     epicDungeons() { return EPIC_DUNGEONS.filter(d => d.gms); },
     epicOwner(dgId, exceptId) { return this.onChars().find(ch => ch.id !== exceptId && this.cfg(ch.id).epic === dgId) || null; },
     tixUsed(world, k, exceptId) { return this.onChars(world).filter(ch => ch.id !== exceptId).reduce((s, ch) => s + (Number(this.cfg(ch.id).tix[k]) || 0), 0); },
@@ -325,9 +434,11 @@ const expPlan = {
         this.WORLDS.forEach(w => {
             const pool = this.state.pool[w.id];
             let monpa = 0, mpe = 0;
-            const tix = {}, pot = {};
+            const tix = {}, pot = {}, daily = new Set();
             this.onChars(w.id).forEach(ch => {
                 const c = this.cfg(ch.id);
+                c.dailyOn = c.dailyOn.filter(r => !daily.has(r));
+                c.dailyOn.forEach(r => daily.add(r));
                 c.monpa = Math.max(0, Math.min(Number(c.monpa) || 0, L.monpaPerChar, L.monpaPerWorld - monpa));
                 monpa += c.monpa;
                 if (c.mpe) { if (mpe >= L.mpePerWorld) c.mpe = false; else mpe++; }
@@ -369,6 +480,12 @@ const expPlan = {
         c.on = !c.on;
         if (c.on) {
             const ch = this.characters().find(x => x.id === id);
+            // 入れ直したキャラの古い選択が、ほかのキャラの選択を押しのけないようにする
+            if (ch) {
+                const taken = this.dailyTaken(ch.server, id);
+                c.dailyOn = c.dailyOn.filter(r => !taken.has(r));
+                if (c.epic !== 'none' && this.epicOwner(c.epic, id)) c.epic = 'none';
+            }
             // 入れたときはモンパを残りの回数から埋める
             if (ch && !c.monpa) c.monpa = Math.min(this.LIMITS.monpaPerChar, Math.max(0, this.LIMITS.monpaPerWorld - this.monpaUsed(ch.server, id)));
             if (ch && c.target == null) c.target = Math.min(300, Math.max(ch.level, 200) + 5);
@@ -393,15 +510,18 @@ const expPlan = {
     },
     toggleDaily(id, rid) {
         const c = this.cfg(id);
-        c.dailyOff = c.dailyOff.includes(rid) ? c.dailyOff.filter(x => x !== rid) : [...c.dailyOff, rid];
+        c.dailyOn = c.dailyOn.includes(rid) ? c.dailyOn.filter(x => x !== rid) : [...c.dailyOn, rid];
         this.commit();
     },
+    // 区分の名前を押すと、ほかのキャラが取っていない地域をまとめて入れる／外す
     toggleDailyGroup(id, gid) {
         const c = this.cfg(id);
+        const ch = this.characters().find(x => x.id === id);
+        const taken = this.dailyTaken(ch.server, id);
         const g = this.DAILY_GROUPS.find(x => x.id === gid);
-        const ids = expRegionData.filter(r => r.daily > 0 && g.test(r)).map(r => r.id);
-        const allOn = ids.every(r => !c.dailyOff.includes(r));
-        c.dailyOff = allOn ? [...new Set([...c.dailyOff, ...ids])] : c.dailyOff.filter(x => !ids.includes(x));
+        const ids = expRegionData.filter(r => r.daily > 0 && g.test(r) && !taken.has(r.id)).map(r => r.id);
+        const allOn = ids.length && ids.every(r => c.dailyOn.includes(r));
+        c.dailyOn = allOn ? c.dailyOn.filter(x => !ids.includes(x)) : [...new Set([...c.dailyOn, ...ids])];
         this.commit();
     },
     setTix(id, k, v) { this.cfg(id).tix[k] = Number(v) || 0; this.commit(); },
@@ -497,7 +617,7 @@ const expPlan = {
             return true;
         };
 
-        const dailies = expRegionData.filter(r => r.daily > 0 && !c.dailyOff.includes(r.id));
+        const dailies = expRegionData.filter(r => r.daily > 0 && c.dailyOn.includes(r.id));
         const done = { mpe: null, epic: null, weekly: new Set() };
         const series = [];
         let endSrc = null;
@@ -694,11 +814,12 @@ const expPlan = {
         const monpaMax = Math.min(L.monpaPerChar, L.monpaPerWorld - this.monpaUsed(ch.server, ch.id));
         const monpaOpts = Array.from({ length: L.monpaPerChar + 1 }, (_, i) => `<option value="${i}"${i === c.monpa ? ' selected' : ''}${i > monpaMax ? ' disabled' : ''}>${i}</option>`).join('');
         const mpeFull = !c.mpe && this.mpeUsed(ch.server, ch.id) >= L.mpePerWorld;
-        const epicOpts = `<option value="none"${c.epic === 'none' ? ' selected' : ''}>なし</option>` + this.epicDungeons().map(d => {
+        // エピダンはボタンで選ぶ。ほかのキャラが選んだダンジョンは押せない（名前を添える）。
+        const epicChips = chip(c.epic === 'none', 'なし', `expPlan.set('${ch.id}','epic','none')`) + this.epicDungeons().map(d => {
             const owner = this.epicOwner(d.id, ch.id);
-            return `<option value="${d.id}"${d.id === c.epic ? ' selected' : ''}${owner ? ' disabled' : ''}>${d.name} ${d.lv}+${owner ? `（${expEsc(owner.name)}）` : ''}</option>`;
+            return chip(c.epic === d.id, `${d.name}${owner ? ` <span class="font-normal">（${expEsc(owner.name)}）</span>` : ''}`, `expPlan.set('${ch.id}','epic','${d.id}')`, !!owner, owner ? `${owner.name} が選んでいます` : `Lv${d.lv}+`);
         }).join('');
-        const tierOpts = [1, 5, 9].map(t => `<option value="${t}"${t === c.epicTier ? ' selected' : ''}>x${t}</option>`).join('');
+        const tierChips = [1, 5, 9].map(t => chip(c.epicTier === t, `x${t}`, `expPlan.set('${ch.id}','epicTier',${t})`)).join('');
         const burnOpts = this.BURNS.map(b => `<option value="${b.id}"${b.id === c.burn ? ' selected' : ''}>${b.label}</option>`).join('');
 
         const pool = this.state.pool[ch.server];
@@ -712,13 +833,15 @@ const expPlan = {
         const tixItems = this.TIX.map(t => cntSel('tix', t.id, t.label, Number(c.tix[t.id]) || 0)).join('');
         const potItems = EXP_POTION_TYPES.map(p => cntSel('pot', p.id, this.potName(p), Number(c.pot[p.id]) || 0)).join('');
 
-        // デイリーは地域ごと。区分の名前を押すとその区分をまとめて入れる／外す。
+        // デイリーは地域ごと。ワールドで1日1回なので、ほかのキャラが選んだ地域は出さない。
+        // 区分の名前を押すと、その区分の残りをまとめて入れる／外す。
+        const takenDaily = this.dailyTaken(ch.server, ch.id);
         const dailyHTML = this.DAILY_GROUPS.map(g => {
-            const regs = expRegionData.filter(r => r.daily > 0 && g.test(r));
-            const allOn = regs.every(r => !c.dailyOff.includes(r.id));
+            const regs = expRegionData.filter(r => r.daily > 0 && g.test(r) && !takenDaily.has(r.id));
+            const allOn = regs.length && regs.every(r => c.dailyOn.includes(r.id));
             return `<div class="flex flex-wrap items-center gap-1">
-                <button type="button" class="expp-grp ${allOn ? 'on' : ''}" onclick="expPlan.toggleDailyGroup('${ch.id}','${g.id}')">${g.label}</button>
-                ${regs.map(r => chip(!c.dailyOff.includes(r.id), this.REGION_SHORT[r.id] || r.name, `expPlan.toggleDaily('${ch.id}','${r.id}')`, false, `${r.name} Lv${r.lv}+`)).join('')}
+                <button type="button" class="expp-grp ${allOn ? 'on' : ''}" ${regs.length ? '' : 'disabled'} onclick="expPlan.toggleDailyGroup('${ch.id}','${g.id}')">${g.label}</button>
+                ${regs.map(r => chip(c.dailyOn.includes(r.id), this.REGION_SHORT[r.id] || r.name, `expPlan.toggleDaily('${ch.id}','${r.id}')`, false, `${r.name} Lv${r.lv}+`)).join('') || '<span class="text-[11px] text-slate-600">—</span>'}
             </div>`;
         }).join('');
 
@@ -755,10 +878,13 @@ const expPlan = {
                 </div>
                 <span class="expp-lbl">エピダン</span>
                 <div class="flex flex-wrap items-center gap-1.5">
-                    <select class="select select-xs w-60" onchange="expPlan.set('${ch.id}','epic',this.value)">${epicOpts}</select>
-                    ${c.epic !== 'none' ? `<select class="select select-xs font-mono w-14" onchange="expPlan.set('${ch.id}','epicTier',this.value)">${tierOpts}</select>
-                    <label class="input input-xs font-mono w-24" title="基本EXPボーナス"><span class="text-slate-500">+</span><input type="number" min="0" step="10" value="${c.epicBonus}" onchange="expPlan.set('${ch.id}','epicBonus',this.value)">%</label>` : ''}
+                    ${epicChips}
                 </div>
+                ${c.epic !== 'none' ? `<span class="expp-lbl">報酬</span>
+                <div class="flex flex-wrap items-center gap-1.5">
+                    ${tierChips}
+                    <label class="input input-xs font-mono w-24" title="基本EXPボーナス"><span class="text-slate-500">+</span><input type="number" min="0" step="10" value="${c.epicBonus}" onchange="expPlan.set('${ch.id}','epicBonus',this.value)">%</label>
+                </div>` : ''}
                 ${tixItems ? `<span class="expp-lbl">農場</span><div class="flex flex-wrap items-center gap-1.5">${tixItems}</div>` : ''}
                 ${potItems ? `<span class="expp-lbl">秘薬</span><div class="flex flex-wrap items-center gap-1.5">${potItems}</div>` : ''}
             </div>
