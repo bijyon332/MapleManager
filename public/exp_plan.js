@@ -402,7 +402,7 @@ const expPlan = {
         const def = {
             on: false, lv: null, pct: 0, fetchedAt: null, target: null,
             dailyOn: null, weekly: true,
-            monpa: 0, mpe: false, epic: 'none', epicTier: 1, epicBonus: 0, burn: 'none',
+            monpa: 0, mpe: false, epic: 'none', epicBonus: 0, burn: 'none',
             tix: {}, pot: {},
         };
         for (const k of Object.keys(def)) if (c[k] === undefined) c[k] = def[k];
@@ -499,7 +499,7 @@ const expPlan = {
     },
     set(id, field, value) {
         const c = this.cfg(id);
-        if (field === 'lv' || field === 'target' || field === 'monpa' || field === 'epicTier') c[field] = Number(value) || 0;
+        if (field === 'lv' || field === 'target' || field === 'monpa') c[field] = Number(value) || 0;
         else if (field === 'pct') c.pct = Math.max(0, Math.min(99.9999, Number(value) || 0));
         else if (field === 'epicBonus') c.epicBonus = Math.max(0, Number(value) || 0);
         else c[field] = value;
@@ -667,7 +667,7 @@ const expPlan = {
                 const dg = this.epicDungeons().find(d => d.id === c.epic);
                 if (dg && lv >= dg.lv) {
                     const b = (Number(c.epicBonus) || 0) + expBuffs.pct('epic', ymd);
-                    gain(l => (epicDungeonBase[l] || 0) * ((Number(c.epicTier) || 1) + b / 100) * dg.mult, 'epic');
+                    gain(l => (epicDungeonBase[l] || 0) * (1 + b / 100) * dg.mult, 'epic');
                     done.epic = thuWeek;
                 }
             }
@@ -822,7 +822,6 @@ const expPlan = {
             const owner = this.epicOwner(d.id, ch.id);
             return chip(c.epic === d.id, `${d.name}${owner ? ` <span class="font-normal">（${expEsc(owner.name)}）</span>` : ''}`, `expPlan.set('${ch.id}','epic','${d.id}')`, !!owner, owner ? `${owner.name} が選んでいます` : `Lv${d.lv}+`);
         }).join('');
-        const tierChips = [1, 5, 9].map(t => chip(c.epicTier === t, `x${t}`, `expPlan.set('${ch.id}','epicTier',${t})`)).join('');
         const burnOpts = this.BURNS.map(b => `<option value="${b.id}"${b.id === c.burn ? ' selected' : ''}>${b.label}</option>`).join('');
 
         const pool = this.state.pool[ch.server];
@@ -883,9 +882,8 @@ const expPlan = {
                 <div class="flex flex-wrap items-center gap-1.5">
                     ${epicChips}
                 </div>
-                ${c.epic !== 'none' ? `<span class="expp-lbl">報酬</span>
+                ${c.epic !== 'none' ? `<span class="expp-lbl">ボーナス</span>
                 <div class="flex flex-wrap items-center gap-1.5">
-                    ${tierChips}
                     <label class="input input-xs font-mono w-24" title="基本EXPボーナス"><span class="text-slate-500">+</span><input type="number" min="0" step="10" value="${c.epicBonus}" onchange="expPlan.set('${ch.id}','epicBonus',this.value)">%</label>
                 </div>` : ''}
                 ${tixItems ? `<span class="expp-lbl">農場</span><div class="flex flex-wrap items-center gap-1.5">${tixItems}</div>` : ''}
