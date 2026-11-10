@@ -547,9 +547,15 @@ const expPlan = {
     setPot(id, k, v) { this.cfg(id).pot[k] = Number(v) || 0; this.commit(); },
     setHunt(id, k, v) {
         const c = this.cfg(id);
-        c.hunt = Object.assign({ kills: 0, hours: 0, mult: 1 }, c.hunt || {});
-        c.hunt[k] = k === 'mult' ? Math.max(0, Math.round((Number(v) || 0) * 100) / 100) : Math.max(0, Number(v) || 0);
+        c.hunt = this.huntCfg(c);
+        c.hunt[k] = Math.max(0, Number(v) || 0);
         this.commit();
+    },
+    // 狩りの設定。経験値はステータス画面の「+N%」で持つ（倍率 = (100 + N) ÷ 100）。前の版の倍率（mult）から引き継ぐ
+    huntCfg(c) {
+        const h = Object.assign({ kills: 0, hours: 0, pct: 0 }, c.hunt || {});
+        if (h.mult != null) { if (!c.hunt || c.hunt.pct == null) h.pct = Math.max(0, Math.round((Number(h.mult) - 1) * 100)); delete h.mult; }
+        return h;
     },
     setSauna(id, v) { this.cfg(id).sauna = Math.max(0, Number(v) || 0); this.commit(); },
     setPoolSauna(world, v) { this.state.pool[world].sauna = Math.max(0, Math.round((Number(v) || 0) * 2) / 2); this.commit(); },
@@ -645,7 +651,7 @@ const expPlan = {
         };
 
         const dailies = expRegionData.filter(r => r.daily > 0 && c.dailyOn.includes(r.id));
-        const hunt = Object.assign({ kills: 0, hours: 0, mult: 1 }, c.hunt || {});
+        const hunt = this.huntCfg(c), huntMult = 1 + (Number(hunt.pct) || 0) / 100;
         const huntH = Number(hunt.hours) || 0;
         let saunaLeft = Number(c.sauna) || 0;
         const done = { mpe: null, epic: null, weekly: new Set() };
@@ -702,7 +708,7 @@ const expPlan = {
             // 1時間ずつ足して途中のレベルアップで敵の EXP を引き直す
             if (huntH > 0 && hunt.kills > 0) {
                 const parts = Math.ceil(huntH);
-                for (let i = 0; i < parts; i++) add(mobExpAt(lv) * hunt.kills * hunt.mult * Math.min(1, huntH - i), 'hunt');
+                for (let i = 0; i < parts; i++) add(mobExpAt(lv) * hunt.kills * huntMult * Math.min(1, huntH - i), 'hunt');
             }
             // 放置マップ（サウナ）は狩りのあと。割り当てた時間を1日8時間まで使う
             if (saunaLeft > 0) {
@@ -944,9 +950,9 @@ const expPlan = {
             return `<label class="expp-cnt ${cur ? 'on' : ''}"><span>VIP サウナ</span><select class="select select-xs font-mono w-16" onchange="expPlan.setSauna('${ch.id}',this.value)">${opts}</select></label>
                 <span class="text-[11px] text-slate-500">時間${days ? `（1日${this.SAUNA_PER_DAY}時間まで・${days}日）` : ''}</span>`;
         })() : '';
-        const hunt = Object.assign({ kills: 0, hours: 0, mult: 1 }, c.hunt || {});
+        const hunt = this.huntCfg(c);
         const hourOpts = Array.from({ length: 49 }, (_, i) => i / 2).map(v => `<option value="${v}"${v === Number(hunt.hours) ? ' selected' : ''}>${v}</option>`).join('');
-        const huntDay = mobExpAt(lvNow) * hunt.kills * hunt.hours * hunt.mult;
+        const huntDay = mobExpAt(lvNow) * hunt.kills * hunt.hours * (1 + (Number(hunt.pct) || 0) / 100);
 
         // デイリーは地域ごと。ワールドで1日1回なので、ほかのキャラが選んだ地域は出さない。
         // 区分の名前を押すと、その区分の残りをまとめて入れる／外す。
@@ -1005,7 +1011,7 @@ const expPlan = {
                 <div class="flex flex-wrap items-center gap-1.5">
                     <label class="input input-xs font-mono w-28" title="1時間あたりの討伐数（自分の Lv の敵）"><input type="number" min="0" step="1000" value="${hunt.kills}" onchange="expPlan.setHunt('${ch.id}','kills',this.value)"><span class="text-slate-500">体/時</span></label>
                     <label class="expp-cnt ${hunt.hours ? 'on' : ''}"><select class="select select-xs font-mono w-16" onchange="expPlan.setHunt('${ch.id}','hours',this.value)">${hourOpts}</select><span>時間/日</span></label>
-                    <label class="input input-xs font-mono w-20" title="経験値倍率（クーポン・ブースターなどを掛けた合計）"><span class="text-slate-500">×</span><input type="number" min="0" step="0.1" value="${hunt.mult}" onchange="expPlan.setHunt('${ch.id}','mult',this.value)"></label>
+                    <label class="input input-xs font-mono w-32" title="ステータス画面の経験値（+N%）。基礎の100%に足して計算します"><span class="text-slate-500">EXP +</span><input type="number" min="0" step="10" value="${hunt.pct}" onchange="expPlan.setHunt('${ch.id}','pct',this.value)"><span class="text-slate-500">%</span></label>
                     ${huntDay > 0 ? `<span class="text-[11px] text-slate-500">1日 ${expFmt(huntDay)}</span>` : ''}
                 </div>
                 ${saunaItem ? `<span class="expp-lbl">放置</span><div class="flex flex-wrap items-center gap-1.5">${saunaItem}</div>` : ''}
