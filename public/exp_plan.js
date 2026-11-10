@@ -786,6 +786,8 @@ const expPlan = {
         const series = [];
         let endSrc = null;
         let endLv = null, endPct = null, reach = (target && lv >= target) ? start : null;
+        const reachAt = {};
+        let reachLv = lv;
         const startLv = lv, startPct = exp / tnlData[lv] * 100;
         const limit = expDate.add(start, 3650);
 
@@ -851,8 +853,11 @@ const expPlan = {
             // 内訳は期日までの分（目標に届く日を出すために期日より先も回すので、ここで写しておく）
             if (ymd === end) { endLv = lv; endPct = pct; endSrc = { ...src }; }
             if (target && !reach && lv >= target) reach = ymd;
+            // Lv ごとに初めて届いた日（パスで何日縮んだかの比較に使う）
+            for (let l = reachLv + 1; l <= lv; l++) reachAt[l] = ymd;
+            if (lv > reachLv) reachLv = lv;
         }
-        return { startLv, startPct, endLv, endPct, reach, target, src: endSrc || src, series, log: log.filter(e => e.ymd <= end) };
+        return { startLv, startPct, endLv, endPct, reach, target, src: endSrc || src, series, log: log.filter(e => e.ymd <= end), reachAt };
     },
 
     // ---------- 描画 ----------
