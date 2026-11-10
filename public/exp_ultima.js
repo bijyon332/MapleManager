@@ -206,7 +206,8 @@ const expUltima = Object.assign(Object.create(expPlan), {
                 if (lv < p.minLv) return;
                 memo[key] = true;
                 const r = this.passWeek(p, i);
-                out = out || { tix: {}, pot: {}, coupon: 0 };
+                out = out || { tix: {}, pot: {}, coupon: 0, from: '' };
+                out.from = out.from ? out.from + '・' + p.short : p.short;
                 out.coupon += r.coupon;
                 if (r.farm) out.tix[p.farm] = (out.tix[p.farm] || 0) + r.farm;
                 for (const [k, n] of Object.entries(r.pot)) out.pot[k] = (out.pot[k] || 0) + n;
