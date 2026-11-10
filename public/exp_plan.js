@@ -698,6 +698,7 @@ const expPlan = {
         const add = (amt, key) => {
             if (!(amt > 0) || lv >= 300) return;
             src[key] = (src[key] || 0) + amt;
+            total += amt;
             exp += amt;
             while (lv < 300 && tnlData[lv] && exp >= tnlData[lv]) {
                 exp -= tnlData[lv];
@@ -708,6 +709,15 @@ const expPlan = {
         // 長いコンテンツは分けて足し、途中のレベルアップで表を引き直す
         const gain = (fn, key, parts = 1) => { for (let i = 0; i < parts; i++) add(fn(lv) / parts, key); };
 
+        // 持ち物（農場・秘薬・交換券）を使った記録。日付・何を何個・増えた EXP・使う前後の Lv（小数で EXP% を表す）
+        let total = 0, day = start;
+        const log = [];
+        const lvNow = () => lv >= 300 ? 300 : lv + exp / tnlData[lv];
+        const record = (kind, label, n, fn) => {
+            const from = lvNow(), t0 = total;
+            fn();
+            if (total > t0) log.push({ ymd: day, kind, label, n, exp: total - t0, from, to: lvNow() });
+        };
         const pendTix = this.TIX.map(t => ({ ...t, n: Number(c.tix[t.id]) || 0 }));
         const pendPot = EXP_POTION_TYPES.map(p => ({ ...p, n: Number(c.pot[p.id]) || 0 }));
         let pendCoupon = 0;
@@ -716,27 +726,38 @@ const expPlan = {
         const receive = (ymd) => {
             const got = this.arrivals(ch, ymd, lv, got0);
             if (!got) return;
+            const parts = [];
+            if (got.coupon) parts.push(`交換券 ${got.coupon.toLocaleString()}`);
+            for (const [k, n] of Object.entries(got.tix || {})) if (n) parts.push(`${(this.TIX.find(x => x.id === k) || {}).label || k} ${n}`);
+            for (const [k, n] of Object.entries(got.pot || {})) { const pt = EXP_POTION_TYPES.find(x => x.id === k); if (n) parts.push(`秘薬 ${pt ? this.potName(pt) : k} ${n}`); }
+            if (parts.length) log.push({ ymd, kind: 'recv', label: (got.from ? got.from + ': ' : '') + parts.join('・'), n: 0, exp: 0, from: lvNow(), to: lvNow() });
             for (const [k, n] of Object.entries(got.tix || {})) { const t = pendTix.find(x => x.id === k); if (t) t.n += n; }
             for (const [k, n] of Object.entries(got.pot || {})) { const p = pendPot.find(x => x.id === k); if (p) p.n += n; }
             pendCoupon += got.coupon || 0;
         };
         // 上級EXP交換券は、使える Lv（260）になっていればもらった日に全部使う。100枚ずつ足して途中のレベルアップで量を引き直す
         const useCoupon = () => {
-            while (pendCoupon > 0 && lv >= 260 && lv < 300) {
-                const k = Math.min(100, pendCoupon);
-                add(expCouponExp(lv) * k, 'coupon');
-                pendCoupon -= k;
-            }
+            if (!(pendCoupon > 0 && lv >= 260 && lv < 300)) return;
+            const n = pendCoupon;
+            record('coupon', '上級EXP交換券', n, () => {
+                while (pendCoupon > 0 && lv >= 260 && lv < 300) {
+                    const k = Math.min(100, pendCoupon);
+                    add(expCouponExp(lv) * k, 'coupon');
+                    pendCoupon -= k;
+                }
+            });
         };
         const useTix = () => {
             for (const t of pendTix) {
                 if (!t.n || lv < t.minLv) continue;
-                for (; t.n > 0; t.n--) {
-                    if (t.id === 'straw') gain(l => (farmTable[l] || 0) * 1000, 'farm', 10);
-                    if (t.id === 'blue') gain(l => blueberryFarmTable[l] || 0, 'farm', 10);
-                    if (t.id === 'mecha') gain(l => (mechaFarmTable[l] || 0) * 1000, 'farm', 10);
-                    if (t.id === 'crimson') gain(l => crimsonMechaFarmTable[l] || 0, 'farm', 10);
-                }
+                record('farm', `農場 ${t.label}`, t.n, () => {
+                    for (; t.n > 0; t.n--) {
+                        if (t.id === 'straw') gain(l => (farmTable[l] || 0) * 1000, 'farm', 10);
+                        if (t.id === 'blue') gain(l => blueberryFarmTable[l] || 0, 'farm', 10);
+                        if (t.id === 'mecha') gain(l => (mechaFarmTable[l] || 0) * 1000, 'farm', 10);
+                        if (t.id === 'crimson') gain(l => crimsonMechaFarmTable[l] || 0, 'farm', 10);
+                    }
+                });
             }
         };
         // 秘薬は全部使い切ってちょうど上限 Lv を越えるように使う（1本で1Lv なので、上限 Lv から本数分さかのぼった Lv で使い始める。
@@ -745,7 +766,7 @@ const expPlan = {
             for (const p of pendPot) {
                 if (!p.n || lv < p.minLv) continue;
                 if (lv < p.capLv - p.n + 1 && ymd !== end) continue;
-                for (; p.n > 0; p.n--) add(tnlData[Math.min(lv, p.capLv)] || 0, 'potion');
+                record('potion', `秘薬 ${this.potName(p)}`, p.n, () => { for (; p.n > 0; p.n--) add(tnlData[Math.min(lv, p.capLv)] || 0, 'potion'); });
             }
         };
         // 週1のコンテンツは、その週の残りの日でいちばんバフが大きい日にやる
@@ -770,6 +791,7 @@ const expPlan = {
 
         for (let ymd = start; ymd <= limit; ymd = expDate.add(ymd, 1)) {
             if (ymd > end && (!target || reach || lv >= 300)) break;
+            day = ymd;
             const dow = expDate.dow(ymd);
             const thuWeek = expDate.weekEnd(ymd, 4), monWeek = expDate.weekEnd(ymd, 1);
             if (done.mpe && done.mpe !== thuWeek) done.mpe = null;
@@ -830,7 +852,7 @@ const expPlan = {
             if (ymd === end) { endLv = lv; endPct = pct; endSrc = { ...src }; }
             if (target && !reach && lv >= target) reach = ymd;
         }
-        return { startLv, startPct, endLv, endPct, reach, target, src: endSrc || src, series };
+        return { startLv, startPct, endLv, endPct, reach, target, src: endSrc || src, series, log: log.filter(e => e.ymd <= end) };
     },
 
     // ---------- 描画 ----------
@@ -1130,6 +1152,26 @@ const expPlan = {
         </div>`;
     },
 
+    // 持ち物（農場・秘薬・交換券）をいつ何個使ったか。受け取り（パスの報酬）も同じ並びに出す
+    logOpen: {},
+    toggleLog(id) { this.logOpen[id] = !this.logOpen[id]; this.render(); },
+    lvText(v) { const l = Math.floor(v); return l >= 300 ? 'Lv 300' : `Lv ${l} <span class="text-slate-500">${((v - l) * 100).toFixed(1)}%</span>`; },
+    logHTML(log) {
+        const rows = (log || []).map(e => {
+            if (e.kind === 'recv') return `<tr class="text-slate-500"><td>${expDate.short(e.ymd)}</td><td colspan="4"><i data-lucide="gift" class="w-3 h-3 inline -mt-0.5"></i> 受け取り ${expEsc(e.label)}</td></tr>`;
+            const dl = e.to - e.from;
+            return `<tr>
+                <td>${expDate.short(e.ymd)}</td>
+                <td><span class="font-bold" style="color:${this.srcColor(e.kind)}">${expEsc(e.label)}</span> <span class="text-slate-400">×${e.n.toLocaleString()}</span></td>
+                <td class="text-right">${expFmt(e.exp)}</td>
+                <td class="whitespace-nowrap">${this.lvText(e.from)} → ${this.lvText(e.to)}</td>
+                <td class="text-right ${dl >= 1 ? 'text-amber-300 font-bold' : 'text-emerald-400'}">+${dl.toFixed(2)}</td>
+            </tr>`;
+        }).join('');
+        return rows ? `<table class="expp-log"><thead><tr><th>日付</th><th>使ったもの</th><th class="text-right">EXP</th><th>Lv</th><th class="text-right">Lv の増え</th></tr></thead><tbody>${rows}</tbody></table>`
+            : '<p class="text-[11px] text-slate-500 py-1">期間中に使う持ち物はありません</p>';
+    },
+
     resultHTML(results, st) {
         const rows = this.onChars().map(ch => ({ ch, r: results.get(ch.id) })).filter(x => x.r);
         if (!rows.length) {
@@ -1145,14 +1187,17 @@ const expPlan = {
             const bar = this.SRC.filter(s => r.src[s.id] > 0).map(s =>
                 `<span style="width:${r.src[s.id] / total * 100}%;background:${s.color}" title="${s.label} ${expFmt(r.src[s.id])}（${(r.src[s.id] / total * 100).toFixed(0)}%）"></span>`).join('');
             const gained = r.endLv != null ? (r.endLv + r.endPct / 100) - (r.startLv + r.startPct / 100) : null;
+            const used = (r.log || []).filter(e => e.kind !== 'recv').length;
+            const open = !!this.logOpen[ch.id];
             return `
             <tr>
-                <td class="border-l-[3px] border-l-${col}-400"><div class="font-bold text-white">${expEsc(ch.name)}</div><div class="text-[10px] text-slate-500">${ch.server === 'CHALLENGER' ? 'Challenger' : 'Kronos'}</div></td>
+                <td class="border-l-[3px] border-l-${col}-400"><div class="font-bold text-white">${expEsc(ch.name)}</div><div class="text-[10px] text-slate-500">${ch.server === 'CHALLENGER' ? 'Challenger' : 'Kronos'}</div>
+                    ${(r.log || []).length ? `<button class="expp-logbtn ${open ? 'on' : ''}" onclick="${this.NS}.toggleLog('${ch.id}')"><i data-lucide="${open ? 'chevron-up' : 'chevron-down'}" class="w-3 h-3"></i>持ち物 ${used}回</button>` : ''}</td>
                 <td class="font-mono text-slate-300">Lv ${r.startLv}<div class="text-[10px] text-slate-500">${pct(r.startPct)}</div></td>
                 <td class="font-mono"><span class="text-amber-300 font-bold text-base">Lv ${r.endLv ?? '-'}</span><div class="text-[10px] text-slate-400">${pct(r.endPct)}${gained != null ? ` <span class="text-emerald-400">+${gained.toFixed(2)}</span>` : ''}</div></td>
                 <td class="font-mono">${r.target ? `Lv ${r.target}<div class="text-[10px] ${r.reach && r.reach <= st.end ? 'text-emerald-400' : 'text-slate-400'}">${r.reach ? expDate.short(r.reach) : '10年以上'}</div>` : '<span class="text-slate-600">-</span>'}</td>
                 <td class="w-[34%]"><div class="expp-src">${bar}</div><div class="text-[10px] text-slate-500 mt-0.5 font-mono">${expFmt(total)} EXP</div></td>
-            </tr>`;
+            </tr>${open ? `<tr class="expp-logrow"><td colspan="5" class="border-l-[3px] border-l-${col}-400">${this.logHTML(r.log)}</td></tr>` : ''}`;
         }).join('');
         const legend = this.SRC.map(s => `<span class="inline-flex items-center gap-1"><i class="w-2 h-2 rounded-sm inline-block" style="background:${s.color}"></i>${s.label}</span>`).join('');
         return `
@@ -1203,7 +1248,15 @@ const expPlan = {
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { labels: { color: '#cbd5e1', boxWidth: 10, font: { size: 11 } } },
-                    tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: Lv ${Math.floor(ctx.parsed.y)} ${((ctx.parsed.y % 1) * 100).toFixed(1)}%` } },
+                    tooltip: { callbacks: {
+                        label: ctx => `${ctx.dataset.label}: Lv ${Math.floor(ctx.parsed.y)} ${((ctx.parsed.y % 1) * 100).toFixed(1)}%`,
+                        // その日に使った持ち物
+                        afterBody: items => {
+                            const ymd = labels[items[0]?.dataIndex];
+                            return list.flatMap(ch => (results.get(ch.id).log || []).filter(e => e.ymd === ymd && e.kind !== 'recv')
+                                .map(e => `${ch.name}: ${e.label} ×${e.n.toLocaleString()}（+${(e.to - e.from).toFixed(2)} Lv）`));
+                        },
+                    } },
                 },
                 scales: {
                     x: { ticks: { color: '#64748b', maxTicksLimit: 10, font: { size: 10 } }, grid: { color: 'rgba(148,163,184,0.08)' } },
