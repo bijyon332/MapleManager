@@ -100,6 +100,91 @@ const expBuffs = {
         this.save(); this.render(); expPlan.onBuffsChanged();
     },
 
+    // ---- 共有（書き出し・読み込み） ----
+    // 形式: { app: 'mm-exp-buffs', version: 1, buffs: [{ target, pct, start, end, memo }] }。
+    // id は受け取った側で振り直すので書き出さない。Discord などにそのまま貼れるよう1行の JSON にする。
+    importOpen: false,
+    msg: '',
+    exportText() {
+        this.ensure();
+        const buffs = [...this.list].sort((a, b) => (a.start || '').localeCompare(b.start || ''))
+            .map(b => ({ target: b.target, pct: Number(b.pct) || 0, start: b.start || '', end: b.end || '', memo: b.memo || '' }));
+        return JSON.stringify({ app: 'mm-exp-buffs', version: 1, buffs });
+    },
+    copyExport() {
+        if (!this.list.length) { this.flash('書き出すバフがありません'); return; }
+        const text = this.exportText();
+        const done = () => this.flash(`${this.list.length}件をコピーしました。Discord などに貼って共有できます`);
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => { this.fallbackCopy(text); done(); });
+        else { this.fallbackCopy(text); done(); }
+    },
+    fallbackCopy(text) {
+        const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) { /* 何もしない */ } ta.remove();
+    },
+    downloadExport() {
+        if (!this.list.length) { this.flash('書き出すバフがありません'); return; }
+        const blob = new Blob([this.exportText()], { type: 'application/json' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `exp-buffs-${expDate.today()}.json`;
+        document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    },
+    // 貼られた文字から読める分だけ取り出す（前後の文や ``` で囲まれていても JSON 部分を拾う）
+    parseImport(text) {
+        const t = String(text || '');
+        const i = t.search(/[\[{]/);
+        if (i < 0) return null;
+        const j = Math.max(t.lastIndexOf('}'), t.lastIndexOf(']'));
+        let v;
+        try { v = JSON.parse(t.slice(i, j + 1)); } catch (e) { return null; }
+        const arr = Array.isArray(v) ? v : (v && Array.isArray(v.buffs) ? v.buffs : null);
+        if (!arr) return null;
+        const ok = this.TARGETS.map(x => x.id);
+        const ymd = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : '';
+        return arr.filter(b => b && ok.includes(b.target) && ymd(b.start)).map(b => {
+            const start = ymd(b.start); let end = ymd(b.end);
+            if (end && end < start) end = start;
+            return { target: b.target, pct: Math.max(0, Number(b.pct) || 0), start, end, memo: String(b.memo || '').slice(0, 100) };
+        });
+    },
+    toggleImport() { this.importOpen = !this.importOpen; this.msg = ''; this.render(); if (this.importOpen) document.getElementById('expb-import-text')?.focus(); },
+    importFile(input) {
+        const f = input.files && input.files[0];
+        if (!f) return;
+        f.text().then(t => { const ta = document.getElementById('expb-import-text'); if (ta) ta.value = t; this.flash('ファイルを読み込みました。追加か入れ替えを選んでください'); const ta2 = document.getElementById('expb-import-text'); if (ta2) ta2.value = t; });
+        input.value = '';
+    },
+    // replace=false は今の一覧に足す（対象・％・期間が同じものは足さない）。true は今の一覧と入れ替える。
+    doImport(replace, text) {
+        const src = text ?? document.getElementById('expb-import-text')?.value;
+        const got = this.parseImport(src);
+        if (!got) { this.flash('読み込めませんでした。書き出した文字をそのまま貼ってください'); return; }
+        if (!got.length) { this.flash('読み込めるバフがありませんでした'); return; }
+        this.ensure();
+        if (replace && this.list.length && !confirm(`今の一覧（${this.list.length}件）を消して、${got.length}件に入れ替えます。よろしいですか？`)) return;
+        const sig = b => [b.target, Number(b.pct) || 0, b.start, b.end || ''].join('|');
+        const have = new Set(replace ? [] : this.list.map(sig));
+        const base = replace ? [] : this.list;
+        let added = 0, n = Date.now();
+        for (const b of got) {
+            if (have.has(sig(b))) continue;
+            have.add(sig(b));
+            base.push({ id: 'b' + (n++), ...b });
+            added++;
+        }
+        this.list = base;
+        this.save();
+        this.importOpen = false;
+        const skipped = got.length - added;
+        this.flash(replace ? `${added}件に入れ替えました` : `${added}件を追加しました${skipped ? `（同じもの${skipped}件は飛ばしました）` : ''}`);
+        expPlan.onBuffsChanged();
+    },
+    flash(m) {
+        this.msg = m;
+        this.render();
+        clearTimeout(this._msgT);
+        this._msgT = setTimeout(() => { this.msg = ''; const el = document.getElementById('expb-msg'); if (el) el.textContent = ''; }, 5000);
+    },
+
     render() {
         const root = document.getElementById('exp-tab-buffs');
         if (!root) return;
@@ -148,9 +233,24 @@ const expBuffs = {
             <div class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden">
                 <div class="flex items-center gap-2 px-3 py-2 bg-base-200 border-b border-base-content/10">
                     <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
-                    <span class="text-sm font-bold text-white flex-1">イベントバフ</span>
-                    <span class="text-[11px] text-slate-500">${lo === hi ? '' : `${expDate.short(lo)} 〜 ${expDate.short(hi)}`}</span>
+                    <span class="text-sm font-bold text-white">イベントバフ</span>
+                    <span class="text-[11px] text-slate-500 flex-1">${lo === hi ? '' : `${expDate.short(lo)} 〜 ${expDate.short(hi)}`}</span>
+                    <span id="expb-msg" class="text-[11px] text-emerald-400">${expEsc(this.msg)}</span>
+                    <button class="btn btn-xs gap-1" onclick="expBuffs.copyExport()" title="一覧を文字にしてコピーします。Discord などに貼って共有できます"><i data-lucide="copy" class="w-3 h-3"></i>共有用にコピー</button>
+                    <button class="btn btn-xs btn-square" onclick="expBuffs.downloadExport()" title="JSON ファイルで保存"><i data-lucide="download" class="w-3 h-3"></i></button>
+                    <button class="btn btn-xs gap-1 ${this.importOpen ? 'btn-primary' : ''}" onclick="expBuffs.toggleImport()"><i data-lucide="clipboard-paste" class="w-3 h-3"></i>読み込み</button>
                 </div>
+                ${this.importOpen ? `
+                <div class="p-3 border-b border-base-content/10 bg-base-200/50 space-y-2">
+                    <textarea id="expb-import-text" class="textarea textarea-sm w-full font-mono h-20" placeholder="共有されたバフの文字（{&quot;app&quot;:&quot;mm-exp-buffs&quot;,…}）をここに貼る"></textarea>
+                    <div class="flex items-center gap-2">
+                        <button class="btn btn-sm btn-primary" onclick="expBuffs.doImport(false)">今の一覧に追加</button>
+                        <button class="btn btn-sm" onclick="expBuffs.doImport(true)">今の一覧と入れ替え</button>
+                        <label class="btn btn-sm btn-ghost gap-1"><i data-lucide="file-up" class="w-3.5 h-3.5"></i>ファイルから<input type="file" accept=".json,application/json,text/plain" class="hidden" onchange="expBuffs.importFile(this)"></label>
+                        <span class="flex-1"></span>
+                        <button class="btn btn-sm btn-ghost" onclick="expBuffs.toggleImport()">閉じる</button>
+                    </div>
+                </div>` : ''}
                 <div class="overflow-x-auto">
                     <table class="table table-sm expb-table">
                         <thead><tr><th>対象</th><th>上乗せ</th><th>開始</th><th>終了</th><th>メモ</th><th>期間</th><th></th></tr></thead>
