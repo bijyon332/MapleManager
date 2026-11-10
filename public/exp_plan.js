@@ -335,7 +335,10 @@ const expPlan = {
         { id: 'epic', label: 'エピダン', color: '#fbbf24' },
         { id: 'farm', label: '農場', color: '#f472b6' },
         { id: 'potion', label: '秘薬', color: '#f87171' },
+        { id: 'hunt', label: '狩り', color: '#fb923c' },
+        { id: 'sauna', label: 'サウナ', color: '#a3e635' },
     ],
+    SAUNA_PER_DAY: 8, // 放置マップは1日8時間まで（bi 指定）
 
     init() {
         expBuffs.load();
@@ -388,7 +391,7 @@ const expPlan = {
         try { s = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { s = null; }
         const t = expDate.today();
         this.state = Object.assign({ start: t, end: expDate.add(t, 27), world: 'KRONOS', chars: {}, pool: {} }, s || {});
-        this.WORLDS.forEach(w => { this.state.pool[w.id] = Object.assign({ tix: {}, pot: {} }, this.state.pool[w.id] || {}); });
+        this.WORLDS.forEach(w => { this.state.pool[w.id] = Object.assign({ tix: {}, pot: {}, sauna: 0 }, this.state.pool[w.id] || {}); });
         this.stateKey = key;
         // 表示は view（既定は両方）。以前の world（Kronos／Challenger の二択）は引き継がない
         this.world = this.normWorld(this.state.view);
@@ -409,6 +412,7 @@ const expPlan = {
             dailyOn: null, weekly: true,
             monpa: 0, mpe: false, epic: 'none', epicBonus: 0, burn: 'none',
             tix: {}, pot: {},
+            hunt: null, sauna: 0,
         };
         for (const k of Object.keys(def)) if (c[k] === undefined) c[k] = def[k];
         // デイリーは地域ごとに選ぶ（選んだ地域の id を持つ）。デイリーの EXP はワールド内で1日1回しか
@@ -435,6 +439,7 @@ const expPlan = {
     epicDungeons() { return EPIC_DUNGEONS.filter(d => d.gms); },
     epicOwner(dgId, exceptId) { return this.onChars().find(ch => ch.id !== exceptId && this.cfg(ch.id).epic === dgId) || null; },
     tixUsed(world, k, exceptId) { return this.onChars(world).filter(ch => ch.id !== exceptId).reduce((s, ch) => s + (Number(this.cfg(ch.id).tix[k]) || 0), 0); },
+    saunaUsed(world, exceptId) { return this.onChars(world).filter(ch => ch.id !== exceptId).reduce((s, ch) => s + (Number(this.cfg(ch.id).sauna) || 0), 0); },
     potUsed(world, k, exceptId) { return this.onChars(world).filter(ch => ch.id !== exceptId).reduce((s, ch) => s + (Number(this.cfg(ch.id).pot[k]) || 0), 0); },
 
     // 持ち物を減らしたときなどに、上限を超えた割り当てを後ろのキャラから削る
@@ -444,6 +449,7 @@ const expPlan = {
             const pool = this.state.pool[w.id];
             let monpa = 0, mpe = 0;
             const tix = {}, pot = {}, daily = new Set();
+            let sauna = 0;
             this.onChars(w.id).forEach(ch => {
                 const c = this.cfg(ch.id);
                 c.dailyOn = c.dailyOn.filter(r => !daily.has(r));
@@ -456,6 +462,8 @@ const expPlan = {
                     c.tix[t.id] = Math.max(0, Math.min(Number(c.tix[t.id]) || 0, have - (tix[t.id] || 0)));
                     tix[t.id] = (tix[t.id] || 0) + c.tix[t.id];
                 });
+                c.sauna = Math.max(0, Math.min(Number(c.sauna) || 0, (Number(pool.sauna) || 0) - sauna));
+                sauna += c.sauna;
                 EXP_POTION_TYPES.forEach(p => {
                     const have = Number(pool.pot[p.id]) || 0;
                     c.pot[p.id] = Math.max(0, Math.min(Number(c.pot[p.id]) || 0, have - (pot[p.id] || 0)));
@@ -537,6 +545,14 @@ const expPlan = {
     },
     setTix(id, k, v) { this.cfg(id).tix[k] = Number(v) || 0; this.commit(); },
     setPot(id, k, v) { this.cfg(id).pot[k] = Number(v) || 0; this.commit(); },
+    setHunt(id, k, v) {
+        const c = this.cfg(id);
+        c.hunt = Object.assign({ kills: 0, hours: 0, mult: 1 }, c.hunt || {});
+        c.hunt[k] = k === 'mult' ? Math.max(0, Math.round((Number(v) || 0) * 100) / 100) : Math.max(0, Number(v) || 0);
+        this.commit();
+    },
+    setSauna(id, v) { this.cfg(id).sauna = Math.max(0, Number(v) || 0); this.commit(); },
+    setPoolSauna(world, v) { this.state.pool[world].sauna = Math.max(0, Math.round((Number(v) || 0) * 2) / 2); this.commit(); },
     setPool(world, kind, k, v) { this.state.pool[world][kind][k] = Math.max(0, Math.floor(Number(v) || 0)); this.commit(); },
     commit() { this.normalize(); this.save(); this.render(); },
 
@@ -629,6 +645,9 @@ const expPlan = {
         };
 
         const dailies = expRegionData.filter(r => r.daily > 0 && c.dailyOn.includes(r.id));
+        const hunt = Object.assign({ kills: 0, hours: 0, mult: 1 }, c.hunt || {});
+        const huntH = Number(hunt.hours) || 0;
+        let saunaLeft = Number(c.sauna) || 0;
         const done = { mpe: null, epic: null, weekly: new Set() };
         const series = [];
         let endSrc = null;
@@ -677,6 +696,19 @@ const expPlan = {
                     gain(l => (epicDungeonBase[l] || 0) * (1 + b / 100) * dg.mult, 'epic');
                     done.epic = thuWeek;
                 }
+            }
+
+            // 狩りは、その日のデイリー・週課のコンテンツを全部やったあと。自分の Lv の敵を倒す想定で、
+            // 1時間ずつ足して途中のレベルアップで敵の EXP を引き直す
+            if (huntH > 0 && hunt.kills > 0) {
+                const parts = Math.ceil(huntH);
+                for (let i = 0; i < parts; i++) add(mobExpAt(lv) * hunt.kills * hunt.mult * Math.min(1, huntH - i), 'hunt');
+            }
+            // 放置マップ（サウナ）は狩りのあと。割り当てた時間を1日8時間まで使う
+            if (saunaLeft > 0) {
+                let h = Math.min(this.SAUNA_PER_DAY, saunaLeft);
+                saunaLeft -= h;
+                for (; h > 0; h -= 1) add(saunaExpPerHour(lv) * Math.min(1, h), 'sauna');
             }
 
             usePot(ymd);
@@ -815,6 +847,7 @@ const expPlan = {
     poolHTML(world) {
         const pool = this.state.pool[world];
         const used = (kind, k) => kind === 'tix' ? this.tixUsed(world, k) : this.potUsed(world, k);
+        const saunaHave = Number(pool.sauna) || 0, saunaU = this.saunaUsed(world);
         const cell = (kind, id, label) => {
             const have = Number(pool[kind][id]) || 0, u = used(kind, id);
             return `<label class="expp-pool ${have ? 'has' : ''}">
@@ -837,6 +870,16 @@ const expPlan = {
                 <div class="space-y-1.5 pt-3 border-t border-base-content/10">
                     <div class="expp-lbl">成長の秘薬</div>
                     <div class="grid grid-cols-2 gap-1.5">${EXP_POTION_TYPES.map(p => cell('pot', p.id, this.potName(p))).join('')}</div>
+                </div>
+                <div class="space-y-1.5 pt-3 border-t border-base-content/10">
+                    <div class="expp-lbl">放置マップ</div>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <label class="expp-pool ${saunaHave ? 'has' : ''}">
+                            <span class="truncate">VIP サウナ <span class="text-slate-500">時間</span></span>
+                            <input type="number" min="0" step="0.5" class="input input-xs font-mono w-14 text-right" value="${saunaHave}" onchange="expPlan.setPoolSauna('${world}',this.value)">
+                            <span class="font-mono text-[10px] ${saunaHave && saunaU >= saunaHave ? 'text-amber-400' : 'text-slate-500'} w-9 text-right">${saunaHave ? `${saunaU}/${saunaHave}` : ''}</span>
+                        </label>
+                    </div>
                 </div>
             </div>
         </details>`;
@@ -891,6 +934,19 @@ const expPlan = {
         };
         const tixItems = this.TIX.map(t => cntSel('tix', t.id, t.label, Number(c.tix[t.id]) || 0)).join('');
         const potItems = EXP_POTION_TYPES.map(p => cntSel('pot', p.id, this.potName(p), Number(c.pot[p.id]) || 0)).join('');
+        // 放置マップ: 持ち物の時間から 0.5 時間単位で割り当てる（ほかのキャラに割り当てた分は選べない）
+        const saunaHave = Number(pool.sauna) || 0;
+        const saunaItem = saunaHave ? (() => {
+            const max = saunaHave - this.saunaUsed(ch.server, ch.id), cur = Number(c.sauna) || 0;
+            const opts = Array.from({ length: Math.floor(saunaHave * 2) + 1 }, (_, i) => i / 2)
+                .map(v => `<option value="${v}"${v === cur ? ' selected' : ''}${v > max ? ' disabled' : ''}>${v}</option>`).join('');
+            const days = cur ? Math.ceil(cur / this.SAUNA_PER_DAY) : 0;
+            return `<label class="expp-cnt ${cur ? 'on' : ''}"><span>VIP サウナ</span><select class="select select-xs font-mono w-16" onchange="expPlan.setSauna('${ch.id}',this.value)">${opts}</select></label>
+                <span class="text-[11px] text-slate-500">時間${days ? `（1日${this.SAUNA_PER_DAY}時間まで・${days}日）` : ''}</span>`;
+        })() : '';
+        const hunt = Object.assign({ kills: 0, hours: 0, mult: 1 }, c.hunt || {});
+        const hourOpts = Array.from({ length: 49 }, (_, i) => i / 2).map(v => `<option value="${v}"${v === Number(hunt.hours) ? ' selected' : ''}>${v}</option>`).join('');
+        const huntDay = mobExpAt(lvNow) * hunt.kills * hunt.hours * hunt.mult;
 
         // デイリーは地域ごと。ワールドで1日1回なので、ほかのキャラが選んだ地域は出さない。
         // 区分の名前を押すと、その区分の残りをまとめて入れる／外す。
@@ -945,6 +1001,14 @@ const expPlan = {
                 </div>` : ''}
                 ${tixItems ? `<span class="expp-lbl">農場</span><div class="flex flex-wrap items-center gap-1.5">${tixItems}</div>` : ''}
                 ${potItems ? `<span class="expp-lbl">秘薬</span><div class="flex flex-wrap items-center gap-1.5">${potItems}</div>` : ''}
+                <span class="expp-lbl">狩り</span>
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <label class="input input-xs font-mono w-28" title="1時間あたりの討伐数（自分の Lv の敵）"><input type="number" min="0" step="1000" value="${hunt.kills}" onchange="expPlan.setHunt('${ch.id}','kills',this.value)"><span class="text-slate-500">体/時</span></label>
+                    <label class="expp-cnt ${hunt.hours ? 'on' : ''}"><select class="select select-xs font-mono w-16" onchange="expPlan.setHunt('${ch.id}','hours',this.value)">${hourOpts}</select><span>時間/日</span></label>
+                    <label class="input input-xs font-mono w-20" title="経験値倍率（クーポン・ブースターなどを掛けた合計）"><span class="text-slate-500">×</span><input type="number" min="0" step="0.1" value="${hunt.mult}" onchange="expPlan.setHunt('${ch.id}','mult',this.value)"></label>
+                    ${huntDay > 0 ? `<span class="text-[11px] text-slate-500">1日 ${expFmt(huntDay)}</span>` : ''}
+                </div>
+                ${saunaItem ? `<span class="expp-lbl">放置</span><div class="flex flex-wrap items-center gap-1.5">${saunaItem}</div>` : ''}
             </div>
         </div>`;
     },
