@@ -651,6 +651,7 @@ const expPlan = {
             }
             out[ch.id] = days;
         });
+        this._saunaUsedDays = used; // 日ごとにアカウントで使う時間（途中でもらうサウナ券は、この空きで使う）
         return out;
     },
     setPool(world, kind, k, v) { this.state.pool[world][kind][k] = Math.max(0, Math.floor(Number(v) || 0)); this.commit(); },
@@ -726,7 +727,7 @@ const expPlan = {
         };
         const pendTix = this.TIX.map(t => ({ ...t, n: Number(c.tix[t.id]) || 0 }));
         const pendPot = EXP_POTION_TYPES.map(p => ({ ...p, n: Number(c.pot[p.id]) || 0 }));
-        let pendCoupon = 0;
+        let pendCoupon = 0, pendSauna = 0;
         const got0 = {}; // arrivals がもらい済みを覚えておく場所（このシミュレーションの間だけ）
         // 途中で手に入るもの（ウルティマのパスの報酬）を、もらった日に持ち物に足す
         const receive = (ymd) => {
@@ -734,12 +735,14 @@ const expPlan = {
             if (!got) return;
             const parts = [];
             if (got.coupon) parts.push(`交換券 ${got.coupon.toLocaleString()}`);
+            if (got.sauna) parts.push(`サウナ ${got.sauna}時間`);
             for (const [k, n] of Object.entries(got.tix || {})) if (n) parts.push(`${(this.TIX.find(x => x.id === k) || {}).label || k} ${n}`);
             for (const [k, n] of Object.entries(got.pot || {})) { const pt = EXP_POTION_TYPES.find(x => x.id === k); if (n) parts.push(`秘薬 ${pt ? this.potName(pt) : k} ${n}`); }
             if (parts.length) log.push({ ymd, kind: 'recv', label: (got.from ? got.from + ': ' : '') + parts.join('・'), n: 0, exp: 0, from: lvNow(), to: lvNow() });
             for (const [k, n] of Object.entries(got.tix || {})) { const t = pendTix.find(x => x.id === k); if (t) t.n += n; }
             for (const [k, n] of Object.entries(got.pot || {})) { const p = pendPot.find(x => x.id === k); if (p) p.n += n; }
             pendCoupon += got.coupon || 0;
+            pendSauna += got.sauna || 0;
         };
         // 上級EXP交換券は、使える Lv（260）になっていればもらった日に全部使う。100枚ずつ足して途中のレベルアップで量を引き直す
         const useCoupon = () => {
@@ -851,6 +854,15 @@ const expPlan = {
             // 放置マップ（サウナ）は狩りのあと。割り当てた時間をアカウントの1日の時間の中で使う
             dayIdx++;
             for (let h = saunaDays[dayIdx] || 0; h > 0; h -= 1) add(saunaExpPerHour(lv) * Math.min(1, h), 'sauna');
+            // 途中でもらったサウナ券は、その日のアカウントの空き時間で使う
+            if (pendSauna > 0) {
+                const free = this.saunaPerDay() - ((this._saunaUsedDays || [])[dayIdx] || 0);
+                const use = Math.min(pendSauna, Math.max(0, free));
+                if (use > 0) {
+                    record('sauna', 'サウナ券', use * 2, () => { for (let h = use; h > 0; h -= 1) add(saunaExpPerHour(lv) * Math.min(1, h), 'sauna'); });
+                    pendSauna -= use;
+                }
+            }
 
             usePot(ymd);
 

@@ -835,7 +835,7 @@ i.expp-ico, svg.expp-ico { width: 15px; height: 15px; margin: 0 1.5px; }
 .expp-log td { padding: 3px 6px; color: #cbd5e1; }
 .expp-log th.text-right, .expp-log td.text-right { text-align: right; }
 /* Ultima EXP Plan: パスの行と週ごとの表 */
-.expu-pass { display: grid; grid-template-columns: 150px auto minmax(0, 1fr); align-items: center; gap: 4px 12px; padding: 8px 12px; }
+.expu-pass { display: grid; grid-template-columns: 150px 108px minmax(0, 1fr); align-items: center; gap: 4px 12px; padding: 8px 12px; }
 .expu-pass-tot { grid-column: 2 / -1; }
 .expu-notes { list-style: disc; padding: 8px 12px 10px 28px; font-size: 11.5px; line-height: 1.6; color: #94a3b8; border-top: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent); }
 .expu-saved th, .expu-saved td { text-align: center; padding: 4px 8px; font-size: 11px; font-family: var(--font-mono, ui-monospace, monospace); white-space: nowrap; }
