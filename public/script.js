@@ -1184,12 +1184,13 @@ const app = {
                     <div class="mx-wk ${isWeeklyDone ? 'is-done' : ''}" ${wkSorted.length ? `onclick="app.toggleCharDone('${char.id}','weekly')" title="${isWeeklyDone ? 'クリックで消し込みを解除' : 'クリックで週ボスをまとめて消し込む'}"` : ''}>
                         ${wkSorted.length ? `<div class="mx-grid">${tiles(wkSorted, 14)}</div>${isWeeklyDone ? completeMark : ''}` : '<div class="mx-none mx-none-wk">週ボスなし</div>'}
                     </div>
-                    <div class="mx-tools">
-                        <button onclick="hexaTracker.openForCharacter('${char.id}')" class="mx-tool mx-tool-hexa" ${hexaReady ? '' : 'disabled'}><span class="mx-bar" style="width:${hexaPct}%"></span>${hexaClassId ? `HEXA <b>${hexaPct}%</b>` : 'HEXA 登録'}</button>
-                        <button onclick="app.openGearForCharacter('${char.id}')" class="mx-tool mx-tool-up">UPGRADE</button>
-                        <button onclick="app.openScouterForCharacter('${char.id}')" class="mx-tool mx-tool-scout">SCOUTER</button>
-                        <button onclick="app.openSymbolForCharacter('${char.id}')" class="mx-tool mx-tool-sym">${symPct !== null ? `<span class="mx-bar" style="width:${symPct}%"></span>SYMBOL <b>${symPct}%</b>` : 'SYMBOL'}</button>
-                    </div>
+                </div>
+                <!-- カード下の帯は横幅いっぱい。HEXA は立ち絵の列と同じ幅、残りの3つで右の幅を3等分 -->
+                <div class="mx-tools">
+                    <button onclick="hexaTracker.openForCharacter('${char.id}')" class="mx-tool mx-tool-hexa" ${hexaReady ? '' : 'disabled'}><span class="mx-bar" style="width:${hexaPct}%"></span>${hexaClassId ? `HEXA <b>${hexaPct}%</b>` : 'HEXA 登録'}</button>
+                    <button onclick="app.openGearForCharacter('${char.id}')" class="mx-tool mx-tool-up">UPGRADE</button>
+                    <button onclick="app.openScouterForCharacter('${char.id}')" class="mx-tool mx-tool-scout">SCOUTER</button>
+                    <button onclick="app.openSymbolForCharacter('${char.id}')" class="mx-tool mx-tool-sym">${symPct !== null ? `<span class="mx-bar" style="width:${symPct}%"></span>SYMBOL <b>${symPct}%</b>` : 'SYMBOL'}</button>
                 </div>
             </div>`;
         }).join('') + addCardHTML;
