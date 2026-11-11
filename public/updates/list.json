@@ -1,5 +1,15 @@
 [
   {
+    "id": "col-hologram-skill-fd",
+    "region": "COLUMN",
+    "date": "2026-11-11",
+    "kind": "Column",
+    "title": "ホログラムスキル 最終ダメージ込み比較",
+    "subtitle": "by Bijyon",
+    "period": "",
+    "summary": "職業別のホログラムスキル%に、各職業の最終ダメージ倍率（Grandis Library）を掛けて比較。倍率は総合評価・非瞬間・瞬間で切り替え、ランキングと全データの表で見られます。"
+  },
+  {
     "id": "col-3rd-hexa-history",
     "region": "COLUMN",
     "date": "2026-10-21",

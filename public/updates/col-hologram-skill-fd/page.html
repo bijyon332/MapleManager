@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ホログラムスキル実効比較</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap">
+<style>
+/* Layout: 1カラム。上に計算条件と総合指数バー、下に全スキル×職業の並べ替え可能な表 */
+/* Journal の Column に iframe で埋め込む。色はサイトのテーマ maple（紺黒の地・藍の差し色）に合わせたダークのみ */
+:root{
+  --bg:#020617; --surface:#0f172a; --fg:#e2e8f0; --muted:#94a3b8; --line:#1e293b;
+  --accent:#818cf8; --accent-soft:#1e1b4b; --warn:#fbbf24; --warn-soft:#33240a;
+  --f-body:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.7}
+.wrap{padding:0 0 8px;display:grid;gap:28px}
+h1{font-size:1.6rem;font-weight:800;margin:0;text-wrap:balance}
+h2{font-size:1.15rem;font-weight:700;margin:0 0 8px}
+p{margin:0;max-width:68ch}
+.lead{color:var(--muted)}
+section{display:grid;gap:10px;min-width:0}
+.note{background:var(--warn-soft);border-radius:8px;padding:12px 14px;font-size:.92rem}
+.note b{color:var(--warn)}
+ul{margin:0;padding-left:1.2em}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+select,button{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;padding:4px 10px}
+button{cursor:pointer}
+button[aria-pressed="true"]{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+select:focus-visible,button:focus-visible,th:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bars{display:grid;gap:3px}
+.bar{display:grid;grid-template-columns:2.2em minmax(7em,12em) 1fr 4.6em;gap:8px;align-items:center;font-size:.88rem}
+.bar .r{color:var(--muted);text-align:right;font-family:var(--f-num)}
+.bar .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .track{height:12px;background:var(--accent-soft);border-radius:3px;overflow:hidden}
+.bar .fill{height:100%;background:var(--accent)}
+.bar .val{font-family:var(--f-num);text-align:right;font-variant-numeric:tabular-nums}
+.tbl{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;font-size:.82rem;width:max-content;min-width:100%}
+th,td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{position:sticky;top:0;background:var(--surface);cursor:pointer;text-align:right;font-weight:700;user-select:none}
+th.l,td.l{text-align:left}
+td{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+td.l{font-family:var(--f-body)}
+td.sub{color:var(--muted);font-size:.78rem}
+th.sorted{color:var(--accent)}
+tr:hover td{background:var(--accent-soft)}
+td.sticky,th.sticky{position:sticky;left:0;background:var(--surface);z-index:1}
+th.sticky{z-index:2}
+.tag{display:inline-block;font-size:.72rem;padding:0 6px;border-radius:4px;background:var(--warn-soft);color:var(--warn);margin-left:4px}
+@media (max-width:520px){.bar{grid-template-columns:2em 7.5em 1fr 4.2em}}
+</style>
+
+<div class="wrap">
+<header style="display:grid;gap:8px">
+  <p class="lead">職業別のホログラムスキル%に、各職業の最終ダメージ倍率（1＋x%）を掛けて比較した表です。倍率は Grandis Library の値を使い、総合評価は非瞬間5：瞬間1の割合で合算しています。</p>
+</header>
+
+<section>
+  <h2>計算方法</h2>
+  <ul>
+    <li>実効値 ＝ 表のスキル% × (1 ＋ 最終ダメージ%/100)。例: ヒーロー レイジングブロー 320% × 4.0081 ＝ 1,283%</li>
+    <li>総合評価の倍率 ＝ {5 ×(1＋非瞬間) ＋ 1 ×(1＋瞬間)} ÷ 6。ダメージを5:1で加重平均するのと同じ計算です。例: ヒーローは (5×3.025 ＋ 5.4746) ÷ 6 ＝ 3.4333 なので +243.33%</li>
+    <li>総合指数 ＝ 11スキルそれぞれでヒーローの実効値を100としたときの比率の平均。スキルによって職業間の比率が少し違うため、個別スキルの順位は下の表で確認できます。</li>
+  </ul>
+</section>
+
+<section class="note">
+  <p><b>職業名の表記</b></p>
+  <ul>
+    <li>職業とスキル名は英語版（GMS）表記の表に合わせています。海賊は Buccaneer＝バイパー、Corsair＝キャプテンです。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>最終ダメージの出典</h2>
+  <p>倍率は次の3通りから選べます。ランキングと全データの表が両方切り替わります。初期表示は総合評価です。</p>
+  <ul>
+    <li><b>総合評価</b>: 非瞬間5、瞬間1の割合で合算した値です。</li>
+    <li><b>非瞬間</b>: 各職業ページの「Base Stats (From Skills)」にある Final Damage の括弧の外の値です。常時かかるパッシブ分です。</li>
+    <li><b>瞬間</b>: 同じ行の括弧内の値です。トグルや一時バフ（マナオーバーロード、5次の祝福スキルなど）を全部入れた値です。括弧のない職業は非瞬間と同じ値にしています。</li>
+  </ul>
+  <p>Grandis Library の値はサイトの公開データ（2026-11-09更新、GMS現行パッチ）から取っています。特定スキルにしかかからない上乗せ（パスファインダーのAF/EF、キネシスのアルティメット、レンの一部スキル、カンナの式神、墨玄の神技）はホログラムには乗らないと判断して除きました。6次スキル込みの値や変身中の値が別に書かれている職業は、表の「GL備考」列に載せています。</p>
+</section>
+
+<section>
+  <h2>ランキング</h2>
+  <div class="controls">
+    <label for="fdset">倍率</label>
+    <select id="fdset">
+      <option value="mix">総合評価（非瞬間5：瞬間1）</option>
+      <option value="base">非瞬間</option>
+      <option value="cond">瞬間</option>
+    </select>
+    <label for="metric">並べる基準</label>
+    <select id="metric"></select>
+  </div>
+  <div class="bars" id="bars"></div>
+</section>
+
+<section>
+  <h2>全データ</h2>
+  <div class="controls">
+    <span>表示</span>
+    <button id="mAfter" aria-pressed="true">最終ダメージ込み</button>
+    <button id="mBefore" aria-pressed="false">表の元の値</button>
+    <span class="lead" style="font-size:.85rem">見出しをクリックで並べ替え</span>
+  </div>
+  <div class="tbl"><table id="t"></table></div>
+</section>
+</div>
+
+<script>
+const DATA=[{"t": "Hero", "n": "ヒーロー", "mix": 243.3267, "base": 202.5, "cond": 447.46, "raw": "+202.5%(447.46%)", "glnote": "", "v": [320, 1315, 241, 3473, 183, 828, 687, 339, 142, 524, 1495]}, {"t": "Paladin", "n": "パラディン", "mix": 89.3917, "base": 65.77, "cond": 207.5, "raw": "+65.77%(207.50%)", "glnote": "", "v": [588, 2561, 413, 6761, 301, 1612, 1327, 653, 222, 1013, 2940]}, {"t": "Dark Knight", "n": "ダークナイト", "mix": 141.365, "base": 134.0, "cond": 178.19, "raw": "+134%(178.19%)", "glnote": "", "v": [349, 1471, 261, 3882, 195, 922, 770, 381, 149, 588, 1673]}, {"t": "Arch Mage (F/P)", "n": "アークメイジ（火毒）", "mix": 301.2883, "base": 260.99, "cond": 502.78, "raw": "+260.99%(502.78%)", "glnote": "", "v": [313, 1264, 236, 3328, 180, 795, 661, 325, 140, 505, 1423]}, {"t": "Arch Mage (I/L)", "n": "アークメイジ（氷雷）", "mix": 225.195, "base": 188.79, "cond": 407.22, "raw": "+188.79%(407.22%)", "glnote": "", "v": [307, 1269, 232, 3348, 177, 798, 656, 328, 138, 506, 1467]}, {"t": "Bishop", "n": "ビショップ", "mix": 282.48, "base": 227.43, "cond": 557.73, "raw": "+227.43%(557.73%) [6th Job](567.18%-641.31%)", "glnote": "6次スキル込みは567.18〜641.31%", "v": [318, 1340, 240, 3525, 182, 839, 690, 346, 141, 529, 1546]}, {"t": "Bow Master", "n": "ボウマスター", "mix": 60.3967, "base": 55.71, "cond": 83.83, "raw": "+55.71%(83.83%)", "glnote": "", "v": [778, 3391, 551, 8957, 401, 2132, 1767, 864, 294, 1343, 3853]}, {"t": "Marksman", "n": "クロスボウマスター（神弓）", "mix": 69.5417, "base": 68.42, "cond": 75.15, "raw": "+68.42%(75.15%)", "glnote": "", "v": [617, 2694, 440, 7102, 321, 1691, 1403, 686, 237, 1069, 3063]}, {"t": "Pathfinder", "n": "パスファインダー", "mix": 43.36, "base": 43.36, "cond": 43.36, "raw": "+43.36% (57.7% for AF/EF Skills)", "glnote": "AF/EFスキルのみ57.7%（ホログラムには不適用と判断）", "v": [757, 3317, 537, 8761, 392, 2086, 1718, 845, 289, 1314, 3810]}, {"t": "Night Lord", "n": "ナイトロード", "mix": 58.5767, "base": 48.35, "cond": 109.71, "raw": "+48.35%(109.71%)", "glnote": "", "v": [373, 1612, 277, 4260, 206, 1016, 843, 410, 155, 638, 1834]}, {"t": "Shadower", "n": "シャドー", "mix": 71.485, "base": 56.79, "cond": 144.96, "raw": "+56.79%(144.96%)", "glnote": "", "v": [363, 1551, 270, 4089, 201, 976, 810, 393, 153, 615, 1757]}, {"t": "Dual Blade", "n": "デュアルブレイド", "mix": 72.485, "base": 41.26, "cond": 228.61, "raw": "+41.26%(228.61%)", "glnote": "", "v": [334, 1420, 251, 3744, 189, 890, 735, 368, 145, 567, 1643]}, {"t": "Buccaneer", "n": "バイパー", "mix": 34.9067, "base": 24.3, "cond": 87.94, "raw": "+24.3%(87.94%)", "glnote": "", "v": [564, 2449, 402, 6459, 294, 1536, 1273, 623, 218, 974, 2795]}, {"t": "Corsair", "n": "キャプテン", "mix": 62.0, "base": 62.0, "cond": 62.0, "raw": "+62%", "glnote": "括弧なし（瞬間＝非瞬間）", "v": [508, 2220, 359, 5861, 261, 1392, 1155, 563, 192, 878, 2530]}, {"t": "Cannon Master", "n": "キャノンシューター", "mix": 57.66, "base": 57.66, "cond": 57.66, "raw": "+57.66%", "glnote": "括弧なし（瞬間＝非瞬間）", "v": [413, 1777, 298, 4692, 219, 1116, 931, 454, 163, 705, 2017]}, {"t": "Dawn Warrior", "n": "ソウルマスター", "mix": 69.8717, "base": 68.19, "cond": 78.28, "raw": "+68.19%(78.28%)", "glnote": "", "v": [375, 1648, 278, 4341, 206, 1034, 853, 419, 156, 655, 1900]}, {"t": "Blaze Wizard", "n": "フレイムウィザード", "mix": 105.2, "base": 102.5, "cond": 118.7, "raw": "+102.5%(118.7%)", "glnote": "", "v": [427, 1861, 308, 4901, 225, 1164, 974, 475, 167, 741, 2112]}, {"t": "Wind Archer", "n": "ウィンドシューター", "mix": 66.32, "base": 66.32, "cond": 66.32, "raw": "+66.32%", "glnote": "括弧なし（瞬間＝非瞬間）", "v": [523, 2279, 372, 6014, 272, 1433, 1182, 578, 201, 905, 2609]}, {"t": "Night Walker", "n": "ナイトウォーカー", "mix": 67.1317, "base": 54.56, "cond": 129.99, "raw": "+54.56%(129.99%)", "glnote": "", "v": [312, 1263, 236, 3325, 180, 794, 660, 324, 140, 505, 1422]}, {"t": "Thunder Breaker", "n": "ストライカー", "mix": 55.6933, "base": 48.99, "cond": 89.21, "raw": "+48.99%(89.21%)", "glnote": "", "v": [288, 1146, 219, 3027, 169, 725, 595, 295, 133, 455, 1309]}, {"t": "Aran", "n": "アラン", "mix": 34.4317, "base": 33.1, "cond": 41.09, "raw": "+33.1%(41.09%)", "glnote": "", "v": [547, 2392, 388, 6302, 282, 1500, 1244, 606, 207, 945, 2713]}, {"t": "Evan", "n": "エヴァン", "mix": 77.065, "base": 68.74, "cond": 118.69, "raw": "+68.74%(118.69%)", "glnote": "", "v": [530, 2336, 377, 6151, 275, 1464, 1206, 592, 203, 923, 2680]}, {"t": "Mercedes", "n": "メルセデス", "mix": 53.7817, "base": 48.82, "cond": 78.59, "raw": "+48.82%(78.59%)", "glnote": "", "v": [497, 2183, 352, 5763, 256, 1369, 1131, 554, 189, 863, 2508]}, {"t": "Phantom", "n": "ファントム", "mix": 79.2233, "base": 70.3, "cond": 123.84, "raw": "+70.3%(123.84%)", "glnote": "", "v": [337, 1429, 253, 3770, 190, 896, 742, 370, 146, 571, 1648]}, {"t": "Luminous", "n": "ルミナス", "mix": 90.3583, "base": 86.2, "cond": 111.15, "raw": "+86.2%(111.15%)", "glnote": "", "v": [466, 2022, 328, 5331, 238, 1270, 1060, 517, 175, 799, 2285]}, {"t": "Shade", "n": "隠月", "mix": 87.0767, "base": 84.01, "cond": 102.41, "raw": "+84.01%(102.41%)", "glnote": "", "v": [398, 1725, 288, 4554, 213, 1083, 897, 441, 160, 684, 1987]}, {"t": "Demon Slayer", "n": "デーモンスレイヤー", "mix": 53.745, "base": 45.2, "cond": 96.47, "raw": "+45.2%(96.47%)", "glnote": "", "v": [351, 1480, 262, 3905, 196, 928, 776, 383, 150, 591, 1678]}, {"t": "Demon Avenger", "n": "デーモンアヴェンジャー", "mix": 69.97, "base": 65.11, "cond": 94.27, "raw": "+65.11%(94.27%)", "glnote": "", "v": [417, 1822, 301, 4800, 221, 1140, 949, 465, 164, 726, 2089]}, {"t": "Battle Mage", "n": "バトルメイジ", "mix": 62.1417, "base": 58.6, "cond": 79.85, "raw": "+58.6%(79.85%)", "glnote": "", "v": [540, 2369, 383, 6239, 279, 1485, 1228, 601, 206, 936, 2699]}, {"t": "Wild Hunter", "n": "ワイルドハンター", "mix": 106.22, "base": 106.22, "cond": 106.22, "raw": "+106.22%", "glnote": "括弧なし（瞬間＝非瞬間）", "v": [638, 2794, 457, 7360, 335, 1750, 1448, 713, 249, 1110, 3208]}, {"t": "Mechanic", "n": "メカニック", "mix": 52.4133, "base": 51.94, "cond": 54.78, "raw": "+51.94%(54.78%)", "glnote": "", "v": [559, 2431, 399, 6413, 292, 1525, 1262, 618, 217, 967, 2785]}, {"t": "Xenon", "n": "ゼノン", "mix": 67.0017, "base": 54.44, "cond": 129.81, "raw": "+54.44%(129.81%)", "glnote": "", "v": [305, 1240, 231, 3263, 177, 779, 644, 318, 138, 496, 1408]}, {"t": "Blaster", "n": "ブラスター", "mix": 88.87, "base": 87.0, "cond": 98.22, "raw": "+87%(98.22%)", "glnote": "", "v": [408, 1761, 295, 4649, 217, 1106, 921, 450, 162, 698, 2008]}, {"t": "Mihile", "n": "ミハエル", "mix": 116.8267, "base": 87.5, "cond": 263.46, "raw": "+87.5%(263.46%)(266.20%-282.60% w/ 6th Job)", "glnote": "6次スキル込みは266.20〜282.60%", "v": [551, 2402, 393, 6334, 288, 1507, 1242, 611, 214, 955, 2768]}, {"t": "Kaiser", "n": "カイザー", "mix": 36.21, "base": 33.0, "cond": 52.26, "raw": "+33%(52.26%)(91.31% during Final Form (3rd Job)) - Excl. Dragon Link (Beginner Skill)", "glnote": "ファイナルフィギュア中は91.31%。ドラゴンリンク除く", "v": [675, 2921, 477, 7707, 348, 1831, 1525, 748, 256, 1159, 3325]}, {"t": "Kain", "n": "カイン", "mix": 122.63, "base": 122.63, "cond": 122.63, "raw": "+122.63%", "glnote": "括弧なし（瞬間＝非瞬間）", "v": [450, 1969, 318, 5191, 232, 1237, 1025, 504, 171, 778, 2254]}, {"t": "Cadena", "n": "カデナ", "mix": 120.265, "base": 87.2, "cond": 285.59, "raw": "+87.2%(285.59%)", "glnote": "", "v": [547, 2392, 388, 6302, 282, 1500, 1244, 606, 207, 945, 2713]}, {"t": "Angelic Buster", "n": "エンジェリックバスター", "mix": 68.6833, "base": 62.22, "cond": 101.0, "raw": "+62.22%(101%)", "glnote": "", "v": [511, 2233, 361, 5897, 262, 1400, 1164, 566, 192, 883, 2537]}, {"t": "Zero", "n": "ゼロ", "mix": 63.0167, "base": 47.42, "cond": 141.0, "raw": "[Both] +47.42%(141%)(158.72% w/ 6th Job Lv. 30)", "glnote": "6次スキルLv30込みは158.72%", "v": [562, 2440, 400, 6436, 293, 1531, 1268, 620, 217, 971, 2790]}, {"t": "Kinesis", "n": "キネシス", "mix": 156.495, "base": 148.27, "cond": 197.62, "raw": "+148.27%(197.62%)(233.34% to Ultimate skills)", "glnote": "アルティメットスキルのみ233.34%（ホログラムには不適用と判断）", "v": [443, 1911, 313, 5050, 229, 1204, 999, 489, 169, 760, 2183]}, {"t": "Adele", "n": "アデル", "mix": 68.9833, "base": 67.31, "cond": 77.35, "raw": "+67.31%(77.35%)", "glnote": "", "v": [533, 2311, 378, 6099, 276, 1453, 1203, 586, 204, 918, 2628]}, {"t": "Illium", "n": "イリウム", "mix": 56.3683, "base": 47.0, "cond": 103.21, "raw": "+47%(103.21%)", "glnote": "", "v": [691, 3031, 495, 8003, 362, 1905, 1578, 769, 268, 1205, 3476]}, {"t": "Khali", "n": "カーリー", "mix": 85.0683, "base": 72.8, "cond": 146.41, "raw": "+72.8%(146.41%)", "glnote": "", "v": [745, 3250, 528, 8566, 386, 2035, 1689, 826, 286, 1288, 3729]}, {"t": "Ark", "n": "アーク", "mix": 41.12, "base": 41.12, "cond": 41.12, "raw": "+41.12%", "glnote": "括弧なし（瞬間＝非瞬間）", "v": [676, 2922, 477, 7710, 348, 1832, 1526, 748, 256, 1159, 3326]}, {"t": "Ren", "n": "レン", "mix": 70.9217, "base": 69.23, "cond": 79.38, "raw": "+69.23%(79.38%)(106.29% to certain skills)", "glnote": "一部スキルのみ106.29%（ホログラムには不適用と判断）", "v": [764, 3343, 542, 8829, 395, 2102, 1735, 852, 291, 1324, 3825]}, {"t": "Lara", "n": "ララ", "mix": 107.8433, "base": 97.93, "cond": 157.41, "raw": "+97.93%(157.41%)", "glnote": "", "v": [455, 1983, 321, 5230, 234, 1246, 1035, 508, 172, 784, 2262]}, {"t": "Hoyoung", "n": "虎影", "mix": 110.705, "base": 102.6, "cond": 151.23, "raw": "+102.60%(151.23%)", "glnote": "", "v": [447, 1924, 315, 5086, 230, 1213, 1008, 493, 170, 765, 2191]}, {"t": "Lethe", "n": "レテ", "mix": 169.275, "base": 160.64, "cond": 212.45, "raw": "+160.64%(212.45%)", "glnote": "", "v": [448, 1959, 316, 5164, 231, 1230, 1018, 501, 170, 774, 2248]}, {"t": "Hayato", "n": "ハヤト", "mix": 94.5417, "base": 72.5, "cond": 204.75, "raw": "+72.5%(204.75% / 206.27-219.99% in 6th Job) (814.25% w/ Noto (4th Job) / 818.82-859.96% in 6th Job)", "glnote": "6次では206.27〜219.99%。能登(Noto)中は814.25%（6次で818.82〜859.96%）", "v": [568, 2463, 405, 6498, 296, 1545, 1283, 626, 219, 980, 2804]}, {"t": "Kanna", "n": "カンナ", "mix": 5.8333, "base": 0.0, "cond": 35.0, "raw": "(+35%)(75.5-82.25% for Shikigami)", "glnote": "常時の最終ダメージなし。瞬間35%はサクノの祝福+マナオーバーロード。式神限定の75.5〜82.25%は不適用と判断", "v": [1045, 4582, 740, 12084, 539, 2873, 2379, 1162, 396, 1811, 5225]}, {"t": "Lynn", "n": "リン", "mix": 159.725, "base": 143.34, "cond": 241.65, "raw": "+143.34% w/ [Focus] Awaken (5th Job) [+60%/+30%] (320.49%/241.65%)", "glnote": "瞬間は[集中]覚醒をソロ(+30%)で計算。パーティ2人以上(+60%)なら320.49%", "v": [553, 2415, 392, 6360, 285, 1514, 1259, 612, 209, 954, 2726]}, {"t": "Mo Xuan", "n": "墨玄", "mix": 81.5, "base": 81.5, "cond": 81.5, "raw": "+81.5%(172.25%-263% w/ The Holy Mountain (3rd Job))(308.38%-444.5% w/ Heir of the Divine (4th Job))", "glnote": "括弧内の値は聖山(The Holy Mountain)による神技(Divine Art)スキル限定の上乗せなので、ホログラムには不適用と判断", "v": [477, 2059, 339, 5439, 248, 1294, 1077, 529, 184, 820, 2357]}, {"t": "Erel Light", "n": "エリル（エレルライト）", "mix": 144.875, "base": 142.45, "cond": 157.0, "raw": "+142.45%(157%)", "glnote": "", "v": [358, 1501, 266, 3960, 199, 941, 790, 388, 151, 600, 1690]}, {"t": "Sia Astelle", "n": "シア", "mix": 77.075, "base": 68.75, "cond": 118.7, "raw": "+68.75%(118.70%)", "glnote": "", "v": [481, 2076, 339, 5475, 245, 1304, 1097, 531, 179, 821, 2316]}];
+const COLS=["Raging Blow", "Worldreaver", "Snipe", "Ultimate Snipe", "Chain Lightning", "Bolt Barrage", "Showdown", "Shurrikane", "Cannon Barrage", "Max Cannon Rainbow", "Registry"];
+const H=DATA[0];
+const SETNAME={mix:'総合評価',base:'非瞬間',cond:'瞬間'};
+function compute(set){
+  const hm=1+H[set]/100;
+  DATA.forEach(r=>{r.fdc=r[set];r.k=1+r.fdc/100;r.e=r.v.map(x=>x*r.k);
+    r.ratio=r.e.map((x,i)=>x/(H.v[i]*hm)*100);
+    r.idx=r.ratio.reduce((a,b)=>a+b,0)/r.ratio.length;});
+}
+const fdsel=document.getElementById('fdset');
+compute(fdsel.value);
+fdsel.addEventListener('change',()=>{compute(fdsel.value);bars();table();});
+const fmt=x=>Math.round(x).toLocaleString('ja-JP');
+const sel=document.getElementById('metric');
+sel.innerHTML='<option value="idx">総合指数（ヒーロー=100）</option>'+COLS.map((c,i)=>`<option value="${i}">[Hologram] ${c}</option>`).join('');
+function bars(){
+  const m=sel.value;const val=r=>m==='idx'?r.idx:r.e[+m];
+  const s=[...DATA].sort((a,b)=>val(b)-val(a));const mx=val(s[0]);
+  document.getElementById('bars').innerHTML=s.map((r,i)=>`<div class="bar"><span class="r">${i+1}</span><span class="nm" title="${r.n}">${r.n}</span><span class="track"><span class="fill" style="display:block;width:${(val(r)/mx*100).toFixed(1)}%"></span></span><span class="val">${m==='idx'?val(r).toFixed(1):fmt(val(r))+'%'}</span></div>`).join('');
+}
+sel.addEventListener('change',bars);
+let mode='after',sortKey='idx',asc=false;
+function table(){
+  const get=(r,k)=>k==='idx'?r.idx:k==='fd'?r.fdc:k==='n'?r.n:(mode==='after'?r.e[k]:r.v[k]);
+  const s=[...DATA].sort((a,b)=>{const x=get(a,sortKey),y=get(b,sortKey);return (typeof x==='string'?x.localeCompare(y,'ja'):x-y)*(asc?1:-1)});
+  const th=(k,label,cls='')=>`<th class="${cls}${sortKey===k?' sorted':''}" data-k="${k}" tabindex="0">${label}</th>`;
+  let h='<thead><tr>'+th('n','職業','l sticky')+'<th class="l">GMS表記</th>'+th('fd','最終ダメ（'+SETNAME[fdsel.value]+'）')+th('idx','総合指数')+'<th>総合評価</th><th>非瞬間</th><th>瞬間</th>'+COLS.map((c,i)=>th(i,c)).join('')+'<th class="l">GLの元表記</th><th class="l">GL備考</th></tr></thead><tbody>';
+  const p=x=>'+'+x.toFixed(2)+'%';
+  h+=s.map(r=>`<tr><td class="l sticky">${r.n}</td><td class="l sub">${r.t}</td><td>${p(r.fdc)}</td><td>${r.idx.toFixed(1)}</td><td class="sub">${p(r.mix)}</td><td class="sub">${p(r.base)}</td><td class="sub">${p(r.cond)}</td>${(mode==='after'?r.e:r.v).map(x=>`<td>${fmt(x)}%</td>`).join('')}<td class="l sub">${r.raw}</td><td class="l sub">${r.glnote}</td></tr>`).join('');
+  document.getElementById('t').innerHTML=h+'</tbody>';
+  document.querySelectorAll('#t th[data-k]').forEach(el=>{const go=()=>{let k=el.dataset.k;k=isNaN(+k)?k:+k;if(sortKey===k)asc=!asc;else{sortKey=k;asc=k==='n';}table();};el.onclick=go;el.onkeydown=e=>{if(e.key==='Enter')go();};});
+}
+document.getElementById('mAfter').onclick=()=>{mode='after';mAfter.setAttribute('aria-pressed','true');mBefore.setAttribute('aria-pressed','false');table();};
+document.getElementById('mBefore').onclick=()=>{mode='before';mBefore.setAttribute('aria-pressed','true');mAfter.setAttribute('aria-pressed','false');table();};
+bars();table();
+// Journal に埋め込まれているときは、iframe の高さを中身に合わせる
+if (window.frameElement) {
+  const fit = () => { window.frameElement.style.height = Math.ceil(document.body.getBoundingClientRect().height) + "px"; };
+  new ResizeObserver(fit).observe(document.body);
+  fit();
+}
+</script>
