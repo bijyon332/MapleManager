@@ -126,6 +126,14 @@ const saunaExpPerHour = lv => {
     return Math.ceil(k * mob / 720) * 720;
 };
 
+// トレジャーハンターの箱1つの EXP（期待値）。箱の EXP は狩り場の敵1体の基本 EXP × 箱の倍率（ゴールド 3,000〜24,000、
+// ダイア 30,000〜240,000、等級が上がるごとに2倍）で、どの箱・等級になるかは運なので、メイプル研究所の実測（1,047箱）から出した
+// 1箱あたりの期待倍率 14,361.95 を使う（mushroom-lab.com/growth/leveling/treasure-hunter、Lv260〜299 が対象）。
+// 自分の Lv の敵を狩る想定。EXP のバフは乗らず、トレジャーハンター EXP の増加だけ乗る。1キャラ1日10箱まで。
+const TREASURE_EXPECTED_MULT = 14361.95;
+const TREASURE_MIN_LV = 260;
+const treasureBoxExp = lv => lv < TREASURE_MIN_LV ? 0 : Math.floor(mobExpAt(Math.min(lv, 299)) * TREASURE_EXPECTED_MULT);
+
 // 上級EXP交換券（KMS 상급 EXP 교환권）1枚の EXP（Lv.260+）。同じ Lv のグランディスの敵 225 体分を千の単位で切り上げ、
 // Lv.291 以上は Lv.290 と同じ（KMS の分析記事・namu wiki の式。GMS に同じアイテムがあるかは未確認）。
 const expCouponExp = lv => lv < 260 ? 0 : Math.ceil(grandisMob(Math.min(lv, 290)) * 225 / 1000) * 1000;

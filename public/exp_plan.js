@@ -56,6 +56,7 @@ const expBuffs = {
         { id: 'darc', label: 'デイリー（アーケイン）', color: '#6ee7b7' },
         { id: 'dgrand', label: 'デイリー（グランディス）', color: '#10b981' },
         { id: 'weekly', label: '週課（アーケイン）', color: '#22d3ee' },
+        { id: 'th', label: 'トレジャーハンター', color: '#e879f9' },
     ],
     list: [],
     loaded: false,
@@ -352,15 +353,17 @@ const expPlan = {
         { id: 'farm', label: '農場', color: '#f472b6' },
         { id: 'potion', label: '秘薬', color: '#f87171' },
         { id: 'hunt', label: '狩り', color: '#fb923c' },
+        { id: 'th', label: 'トレハン', color: '#e879f9' },
         { id: 'sauna', label: 'サウナ', color: '#a3e635' },
     ],
+    TH_PER_DAY: 10, // トレジャーハンターの箱は1キャラ1日10箱まで
     SAUNA_PER_DAY: 8, // 放置マップは1日8時間まで（bi 指定）。実際に1日何時間使うかは state.saunaDay（アカウント共有、既定は上限）
     // 入力欄の見出しのアイコン（GMS のアイテム画像。public/assets/exp/）。画像がないものは lucide
     ICON: {
         daily: { img: 'assets/exp/sym-r1.png' }, weekly: { img: 'assets/exp/sym-r4.png' },
         monpa: { img: 'assets/exp/monpa.png' }, mpe: { img: 'assets/exp/mpe.png' },
         epic: { lucide: 'castle' }, farm: { img: 'assets/exp/farm.png' }, potion: { img: 'assets/exp/potion.png' },
-        hunt: { lucide: 'swords' }, sauna: { img: 'assets/exp/sauna.png' },
+        hunt: { lucide: 'swords' }, th: { lucide: 'gem' }, sauna: { img: 'assets/exp/sauna.png' },
         start: { lucide: 'flag' }, burn: { lucide: 'flame' },
     },
     // デイリーの地域のシンボル（テネブリスはシンボルがないので出さない）
@@ -481,7 +484,7 @@ const expPlan = {
             dailyOn: null, weekly: true,
             monpa: 0, mpe: false, epic: 'none', burn: 'none',
             tix: {}, pot: {},
-            hunt: null, sauna: 0,
+            hunt: null, sauna: 0, th: 0,
         };
         for (const k of Object.keys(def)) if (c[k] === undefined) c[k] = def[k];
         // デイリーは地域ごとに選ぶ（選んだ地域の id を持つ）。デイリーの EXP はワールド内で1日1回しか
@@ -629,6 +632,8 @@ const expPlan = {
         if (h.mult != null) { if (!c.hunt || c.hunt.pct == null) h.pct = Math.max(0, Math.round((Number(h.mult) - 1) * 100)); delete h.mult; }
         return h;
     },
+    // トレジャーハンター: 1日に開ける箱の数（10箱まで）
+    setTh(id, v) { this.cfg(id).th = Math.max(0, Math.min(this.TH_PER_DAY, Math.floor(Number(v) || 0))); this.commit(); },
     setSauna(id, v) { this.cfg(id).sauna = Math.max(0, Number(v) || 0); this.commit(); },
     setPoolSauna(v) { this.state.sauna = Math.max(0, Math.round((Number(v) || 0) * 2) / 2); this.commit(); },
     // 1日に使うサウナの時間（アカウント全体、0.5 時間単位、上限 8 時間）
@@ -789,6 +794,7 @@ const expPlan = {
         const dailies = expRegionData.filter(r => r.daily > 0 && c.dailyOn.includes(r.id));
         const hunt = this.huntCfg(c), huntMult = 1 + (Number(hunt.pct) || 0) / 100;
         const huntH = Number(hunt.hours) || 0;
+        const thN = Number(c.th) || 0;
         const saunaDays = (this._saunaSched && this._saunaSched[ch.id]) || [];
         let dayIdx = -1;
         const done = { mpe: null, epic: null, weekly: new Set() };
@@ -850,6 +856,11 @@ const expPlan = {
             if (huntH > 0 && hunt.kills > 0) {
                 const parts = Math.ceil(huntH);
                 for (let i = 0; i < parts; i++) add(mobExpAt(lv) * hunt.kills * huntMult * Math.min(1, huntH - i), 'hunt');
+            }
+            // トレジャーハンターの箱。自分の Lv の狩り場で開ける想定。EXP のバフは乗らず、トレジャーハンター EXP の増加（th）だけ乗る
+            if (thN > 0 && lv >= TREASURE_MIN_LV) {
+                const bTh = 1 + this.buffPct('th', ymd) / 100;
+                for (let i = 0; i < thN; i++) add(treasureBoxExp(lv) * bTh, 'th');
             }
             // 放置マップ（サウナ）は狩りのあと。割り当てた時間をアカウントの1日の時間の中で使う
             dayIdx++;
@@ -1118,6 +1129,9 @@ const expPlan = {
         const hunt = this.huntCfg(c);
         const hourOpts = Array.from({ length: 49 }, (_, i) => i / 2).map(v => `<option value="${v}"${v === Number(hunt.hours) ? ' selected' : ''}>${v}</option>`).join('');
         const huntDay = mobExpAt(lvNow) * hunt.kills * hunt.hours * (1 + (Number(hunt.pct) || 0) / 100);
+        const thN = Number(c.th) || 0;
+        const thOpts = Array.from({ length: this.TH_PER_DAY + 1 }, (_, i) => i).map(v => `<option value="${v}"${v === thN ? ' selected' : ''}>${v}</option>`).join('');
+        const thDay = thN * treasureBoxExp(lvNow);
 
         // デイリーは地域ごと。ワールドで1日1回なので、ほかのキャラが選んだ地域は出さない。
         // 区分の名前を押すと、その区分の残りをまとめて入れる／外す。
@@ -1177,6 +1191,11 @@ const expPlan = {
                     <label class="input input-xs font-mono w-28 expp-insel" title="1日に狩る時間"><select onchange="${this.NS}.setHunt('${ch.id}','hours',this.value)">${hourOpts}</select><i data-lucide="chevron-down" class="w-3 h-3 text-slate-500 shrink-0"></i><span class="text-slate-500">時間/日</span></label>
                     <label class="input input-xs font-mono w-32" title="ステータス画面の経験値（+N%）。基礎の100%に足して計算します"><span class="text-slate-500">EXP +</span><input type="number" min="0" step="10" value="${hunt.pct}" onchange="${this.NS}.setHunt('${ch.id}','pct',this.value)"><span class="text-slate-500">%</span></label>
                     ${huntDay > 0 ? `<span class="text-[11px] text-slate-500">1日 ${expFmt(huntDay)}</span>` : ''}
+                </div>
+                ${this.rowLbl('th', 'トレハン')}
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <label class="input input-xs font-mono w-28 expp-insel" title="1日に開ける箱の数（1キャラ1日10箱まで）"><select onchange="${this.NS}.setTh('${ch.id}',this.value)"${lvNow < TREASURE_MIN_LV ? ' disabled' : ''}>${thOpts}</select><i data-lucide="chevron-down" class="w-3 h-3 text-slate-500 shrink-0"></i><span class="text-slate-500">箱/日</span></label>
+                    <span class="text-[11px] text-slate-500">${lvNow < TREASURE_MIN_LV ? `Lv${TREASURE_MIN_LV} から` : `${thDay > 0 ? `1日 ${expFmt(thDay)}・` : ''}1箱は敵 ${TREASURE_EXPECTED_MULT.toLocaleString()} 体分（期待値）`}</span>
                 </div>
                 ${saunaItem ? `${this.rowLbl('sauna', '放置')}<div class="flex flex-wrap items-center gap-1.5">${saunaItem}</div>` : ''}
             </div>
