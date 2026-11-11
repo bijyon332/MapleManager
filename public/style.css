@@ -406,13 +406,14 @@ body {
 .mx-mo .mx-complete span { font-size: 15px; letter-spacing: .2em; }
 
 /* 下の帯：最初から HEXA＝紫、UPGRADE＝水色、SCOUTER＝琥珀で色を付ける（入力済みかどうかで色は変えない） */
-.mx-tools { display: grid; grid-template-columns: repeat(3, 1fr); margin: auto -10px 0; border-top: 1px solid #ffffff1a; background: #0b1222; }
-.mx-tool { position: relative; height: 24px; font: 500 11px "IBM Plex Mono", monospace; letter-spacing: .1em; text-align: center; white-space: nowrap; }
+.mx-tools { display: grid; grid-template-columns: repeat(4, 1fr); margin: auto -10px 0; border-top: 1px solid #ffffff1a; background: #0b1222; }
+.mx-tool { position: relative; height: 24px; font: 500 11px "IBM Plex Mono", monospace; letter-spacing: .06em; text-align: center; white-space: nowrap; }
 .mx-tool + .mx-tool { border-left: 1px solid #ffffff1a; }
-.mx-tool b { margin-left: 6px; font-weight: 700; }
+.mx-tool b { margin-left: 4px; font-weight: 700; }
 .mx-tool-hexa { color: #a78bfa; background: #a78bfa1a; } .mx-tool-hexa:hover { background: #a78bfa33; }
 .mx-tool-up { color: #38bdf8; background: #38bdf81a; } .mx-tool-up:hover { background: #38bdf833; }
 .mx-tool-scout { color: #fbbf24; background: #fbbf241a; } .mx-tool-scout:hover { background: #fbbf2433; }
+.mx-tool-sym { color: #f472b6; background: #f472b61a; } .mx-tool-sym:hover { background: #f472b633; } .mx-tool-sym .mx-bar { background: #f472b6; }
 .mx-bar { position: absolute; left: 0; bottom: 0; height: 2px; background: #a78bfa; }
 
 /* 全部消し込んだカードは地と名前を沈める。キャラ画像・サーバー色の線・透かしはそのまま（bi 指定） */
@@ -853,3 +854,35 @@ i.expp-ico, svg.expp-ico { width: 15px; height: 15px; margin: 0 1.5px; }
 .expp-pick.is-on { border-color: #6366f1; background: #6366f11f; }
 .expp-pick-box { width: 18px; height: 18px; flex-shrink: 0; border-radius: 4px; border: 1.5px solid #475569; display: flex; align-items: center; justify-content: center; color: #fff; }
 .expp-pick.is-on .expp-pick-box { background: #6366f1; border-color: #6366f1; }
+
+/* ---------- Symbol Planner（symbol_planner.js） ---------- */
+.sp-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 18px; padding: 10px 14px; }
+.sp-stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sp-stat-l { font-size: 11px; font-weight: 700; color: #64748b; white-space: nowrap; }
+.sp-stat-v { display: flex; align-items: center; gap: 6px; min-height: 32px; font-size: 16px; font-family: "IBM Plex Mono", monospace; }
+.sp-stat-v .text-xs { font-family: inherit; }
+.sp-check { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: var(--radius-field); border: 1px solid #ffffff1a; font: 500 12px system-ui, sans-serif; color: #94a3b8; cursor: pointer; white-space: nowrap; }
+.sp-check.on { color: #e2e8f0; border-color: #6366f199; background: #6366f11f; }
+.sp-table td { vertical-align: middle; white-space: nowrap; padding-left: 8px; padding-right: 8px; }
+.sp-table th { padding-left: 8px; padding-right: 8px; }
+.sp-table tr > :first-child { padding-left: 12px; }
+.sp-left { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+.sp-table { table-layout: fixed; min-width: 1060px; }
+.sp-table th { font-size: 11px; white-space: nowrap; }
+.sp-lock td:nth-child(n+6) > * { opacity: .45; }
+.sp-name { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.sp-name > span { display: flex; flex-direction: column; line-height: 1.2; }
+.sp-name b { color: #fff; font-size: 13px; }
+.sp-name small { font-size: 10px; color: #64748b; font-family: "IBM Plex Mono", monospace; }
+.sp-name em { font-style: normal; color: #f87171; margin-left: 6px; font-family: system-ui, sans-serif; }
+.sp-ico { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
+.sp-amt { display: inline-flex; align-items: center; gap: 6px; }
+.sp-amt .toggle:checked { --input-color: var(--c); color: var(--c); border-color: var(--c); }
+.sp-bar { display: inline-block; vertical-align: middle; width: 64px; height: 6px; border-radius: 3px; background: var(--color-base-300); overflow: hidden; }
+.sp-bar > span { display: block; height: 100%; border-radius: 3px; }
+.sp-pct { display: inline-block; width: 36px; margin-left: 4px; text-align: right; font: 600 12px "IBM Plex Mono", monospace; color: #cbd5e1; vertical-align: middle; }
+.sp-maxtag { font: 700 11px "IBM Plex Mono", monospace; letter-spacing: .1em; color: #34d399; }
+.sp-lock .sp-ico { filter: grayscale(1); opacity: .45; }
+.sp-lock .sp-name b { color: #64748b; }
+.sp-max td { background: #34d39908; }
+.spe-live td:first-child { box-shadow: inset 3px 0 0 #fbbf24; }
