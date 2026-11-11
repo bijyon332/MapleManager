@@ -886,3 +886,12 @@ i.expp-ico, svg.expp-ico { width: 15px; height: 15px; margin: 0 1.5px; }
 .sp-lock .sp-name b { color: #64748b; }
 .sp-max td { background: #34d39908; }
 .spe-live td:first-child { box-shadow: inset 3px 0 0 #fbbf24; }
+.sp-tl td { vertical-align: middle; }
+.sp-tl tr.sp-tl-mon td { border-top: 1px solid #22d3ee33; }
+.sp-ico-s { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
+.sp-up { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 8px 0 4px; border-radius: var(--radius-field); border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); background: color-mix(in srgb, var(--c) 8%, transparent); white-space: nowrap; }
+.sp-up-n { font-size: 12px; font-weight: 600; color: #e2e8f0; }
+.sp-up-lv { display: inline-flex; align-items: center; gap: 3px; font: 500 11px "IBM Plex Mono", monospace; color: #94a3b8; }
+.sp-up-lv b { color: var(--c); font-weight: 700; }
+.sp-up-max { border-color: #34d39999; }
+.sp-up-max .sp-up-lv b { color: #34d399; }

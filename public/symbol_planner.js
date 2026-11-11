@@ -178,9 +178,11 @@ const symbolPlanner = (() => {
             const st = e.syms[s.id];
             const lv = int(st.lv, 0, s.max);
             const acc = accOf(s, lv, int(st.exp, 0, 1e6));
-            return { s, st, lv, acc, cur: acc, owned: lv > 0, maxOn: lv >= s.max ? asOf : null, lvAt: lv, reach: reachable(s, { lv }, charLv) };
+            return { s, st, lv, acc, cur: acc, owned: lv > 0, lvNow: lv, maxOn: lv >= s.max ? asOf : null, lvAt: lv, reach: reachable(s, { lv }, charLv) };
         });
         const at = D.ok(atDate) ? atDate : null;
+        // Lv が上がった日の記録（早見表用）: { d, s, from, to }
+        const ups = [];
         for (let i = 0; i <= HORIZON; i++) {
             const d = D.add(asOf, i);
             for (const r of rows) {
@@ -188,6 +190,8 @@ const symbolPlanner = (() => {
                 const g = dayGain(e, r.s, r.st, d, i);
                 if (g > 0) { r.cur += g; r.owned = true; }
                 if (r.cur >= totalOf(r.s)) { r.cur = totalOf(r.s); r.maxOn = d; }
+                const nlv = lvOf(r.s, r.cur, r.owned);
+                if (nlv > r.lvNow) { ups.push({ d, s: r.s, from: r.lvNow, to: nlv }); r.lvNow = nlv; }
             }
             if (at && d === at) rows.forEach((r) => { r.lvAt = lvOf(r.s, r.cur, r.owned); });
             if ((!at || d >= at) && rows.every((r) => !r.reach || r.maxOn)) break;
@@ -199,7 +203,7 @@ const symbolPlanner = (() => {
         const reachRows = rows.filter((r) => r.reach);
         let lastMax = null;
         if (reachRows.length && reachRows.every((r) => r.maxOn)) lastMax = reachRows.map((r) => r.maxOn).reduce((a, b) => (a > b ? a : b));
-        return { rows, charLv, lastMax, allReach: reachRows.length };
+        return { rows, charLv, lastMax, allReach: reachRows.length, ups };
     }
 
     // カードのバー用：入れる地域（持っているか、キャラの Lv が届く地域）の合計の進み具合
@@ -263,7 +267,7 @@ const symbolPlanner = (() => {
     }
     function setTab(tab) {
         if (!cur) return;
-        cur.tab = tab === 'events' ? 'events' : 'progress';
+        cur.tab = ['events', 'timeline'].includes(tab) ? tab : 'progress';
         draw();
     }
     function syncNav() {
@@ -276,7 +280,7 @@ const symbolPlanner = (() => {
         const host = cur && !cur.page ? document.getElementById('sp-overlay') : (rootEl && rootEl.querySelector('#sp-host'));
         if (!host || !cur) return;
         syncNav();
-        const body = cur.tab === 'events' ? eventsHTML() : progressHTML();
+        const body = cur.tab === 'events' ? eventsHTML() : cur.tab === 'timeline' ? timelineHTML() : progressHTML();
         if (cur.page) {
             host.innerHTML = body;
         } else {
@@ -288,7 +292,7 @@ const symbolPlanner = (() => {
                     ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-8 h-8 object-contain bg-base-300 border border-base-content/10">` : ''}
                     <b class="text-white">${esc(char ? char.name : '?')}</b>
                     <span class="text-xs text-base-content/50">の Symbol Planner</span>
-                    <nav role="tablist" class="tabs tabs-box tabs-sm ml-2">${tab('progress', 'chart-gantt', '進捗')}${tab('events', 'sparkles', 'イベント')}</nav>
+                    <nav role="tablist" class="tabs tabs-box tabs-sm ml-2">${tab('progress', 'chart-gantt', '進捗')}${tab('timeline', 'calendar-days', '早見表')}${tab('events', 'sparkles', 'イベント')}</nav>
                     <button onclick="symbolPlanner.close()" class="btn btn-sm btn-ghost btn-square ml-auto" title="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>
                 </div>
                 <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3">${body}</div>
@@ -410,6 +414,68 @@ const symbolPlanner = (() => {
         const evLine = evNow.length ? `<div class="text-[11px] text-base-content/55 flex items-center gap-1.5 px-1"><i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>イベント ${evNow.length}件を足しています（${evNow.map((ev) => esc(ev.memo || targetLabel(ev.target))).slice(0, 4).join('、')}${evNow.length > 4 ? ' ほか' : ''}）</div>` : '';
 
         return `<div class="space-y-3 max-w-[1400px]">${head}${evLine}${GROUPS.map(groupHTML).join('')}</div>`;
+    }
+
+    /* ----- 早見表タブ ----- */
+    // 何月何日にどのシンボルが何 Lv になり、その日の終わりのフォース合計がいくつになるかを日付順に並べる
+    function timelineHTML() {
+        const id = cur.id;
+        const e = entry(id);
+        if (rollToToday(id, e)) save();
+        const p = project(id, e, null);
+        const today = D.today();
+        const DOW = ['日', '月', '火', '水', '木', '金', '土'];
+        const lvs = Object.fromEntries(p.rows.map((r) => [r.s.id, r.lv]));
+        const sumForce = (kind) => SYMBOLS.filter((s) => s.kind === kind).reduce((a, s) => a + force(kind, lvs[s.id]), 0);
+        const lvTotal = () => SYMBOLS.reduce((a, s) => a + lvs[s.id], 0);
+        const startArc = sumForce('arc'), startAut = sumForce('aut'), startLv = lvTotal();
+        // 日付ごとにまとめる
+        const days = [];
+        for (const u of p.ups) {
+            let day = days[days.length - 1];
+            if (!day || day.d !== u.d) { day = { d: u.d, ups: [] }; days.push(day); }
+            day.ups.push(u);
+        }
+        const color = (s) => GROUPS.find((g) => g.id === s.group).color;
+        let prevArc = startArc, prevAut = startAut;
+        const rows = days.map((day) => {
+            day.ups.forEach((u) => { lvs[u.s.id] = u.to; });
+            const arc = sumForce('arc'), aut = sumForce('aut'), lvSum = lvTotal();
+            const chips = day.ups.map((u) => {
+                const max = u.to >= u.s.max;
+                return `<span class="sp-up ${max ? 'sp-up-max' : ''}" style="--c:${color(u.s)}"><img src="${u.s.icon}" alt="" class="sp-ico-s"><span class="sp-up-n">${esc(u.s.short)}</span><span class="sp-up-lv">${u.from ? `Lv ${u.from}` : '入手'}<i data-lucide="arrow-right" class="w-3 h-3"></i><b>${max ? 'MAX' : `Lv ${u.to}`}</b></span></span>`;
+            }).join('');
+            const dArc = arc - prevArc, dAut = aut - prevAut;
+            prevArc = arc; prevAut = aut;
+            const wk = D.dow(day.d);
+            const n = D.diff(today, day.d);
+            return `<tr class="${wk === 1 ? 'sp-tl-mon' : ''}">
+                <td class="font-mono whitespace-nowrap"><b class="text-white">${D.short(day.d)}</b> <span class="text-[11px] ${wk === 0 ? 'text-red-400' : wk === 1 ? 'text-cyan-400' : 'text-base-content/45'}">${DOW[wk]}</span></td>
+                <td class="font-mono text-right text-[11px] text-base-content/45 whitespace-nowrap">${n > 0 ? `${n}日後` : n === 0 ? '今日' : ''}</td>
+                <td><div class="flex flex-wrap gap-1.5">${chips}</div></td>
+                <td class="font-mono text-right whitespace-nowrap">${dArc ? `<span class="text-[11px] text-base-content/45 mr-1">+${dArc}</span>` : ''}<b style="color:${dArc ? GROUPS[0].color : '#64748b'}">${arc.toLocaleString()}</b></td>
+                <td class="font-mono text-right whitespace-nowrap">${dAut ? `<span class="text-[11px] text-base-content/45 mr-1">+${dAut}</span>` : ''}<b style="color:${dAut ? GROUPS[1].color : '#64748b'}">${aut.toLocaleString()}</b></td>
+                <td class="font-mono text-right whitespace-nowrap text-base-content/70">${lvSum}</td>
+            </tr>`;
+        }).join('');
+        const head = `<div class="flex flex-wrap items-center gap-x-5 gap-y-1 px-3 py-2 bg-base-200 border-b border-base-content/10">
+                <i data-lucide="calendar-days" class="w-4 h-4 text-indigo-400"></i>
+                <span class="text-sm font-bold text-white">Lv が上がる日</span>
+                <span class="text-[11px] text-base-content/50">${D.full(e.asOf)} の入力から${e.estFrom ? '（前回の入力から推定）' : ''}</span>
+                <span class="flex-1"></span>
+                <span class="text-[11px] text-base-content/50">今 アーケインフォース <b class="font-mono" style="color:${GROUPS[0].color}">${startArc}</b>・オーセンティックフォース <b class="font-mono" style="color:${GROUPS[1].color}">${startAut}</b>・シンボル Lv 合計 <b class="font-mono text-white">${startLv}</b></span>
+            </div>`;
+        return `<div class="space-y-3 max-w-[1400px]">
+            <div class="card card-sm bg-base-100 border border-base-content/10 overflow-hidden">
+                ${head}
+                <div class="overflow-x-auto">
+                    <table class="table table-sm sp-tl">
+                        <thead><tr><th class="w-24">日付</th><th class="w-16"></th><th>上がるシンボル</th><th class="w-40 text-right">アーケインフォース</th><th class="w-44 text-right">オーセンティックフォース</th><th class="w-28 text-right">シンボル Lv 合計</th></tr></thead>
+                        <tbody>${rows || `<tr><td colspan="6" class="text-center text-base-content/40 py-6">${p.allReach ? 'これから上がるシンボルはありません' : '「進捗」でシンボルの Lv を入れてください'}</td></tr>`}</tbody>
+                    </table>
+                </div>
+            </div>
+        </div>`;
     }
 
     // 入力が変わったら保存して描き直す
