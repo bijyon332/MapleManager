@@ -6,11 +6,11 @@
 //     保存は別（mm-exp-ultima::<Planner の「自分」>）で、初めて開いたときだけアカウント計画の中身を写す。
 //   - バフはエテリオン・レリックと補給報告の特殊訓練、Sunny Sunday の分（下の BUFFS）を最初から入れる。
 //     イベントバフ一覧（expBuffs）の分も足すかはスイッチ（同じものを読み込んでいると二重になるので既定はオフ）。
-//   - チャレンジャーパスは買うかのチェックと受け取るキャラを選ぶ。補給報告（毎日のログイン）は無料で、受け取るキャラだけ選ぶ。
+//   - パス（チャレンジャーパス・モメンタムパス・PLUS）は買うかのチェックと受け取るキャラを選ぶ。補給報告（毎日のログイン）は無料で、受け取るキャラだけ選ぶ。
 //     もらった日から、受け取ったキャラが今のルールで使う
 //     （農場チケットは入れる Lv になったら、秘薬は上限 Lv から逆算した Lv で、上級EXP交換券とサウナ券はもらった日に）。
 // 中身と日付は GMS v.272 のパッチノート（2026-11-11、nexon.com news 47132）による。
-// KMS にあったモメンタムパス・PLUS は GMS にはない（同じ時期の Genesis Pass は EXP の報酬なし）。
+// モメンタムパス・PLUS は v.272 にはまだなく、KMS の実績からの見込み（後のパッチノートで分かったら直す）。
 
 // 補給報告の日付。1日1回、週5回まで（イベントの週は水曜から）。毎週はじめの5日で受け取る最短の日
 const ULTIMA_SUPPLY_DATE = n => expDate.add('2026-11-11', 7 * Math.floor((n - 1) / 5) + (n - 1) % 5);
@@ -90,6 +90,29 @@ const expUltima = Object.assign(Object.create(expPlan), {
                 { date: '2026-11-26', free: { sauna: 0.5 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
                 { date: '2026-12-03', free: { coupon: 100 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
                 { date: '2026-12-10', free: { coupon: 2100 }, exp: { coupon: 1000, farm: 2, sauna: 1, pot: { p279: 1 } } },
+            ],
+        },
+        // モメンタムパス・PLUS は v.272 のノートにはまだない。後のアップデートで出る見込みなので、KMS の実績（KMS 7/23・8/20 →
+        // GMS は 11/11 から1週ずつ対応させて 12/16・1/13）で入れておく（kms: true は画面に「KMS の見込み」と出す）。
+        {
+            id: 'mp', name: 'モメンタムパス', short: 'モメンタム', abbr: 'モメ', world: null, minLv: 280, farm: 'mecha', kms: true,
+            note: 'Lv280 以上・1アカウント1キャラ',
+            tiers: [{ id: 'prime', label: 'プライム', price: '49,800NX' }],
+            steps: [
+                { date: '2026-12-16', free: { farm: 1 }, prime: { farm: 1 } },
+                { date: '2026-12-23', free: { coupon: 100 }, prime: { coupon: 3000, farm: 2 } },
+                { date: '2026-12-30', free: { coupon: 100 }, prime: { coupon: 3000, farm: 3 } },
+                { date: '2027-01-06', free: { coupon: 300 }, prime: { coupon: 3000, farm: 4 } },
+            ],
+        },
+        {
+            id: 'mpp', name: 'モメンタムパス PLUS', short: 'モメンタム PLUS', abbr: 'PLUS', world: null, minLv: 280, farm: 'crimson', kms: true,
+            note: 'Lv280 以上・1アカウント1キャラ',
+            tiers: [{ id: 'premium', label: 'プレミアム', price: '29,800NX' }, { id: 'prime', label: 'プライム', price: '39,800NX' }],
+            steps: [
+                { date: '2027-01-13', free: { farm: 1 }, premium: { farm: 1 }, prime: { coupon: 3000, farm: 3 } },
+                { date: '2027-01-20', free: { coupon: 100 }, premium: { coupon: 3000, farm: 2 }, prime: { coupon: 3000, farm: 4 } },
+                { date: '2027-01-27', free: { coupon: 400 }, premium: { coupon: 1500, farm: 2 }, prime: { coupon: 3000, farm: 4 } },
             ],
         },
         {
@@ -374,7 +397,7 @@ const expUltima = Object.assign(Object.create(expPlan), {
             <div class="expu-pass">
                 <div class="min-w-0">
                     <div class="font-bold text-white text-sm truncate">${p.name}</div>
-                    <div class="text-[11px] text-slate-500 font-mono">${expDate.short(this.passDate(p, 0))}〜${expDate.short(this.passEnd(p))}</div>
+                    <div class="text-[11px] text-slate-500 font-mono">${expDate.short(this.passDate(p, 0))}〜${expDate.short(this.passEnd(p))}</div>${p.kms ? '<div class="text-[11px] text-amber-400/80">KMS の見込み</div>' : ''}
                 </div>
                 <div class="flex flex-wrap items-center gap-1.5">
                     ${p.tiers.length ? p.tiers.map(t => this.chipHTML(!!st.pass[p.id].buy[t.id], `${t.label}を買う`, `${this.NS}.togglePassTier('${p.id}','${t.id}')`, t.price)).join('') : '<span class="text-[11px] text-slate-500">無料・毎日ログイン</span>'}
@@ -407,7 +430,7 @@ const expUltima = Object.assign(Object.create(expPlan), {
     notesHTML() {
         return `
         <ul class="expu-notes">
-            <li>期間は GMS 2026/11/11〜2027/2/9。中身と日付は GMS v.272 のパッチノートによります。KMS にあったモメンタムパス・PLUS は GMS にはありません（Genesis Pass には EXP の報酬がありません）。</li>
+            <li>期間は GMS 2026/11/11〜2027/2/9。チャレンジャーパス・補給報告・バフは GMS v.272 のパッチノートによります。モメンタムパス・PLUS は v.272 にはまだないので、KMS の実績（KMS 6/18 を GMS 11/11 として1週ずつ対応、12/16・1/13 開始）の見込みです。後のパッチノートで分かったら直します。</li>
             <li>チャレンジャーパスは週 500 ポイント（5Lv）まで、ポイントの週は木曜 9時（日本時間）に切り替わるので、1週目は 11/11 の1日だけです。毎週はじめに上限まで貯めた最短の日で受け取ります（取りこぼしたポイントはメイプルポイントで買えます）。Lv が足りない間の分は、届いた日にまとめて受け取ります。計画の開始日より前の分は、もう持ち物にあるものとして足しません。</li>
             <li>補給報告は毎日のログインで1回、週5回まで（アカウントで1回）。毎週はじめの5日で受け取る最短の日です。サウナ券・秘薬・上級EXP交換券だけ数えています。</li>
             <li>もらったものは受け取ったキャラが使います。農場チケットは入れる Lv になったら、秘薬は上限 Lv から逆算した Lv で（届かなければ期日に）、上級EXP交換券はもらった日に全部使います。サウナ券（1枚30分）はもらった日から、アカウントの1日のサウナ時間の空きで使います。</li>
@@ -470,7 +493,7 @@ const expUltima = Object.assign(Object.create(expPlan), {
         const diff = n => n == null || n === 0 ? '' : `<span class="${n > 0 ? 'text-emerald-400' : 'text-red-400'}">${n > 0 ? '−' : '+'}${Math.abs(n)}</span>`;
         const blocks = list.map(({ ch, target, lvs, now, pass, hunt, cur, byHour, curFree }) => {
             const passTable = pass ? `
-            <div class="expu-sub">パスを買ったとき <span>無料だけのときより何日早く届くか${pass.combos.length > 1 ? '。買うパスは有料分を全部' : ''}</span></div>
+            <div class="expu-sub">${pass.combos.length > 1 ? 'パスの組み合わせ' : 'パスを買ったとき'} <span>無料だけのときより何日早く届くか${pass.combos.length > 1 ? '。買うパスは有料分を全部（PLUS はプレミアムとプライムの両方）' : ''}</span></div>
             <div class="overflow-x-auto"><table class="table table-xs expu-saved">
                 <thead><tr><th></th><th>無料だけ</th>${pass.combos.map(({ set }) => `<th>${set.map(p => p.abbr).join('＋')}</th>`).join('')}</tr></thead>
                 <tbody>${lvs.map(l => {
