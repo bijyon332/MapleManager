@@ -126,6 +126,10 @@ const saunaExpPerHour = lv => {
     return Math.ceil(k * mob / 720) * 720;
 };
 
+// 上級EXP交換券（KMS 상급 EXP 교환권）1枚の EXP（Lv.260+）。同じ Lv のグランディスの敵 225 体分を千の単位で切り上げ、
+// Lv.291 以上は Lv.290 と同じ（KMS の分析記事・namu wiki の式。GMS に同じアイテムがあるかは未確認）。
+const expCouponExp = lv => lv < 260 ? 0 : Math.ceil(grandisMob(Math.min(lv, 290)) * 225 / 1000) * 1000;
+
 // Monster Park Extreme - EXP per clear (Lv.260+)
 const mpeTable = lvTable(260, grandisMobExp.map((_, i) => {
     const lv = 260 + i;

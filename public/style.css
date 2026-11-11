@@ -826,6 +826,27 @@ i.expp-ico, svg.expp-ico { width: 15px; height: 15px; margin: 0 1.5px; }
 .expb-bar { position: absolute; top: 0; bottom: 0; border-radius: 3px; opacity: .85; }
 .expb-sum th, .expb-sum td { text-align: center; padding: 4px 6px; font-size: 11px; }
 .expb-sum td:first-child { text-align: left; white-space: nowrap; }
+/* EXP 計画: 持ち物の使い方（結果の行を開いたところ） */
+.expp-logbtn { display: inline-flex; align-items: center; gap: 3px; margin-top: 3px; padding: 1px 6px 1px 4px; font-size: 10.5px; color: #94a3b8; border: 1px solid color-mix(in oklab, var(--color-base-content) 15%, transparent); border-radius: 4px; cursor: pointer; }
+.expp-logbtn:hover, .expp-logbtn.on { color: #e2e8f0; border-color: #6366f1; }
+.expp-logrow > td { background: color-mix(in oklab, var(--color-base-200) 70%, transparent); padding-top: 4px; padding-bottom: 8px; }
+.expp-log { width: 100%; font-size: 11px; font-family: var(--font-mono, ui-monospace, monospace); }
+.expp-log th { font-weight: 400; color: #64748b; text-align: left; padding: 3px 6px; border-bottom: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent); }
+.expp-log td { padding: 3px 6px; color: #cbd5e1; }
+.expp-log th.text-right, .expp-log td.text-right { text-align: right; }
+/* Ultima EXP Plan: パスの行と週ごとの表 */
+.expu-pass { display: grid; grid-template-columns: 150px auto minmax(0, 1fr); align-items: center; gap: 4px 12px; padding: 8px 12px; }
+.expu-pass-tot { grid-column: 2 / -1; }
+.expu-notes { list-style: disc; padding: 8px 12px 10px 28px; font-size: 11.5px; line-height: 1.6; color: #94a3b8; border-top: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent); }
+.expu-saved th, .expu-saved td { text-align: center; padding: 4px 8px; font-size: 11px; font-family: var(--font-mono, ui-monospace, monospace); white-space: nowrap; }
+.expu-saved td:first-child, .expu-saved th:first-child { text-align: left; }
+.expu-sub { padding: 8px 12px 2px; font-size: 11px; font-weight: 700; color: #94a3b8; }
+.expu-sub span { font-weight: 400; color: #64748b; margin-left: 6px; }
+.expu-saved tr.expu-cur td { background: color-mix(in oklab, #6366f1 12%, transparent); }
+.expu-weeks th, .expu-weeks td { text-align: center; padding: 4px 6px; font-size: 11px; white-space: nowrap; }
+.expu-weeks th:last-child, .expu-weeks td:last-child { text-align: left; white-space: normal; min-width: 220px; }
+.expu-weeks tr.expb-live td:first-child { box-shadow: inset 3px 0 0 #fbbf24; }
+@media (max-width: 640px) { .expu-pass { grid-template-columns: 1fr; } .expu-pass-tot { grid-column: auto; } }
 /* EXP 計画: キャラ選択の画面 */
 .expp-pick { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--color-base-300); background: var(--color-base-100); cursor: pointer; }
 .expp-pick:hover { border-color: #6366f180; }
