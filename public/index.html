@@ -162,6 +162,11 @@
                     <i data-lucide="chart-no-axes-combined" class="w-5 h-5"></i>
                     <span class="nav-label">EXP Simulator</span>
                 </button></li>
+                <li><button onclick="app.switchApp('symbol')" id="app-symbol"
+                    class="nav-item" title="Symbol Planner（アーケイン・オーセンティックシンボルが最大になる日の予測）">
+                    <i data-lucide="orbit" class="w-5 h-5"></i>
+                    <span class="nav-label">Symbol Planner</span>
+                </button></li>
                 <li><button onclick="app.switchApp('cheatsheet')" id="app-cheatsheet"
                     class="nav-item" title="Cheat Sheet（ボスの必要フォース・レベル差補正の早見表）">
                     <i data-lucide="table-2" class="w-5 h-5"></i>
@@ -264,6 +269,18 @@
                 </button>
                 <button onclick="scouter.setTab('hstat')" data-tab="hstat" role="tab" class="tab gap-1.5">
                     <i data-lucide="hexagon" class="w-3.5 h-3.5"></i>HEXAステ最適化
+                </button>
+            </nav>
+            <!-- Symbol Planner の 進捗／イベント（Symbol Planner のときだけ出す）。押したときの切り替えは symbol_planner.js -->
+            <nav id="symbol-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
+                <button onclick="symbolPlanner.setTab('progress')" data-tab="progress" role="tab" class="tab tab-active gap-1.5">
+                    <i data-lucide="chart-gantt" class="w-3.5 h-3.5"></i>進捗
+                </button>
+                <button onclick="symbolPlanner.setTab('timeline')" data-tab="timeline" role="tab" class="tab gap-1.5">
+                    <i data-lucide="calendar-days" class="w-3.5 h-3.5"></i>早見表
+                </button>
+                <button onclick="symbolPlanner.setTab('events')" data-tab="events" role="tab" class="tab gap-1.5">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>イベント
                 </button>
             </nav>
             <!-- Journal の GMS／KMS（パッチ情報）と、少し離して Column（Journal のときだけ出す）。押したときの切り替えは gms_updates.js -->
@@ -458,6 +475,8 @@
                 <div id="view-scouter" class="hidden-page fade-in"></div>
                 <!-- 中身は party_scouter.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
                 <div id="view-ptscouter" class="hidden-page fade-in"></div>
+                <!-- 中身は symbol_planner.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
+                <div id="view-symbol" class="hidden-page fade-in"></div>
                 <!-- 中身は libae_gear.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
                 <div id="view-libae" class="hidden-page fade-in"></div>
                 <!-- 中身は exp_ultima.js が描く（計算は exp_plan.js と共通）。初回オープン時に読み込む（script.js の APPS）。 -->
@@ -629,6 +648,7 @@
                                     <button type="button" id="cm-link-hexa" onclick="app.openLinkedFromModal('hexa')" class="btn btn-sm btn-soft btn-secondary">HEXA</button>
                                     <button type="button" id="cm-link-gear" onclick="app.openLinkedFromModal('gear')" class="btn btn-sm btn-soft btn-info">UPGRADE</button>
                                     <button type="button" id="cm-link-scouter" onclick="app.openLinkedFromModal('scouter')" class="btn btn-sm btn-soft btn-warning">SCOUTER</button>
+                                    <button type="button" id="cm-link-symbol" onclick="app.openLinkedFromModal('symbol')" class="btn btn-sm btn-soft" style="--btn-color:#f472b6">SYMBOL</button>
                                 </div>
                             </div>
                         </div>

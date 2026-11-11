@@ -201,6 +201,7 @@ const app = {
         if (kind === 'hexa' && typeof hexaTracker !== 'undefined') hexaTracker.openForCharacter(cid);
         if (kind === 'gear') this.openGearForCharacter(cid);
         if (kind === 'scouter') this.openScouterForCharacter(cid);
+        if (kind === 'symbol') this.openSymbolForCharacter(cid);
     },
 
     onImagePosChange() {
@@ -608,6 +609,13 @@ const app = {
             scripts: ['hexa_data.js', 'hexa_third.js', 'hexa_tracker.js', 'hexa_reader.js', 'scouter_reader.js', 'scouter_bosscut.js', 'scouter_hyper.js', 'scouter_hexastat.js', 'scouter_kinoko.js', 'scouter.js'],
             init() { scouter.init('view-scouter'); },
             reopen() { scouter.render(); }
+        },
+        symbol: {
+            view: 'view-symbol',
+            nav: 'symbol-nav',
+            scripts: ['symbol_planner.js'],
+            init() { symbolPlanner.init('view-symbol'); },
+            reopen() { symbolPlanner.render(); }
         },
         ptscouter: {
             view: 'view-ptscouter',
@@ -1122,6 +1130,9 @@ const app = {
             const hexaPct = hexaClassId ? hexaTracker.getProgress('char:' + char.id, hexaClassId).pct : 0;
             let scout = null;
             try { const sc = JSON.parse(localStorage.getItem('mapleManager_scouter_v1') || '{}')['char:' + char.id]; if (sc && sc.result && sc.result.b380h > 0) scout = sc.result; } catch (e) { /* 読めなければ未入力扱い */ }
+            // Symbol Planner の進み具合（symbol_planner.js が保存のたびに入れる pct。読まなくても localStorage から読める）
+            let symPct = null;
+            try { const sp = JSON.parse(localStorage.getItem('mm-symbol-planner') || '{}')['char:' + char.id]; if (sp && typeof sp.pct === 'number') symPct = sp.pct; } catch (e) { /* 読めなければ未入力扱い */ }
 
             // Sort each section
             const wkSorted = wB.sort((a, b) => b.effectiveMeso - a.effectiveMeso);
@@ -1173,11 +1184,13 @@ const app = {
                     <div class="mx-wk ${isWeeklyDone ? 'is-done' : ''}" ${wkSorted.length ? `onclick="app.toggleCharDone('${char.id}','weekly')" title="${isWeeklyDone ? 'クリックで消し込みを解除' : 'クリックで週ボスをまとめて消し込む'}"` : ''}>
                         ${wkSorted.length ? `<div class="mx-grid">${tiles(wkSorted, 14)}</div>${isWeeklyDone ? completeMark : ''}` : '<div class="mx-none mx-none-wk">週ボスなし</div>'}
                     </div>
-                    <div class="mx-tools">
-                        <button onclick="hexaTracker.openForCharacter('${char.id}')" class="mx-tool mx-tool-hexa" ${hexaReady ? '' : 'disabled'}><span class="mx-bar" style="width:${hexaPct}%"></span>${hexaClassId ? `HEXA <b>${hexaPct}%</b>` : 'HEXA 登録'}</button>
-                        <button onclick="app.openGearForCharacter('${char.id}')" class="mx-tool mx-tool-up">UPGRADE</button>
-                        <button onclick="app.openScouterForCharacter('${char.id}')" class="mx-tool mx-tool-scout">SCOUTER</button>
-                    </div>
+                </div>
+                <!-- カード下の帯は横幅いっぱい。HEXA は立ち絵の列と同じ幅、残りの3つで右の幅を3等分 -->
+                <div class="mx-tools">
+                    <button onclick="hexaTracker.openForCharacter('${char.id}')" class="mx-tool mx-tool-hexa" ${hexaReady ? '' : 'disabled'}><span class="mx-bar" style="width:${hexaPct}%"></span>${hexaClassId ? `HEXA <b>${hexaPct}%</b>` : 'HEXA 登録'}</button>
+                    <button onclick="app.openGearForCharacter('${char.id}')" class="mx-tool mx-tool-up">UPGRADE</button>
+                    <button onclick="app.openScouterForCharacter('${char.id}')" class="mx-tool mx-tool-scout">SCOUTER</button>
+                    <button onclick="app.openSymbolForCharacter('${char.id}')" class="mx-tool mx-tool-sym">${symPct !== null ? `<span class="mx-bar" style="width:${symPct}%"></span>SYMBOL <b>${symPct}%</b>` : 'SYMBOL'}</button>
                 </div>
             </div>`;
         }).join('') + addCardHTML;
@@ -1193,6 +1206,11 @@ const app = {
     async openScouterForCharacter(cid) {
         try { await this.loadAppAssets('scouter'); } catch (e) { console.error(e); return; }
         scouter.openForCharacter(cid);
+    },
+    // カードの SYMBOL から、そのキャラの Symbol Planner をモーダルで開く（SCOUTER と同じ形）。
+    async openSymbolForCharacter(cid) {
+        try { await this.loadAppAssets('symbol'); } catch (e) { console.error(e); return; }
+        symbolPlanner.openForCharacter(cid);
     },
     toggleCharDone(cid, scope = 'weekly') {
         const c = this.data.characters.find(x => x.id === cid); if (!c) return;
@@ -1556,7 +1574,7 @@ const app = {
         this.setCharRole(c ? (c.role || 'MAIN') : 'MAIN');
         const defServer = this.data.config.activeServer === 'ALL' ? 'KRONOS' : this.data.config.activeServer;
         this.setCharServer(c ? (c.server || 'KRONOS') : defServer);
-        ['cm-link-hexa', 'cm-link-gear', 'cm-link-scouter'].forEach(id => {
+        ['cm-link-hexa', 'cm-link-gear', 'cm-link-scouter', 'cm-link-symbol'].forEach(id => {
             const b = document.getElementById(id);
             if (b) { b.disabled = !c; b.title = c ? '' : '保存すると使えます'; }
         });
