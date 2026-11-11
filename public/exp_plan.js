@@ -329,10 +329,10 @@ const expPlan = {
         { id: 'grand', label: 'グランドオーセンティック', test: r => r.lv >= 290 },
     ],
     TIX: [
-        { id: 'straw', label: 'いちご農場', minLv: 200, note: '1回' },
-        { id: 'blue', label: 'ブルーベリー', minLv: 260, note: '枚' },
-        { id: 'mecha', label: 'メカいちご', minLv: 280, note: '1回' },
-        { id: 'crimson', label: 'クリムゾン', minLv: 280, note: '枚' },
+        { id: 'straw', icon: 'assets/exp/farm-straw.png', label: 'いちご農場', minLv: 200, note: '1回' },
+        { id: 'blue', icon: 'assets/exp/farm-blue.png', label: 'ブルーベリー', minLv: 260, note: '枚' },
+        { id: 'mecha', icon: 'assets/exp/farm-mecha.png', label: 'メカいちご', minLv: 280, note: '1回' },
+        { id: 'crimson', icon: 'assets/exp/farm-crimson.png', label: 'クリムゾン', minLv: 280, note: '枚' },
     ],
     BURNS: [
         { id: 'none', label: 'なし' },
@@ -1013,10 +1013,10 @@ const expPlan = {
     poolHTML(world) {
         const pool = this.state.pool[world];
         const used = (kind, k) => kind === 'tix' ? this.tixUsed(world, k) : this.potUsed(world, k);
-        const cell = (kind, id, label) => {
+        const cell = (kind, id, label, icon) => {
             const have = Number(pool[kind][id]) || 0, u = used(kind, id);
             return `<label class="expp-pool ${have ? 'has' : ''}">
-                <span class="truncate flex items-center gap-1.5">${this.iconHTML(kind === 'tix' ? 'farm' : 'potion', 'expp-ico-s')}${label}</span>
+                <span class="truncate flex items-center gap-1.5">${icon ? `<img src="${icon}" class="expp-ico-t" alt="">` : this.iconHTML(kind === 'tix' ? 'farm' : 'potion', 'expp-ico-s')}${label}</span>
                 <input type="number" min="0" class="input input-xs font-mono w-14 text-right" value="${have}" onchange="${this.NS}.setPool('${world}','${kind}','${id}',this.value)">
                 <span class="font-mono text-[10px] ${have && u >= have ? 'text-amber-400' : 'text-slate-500'} w-9 text-right">${have ? `${u}/${have}` : ''}</span>
             </label>`;
@@ -1030,7 +1030,7 @@ const expPlan = {
             <div class="p-3 space-y-3">
                 <div class="space-y-1.5">
                     <div class="expp-lbl">農場チケット</div>
-                    <div class="grid grid-cols-2 gap-1.5">${this.TIX.map(t => cell('tix', t.id, `${t.label}${t.minLv > 200 ? ` <span class="text-slate-500">${t.minLv}+</span>` : ''}`)).join('')}</div>
+                    <div class="grid grid-cols-2 gap-1.5">${this.TIX.map(t => cell('tix', t.id, `${t.label}${t.minLv > 200 ? ` <span class="text-slate-500">${t.minLv}+</span>` : ''}`, t.icon)).join('')}</div>
                 </div>
                 <div class="space-y-1.5 pt-3 border-t border-base-content/10">
                     <div class="expp-lbl">成長の秘薬</div>
@@ -1081,14 +1081,14 @@ const expPlan = {
         const burnOpts = this.BURNS.map(b => `<option value="${b.id}"${b.id === c.burn ? ' selected' : ''}>${b.label}</option>`).join('');
 
         const pool = this.state.pool[ch.server];
-        const cntSel = (kind, id, label, cur) => {
+        const cntSel = (kind, id, label, cur, icon = '') => {
             const have = Number(pool[kind][id]) || 0;
             if (!have) return '';
             const max = have - (kind === 'tix' ? this.tixUsed(ch.server, id, ch.id) : this.potUsed(ch.server, id, ch.id));
             const opts = Array.from({ length: have + 1 }, (_, i) => `<option value="${i}"${i === cur ? ' selected' : ''}${i > max ? ' disabled' : ''}>${i}</option>`).join('');
-            return `<label class="expp-cnt ${cur ? 'on' : ''}" style="--c:${this.srcColor(kind === 'tix' ? 'farm' : 'potion')}">${this.stableText(label)}<select class="select select-xs font-mono w-14" onchange="${this.NS}.${kind === 'tix' ? 'setTix' : 'setPot'}('${ch.id}','${id}',this.value)">${opts}</select></label>`;
+            return `<label class="expp-cnt ${cur ? 'on' : ''}" style="--c:${this.srcColor(kind === 'tix' ? 'farm' : 'potion')}">${icon ? `<img src="${icon}" class="expp-ico-t" alt="">` : ''}${this.stableText(label)}<select class="select select-xs font-mono w-14" onchange="${this.NS}.${kind === 'tix' ? 'setTix' : 'setPot'}('${ch.id}','${id}',this.value)">${opts}</select></label>`;
         };
-        const tixItems = this.TIX.map(t => cntSel('tix', t.id, t.label, Number(c.tix[t.id]) || 0)).join('');
+        const tixItems = this.TIX.map(t => cntSel('tix', t.id, t.label, Number(c.tix[t.id]) || 0, t.icon)).join('');
         const potItems = EXP_POTION_TYPES.map(p => cntSel('pot', p.id, this.potName(p), Number(c.pot[p.id]) || 0)).join('');
         // 放置マップ: 持ち物の時間から 0.5 時間単位で割り当てる（ほかのキャラに割り当てた分は選べない）
         const saunaHave = Number(this.state.sauna) || 0;
