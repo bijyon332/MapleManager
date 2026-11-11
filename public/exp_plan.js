@@ -924,7 +924,7 @@ const expPlan = {
         const cell = (kind, id, label, icon) => {
             const have = Number(pool[kind][id]) || 0, u = used(kind, id);
             return `<label class="expp-pool ${have ? 'has' : ''}">
-                <span class="truncate flex items-center gap-1.5">${icon ? `<img src="${icon}" class="expp-ico-s" alt="">` : this.iconHTML(kind === 'tix' ? 'farm' : 'potion', 'expp-ico-s')}${label}</span>
+                <span class="truncate flex items-center gap-1.5">${icon ? `<img src="${icon}" class="expp-ico-t" alt="">` : this.iconHTML(kind === 'tix' ? 'farm' : 'potion', 'expp-ico-s')}${label}</span>
                 <input type="number" min="0" class="input input-xs font-mono w-14 text-right" value="${have}" onchange="expPlan.setPool('${world}','${kind}','${id}',this.value)">
                 <span class="font-mono text-[10px] ${have && u >= have ? 'text-amber-400' : 'text-slate-500'} w-9 text-right">${have ? `${u}/${have}` : ''}</span>
             </label>`;
@@ -994,7 +994,7 @@ const expPlan = {
             if (!have) return '';
             const max = have - (kind === 'tix' ? this.tixUsed(ch.server, id, ch.id) : this.potUsed(ch.server, id, ch.id));
             const opts = Array.from({ length: have + 1 }, (_, i) => `<option value="${i}"${i === cur ? ' selected' : ''}${i > max ? ' disabled' : ''}>${i}</option>`).join('');
-            return `<label class="expp-cnt ${cur ? 'on' : ''}" style="--c:${this.srcColor(kind === 'tix' ? 'farm' : 'potion')}">${icon ? `<img src="${icon}" class="expp-ico-s" alt="">` : ''}${this.stableText(label)}<select class="select select-xs font-mono w-14" onchange="expPlan.${kind === 'tix' ? 'setTix' : 'setPot'}('${ch.id}','${id}',this.value)">${opts}</select></label>`;
+            return `<label class="expp-cnt ${cur ? 'on' : ''}" style="--c:${this.srcColor(kind === 'tix' ? 'farm' : 'potion')}">${icon ? `<img src="${icon}" class="expp-ico-t" alt="">` : ''}${this.stableText(label)}<select class="select select-xs font-mono w-14" onchange="expPlan.${kind === 'tix' ? 'setTix' : 'setPot'}('${ch.id}','${id}',this.value)">${opts}</select></label>`;
         };
         const tixItems = this.TIX.map(t => cntSel('tix', t.id, t.label, Number(c.tix[t.id]) || 0, t.icon)).join('');
         const potItems = EXP_POTION_TYPES.map(p => cntSel('pot', p.id, this.potName(p), Number(c.pot[p.id]) || 0)).join('');
