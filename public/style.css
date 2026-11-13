@@ -646,6 +646,33 @@ body {
 .lg-field > span { font-size: 10.5px; font-weight: 700; color: #94a3b8; }
 .lg-refgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 6px; }
 .lg-table th { color: #94a3b8; font-weight: 700; font-size: 11px; }
+/* 目標ラインに対するラインの判定（寄与=緑・超過=赤・対象外=灰）。判定のない行も点の幅を空けて選択欄の左端を合わせる */
+.lg-line { display: flex; align-items: center; gap: 5px; }
+.lg-vd { width: 7px; height: 7px; flex-shrink: 0; border-radius: 9999px; background: transparent; }
+.lg-v-ok { --lg-v: #4ade80; }
+.lg-v-over { --lg-v: #f87171; }
+.lg-v-out { --lg-v: #64748b; }
+.lg-line[class*="lg-v-"] > .lg-vd { background: var(--lg-v); }
+.lg-vkey { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: var(--lg-v); letter-spacing: 0; }
+.lg-vkey i { width: 8px; height: 8px; border-radius: 9999px; background: var(--lg-v); }
+.lg-csum { font: 900 11px "IBM Plex Mono", monospace; white-space: nowrap; }
+.lg-cell.lg-noncontrib { border-color: #f87171; background: color-mix(in oklab, #f87171 7%, var(--color-base-100)); }
+/* 目標ライン */
+.lg-trow { display: flex; align-items: center; gap: 6px; padding: 3px 4px 3px 8px; border: 1px solid #1e293b; border-radius: 0.25rem; background: #0b1222; }
+.lg-trow.lg-trow-done { border-color: color-mix(in oklab, #4ade80 45%, transparent); }
+.lg-step { display: inline-flex; align-items: center; flex-shrink: 0; border: 1px solid #334155; border-radius: 0.25rem; overflow: hidden; }
+.lg-step button { width: 22px; height: 22px; font-weight: 900; color: #cbd5e1; background: var(--color-base-200); }
+.lg-step button:hover:not(:disabled) { background: #334155; color: #fff; }
+.lg-step button:disabled { opacity: 0.35; }
+.lg-step b { width: 22px; text-align: center; font-size: 13px; color: #fff; }
+/* 所有ピースとセットソルバー */
+.lg-piece { border: 1px solid #1e293b; border-radius: 0.25rem; background: #0b1222; padding: 6px; }
+.lg-piece.lg-piece-adopted { border-color: color-mix(in oklab, #4ade80 55%, transparent); }
+.lg-piece.lg-piece-unneeded { border-color: color-mix(in oklab, #f87171 55%, transparent); background: color-mix(in oklab, #f87171 7%, #0b1222); }
+.lg-solved { border-color: #4ade80; border-width: 2px; }
+.lg-pick { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; border-top: 1px solid #1e293b; }
+.lg-pick:first-child { border-top: 0; }
+.lg-pick-slot { display: inline-flex; align-items: center; gap: 4px; width: 72px; flex-shrink: 0; font-size: 11.5px; font-weight: 900; color: #cbd5e1; }
 
 /* 上部バーの収入欄のサーバー枠（左線の色はサーバー色のユーティリティで付ける）。 */
 .mm-srv { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px 0 10px; border: 1px solid color-mix(in oklab, var(--color-base-content) 15%, transparent); border-left-width: 3px; background: var(--color-base-200); white-space: nowrap; flex-shrink: 0; transition: opacity 0.15s; }

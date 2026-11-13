@@ -325,10 +325,13 @@
                 <button onclick="expUltima.setWorld('KRONOS')" data-world="KRONOS" role="tab" class="tab">Kronos</button>
                 <button onclick="expUltima.setWorld('CHALLENGER')" data-world="CHALLENGER" role="tab" class="tab">Challenger</button>
             </nav>
-            <!-- Libae's Gear の 装備管理／ジュエル強化／資料（Libae's Gear のときだけ出す）。押したときの切り替えは libae_gear.js -->
+            <!-- Libae's Gear の 装備管理／所有ピース／ジュエル強化／資料（Libae's Gear のときだけ出す）。押したときの切り替えは libae_gear.js -->
             <nav id="libae-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="libaeGear.setTab('gear')" data-tab="gear" role="tab" class="tab tab-active gap-1.5">
                     <i data-lucide="shirt" class="w-3.5 h-3.5"></i>装備管理
+                </button>
+                <button onclick="libaeGear.setTab('pieces')" data-tab="pieces" role="tab" class="tab gap-1.5">
+                    <i data-lucide="puzzle" class="w-3.5 h-3.5"></i>所有ピース
                 </button>
                 <button onclick="libaeGear.setTab('jewel')" data-tab="jewel" role="tab" class="tab gap-1.5">
                     <i data-lucide="gem" class="w-3.5 h-3.5"></i>ジュエル強化
