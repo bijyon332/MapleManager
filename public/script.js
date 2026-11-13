@@ -1051,9 +1051,11 @@ const app = {
                 .reduce((s, v) => s + v, 0);
             return wk + monthly / 4 - rentalWeeklyCost(settings); // normalize monthly to weekly-equivalent
         };
+        // カードの並び。既定は獲得メルの多い順、manual はキャラクタータブで並べた順（配列の順）。
+        const dashSort = this.data.config.dashSort === 'manual' ? 'manual' : 'meso';
         const activeChars = this.data.characters
-            .filter(char => (this.data.config.activeServer === 'ALL' || char.server === this.data.config.activeServer) && !char.hidden)
-            .sort((a, b) => computeCharMesos(b) - computeCharMesos(a));
+            .filter(char => (this.data.config.activeServer === 'ALL' || char.server === this.data.config.activeServer) && !char.hidden);
+        if (dashSort === 'meso') activeChars.sort((a, b) => computeCharMesos(b) - computeCharMesos(a));
 
         const charLimit = this.data.config.charMaxCrystals || 14;
         const worldLimit = this.data.config.worldMaxCrystals || 180;
@@ -1094,6 +1096,16 @@ const app = {
         const statsContainer = document.getElementById('dashboard-stats-container');
         if (statsContainer) {
             statsContainer.innerHTML = this.headerStatsHTML({ revMode, k: { rev: rev(kStats), count: kStats.count }, c: { rev: rev(cStats), count: cStats.count }, worldLimit, kOn: kOpacity === 'opacity-100', cOn: cOpacity === 'opacity-100' });
+        }
+
+        const sortBar = document.getElementById('dashboard-sortbar');
+        if (sortBar) {
+            const opt = (key, icon, label, title) => `<button type="button" onclick="app.setDashSort('${key}')" title="${title}" class="join-item btn btn-xs gap-1 ${dashSort === key ? 'bg-indigo-600 border-indigo-600 text-white' : 'text-base-content/60'}"><i data-lucide="${icon}" class="w-3 h-3"></i>${label}</button>`;
+            sortBar.classList.toggle('hidden', activeChars.length === 0);
+            sortBar.innerHTML = `<div class="join">
+                ${opt('meso', 'coins', '獲得メル順', '週の獲得メルが多い順に並べる')}
+                ${opt('manual', 'list-ordered', '自分の並び順', 'キャラクタータブで並べた順に並べる')}
+            </div>`;
         }
 
         if (activeChars.length === 0) {
@@ -1238,8 +1250,10 @@ const app = {
             const roleCls = x.role === 'MAIN' ? 'border-yellow-500/60 text-yellow-300' : (x.role === 'SUB' ? 'border-cyan-500/60 text-cyan-300' : 'border-base-content/20 text-base-content/50');
             const act = (fn, icon, label, hover) => `<button onclick="${fn}" title="${label}" class="btn btn-ghost btn-xs font-normal text-base-content/60 ${hover}"><i data-lucide="${icon}" class="w-3 h-3"></i>${label}</button>`;
             return `
-            <tr class="hover:bg-base-200/60 ${x.hidden ? 'opacity-45' : ''}">
-                <td class="text-right font-mono text-base-content/40">${idx + 1}</td>
+            <tr data-cid="${x.id}" class="mm-char-row hover:bg-base-200/60 ${x.hidden ? 'opacity-45' : ''}">
+                <td class="text-right font-mono text-base-content/40 whitespace-nowrap">
+                    <span class="mm-drag-handle inline-flex items-center gap-1 cursor-grab active:cursor-grabbing hover:text-base-content/80" title="ドラッグで並べ替え"><i data-lucide="grip-vertical" class="w-3.5 h-3.5"></i><span class="w-4 inline-block">${idx + 1}</span></span>
+                </td>
                 <td>
                     <div class="flex items-center gap-2.5 min-w-0 cursor-pointer" onclick="app.openCharModal('${x.id}')" title="Edit ${x.name}">
                         <span class="w-8 h-8 shrink-0 border-l-[3px] border-${sCol}-500 bg-base-300 relative overflow-hidden">${x.image
@@ -1267,16 +1281,105 @@ const app = {
             </tr>`;
         }).join('');
         if (c) c.innerHTML = activeChars.length ? `
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-[11px] text-base-content/50 font-bold">並べ直す</span>
+                <div class="join">
+                    <button type="button" onclick="app.sortCharacters('level')" title="Lv の高い順に並べ直す（あとからドラッグで手直しできます）" class="join-item btn btn-xs gap-1 text-base-content/70"><i data-lucide="arrow-down-wide-narrow" class="w-3 h-3"></i>Lv順</button>
+                    <button type="button" onclick="app.sortCharacters('job')" title="職業のグループ順（冒険家・シグナス…）に並べ直す" class="join-item btn btn-xs gap-1 text-base-content/70"><i data-lucide="swords" class="w-3 h-3"></i>職業順</button>
+                </div>
+            </div>
             <div class="card bg-base-100 border border-base-content/10 overflow-x-auto">
                 <table class="table table-sm [&_td]:py-1">
                     <thead><tr class="text-[11px] text-base-content/50">
-                        <th class="w-8 text-right">#</th><th>Name</th><th class="w-12 text-right">Lv</th><th>Job</th><th class="w-24">Server</th>
+                        <th class="w-14 text-right">#</th><th>Name</th><th class="w-12 text-right">Lv</th><th>Job</th><th class="w-24">Server</th>
                         <th class="w-16">Role</th><th class="w-16 text-right">Weekly</th><th class="w-32">HEXA</th><th class="w-72"></th>
                     </tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
             </div>` : `<div class="card bg-base-100 border border-dashed border-base-content/20 py-10 text-center text-base-content/50 text-xs">このサーバーにはキャラがいません。上の欄から追加できます。</div>`;
         lucide.createIcons();
+        this.bindCharRowDrag(c);
+    },
+
+    // キャラクタータブの行を # 列の取っ手でドラッグして並べ替える。
+    // 並び順は data.characters の配列の順そのもの（保存され、ダッシュボードの「自分の並び順」もこれを使う）。
+    bindCharRowDrag(root) {
+        if (!root) return;
+        const tbody = root.querySelector('tbody');
+        if (!tbody) return;
+        let dragId = null;
+        const clearMarks = () => tbody.querySelectorAll('.mm-drop-before, .mm-drop-after').forEach(r => r.classList.remove('mm-drop-before', 'mm-drop-after'));
+        tbody.querySelectorAll('tr.mm-char-row').forEach(tr => {
+            const handle = tr.querySelector('.mm-drag-handle');
+            // 取っ手を押したときだけ行をドラッグできるようにする（名前のクリックや文字選択はそのまま）
+            if (handle) handle.addEventListener('mousedown', () => { tr.draggable = true; });
+            tr.addEventListener('mouseup', () => { if (!dragId) tr.draggable = false; });
+            tr.addEventListener('dragstart', ev => {
+                dragId = tr.dataset.cid;
+                tr.classList.add('mm-dragging');
+                ev.dataTransfer.effectAllowed = 'move';
+                try { ev.dataTransfer.setData('text/plain', dragId); } catch (e) { /* 一部ブラウザは setData 必須 */ }
+            });
+            tr.addEventListener('dragend', () => {
+                tr.draggable = false; tr.classList.remove('mm-dragging'); clearMarks(); dragId = null;
+            });
+            tr.addEventListener('dragover', ev => {
+                if (!dragId || tr.dataset.cid === dragId) return;
+                ev.preventDefault(); ev.dataTransfer.dropEffect = 'move';
+                const r = tr.getBoundingClientRect();
+                const after = ev.clientY > r.top + r.height / 2;
+                clearMarks(); tr.classList.add(after ? 'mm-drop-after' : 'mm-drop-before');
+            });
+            tr.addEventListener('drop', ev => {
+                if (!dragId || tr.dataset.cid === dragId) return;
+                ev.preventDefault();
+                const after = tr.classList.contains('mm-drop-after');
+                this.moveCharacter(dragId, tr.dataset.cid, after);
+            });
+        });
+        tbody.addEventListener('dragleave', ev => { if (!tbody.contains(ev.relatedTarget)) clearMarks(); });
+    },
+
+    // id のキャラを targetId のキャラの前（after なら後ろ）へ動かす。
+    moveCharacter(id, targetId, after) {
+        const list = this.data.characters;
+        const from = list.findIndex(x => x.id === id);
+        if (from < 0) return;
+        const [moved] = list.splice(from, 1);
+        let to = list.findIndex(x => x.id === targetId);
+        if (to < 0) { list.splice(from, 0, moved); return; }
+        if (after) to++;
+        list.splice(to, 0, moved);
+        this.saveData();
+        this.renderCharacters();
+        this.renderDashboard();
+    },
+
+    // 表示中のサーバーのキャラだけを並べ直す（他サーバーのキャラの位置はそのまま）。同じ値は今の順を保つ。
+    sortCharacters(key) {
+        const srv = this.data.config.activeServer;
+        const inView = x => srv === 'ALL' || x.server === srv;
+        const list = this.data.characters;
+        const slots = [], subset = [];
+        list.forEach((x, i) => { if (inView(x)) { slots.push(i); subset.push(x); } });
+        let rank;
+        if (key === 'level') {
+            rank = x => -(Number(x.level) || 0);
+        } else {
+            const order = (typeof CLASS_DATA !== 'undefined') ? Object.values(CLASS_DATA).flat().map(j => j.id) : [];
+            rank = x => { const cls = this.classByJobName(x.job); const i = cls ? order.indexOf(cls.id) : -1; return i < 0 ? 1e6 : i; };
+        }
+        const sorted = subset.map((x, i) => ({ x, i, r: rank(x) })).sort((a, b) => (a.r - b.r) || (a.i - b.i)).map(o => o.x);
+        slots.forEach((slot, k) => { list[slot] = sorted[k]; });
+        this.saveData();
+        this.renderCharacters();
+        this.renderDashboard();
+    },
+
+    setDashSort(key) {
+        this.data.config.dashSort = key === 'manual' ? 'manual' : 'meso';
+        this.saveData();
+        this.renderDashboard();
     },
 
     openAddCharacterFromDashboard() {
