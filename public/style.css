@@ -895,3 +895,8 @@ i.expp-ico, svg.expp-ico { width: 15px; height: 15px; margin: 0 1.5px; }
 .sp-up-lv b { color: var(--c); font-weight: 700; }
 .sp-up-max { border-color: #34d39999; }
 .sp-up-max .sp-up-lv b { color: #34d399; }
+
+/* キャラクタータブの並べ替え（ドラッグ中の行と、落とす位置の線） */
+tr.mm-dragging { opacity: .4; }
+tr.mm-drop-before > td { box-shadow: inset 0 2px 0 #818cf8; }
+tr.mm-drop-after > td { box-shadow: inset 0 -2px 0 #818cf8; }

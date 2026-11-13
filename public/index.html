@@ -417,6 +417,8 @@
         <main class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-950">
             <div class="max-w-[1920px] mx-auto pb-10">
                 <div id="view-dashboard" class="fade-in">
+                    <!-- カードの並び: 獲得メル順／自分の並び順（キャラクタータブで並べた順）。renderDashboard で描く。 -->
+                    <div id="dashboard-sortbar" class="flex items-center gap-2 mb-2"></div>
                     <div id="dashboard-list" class="grid grid-cols-[repeat(auto-fill,430px)] gap-2"></div>
                     <div id="empty-state" class="hidden text-center py-20">
                         <div class="bg-slate-900/50 inline-block p-6 rounded-full mb-4"><i data-lucide="ghost"
