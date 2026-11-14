@@ -668,6 +668,8 @@ body {
 /* 所有ピースとセットソルバー */
 .lg-piece { border: 1px solid #1e293b; border-radius: 0.25rem; background: #0b1222; padding: 6px; }
 .lg-piece.lg-piece-adopted { border-color: color-mix(in oklab, #4ade80 55%, transparent); }
+.lg-own { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: #64748b; cursor: pointer; user-select: none; }
+.lg-own.lg-own-on { color: #a5b4fc; }
 .lg-piece.lg-piece-dup { border-color: color-mix(in oklab, #fbbf24 60%, transparent); border-style: dashed; }
 .lg-piece.lg-piece-unneeded { border-color: color-mix(in oklab, #f87171 55%, transparent); background: color-mix(in oklab, #f87171 7%, #0b1222); }
 .lg-solved { border-color: #4ade80; border-width: 2px; }
