@@ -588,13 +588,27 @@ const libaeGear = (() => {
 
     /* ---------- 所有ピース ---------- */
     const pvBadge = (v) => `<span class="badge badge-xs font-bold ${PIECE_VERDICT[v].cls}" title="${esc(PIECE_VERDICT[v].tip)}">${PIECE_VERDICT[v].label}</span>`;
-    function pieceHTML(p, v, slot) {
+    // 同じ部位に同じライン（順不同）のピースが先に登録されていれば、2つ目以降を「重複」にする。値は先に登録したピースの部位内の番号。
+    function duplicatePieces(pieces) {
+        const dup = {};
+        GRID_ORDER.forEach((slot) => {
+            const first = {};
+            pieces.filter((p) => p.slot === slot).forEach((p, i) => {
+                if (!p.skillLines.length) return;
+                const sig = p.skillLines.slice().sort().join('|');
+                if (sig in first) dup[p.id] = first[sig]; else first[sig] = i + 1;
+            });
+        });
+        return dup;
+    }
+    const dupBadge = (n) => `<span class="badge badge-xs font-bold badge-warning badge-outline" title="${n ? `同じ部位の ${n} つ目のピースと同じラインです（入力の重複）` : '同じ部位に同じラインのピースが先に登録されています（入力の重複）'}">重複</span>`;
+    function pieceHTML(p, v, slot, dupOf) {
         const vals = [p.skillLines[0] || '', p.skillLines[1] || '', p.skillLines[2] || ''];
         const del = pieceDelAsk === p.id
             ? `<button type="button" class="btn btn-error btn-xs h-5 min-h-0" data-act="p-del-yes" data-pid="${p.id}">本当に削除</button><button type="button" class="btn btn-ghost btn-xs h-5 min-h-0" data-act="p-del-no">キャンセル</button>`
             : `<button type="button" class="btn btn-ghost btn-xs btn-square h-5 min-h-0 w-5 text-base-content/50 hover:text-error" data-act="p-del" data-pid="${p.id}" title="このピースを削除" aria-label="${esc(SLOT_LABEL[slot])}のピースを削除"><i data-lucide="trash-2" class="w-3 h-3"></i></button>`;
-        return `<div class="lg-piece ${v === 'unneeded' ? 'lg-piece-unneeded' : v === 'adopted' ? 'lg-piece-adopted' : ''}">
-            <div class="flex items-center gap-1.5 h-5">${v ? pvBadge(v) : '<span class="text-[11px] text-base-content/40">ライン未入力</span>'}<span class="ml-auto flex items-center gap-1">${del}</span></div>
+        return `<div class="lg-piece ${dupOf ? 'lg-piece-dup' : v === 'unneeded' ? 'lg-piece-unneeded' : v === 'adopted' ? 'lg-piece-adopted' : ''}">
+            <div class="flex items-center gap-1.5 h-5">${dupOf ? dupBadge(dupOf) : ''}${v ? pvBadge(v) : '<span class="text-[11px] text-base-content/40">ライン未入力</span>'}<span class="ml-auto flex items-center gap-1">${del}</span></div>
             <div class="flex flex-col gap-1 mt-1">${vals.map((val, i) => `<select data-act="p-line" data-pid="${p.id}" data-idx="${i}" class="select select-xs w-full min-w-0 ${val ? 'font-bold' : 'text-base-content/45'}" aria-label="${esc(SLOT_LABEL[slot])}のピース スキルライン ${i + 1}">${skillOptionsHTML(val, vals.filter((_, j) => j !== i))}</select>`).join('')}</div>
         </div>`;
     }
@@ -604,16 +618,17 @@ const libaeGear = (() => {
         const verdicts = classifyPieces(pieces, lines, result);
         const counts = { adopted: 0, candidate: 0, unneeded: 0 };
         Object.values(verdicts).forEach((v) => { counts[v]++; });
+        const dup = duplicatePieces(pieces), dupCount = Object.keys(dup).length;
         // 左: 部位ごとの所有ピース
         let left = `<div class="card card-sm bg-base-100 border border-base-content/10 overflow-hidden">
             <div class="lg-equip-head"><span>PIECES <span class="text-base-content/55 font-bold ml-1">所有ピース</span></span><span class="badge badge-sm font-mono">${pieces.length} 件</span></div>
             <div class="lg-equip-grid">`;
         GRID_ORDER.forEach((slot) => {
-            const sp = pieces.filter((p) => p.slot === slot);
+            const sp = pieces.filter((p) => p.slot === slot), sd = sp.filter((p) => dup[p.id]).length;
             left += `<div class="lg-cell ${sp.length ? 'lg-filled' : ''}">
-                <div class="lg-cell-head">${slotIcon(slot, 18)}<span class="lg-sname">${esc(SLOT_LABEL[slot])}</span><span class="font-mono text-[11px] text-base-content/50">${sp.length}件</span>
+                <div class="lg-cell-head">${slotIcon(slot, 18)}<span class="lg-sname">${esc(SLOT_LABEL[slot])}</span><span class="font-mono text-[11px] text-base-content/50">${sp.length}件</span>${sd ? `<span class="font-mono text-[11px] font-bold text-warning">重複${sd}</span>` : ''}
                     <button type="button" class="btn btn-xs btn-ghost ml-auto h-6 min-h-0 px-2" data-act="p-add" data-slot="${slot}" aria-label="${esc(SLOT_LABEL[slot])}にピースを追加"><i data-lucide="plus" class="w-3 h-3"></i>ピース</button></div>
-                <div class="lg-editor flex flex-col gap-1.5">${sp.map((p) => pieceHTML(p, verdicts[p.id], slot)).join('') || '<span class="text-[11px] text-base-content/35">未登録</span>'}</div>
+                <div class="lg-editor flex flex-col gap-1.5">${sp.map((p) => pieceHTML(p, verdicts[p.id], slot, dup[p.id])).join('') || '<span class="text-[11px] text-base-content/35">未登録</span>'}</div>
             </div>`;
         });
         left += '</div></div>';
@@ -631,7 +646,7 @@ const libaeGear = (() => {
                 </li>`).join('')}</ul>
                 ${result.truncated ? '<p class="text-[11px] text-base-content/50 mt-1.5">組み合わせが多いため探索を途中で打ち切り、見つかった中で一番近いものを出しています。</p>' : ''}
             </div>
-            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-base-content/60">${['adopted', 'candidate', 'unneeded'].map((k) => `<span class="inline-flex items-center gap-1" title="${esc(PIECE_VERDICT[k].tip)}">${pvBadge(k)}<b class="font-mono text-white">${counts[k]}</b>件</span>`).join('')}</div>`;
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-base-content/60">${['adopted', 'candidate', 'unneeded'].map((k) => `<span class="inline-flex items-center gap-1" title="${esc(PIECE_VERDICT[k].tip)}">${pvBadge(k)}<b class="font-mono text-white">${counts[k]}</b>件</span>`).join('')}${dupCount ? `<span class="inline-flex items-center gap-1">${dupBadge(0)}<b class="font-mono text-white">${dupCount}</b>件</span>` : ''}</div>`;
         }
         side += targetHTML(result ? result.counts : {});
         return `<div class="lg-gear">${left}<aside class="card card-sm bg-base-100 border border-base-content/10 p-3" id="lg-side">${side}</aside></div>`;
