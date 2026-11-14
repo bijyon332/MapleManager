@@ -140,12 +140,14 @@ const libaeGear = (() => {
         });
         return out;
     }
+    // 1つの装備（ピース）に同じスキルは付かないので、2つ目以降の同じスキルは空きにする（位置は保つ）。
+    const dedupeLines = (lines) => lines.map((n, i) => (n && lines.indexOf(n) < i ? '' : n));
     function sanitizePieces(raw, keepIds) {
         if (!Array.isArray(raw)) return [];
         const out = [];
         raw.forEach((p) => {
             if (!p || typeof p !== 'object' || !GRID_ORDER.includes(p.slot)) return;
-            const lines = Array.isArray(p.skillLines) ? p.skillLines.filter((v) => typeof v === 'string' && v.trim() !== '').slice(0, 3).map(normalizeSkillName) : [];
+            const lines = Array.isArray(p.skillLines) ? dedupeLines(p.skillLines.filter((v) => typeof v === 'string' && v.trim() !== '').slice(0, 3).map(normalizeSkillName)).filter((v) => v) : [];
             out.push({ id: keepIds && typeof p.id === 'number' && p.id > 0 ? p.id : out.length + 1, slot: p.slot, skillLines: lines });
         });
         const seen = {}; let mx = 0;
@@ -163,7 +165,7 @@ const libaeGear = (() => {
     function load() {
         const g = loadJSON(LS_GEAR, null);
         gear = g && typeof g === 'object' ? g : blankGear();
-        GRID_ORDER.forEach((s) => { if (!(s in gear)) gear[s] = null; });
+        GRID_ORDER.forEach((s) => { if (!(s in gear)) gear[s] = null; else if (gear[s] && Array.isArray(gear[s].skillLines)) gear[s].skillLines = dedupeLines(gear[s].skillLines); });
         const st = loadJSON(LS_SETTINGS, null);
         settings = st && Array.isArray(st.coloredStepCosts) && Array.isArray(st.prismaticStepCosts) ? st : presetSettings();
         if (typeof settings.maxLevel !== 'number' || settings.maxLevel < 2) settings.maxLevel = 5;
@@ -340,7 +342,7 @@ const libaeGear = (() => {
                 const sig = p.skillLines.slice().sort().join('|');
                 if (seen[sig]) return; seen[sig] = 1;
                 const kc = {};
-                p.skillLines.forEach((n) => { const k = solverKeyFor(n, tm); kc[k] = (kc[k] || 0) + 1; });
+                new Set(p.skillLines).forEach((n) => { const k = solverKeyFor(n, tm); kc[k] = (kc[k] || 0) + 1; });   // 同じスキルは1ピース1回
                 options.push({ piece: p, keyCounts: kc });
             });
             options.push({ piece: null, keyCounts: {} });
@@ -409,11 +411,12 @@ const libaeGear = (() => {
     };
 
     /* ---------- 装備管理 ---------- */
-    function skillOptionsHTML(selected) {
+    // taken = 同じ装備（ピース）の他の行で選んでいるスキル。1つの装備に同じスキルは付かないので選択肢から外す。
+    function skillOptionsHTML(selected, taken = []) {
         let h = '<option value="">（なし）</option>';
         SKILL_GROUPS.forEach((g) => {
             h += `<optgroup label="[Hologram] ${esc(g.label)}">`;
-            SKILLS.filter((s) => s.group === g.id).forEach((s) => { h += `<option value="${esc(s.name)}" ${selected === s.name ? 'selected' : ''}>${esc(s.name)}</option>`; });
+            SKILLS.filter((s) => s.group === g.id && (s.name === selected || !taken.includes(s.name))).forEach((s) => { h += `<option value="${esc(s.name)}" ${selected === s.name ? 'selected' : ''}>${esc(s.name)}</option>`; });
             h += '</optgroup>';
         });
         if (selected && !SKILL_NAMES.includes(selected)) h += `<option value="${esc(selected)}" selected>${esc(selected)}</option>`;
@@ -484,7 +487,7 @@ const libaeGear = (() => {
                 <div class="lg-legend">スキルライン</div>
                 <div class="flex flex-col gap-1">
                     ${[0, 1, 2].map((i) => { const v = lines[i] && curVerdicts && curVerdicts.gear[slot] ? curVerdicts.gear[slot][i] : null;
-                        return `<div class="lg-line ${v ? VERDICT[v].cls : ''}">${verdictDot(v)}<select data-act="skill" data-slot="${slot}" data-idx="${i}" class="select select-xs flex-1 min-w-0 ${lines[i] ? 'font-bold' : 'text-base-content/45'}" ${verdictStyle(v)} aria-label="スキルライン ${i + 1}">${skillOptionsHTML(lines[i] || '')}</select></div>`; }).join('')}
+                        return `<div class="lg-line ${v ? VERDICT[v].cls : ''}">${verdictDot(v)}<select data-act="skill" data-slot="${slot}" data-idx="${i}" class="select select-xs flex-1 min-w-0 ${lines[i] ? 'font-bold' : 'text-base-content/45'}" ${verdictStyle(v)} aria-label="スキルライン ${i + 1}">${skillOptionsHTML(lines[i] || '', lines.filter((_, j) => j !== i))}</select></div>`; }).join('')}
                 </div>
                 <div class="lg-legend mt-2">ジュエルソケット</div>
                 ${socks.map((s, idx) => socketHTML(slot, s, idx)).join('')}
@@ -592,7 +595,7 @@ const libaeGear = (() => {
             : `<button type="button" class="btn btn-ghost btn-xs btn-square h-5 min-h-0 w-5 text-base-content/50 hover:text-error" data-act="p-del" data-pid="${p.id}" title="このピースを削除" aria-label="${esc(SLOT_LABEL[slot])}のピースを削除"><i data-lucide="trash-2" class="w-3 h-3"></i></button>`;
         return `<div class="lg-piece ${v === 'unneeded' ? 'lg-piece-unneeded' : v === 'adopted' ? 'lg-piece-adopted' : ''}">
             <div class="flex items-center gap-1.5 h-5">${v ? pvBadge(v) : '<span class="text-[11px] text-base-content/40">ライン未入力</span>'}<span class="ml-auto flex items-center gap-1">${del}</span></div>
-            <div class="flex flex-col gap-1 mt-1">${vals.map((val, i) => `<select data-act="p-line" data-pid="${p.id}" data-idx="${i}" class="select select-xs w-full min-w-0 ${val ? 'font-bold' : 'text-base-content/45'}" aria-label="${esc(SLOT_LABEL[slot])}のピース スキルライン ${i + 1}">${skillOptionsHTML(val)}</select>`).join('')}</div>
+            <div class="flex flex-col gap-1 mt-1">${vals.map((val, i) => `<select data-act="p-line" data-pid="${p.id}" data-idx="${i}" class="select select-xs w-full min-w-0 ${val ? 'font-bold' : 'text-base-content/45'}" aria-label="${esc(SLOT_LABEL[slot])}のピース スキルライン ${i + 1}">${skillOptionsHTML(val, vals.filter((_, j) => j !== i))}</select>`).join('')}</div>
         </div>`;
     }
     function piecesHTML() {
@@ -840,7 +843,7 @@ const libaeGear = (() => {
         };
         const item = (lines, socks, fromMain) => {
             const sl = Array.isArray(lines) ? lines : [];
-            return { skillLines: [0, 1, 2].map((i) => normalizeSkillName(sl[i] || '')), sockets: Array.isArray(socks) ? socks.slice(0, 3).map((s) => convSocket(s, fromMain)) : [] };
+            return { skillLines: dedupeLines([0, 1, 2].map((i) => normalizeSkillName(sl[i] || ''))), sockets: Array.isArray(socks) ? socks.slice(0, 3).map((s) => convSocket(s, fromMain)) : [] };
         };
         const ng = blankGear();
         if (Array.isArray(data.gear)) {
@@ -939,12 +942,12 @@ const libaeGear = (() => {
                 const piece = ownedPieces.find((p) => p.id === Number(el.dataset.pid)); if (!piece) return;
                 const vals = [piece.skillLines[0] || '', piece.skillLines[1] || '', piece.skillLines[2] || ''];
                 vals[idx] = el.value;
-                piece.skillLines = vals.map((v) => v.trim()).filter((v) => v !== '');
+                piece.skillLines = dedupeLines(vals.map((v) => v.trim())).filter((v) => v !== '');
                 pieceDelAsk = null; savePieces(); render();
                 return;
             }
             // スキルラインは他の部位の判定（寄与／超過）も変えるので描き直す。
-            if (act === 'skill') { ensureSlot(slot).skillLines[idx] = el.value; normalizeSlot(slot); saveGear(); render(); return; }
+            if (act === 'skill') { const it0 = ensureSlot(slot); it0.skillLines[idx] = el.value; it0.skillLines = dedupeLines(it0.skillLines); normalizeSlot(slot); saveGear(); render(); return; }
             const it = gear[slot]; if (!it) return;
             const sock = it.sockets[idx]; if (!sock) return;
             if (act === 'color') {
