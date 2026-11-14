@@ -148,7 +148,7 @@ const libaeGear = (() => {
         raw.forEach((p) => {
             if (!p || typeof p !== 'object' || !GRID_ORDER.includes(p.slot)) return;
             const lines = Array.isArray(p.skillLines) ? dedupeLines(p.skillLines.filter((v) => typeof v === 'string' && v.trim() !== '').slice(0, 3).map(normalizeSkillName)).filter((v) => v) : [];
-            out.push({ id: keepIds && typeof p.id === 'number' && p.id > 0 ? p.id : out.length + 1, slot: p.slot, skillLines: lines });
+            out.push({ id: keepIds && typeof p.id === 'number' && p.id > 0 ? p.id : out.length + 1, slot: p.slot, skillLines: lines, own: !!p.own });
         });
         const seen = {}; let mx = 0;
         out.forEach((p) => { if (p.id > mx) mx = p.id; });
@@ -159,6 +159,9 @@ const libaeGear = (() => {
     let ownedPieces = [];
     let nextPieceId = 1;
     let pieceDelAsk = null;   // 「本当に削除」を出しているピースの id
+    // 所有ピースの右の目標ラインに、どちらの組み合わせ（自前のみ own／全部 all）の数を出すか。
+    const LS_PAT = 'mm-libae-pat';
+    let patView = 'all';
     function saveTarget() { try { localStorage.setItem(LS_TARGET, JSON.stringify(skillTarget)); } catch (e) { setMsg('目標ラインを保存できませんでした', false); } }
     function savePieces() { try { localStorage.setItem(LS_PIECES, JSON.stringify(ownedPieces)); } catch (e) { setMsg('所有ピースを保存できませんでした', false); } }
 
@@ -174,6 +177,7 @@ const libaeGear = (() => {
         skillTarget = tl && tl.length ? { lines: tl, isPreset: false } : presetTarget();
         ownedPieces = sanitizePieces(loadJSON(LS_PIECES, null), true);
         nextPieceId = ownedPieces.reduce((a, p) => Math.max(a, p.id), 0) + 1;
+        patView = loadJSON(LS_PAT, 'all') === 'own' ? 'own' : 'all';
         const t = loadJSON(LS_TAB, 'gear');
         tab = ['gear', 'pieces', 'jewel', 'reference'].includes(t) ? t : 'gear';
     }
@@ -328,12 +332,16 @@ const libaeGear = (() => {
         });
         return { gear: gearV, prismatic: prisV, summary };
     }
-    // 各部位から所有ピースを1つまで選び、ラインの合計を目標の配分に合わせる（なければ一番近い組み合わせ）。
-    // 深さ優先＋同じ並びのピースの重複除去＋下限での枝刈り＋探索ノード上限（単体版と同じ）。
+    // 各部位から所有ピースを1つまで選び、ラインの合計を目標の配分に近づける。選ぶ基準は次の順（2026-11-14 bi 指定）:
+    //   1. ジョブ攻撃5種（Warrior／Magician／Bowman／Thief／Pirate Attack Skill）がそれぞれ1ライン以上ある種類の数が多い
+    //   2. 目標ラインの埋まり（目標ごとに min(目標, 今の数) の合計）が多い
+    //   3. 目標を超えたライン（超過）が少ない
+    // 深さ優先＋同じ並びのピースの重複除去＋上限での枝刈り＋探索ノード上限。
     function solveSet(pieces, targetLines) {
-        const tm = targetMapOf(targetLines);
+        const tm = targetMapOf(targetLines), tkeys = Object.keys(tm);
         const totalTarget = targetLines.reduce((a, l) => a + l.target, 0);
         if (totalTarget === 0) return null;
+        const ATK = ATTACK_SKILL_NAMES;
         const slotOptions = {};
         GRID_ORDER.forEach((slot) => {
             const seen = {}, options = [];
@@ -341,56 +349,72 @@ const libaeGear = (() => {
                 if (p.slot !== slot || !p.skillLines.length) return;
                 const sig = p.skillLines.slice().sort().join('|');
                 if (seen[sig]) return; seen[sig] = 1;
-                const kc = {};
-                new Set(p.skillLines).forEach((n) => { const k = solverKeyFor(n, tm); kc[k] = (kc[k] || 0) + 1; });   // 同じスキルは1ピース1回
-                options.push({ piece: p, keyCounts: kc });
+                const kc = {}, uniq = [...new Set(p.skillLines)];   // 同じスキルは1ピース1回
+                uniq.forEach((n) => { const k = solverKeyFor(n, tm); kc[k] = (kc[k] || 0) + 1; });
+                const atk = uniq.map((n) => ATK.indexOf(n)).filter((x) => x >= 0);
+                options.push({ piece: p, keyCounts: kc, atk, atkMask: atk.reduce((m, x) => m | (1 << x), 0) });
             });
-            options.push({ piece: null, keyCounts: {} });
+            options.push({ piece: null, keyCounts: {}, atk: [], atkMask: 0 });
             slotOptions[slot] = options;
         });
         const searchSlots = GRID_ORDER.slice().sort((a, b) => slotOptions[a].length - slotOptions[b].length);
-        const n = searchSlots.length, suffixMax = [];
-        for (let i = n; i >= 0; i--) suffixMax[i] = {};
+        const n = searchSlots.length, suffixMax = [], suffixAtk = [];
+        for (let i = n; i >= 0; i--) { suffixMax[i] = {}; suffixAtk[i] = 0; }
         for (let si = n - 1; si >= 0; si--) {
             const cur = { ...suffixMax[si + 1] }, perKey = {};
-            slotOptions[searchSlots[si]].forEach((o) => Object.keys(o.keyCounts).forEach((k) => { if (o.keyCounts[k] > (perKey[k] || 0)) perKey[k] = o.keyCounts[k]; }));
+            let mask = suffixAtk[si + 1];
+            slotOptions[searchSlots[si]].forEach((o) => {
+                Object.keys(o.keyCounts).forEach((k) => { if (o.keyCounts[k] > (perKey[k] || 0)) perKey[k] = o.keyCounts[k]; });
+                mask |= o.atkMask;
+            });
             Object.keys(perKey).forEach((k) => { cur[k] = (cur[k] || 0) + perKey[k]; });
-            suffixMax[si] = cur;
+            suffixMax[si] = cur; suffixAtk[si] = mask;
         }
-        const penaltyOf = (c) => { let p = 0; Object.keys(tm).forEach((k) => { p += Math.max(0, tm[k] - (c[k] || 0)); }); Object.keys(c).forEach((k) => { p += Math.max(0, c[k] - (tm[k] || 0)); }); return p; };
-        const matchedOf = (c) => Object.keys(tm).reduce((m, k) => m + Math.min(tm[k], c[k] || 0), 0);
+        const bits = (m) => { let c = 0; while (m) { c += m & 1; m >>= 1; } return c; };
+        const maxCov = bits(suffixAtk[0]);
+        const excessOf = (c) => Object.keys(c).reduce((e, k) => e + Math.max(0, c[k] - (tm[k] || 0)), 0);
+        const matchedOf = (c) => tkeys.reduce((m, k) => m + Math.min(tm[k], c[k] || 0), 0);
+        // a が b より良いか（[ジョブ攻撃の種類数, 埋まり, −超過] を前から比べる）
+        const better = (a, b) => a[0] !== b[0] ? a[0] > b[0] : a[1] !== b[1] ? a[1] > b[1] : a[2] > b[2];
         const NODE_BUDGET = 600000;
-        let nodes = 0, truncated = false, bestPenalty = Infinity, bestMatched = -1, bestCounts = {}, bestPicks = {};
-        const counts = {}, picks = {};
+        let nodes = 0, truncated = false, best = null, bestCounts = {}, bestPicks = {};
+        const counts = {}, picks = {}, atkCount = [0, 0, 0, 0, 0];
+        const covMask = () => atkCount.reduce((m, c, x) => (c > 0 ? m | (1 << x) : m), 0);
+        const perfect = () => best && best[0] === maxCov && best[1] === totalTarget && best[2] === 0;
         const dfs = (i) => {
-            if (bestPenalty === 0 || truncated) return;
+            if (perfect() || truncated) return;
             if (nodes >= NODE_BUDGET) { truncated = true; return; }
             nodes++;
             if (i === n) {
-                const pen = penaltyOf(counts), mat = matchedOf(counts);
-                if (pen < bestPenalty || (pen === bestPenalty && mat > bestMatched)) { bestPenalty = pen; bestMatched = mat; bestCounts = { ...counts }; bestPicks = { ...picks }; }
+                const score = [bits(covMask()), matchedOf(counts), -excessOf(counts)];
+                if (!best || better(score, best)) { best = score; bestCounts = { ...counts }; bestPicks = { ...picks }; }
                 return;
             }
-            if (bestPenalty !== Infinity) {
-                let lb = 0;
-                Object.keys(counts).forEach((k) => { lb += Math.max(0, counts[k] - (tm[k] || 0)); });
+            if (best) {
+                // ここから先で届きうる上限（ジョブ攻撃の種類数・埋まりは多めに、超過は少なめに見積もる）。これが今の最良を超えなければ打ち切る。
                 const suffix = suffixMax[i];
-                Object.keys(tm).forEach((k) => { lb += Math.max(0, tm[k] - ((counts[k] || 0) + (suffix[k] || 0))); });
-                if (lb >= bestPenalty) return;
+                const ub = [bits(covMask() | suffixAtk[i]), tkeys.reduce((m, k) => m + Math.min(tm[k], (counts[k] || 0) + (suffix[k] || 0)), 0), -excessOf(counts)];
+                if (!better(ub, best)) return;
             }
             const slot = searchSlots[i];
             for (const opt of slotOptions[slot]) {
                 Object.keys(opt.keyCounts).forEach((k) => { counts[k] = (counts[k] || 0) + opt.keyCounts[k]; });
+                opt.atk.forEach((x) => { atkCount[x]++; });
                 picks[slot] = opt.piece;
                 dfs(i + 1);
                 Object.keys(opt.keyCounts).forEach((k) => { counts[k] -= opt.keyCounts[k]; });
-                if (bestPenalty === 0 || truncated) return;
+                opt.atk.forEach((x) => { atkCount[x]--; });
+                if (perfect() || truncated) return;
             }
         };
         dfs(0);
+        const pickList = GRID_ORDER.map((slot) => ({ slot, piece: bestPicks[slot] || null }));
+        const atkHave = new Set(pickList.flatMap((pk) => (pk.piece ? pk.piece.skillLines.filter((nm) => ATK.includes(nm)) : [])));
         const shortage = targetLines.map((l) => { const c = bestCounts[l.name] || 0; return { name: l.name, current: c, target: l.target, missing: Math.max(0, l.target - c) }; }).filter((s) => s.missing > 0);
         const excess = Object.keys(bestCounts).map((k) => ({ name: k, over: bestCounts[k] - (tm[k] || 0) })).filter((e) => e.over > 0);
-        return { exact: bestPenalty === 0, truncated, counts: bestCounts, picks: GRID_ORDER.map((slot) => ({ slot, piece: bestPicks[slot] || null })), shortage, excess, matched: Math.max(0, bestMatched), totalTarget };
+        const matched = best ? best[1] : 0;
+        return { exact: !!best && matched === totalTarget && best[2] === 0, truncated, counts: bestCounts, picks: pickList, shortage, excess, matched, totalTarget,
+            atkCovered: ATK.filter((nm) => atkHave.has(nm)), atkPossible: ATK.filter((_, x) => suffixAtk[0] & (1 << x)) };
     }
     // ピースの判定: 採用（最適セットに入っている）／候補（足りないスキルを含む）／不要（足りないスキルを1つも含まない）。
     function classifyPieces(pieces, targetLines, result) {
@@ -400,7 +424,8 @@ const libaeGear = (() => {
         const picked = new Set(result.picks.filter((pk) => pk.piece).map((pk) => pk.piece.id));
         pieces.forEach((p) => {
             if (picked.has(p.id)) verdicts[p.id] = 'adopted';
-            else verdicts[p.id] = p.skillLines.some((nm) => shortKeys.has(solverKeyFor(nm, tm))) ? 'candidate' : 'unneeded';
+            // 足りない目標のスキルか、組み合わせにまだ無いジョブ攻撃スキルを含むなら候補
+            else verdicts[p.id] = p.skillLines.some((nm) => shortKeys.has(solverKeyFor(nm, tm)) || (ATTACK_SKILL_NAMES.includes(nm) && !result.atkCovered.includes(nm))) ? 'candidate' : 'unneeded';
         });
         return verdicts;
     }
@@ -534,13 +559,14 @@ const libaeGear = (() => {
         return h;
     }
     // 目標ライン（装備管理の右の列と、所有ピースの右の列の両方に出す）。
-    function targetHTML(kt) {
+    // extra = 見出しと達成状況の間に差し込む HTML（所有ピースでは 自前のみ／全部 の切り替え）。
+    function targetHTML(kt, extra = '') {
         const t = targetRows(kt), isDef = isDefaultTarget(skillTarget.lines);
         const right = isDef ? '<span class="badge badge-ghost badge-xs font-normal">初期値（最適配分）</span>'
             : '<span class="badge badge-warning badge-soft badge-xs font-normal">カスタム</span><button type="button" class="btn btn-ghost btn-xs h-5 min-h-0 px-1.5 font-normal" data-act="t-reset" title="isophi の 3L Set Solver の最適配分（合計18）に戻します">初期値に戻す</button>';
         let h = `<section class="mt-4">${h3('target', '目標ライン', `<span class="flex items-center gap-1">${right}</span>`)}`;
         const done = t.total > 0 && t.missing === 0;
-        h += `<div class="lg-inset py-2"><div class="flex items-end justify-between gap-2">
+        h += `${extra}<div class="lg-inset py-2"><div class="flex items-end justify-between gap-2">
                 <div class="font-mono"><span class="text-[22px] font-black leading-none ${done ? 'text-success' : 'text-white'}">${t.eff}</span><span class="text-base-content/50 font-bold text-[13px]"> / ${t.total} ライン</span></div>
                 ${done ? '<span class="badge badge-success badge-sm font-bold">目標達成</span>' : `<div class="font-mono text-[13px] font-bold text-amber-300">あと <span class="text-[20px] font-black">${t.missing}</span> ライン</div>`}
             </div><div class="mt-1.5">${gaugeHTML(t.eff, t.total, null, '目標ライン', false)}</div></div>`;
@@ -588,52 +614,85 @@ const libaeGear = (() => {
 
     /* ---------- 所有ピース ---------- */
     const pvBadge = (v) => `<span class="badge badge-xs font-bold ${PIECE_VERDICT[v].cls}" title="${esc(PIECE_VERDICT[v].tip)}">${PIECE_VERDICT[v].label}</span>`;
-    function pieceHTML(p, v, slot) {
+    // 同じ部位に同じライン（順不同）のピースが先に登録されていれば、2つ目以降を「重複」にする。値は先に登録したピースの部位内の番号。
+    function duplicatePieces(pieces) {
+        const dup = {};
+        GRID_ORDER.forEach((slot) => {
+            const first = {};
+            pieces.filter((p) => p.slot === slot).forEach((p, i) => {
+                if (!p.skillLines.length) return;
+                const sig = p.skillLines.slice().sort().join('|');
+                if (sig in first) dup[p.id] = first[sig]; else first[sig] = i + 1;
+            });
+        });
+        return dup;
+    }
+    const dupBadge = (n) => `<span class="badge badge-xs font-bold badge-warning badge-outline" title="${n ? `同じ部位の ${n} つ目のピースと同じラインです（入力の重複）` : '同じ部位に同じラインのピースが先に登録されています（入力の重複）'}">重複</span>`;
+    function pieceHTML(p, v, slot, dupOf) {
         const vals = [p.skillLines[0] || '', p.skillLines[1] || '', p.skillLines[2] || ''];
         const del = pieceDelAsk === p.id
             ? `<button type="button" class="btn btn-error btn-xs h-5 min-h-0" data-act="p-del-yes" data-pid="${p.id}">本当に削除</button><button type="button" class="btn btn-ghost btn-xs h-5 min-h-0" data-act="p-del-no">キャンセル</button>`
             : `<button type="button" class="btn btn-ghost btn-xs btn-square h-5 min-h-0 w-5 text-base-content/50 hover:text-error" data-act="p-del" data-pid="${p.id}" title="このピースを削除" aria-label="${esc(SLOT_LABEL[slot])}のピースを削除"><i data-lucide="trash-2" class="w-3 h-3"></i></button>`;
-        return `<div class="lg-piece ${v === 'unneeded' ? 'lg-piece-unneeded' : v === 'adopted' ? 'lg-piece-adopted' : ''}">
-            <div class="flex items-center gap-1.5 h-5">${v ? pvBadge(v) : '<span class="text-[11px] text-base-content/40">ライン未入力</span>'}<span class="ml-auto flex items-center gap-1">${del}</span></div>
+        return `<div class="lg-piece ${dupOf ? 'lg-piece-dup' : v === 'unneeded' ? 'lg-piece-unneeded' : v === 'adopted' ? 'lg-piece-adopted' : ''}">
+            <div class="flex items-center gap-1.5 h-5">${dupOf ? dupBadge(dupOf) : ''}${v ? pvBadge(v) : '<span class="text-[11px] text-base-content/40">ライン未入力</span>'}<span class="ml-auto flex items-center gap-1.5"><label class="lg-own ${p.own ? 'lg-own-on' : ''}" title="自前の装備（自分で持っているピース）。「自前のみ」の組み合わせに使います"><input type="checkbox" class="checkbox checkbox-primary checkbox-xs" data-act="p-own" data-pid="${p.id}" ${p.own ? 'checked' : ''}>自前</label>${del}</span></div>
             <div class="flex flex-col gap-1 mt-1">${vals.map((val, i) => `<select data-act="p-line" data-pid="${p.id}" data-idx="${i}" class="select select-xs w-full min-w-0 ${val ? 'font-bold' : 'text-base-content/45'}" aria-label="${esc(SLOT_LABEL[slot])}のピース スキルライン ${i + 1}">${skillOptionsHTML(val, vals.filter((_, j) => j !== i))}</select>`).join('')}</div>
         </div>`;
     }
     function piecesHTML() {
         const pieces = ownedPieces, lines = skillTarget.lines;
+        // 組み合わせは 全部 と 自前のみ の2通り。ピースの判定（採用／候補／不要）は2通りの良い方
+        // （自前のピースは 自前のみ の組み合わせでの判定も見る。どちらかで採用なら採用）。
         const result = pieces.length ? solveSet(pieces, lines) : null;
+        const ownPieces = pieces.filter((p) => p.own);
+        const ownResult = ownPieces.length ? solveSet(ownPieces, lines) : null;
         const verdicts = classifyPieces(pieces, lines, result);
+        const ownVerdicts = classifyPieces(ownPieces, lines, ownResult);
+        const rank = { adopted: 3, candidate: 2, unneeded: 1 };
+        Object.keys(ownVerdicts).forEach((id) => { if (!verdicts[id] || rank[ownVerdicts[id]] > rank[verdicts[id]]) verdicts[id] = ownVerdicts[id]; });
         const counts = { adopted: 0, candidate: 0, unneeded: 0 };
         Object.values(verdicts).forEach((v) => { counts[v]++; });
+        const dup = duplicatePieces(pieces), dupCount = Object.keys(dup).length;
         // 左: 部位ごとの所有ピース
         let left = `<div class="card card-sm bg-base-100 border border-base-content/10 overflow-hidden">
             <div class="lg-equip-head"><span>PIECES <span class="text-base-content/55 font-bold ml-1">所有ピース</span></span><span class="badge badge-sm font-mono">${pieces.length} 件</span></div>
             <div class="lg-equip-grid">`;
         GRID_ORDER.forEach((slot) => {
-            const sp = pieces.filter((p) => p.slot === slot);
+            const sp = pieces.filter((p) => p.slot === slot), sd = sp.filter((p) => dup[p.id]).length, so = sp.filter((p) => p.own).length;
             left += `<div class="lg-cell ${sp.length ? 'lg-filled' : ''}">
-                <div class="lg-cell-head">${slotIcon(slot, 18)}<span class="lg-sname">${esc(SLOT_LABEL[slot])}</span><span class="font-mono text-[11px] text-base-content/50">${sp.length}件</span>
+                <div class="lg-cell-head">${slotIcon(slot, 18)}<span class="lg-sname">${esc(SLOT_LABEL[slot])}</span><span class="font-mono text-[11px] text-base-content/50">${sp.length}件${so ? `<span class="text-indigo-300"> · 自前${so}</span>` : ''}</span>${sd ? `<span class="font-mono text-[11px] font-bold text-warning">重複${sd}</span>` : ''}
                     <button type="button" class="btn btn-xs btn-ghost ml-auto h-6 min-h-0 px-2" data-act="p-add" data-slot="${slot}" aria-label="${esc(SLOT_LABEL[slot])}にピースを追加"><i data-lucide="plus" class="w-3 h-3"></i>ピース</button></div>
-                <div class="lg-editor flex flex-col gap-1.5">${sp.map((p) => pieceHTML(p, verdicts[p.id], slot)).join('') || '<span class="text-[11px] text-base-content/35">未登録</span>'}</div>
+                <div class="lg-editor flex flex-col gap-1.5">${sp.map((p) => pieceHTML(p, verdicts[p.id], slot, dup[p.id])).join('') || '<span class="text-[11px] text-base-content/35">未登録</span>'}</div>
             </div>`;
         });
         left += '</div></div>';
-        // 右: ソルバーの結果と目標ライン
+        // 右: ソルバーの結果（自前のみ・全部）と目標ライン
+        const totalT = lines.reduce((a, l) => a + l.target, 0);
+        const card = (key, label, r, emptyMsg) => {
+            const head = `<div class="flex items-center gap-2"><span class="text-[13px] font-black text-white">${label}</span>
+                ${r ? (r.exact ? '<span class="badge badge-success badge-xs font-bold">目標に一致</span>' : '<span class="text-[11px] text-base-content/50">一番近い組み合わせ</span>') : ''}
+                ${r ? `<span class="ml-auto font-mono text-[12px] font-bold ${r.exact ? 'text-success' : 'text-white'}" title="目標ラインの埋まり">${r.matched}<span class="text-base-content/50 font-normal"> / ${totalT}</span></span>` : ''}</div>`;
+            if (!r) return `<div class="lg-inset mt-1.5">${head}<p class="lg-empty mt-1">${emptyMsg}</p></div>`;
+            // ジョブ攻撃5種の揃い（組み合わせで最初に優先する条件）
+            const atk = `<div class="flex items-center gap-[3px] mt-1 text-[10px]" title="ジョブ攻撃5種を各1ライン以上にするのを最優先に選んでいます（${r.atkCovered.length} / 5 種）"><span class="text-base-content/50 mr-[3px] whitespace-nowrap shrink-0">ジョブ攻撃</span>${ATTACK_SKILL_NAMES.map((nm) => `<span class="lg-atk ${r.atkCovered.includes(nm) ? 'lg-atk-on' : ''}">${esc(nm.split(' ')[0])}</span>`).join('')}</div>`;
+            return `<div class="lg-inset mt-1.5 ${r.exact ? 'lg-solved' : ''}">${head}${atk}
+                <ul class="flex flex-col mt-1">${r.picks.map((pk) => `<li class="lg-pick">
+                    <span class="lg-pick-slot">${slotIcon(pk.slot, 14)}${esc(SLOT_LABEL[pk.slot])}</span>
+                    ${pk.piece ? `<span class="flex flex-col min-w-0 text-[11.5px] font-bold text-white">${pk.piece.skillLines.map((n) => `<span class="truncate">${esc(n)}</span>`).join('')}</span>` : '<span class="text-[11.5px] text-base-content/35">ピースなし</span>'}
+                </li>`).join('')}</ul>
+                ${r.truncated ? '<p class="text-[11px] text-base-content/50 mt-1.5">組み合わせが多いため探索を途中で打ち切り、見つかった中で一番近いものを出しています。</p>' : ''}
+            </div>`;
+        };
         let side = h3('puzzle', 'セットソルバー');
         if (!pieces.length) side += '<p class="lg-empty">所有ピースを登録すると、目標ラインに合う組み合わせがここに出ます。</p>';
         else if (!result) side += '<p class="lg-empty">目標ラインがないため、組み合わせを探せません。</p>';
         else {
-            side += `<div class="lg-inset ${result.exact ? 'lg-solved' : ''}">
-                <div class="text-[13px] font-black ${result.exact ? 'text-success' : 'text-white'}">${result.exact ? '目標ラインに一致するセットがあります' : '一致するセットはまだありません'}</div>
-                ${result.exact ? '' : '<div class="text-[11px] text-base-content/50 mt-0.5">一番近い組み合わせ</div>'}
-                <ul class="flex flex-col mt-1.5">${result.picks.map((pk) => `<li class="lg-pick">
-                    <span class="lg-pick-slot">${slotIcon(pk.slot, 14)}${esc(SLOT_LABEL[pk.slot])}</span>
-                    ${pk.piece ? `<span class="flex flex-col min-w-0 text-[11.5px] font-bold text-white">${pk.piece.skillLines.map((n) => `<span class="truncate">${esc(n)}</span>`).join('')}</span>` : '<span class="text-[11.5px] text-base-content/35">ピースなし</span>'}
-                </li>`).join('')}</ul>
-                ${result.truncated ? '<p class="text-[11px] text-base-content/50 mt-1.5">組み合わせが多いため探索を途中で打ち切り、見つかった中で一番近いものを出しています。</p>' : ''}
-            </div>
-            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-base-content/60">${['adopted', 'candidate', 'unneeded'].map((k) => `<span class="inline-flex items-center gap-1" title="${esc(PIECE_VERDICT[k].tip)}">${pvBadge(k)}<b class="font-mono text-white">${counts[k]}</b>件</span>`).join('')}</div>`;
+            side += card('own', '自前のみ', ownResult, '「自前」にチェックしたピースがありません。');
+            side += card('all', '全部', result, '');
+            side += `<div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-base-content/60">${['adopted', 'candidate', 'unneeded'].map((k) => `<span class="inline-flex items-center gap-1" title="${esc(PIECE_VERDICT[k].tip)}（自前のピースは自前のみの組み合わせでも判定し、良い方）">${pvBadge(k)}<b class="font-mono text-white">${counts[k]}</b>件</span>`).join('')}${dupCount ? `<span class="inline-flex items-center gap-1">${dupBadge(0)}<b class="font-mono text-white">${dupCount}</b>件</span>` : ''}</div>`;
         }
-        side += targetHTML(result ? result.counts : {});
+        const shown = patView === 'own' ? ownResult : result;
+        const toggle = pieces.length && result ? `<div class="join w-full mb-1.5" role="group" aria-label="目標ラインに出す組み合わせ">${[['own', '自前のみ'], ['all', '全部']].map(([k, l]) => `<button type="button" class="btn btn-xs join-item flex-1 ${patView === k ? 'btn-primary' : ''}" data-act="pat" data-pat="${k}" aria-pressed="${patView === k}">${l}の組み合わせ</button>`).join('')}</div>` : '';
+        side += targetHTML(shown ? shown.counts : {}, toggle);
         return `<div class="lg-gear">${left}<aside class="card card-sm bg-base-100 border border-base-content/10 p-3" id="lg-side">${side}</aside></div>`;
     }
 
@@ -823,7 +882,7 @@ const libaeGear = (() => {
     const exportData = () => ({
         app: 'libae-gear', version: 1, exportedAt: new Date().toISOString(), gear, settings,
         skillTarget: { lines: skillTarget.lines.map((l) => ({ name: l.name, target: l.target })) },
-        ownedPieces: ownedPieces.map((p) => ({ slot: p.slot, skillLines: p.skillLines.slice() })),
+        ownedPieces: ownedPieces.map((p) => ({ slot: p.slot, skillLines: p.skillLines.slice(), own: !!p.own })),
     });
     // 単体版の形（gear が部位のオブジェクト）と、本家アプリの形（gear が配列、ソケットは jewelSockets、能力は statsNote）の両方を読む。
     // 読み込んだ中身の説明（「目標ライン・所有ピース 3件」など）を返す。
@@ -938,6 +997,11 @@ const libaeGear = (() => {
                 return;
             }
             const slot = el.dataset.slot, idx = Number(el.dataset.idx);
+            if (act === 'p-own') {
+                const piece = ownedPieces.find((p) => p.id === Number(el.dataset.pid)); if (!piece) return;
+                piece.own = el.checked; savePieces(); render();
+                return;
+            }
             if (act === 'p-line') {
                 const piece = ownedPieces.find((p) => p.id === Number(el.dataset.pid)); if (!piece) return;
                 const vals = [piece.skillLines[0] || '', piece.skillLines[1] || '', piece.skillLines[2] || ''];
@@ -984,6 +1048,10 @@ const libaeGear = (() => {
                 const sel = rootEl.querySelector('[data-target-add]'); if (sel && sel.value) setTargetFor(sel.value, 1);
             } else if (act === 't-reset') {
                 skillTarget = presetTarget(); saveTarget(); render(); setMsg('目標ラインを初期値に戻しました');
+            } else if (act === 'pat') {
+                patView = el.dataset.pat === 'own' ? 'own' : 'all';
+                try { localStorage.setItem(LS_PAT, JSON.stringify(patView)); } catch (e) { /* 何もしない */ }
+                render();
             } else if (act === 'p-add') {
                 ownedPieces.push({ id: nextPieceId++, slot: el.dataset.slot, skillLines: [] }); pieceDelAsk = null; savePieces(); render();
             } else if (act === 'p-del') { pieceDelAsk = Number(el.dataset.pid); render(); }
