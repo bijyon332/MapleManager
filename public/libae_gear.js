@@ -628,13 +628,21 @@ const libaeGear = (() => {
         return dup;
     }
     const dupBadge = (n) => `<span class="badge badge-xs font-bold badge-warning badge-outline" title="${n ? `同じ部位の ${n} つ目のピースと同じラインです（入力の重複）` : '同じ部位に同じラインのピースが先に登録されています（入力の重複）'}">重複</span>`;
-    function pieceHTML(p, v, slot, dupOf) {
+    // どちらの組み合わせで採用されたかの札（自前のみ＝藍、全部＝緑。カードの見出しの色と同じ）
+    const ADOPT_BADGE = {
+        own: '<span class="badge badge-xs font-bold badge-primary badge-outline" title="自前のみの組み合わせに入っています">自前で採用</span>',
+        all: '<span class="badge badge-xs font-bold badge-success badge-outline" title="全部の組み合わせに入っています">全部で採用</span>',
+    };
+    // adopt = { own, all }: そのピースが 自前のみ／全部 の組み合わせに入っているか
+    function pieceHTML(p, v, slot, dupOf, adopt) {
         const vals = [p.skillLines[0] || '', p.skillLines[1] || '', p.skillLines[2] || ''];
         const del = pieceDelAsk === p.id
             ? `<button type="button" class="btn btn-error btn-xs h-5 min-h-0" data-act="p-del-yes" data-pid="${p.id}">本当に削除</button><button type="button" class="btn btn-ghost btn-xs h-5 min-h-0" data-act="p-del-no">キャンセル</button>`
             : `<button type="button" class="btn btn-ghost btn-xs btn-square h-5 min-h-0 w-5 text-base-content/50 hover:text-error" data-act="p-del" data-pid="${p.id}" title="このピースを削除" aria-label="${esc(SLOT_LABEL[slot])}のピースを削除"><i data-lucide="trash-2" class="w-3 h-3"></i></button>`;
-        return `<div class="lg-piece ${dupOf ? 'lg-piece-dup' : v === 'unneeded' ? 'lg-piece-unneeded' : v === 'adopted' ? 'lg-piece-adopted' : ''}">
-            <div class="flex items-center gap-1.5 h-5">${dupOf ? dupBadge(dupOf) : ''}${v ? pvBadge(v) : '<span class="text-[11px] text-base-content/40">ライン未入力</span>'}<span class="ml-auto flex items-center gap-1.5"><label class="lg-own ${p.own ? 'lg-own-on' : ''}" title="自前の装備（自分で持っているピース）。「自前のみ」の組み合わせに使います"><input type="checkbox" class="checkbox checkbox-primary checkbox-xs" data-act="p-own" data-pid="${p.id}" ${p.own ? 'checked' : ''}>自前</label>${del}</span></div>
+        const badges = v === 'adopted' ? `${adopt.own ? ADOPT_BADGE.own : ''}${adopt.all ? ADOPT_BADGE.all : ''}` : v ? pvBadge(v) : '<span class="text-[11px] text-base-content/40">ライン未入力</span>';
+        const box = dupOf ? 'lg-piece-dup' : v === 'unneeded' ? 'lg-piece-unneeded' : v === 'adopted' ? (adopt.all ? 'lg-piece-adopted' : 'lg-piece-adopted-own') : '';
+        return `<div class="lg-piece ${box}">
+            <div class="flex items-center gap-1 h-5">${dupOf ? dupBadge(dupOf) : ''}${badges}<span class="ml-auto flex items-center gap-1.5"><label class="lg-own ${p.own ? 'lg-own-on' : ''}" title="自前の装備（自分で持っているピース）。「自前のみ」の組み合わせに使います"><input type="checkbox" class="checkbox checkbox-primary checkbox-xs" data-act="p-own" data-pid="${p.id}" ${p.own ? 'checked' : ''}>自前</label>${del}</span></div>
             <div class="flex flex-col gap-1 mt-1">${vals.map((val, i) => `<select data-act="p-line" data-pid="${p.id}" data-idx="${i}" class="select select-xs w-full min-w-0 ${val ? 'font-bold' : 'text-base-content/45'}" aria-label="${esc(SLOT_LABEL[slot])}のピース スキルライン ${i + 1}">${skillOptionsHTML(val, vals.filter((_, j) => j !== i))}</select>`).join('')}</div>
         </div>`;
     }
@@ -649,6 +657,8 @@ const libaeGear = (() => {
         const ownVerdicts = classifyPieces(ownPieces, lines, ownResult);
         const rank = { adopted: 3, candidate: 2, unneeded: 1 };
         Object.keys(ownVerdicts).forEach((id) => { if (!verdicts[id] || rank[ownVerdicts[id]] > rank[verdicts[id]]) verdicts[id] = ownVerdicts[id]; });
+        const pickedIds = (r) => new Set(r ? r.picks.filter((pk) => pk.piece).map((pk) => pk.piece.id) : []);
+        const inOwn = pickedIds(ownResult), inAll = pickedIds(result);
         const counts = { adopted: 0, candidate: 0, unneeded: 0 };
         Object.values(verdicts).forEach((v) => { counts[v]++; });
         const dup = duplicatePieces(pieces), dupCount = Object.keys(dup).length;
@@ -661,14 +671,15 @@ const libaeGear = (() => {
             left += `<div class="lg-cell ${sp.length ? 'lg-filled' : ''}">
                 <div class="lg-cell-head">${slotIcon(slot, 18)}<span class="lg-sname">${esc(SLOT_LABEL[slot])}</span><span class="font-mono text-[11px] text-base-content/50">${sp.length}件${so ? `<span class="text-indigo-300"> · 自前${so}</span>` : ''}</span>${sd ? `<span class="font-mono text-[11px] font-bold text-warning">重複${sd}</span>` : ''}
                     <button type="button" class="btn btn-xs btn-ghost ml-auto h-6 min-h-0 px-2" data-act="p-add" data-slot="${slot}" aria-label="${esc(SLOT_LABEL[slot])}にピースを追加"><i data-lucide="plus" class="w-3 h-3"></i>ピース</button></div>
-                <div class="lg-editor flex flex-col gap-1.5">${sp.map((p) => pieceHTML(p, verdicts[p.id], slot, dup[p.id])).join('') || '<span class="text-[11px] text-base-content/35">未登録</span>'}</div>
+                <div class="lg-editor flex flex-col gap-1.5">${sp.map((p) => pieceHTML(p, verdicts[p.id], slot, dup[p.id], { own: inOwn.has(p.id), all: inAll.has(p.id) })).join('') || '<span class="text-[11px] text-base-content/35">未登録</span>'}</div>
             </div>`;
         });
         left += '</div></div>';
         // 右: ソルバーの結果（自前のみ・全部）と目標ライン
         const totalT = lines.reduce((a, l) => a + l.target, 0);
         const card = (key, label, r, emptyMsg) => {
-            const head = `<div class="flex items-center gap-2"><span class="text-[13px] font-black text-white">${label}</span>
+            // 見出しの色はピースの「自前で採用」「全部で採用」の札と同じ（自前のみ＝藍、全部＝緑）
+            const head = `<div class="flex items-center gap-2"><span class="text-[13px] font-black ${key === 'own' ? 'text-primary' : 'text-success'}">${label}</span>
                 ${r ? (r.exact ? '<span class="badge badge-success badge-xs font-bold">目標に一致</span>' : '<span class="text-[11px] text-base-content/50">一番近い組み合わせ</span>') : ''}
                 ${r ? `<span class="ml-auto font-mono text-[12px] font-bold ${r.exact ? 'text-success' : 'text-white'}" title="目標ラインの埋まり">${r.matched}<span class="text-base-content/50 font-normal"> / ${totalT}</span></span>` : ''}</div>`;
             if (!r) return `<div class="lg-inset mt-1.5">${head}<p class="lg-empty mt-1">${emptyMsg}</p></div>`;
@@ -688,7 +699,7 @@ const libaeGear = (() => {
         else {
             side += card('own', '自前のみ', ownResult, '「自前」にチェックしたピースがありません。');
             side += card('all', '全部', result, '');
-            side += `<div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-base-content/60">${['adopted', 'candidate', 'unneeded'].map((k) => `<span class="inline-flex items-center gap-1" title="${esc(PIECE_VERDICT[k].tip)}（自前のピースは自前のみの組み合わせでも判定し、良い方）">${pvBadge(k)}<b class="font-mono text-white">${counts[k]}</b>件</span>`).join('')}${dupCount ? `<span class="inline-flex items-center gap-1">${dupBadge(0)}<b class="font-mono text-white">${dupCount}</b>件</span>` : ''}</div>`;
+            side += `<div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-base-content/60">${ownResult ? `<span class="inline-flex items-center gap-1">${ADOPT_BADGE.own}<b class="font-mono text-white">${inOwn.size}</b>件</span>` : ''}<span class="inline-flex items-center gap-1">${ADOPT_BADGE.all}<b class="font-mono text-white">${inAll.size}</b>件</span>${['candidate', 'unneeded'].map((k) => `<span class="inline-flex items-center gap-1" title="${esc(PIECE_VERDICT[k].tip)}（自前のピースは自前のみの組み合わせでも判定し、良い方）">${pvBadge(k)}<b class="font-mono text-white">${counts[k]}</b>件</span>`).join('')}${dupCount ? `<span class="inline-flex items-center gap-1">${dupBadge(0)}<b class="font-mono text-white">${dupCount}</b>件</span>` : ''}</div>`;
         }
         const shown = patView === 'own' ? ownResult : result;
         const toggle = pieces.length && result ? `<div class="join w-full mb-1.5" role="group" aria-label="目標ラインに出す組み合わせ">${[['own', '自前のみ'], ['all', '全部']].map(([k, l]) => `<button type="button" class="btn btn-xs join-item flex-1 ${patView === k ? 'btn-primary' : ''}" data-act="pat" data-pat="${k}" aria-pressed="${patView === k}">${l}の組み合わせ</button>`).join('')}</div>` : '';
