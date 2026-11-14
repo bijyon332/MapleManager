@@ -332,12 +332,16 @@ const libaeGear = (() => {
         });
         return { gear: gearV, prismatic: prisV, summary };
     }
-    // 各部位から所有ピースを1つまで選び、ラインの合計を目標の配分に合わせる（なければ一番近い組み合わせ）。
-    // 深さ優先＋同じ並びのピースの重複除去＋下限での枝刈り＋探索ノード上限（単体版と同じ）。
+    // 各部位から所有ピースを1つまで選び、ラインの合計を目標の配分に近づける。選ぶ基準は次の順（2026-11-14 bi 指定）:
+    //   1. ジョブ攻撃5種（Warrior／Magician／Bowman／Thief／Pirate Attack Skill）がそれぞれ1ライン以上ある種類の数が多い
+    //   2. 目標ラインの埋まり（目標ごとに min(目標, 今の数) の合計）が多い
+    //   3. 目標を超えたライン（超過）が少ない
+    // 深さ優先＋同じ並びのピースの重複除去＋上限での枝刈り＋探索ノード上限。
     function solveSet(pieces, targetLines) {
-        const tm = targetMapOf(targetLines);
+        const tm = targetMapOf(targetLines), tkeys = Object.keys(tm);
         const totalTarget = targetLines.reduce((a, l) => a + l.target, 0);
         if (totalTarget === 0) return null;
+        const ATK = ATTACK_SKILL_NAMES;
         const slotOptions = {};
         GRID_ORDER.forEach((slot) => {
             const seen = {}, options = [];
@@ -345,56 +349,72 @@ const libaeGear = (() => {
                 if (p.slot !== slot || !p.skillLines.length) return;
                 const sig = p.skillLines.slice().sort().join('|');
                 if (seen[sig]) return; seen[sig] = 1;
-                const kc = {};
-                new Set(p.skillLines).forEach((n) => { const k = solverKeyFor(n, tm); kc[k] = (kc[k] || 0) + 1; });   // 同じスキルは1ピース1回
-                options.push({ piece: p, keyCounts: kc });
+                const kc = {}, uniq = [...new Set(p.skillLines)];   // 同じスキルは1ピース1回
+                uniq.forEach((n) => { const k = solverKeyFor(n, tm); kc[k] = (kc[k] || 0) + 1; });
+                const atk = uniq.map((n) => ATK.indexOf(n)).filter((x) => x >= 0);
+                options.push({ piece: p, keyCounts: kc, atk, atkMask: atk.reduce((m, x) => m | (1 << x), 0) });
             });
-            options.push({ piece: null, keyCounts: {} });
+            options.push({ piece: null, keyCounts: {}, atk: [], atkMask: 0 });
             slotOptions[slot] = options;
         });
         const searchSlots = GRID_ORDER.slice().sort((a, b) => slotOptions[a].length - slotOptions[b].length);
-        const n = searchSlots.length, suffixMax = [];
-        for (let i = n; i >= 0; i--) suffixMax[i] = {};
+        const n = searchSlots.length, suffixMax = [], suffixAtk = [];
+        for (let i = n; i >= 0; i--) { suffixMax[i] = {}; suffixAtk[i] = 0; }
         for (let si = n - 1; si >= 0; si--) {
             const cur = { ...suffixMax[si + 1] }, perKey = {};
-            slotOptions[searchSlots[si]].forEach((o) => Object.keys(o.keyCounts).forEach((k) => { if (o.keyCounts[k] > (perKey[k] || 0)) perKey[k] = o.keyCounts[k]; }));
+            let mask = suffixAtk[si + 1];
+            slotOptions[searchSlots[si]].forEach((o) => {
+                Object.keys(o.keyCounts).forEach((k) => { if (o.keyCounts[k] > (perKey[k] || 0)) perKey[k] = o.keyCounts[k]; });
+                mask |= o.atkMask;
+            });
             Object.keys(perKey).forEach((k) => { cur[k] = (cur[k] || 0) + perKey[k]; });
-            suffixMax[si] = cur;
+            suffixMax[si] = cur; suffixAtk[si] = mask;
         }
-        const penaltyOf = (c) => { let p = 0; Object.keys(tm).forEach((k) => { p += Math.max(0, tm[k] - (c[k] || 0)); }); Object.keys(c).forEach((k) => { p += Math.max(0, c[k] - (tm[k] || 0)); }); return p; };
-        const matchedOf = (c) => Object.keys(tm).reduce((m, k) => m + Math.min(tm[k], c[k] || 0), 0);
+        const bits = (m) => { let c = 0; while (m) { c += m & 1; m >>= 1; } return c; };
+        const maxCov = bits(suffixAtk[0]);
+        const excessOf = (c) => Object.keys(c).reduce((e, k) => e + Math.max(0, c[k] - (tm[k] || 0)), 0);
+        const matchedOf = (c) => tkeys.reduce((m, k) => m + Math.min(tm[k], c[k] || 0), 0);
+        // a が b より良いか（[ジョブ攻撃の種類数, 埋まり, −超過] を前から比べる）
+        const better = (a, b) => a[0] !== b[0] ? a[0] > b[0] : a[1] !== b[1] ? a[1] > b[1] : a[2] > b[2];
         const NODE_BUDGET = 600000;
-        let nodes = 0, truncated = false, bestPenalty = Infinity, bestMatched = -1, bestCounts = {}, bestPicks = {};
-        const counts = {}, picks = {};
+        let nodes = 0, truncated = false, best = null, bestCounts = {}, bestPicks = {};
+        const counts = {}, picks = {}, atkCount = [0, 0, 0, 0, 0];
+        const covMask = () => atkCount.reduce((m, c, x) => (c > 0 ? m | (1 << x) : m), 0);
+        const perfect = () => best && best[0] === maxCov && best[1] === totalTarget && best[2] === 0;
         const dfs = (i) => {
-            if (bestPenalty === 0 || truncated) return;
+            if (perfect() || truncated) return;
             if (nodes >= NODE_BUDGET) { truncated = true; return; }
             nodes++;
             if (i === n) {
-                const pen = penaltyOf(counts), mat = matchedOf(counts);
-                if (pen < bestPenalty || (pen === bestPenalty && mat > bestMatched)) { bestPenalty = pen; bestMatched = mat; bestCounts = { ...counts }; bestPicks = { ...picks }; }
+                const score = [bits(covMask()), matchedOf(counts), -excessOf(counts)];
+                if (!best || better(score, best)) { best = score; bestCounts = { ...counts }; bestPicks = { ...picks }; }
                 return;
             }
-            if (bestPenalty !== Infinity) {
-                let lb = 0;
-                Object.keys(counts).forEach((k) => { lb += Math.max(0, counts[k] - (tm[k] || 0)); });
+            if (best) {
+                // ここから先で届きうる上限（ジョブ攻撃の種類数・埋まりは多めに、超過は少なめに見積もる）。これが今の最良を超えなければ打ち切る。
                 const suffix = suffixMax[i];
-                Object.keys(tm).forEach((k) => { lb += Math.max(0, tm[k] - ((counts[k] || 0) + (suffix[k] || 0))); });
-                if (lb >= bestPenalty) return;
+                const ub = [bits(covMask() | suffixAtk[i]), tkeys.reduce((m, k) => m + Math.min(tm[k], (counts[k] || 0) + (suffix[k] || 0)), 0), -excessOf(counts)];
+                if (!better(ub, best)) return;
             }
             const slot = searchSlots[i];
             for (const opt of slotOptions[slot]) {
                 Object.keys(opt.keyCounts).forEach((k) => { counts[k] = (counts[k] || 0) + opt.keyCounts[k]; });
+                opt.atk.forEach((x) => { atkCount[x]++; });
                 picks[slot] = opt.piece;
                 dfs(i + 1);
                 Object.keys(opt.keyCounts).forEach((k) => { counts[k] -= opt.keyCounts[k]; });
-                if (bestPenalty === 0 || truncated) return;
+                opt.atk.forEach((x) => { atkCount[x]--; });
+                if (perfect() || truncated) return;
             }
         };
         dfs(0);
+        const pickList = GRID_ORDER.map((slot) => ({ slot, piece: bestPicks[slot] || null }));
+        const atkHave = new Set(pickList.flatMap((pk) => (pk.piece ? pk.piece.skillLines.filter((nm) => ATK.includes(nm)) : [])));
         const shortage = targetLines.map((l) => { const c = bestCounts[l.name] || 0; return { name: l.name, current: c, target: l.target, missing: Math.max(0, l.target - c) }; }).filter((s) => s.missing > 0);
         const excess = Object.keys(bestCounts).map((k) => ({ name: k, over: bestCounts[k] - (tm[k] || 0) })).filter((e) => e.over > 0);
-        return { exact: bestPenalty === 0, truncated, counts: bestCounts, picks: GRID_ORDER.map((slot) => ({ slot, piece: bestPicks[slot] || null })), shortage, excess, matched: Math.max(0, bestMatched), totalTarget };
+        const matched = best ? best[1] : 0;
+        return { exact: !!best && matched === totalTarget && best[2] === 0, truncated, counts: bestCounts, picks: pickList, shortage, excess, matched, totalTarget,
+            atkCovered: ATK.filter((nm) => atkHave.has(nm)), atkPossible: ATK.filter((_, x) => suffixAtk[0] & (1 << x)) };
     }
     // ピースの判定: 採用（最適セットに入っている）／候補（足りないスキルを含む）／不要（足りないスキルを1つも含まない）。
     function classifyPieces(pieces, targetLines, result) {
@@ -404,7 +424,8 @@ const libaeGear = (() => {
         const picked = new Set(result.picks.filter((pk) => pk.piece).map((pk) => pk.piece.id));
         pieces.forEach((p) => {
             if (picked.has(p.id)) verdicts[p.id] = 'adopted';
-            else verdicts[p.id] = p.skillLines.some((nm) => shortKeys.has(solverKeyFor(nm, tm))) ? 'candidate' : 'unneeded';
+            // 足りない目標のスキルか、組み合わせにまだ無いジョブ攻撃スキルを含むなら候補
+            else verdicts[p.id] = p.skillLines.some((nm) => shortKeys.has(solverKeyFor(nm, tm)) || (ATTACK_SKILL_NAMES.includes(nm) && !result.atkCovered.includes(nm))) ? 'candidate' : 'unneeded';
         });
         return verdicts;
     }
@@ -645,14 +666,15 @@ const libaeGear = (() => {
         });
         left += '</div></div>';
         // 右: ソルバーの結果（自前のみ・全部）と目標ライン
-        const matchOf = (r) => (r ? Object.keys(targetMapOf(lines)).reduce((m, k) => m + Math.min(targetMapOf(lines)[k], r.counts[k] || 0), 0) : 0);
         const totalT = lines.reduce((a, l) => a + l.target, 0);
         const card = (key, label, r, emptyMsg) => {
             const head = `<div class="flex items-center gap-2"><span class="text-[13px] font-black text-white">${label}</span>
                 ${r ? (r.exact ? '<span class="badge badge-success badge-xs font-bold">目標に一致</span>' : '<span class="text-[11px] text-base-content/50">一番近い組み合わせ</span>') : ''}
-                ${r ? `<span class="ml-auto font-mono text-[12px] font-bold ${r.exact ? 'text-success' : 'text-white'}">${matchOf(r)}<span class="text-base-content/50 font-normal"> / ${totalT}</span></span>` : ''}</div>`;
+                ${r ? `<span class="ml-auto font-mono text-[12px] font-bold ${r.exact ? 'text-success' : 'text-white'}" title="目標ラインの埋まり">${r.matched}<span class="text-base-content/50 font-normal"> / ${totalT}</span></span>` : ''}</div>`;
             if (!r) return `<div class="lg-inset mt-1.5">${head}<p class="lg-empty mt-1">${emptyMsg}</p></div>`;
-            return `<div class="lg-inset mt-1.5 ${r.exact ? 'lg-solved' : ''}">${head}
+            // ジョブ攻撃5種の揃い（組み合わせで最初に優先する条件）
+            const atk = `<div class="flex items-center gap-[3px] mt-1 text-[10px]" title="ジョブ攻撃5種を各1ライン以上にするのを最優先に選んでいます（${r.atkCovered.length} / 5 種）"><span class="text-base-content/50 mr-[3px] whitespace-nowrap shrink-0">ジョブ攻撃</span>${ATTACK_SKILL_NAMES.map((nm) => `<span class="lg-atk ${r.atkCovered.includes(nm) ? 'lg-atk-on' : ''}">${esc(nm.split(' ')[0])}</span>`).join('')}</div>`;
+            return `<div class="lg-inset mt-1.5 ${r.exact ? 'lg-solved' : ''}">${head}${atk}
                 <ul class="flex flex-col mt-1">${r.picks.map((pk) => `<li class="lg-pick">
                     <span class="lg-pick-slot">${slotIcon(pk.slot, 14)}${esc(SLOT_LABEL[pk.slot])}</span>
                     ${pk.piece ? `<span class="flex flex-col min-w-0 text-[11.5px] font-bold text-white">${pk.piece.skillLines.map((n) => `<span class="truncate">${esc(n)}</span>`).join('')}</span>` : '<span class="text-[11.5px] text-base-content/35">ピースなし</span>'}
