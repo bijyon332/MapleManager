@@ -127,7 +127,10 @@ const libaeGear = (() => {
     const normalizeSkillName = (name) => { if (typeof name !== 'string') return name; const t = name.trim(); return SKILL_NAME_ALIASES[t] || t; };
     const presetTarget = () => ({ lines: DEFAULT_TARGET_LINES.map((l) => ({ ...l })), isPreset: true });
     const isDefaultTarget = (lines) => JSON.stringify(lines) === JSON.stringify(DEFAULT_TARGET_LINES);
-    const targetDisplayName = (name) => (name === ATTACK_TOTAL_NAME ? ATTACK_TOTAL_DISPLAY : name);
+    // 「クリダメ・ボスダメはどちらでもよい」（2026-11-15 bi 依頼）: オンのとき 2つの目標を1行にまとめ、どちらのラインでも同じ目標に数える。
+    const CD_NAME = 'Critical Damage Enhancement', BOSS_NAME = 'Boss Damage Enhancement';
+    const CDBOSS_NAME = '(クリダメ／ボスダメ どちらか)', CDBOSS_DISPLAY = 'Critical Damage / Boss Damage';
+    const targetDisplayName = (name) => (name === ATTACK_TOTAL_NAME ? ATTACK_TOTAL_DISPLAY : name === CDBOSS_NAME ? CDBOSS_DISPLAY : name);
     function sanitizeTargetLines(raw) {
         if (!Array.isArray(raw)) return null;
         const out = [], pos = {};
@@ -156,13 +159,27 @@ const libaeGear = (() => {
         return out;
     }
     let skillTarget = presetTarget();
+    let cdBossEither = false;
+    // 判定・ソルバーに使う目標。どちらでもよい がオンなら クリダメ と ボスダメ の目標を合計して1行にする（最初に出てくる方の位置に置く）。
+    function effectiveTargetLines() {
+        const lines = skillTarget.lines;
+        if (!cdBossEither) return lines;
+        const sum = lines.filter((l) => l.name === CD_NAME || l.name === BOSS_NAME).reduce((a, l) => a + l.target, 0);
+        if (!sum) return lines;
+        const out = []; let placed = false;
+        lines.forEach((l) => {
+            if (l.name !== CD_NAME && l.name !== BOSS_NAME) { out.push(l); return; }
+            if (!placed) { out.push({ name: CDBOSS_NAME, target: sum }); placed = true; }
+        });
+        return out;
+    }
     let ownedPieces = [];
     let nextPieceId = 1;
     let pieceDelAsk = null;   // 「本当に削除」を出しているピースの id
     // 所有ピースの右の目標ラインに、どちらの組み合わせ（自前のみ own／全部 all）の数を出すか。
     const LS_PAT = 'mm-libae-pat';
     let patView = 'all';
-    function saveTarget() { try { localStorage.setItem(LS_TARGET, JSON.stringify(skillTarget)); } catch (e) { setMsg('目標ラインを保存できませんでした', false); } }
+    function saveTarget() { try { localStorage.setItem(LS_TARGET, JSON.stringify({ ...skillTarget, cdBoss: cdBossEither })); } catch (e) { setMsg('目標ラインを保存できませんでした', false); } }
     function savePieces() { try { localStorage.setItem(LS_PIECES, JSON.stringify(ownedPieces)); } catch (e) { setMsg('所有ピースを保存できませんでした', false); } }
 
     function load() {
@@ -175,6 +192,7 @@ const libaeGear = (() => {
         const tg = loadJSON(LS_TARGET, null);
         const tl = tg && typeof tg === 'object' ? sanitizeTargetLines(tg.lines) : null;
         skillTarget = tl && tl.length ? { lines: tl, isPreset: false } : presetTarget();
+        cdBossEither = !!(tg && tg.cdBoss);
         ownedPieces = sanitizePieces(loadJSON(LS_PIECES, null), true);
         nextPieceId = ownedPieces.reduce((a, p) => Math.max(a, p.id), 0) + 1;
         patView = loadJSON(LS_PAT, 'all') === 'own' ? 'own' : 'all';
@@ -277,13 +295,14 @@ const libaeGear = (() => {
     // 目標の数え先。ジョブ攻撃5種は「合計」の目標があればそこへ、Black Hole は White Hole だけ目標にあればそこへ数える。
     function solverKeyFor(name, targetMap) {
         if (name in targetMap) return name;
+        if ((name === CD_NAME || name === BOSS_NAME) && CDBOSS_NAME in targetMap) return CDBOSS_NAME;
         if (ATTACK_SKILL_NAMES.includes(name) && ATTACK_TOTAL_NAME in targetMap) return ATTACK_TOTAL_NAME;
         if (name === 'Black Hole' && 'White Hole' in targetMap && !('Black Hole' in targetMap)) return 'White Hole';
         return name;
     }
     // 目標ごとの今の数（装備ライン＋プリズマティックの寄与。スキルスタック状況と同じ数え方）。
     function gearKeyTotals(agg) {
-        const tm = targetMapOf(skillTarget.lines), kt = {};
+        const tm = targetMapOf(effectiveTargetLines()), kt = {};
         const add = (name, amt) => { if (!amt) return; const k = solverKeyFor(name, tm); kt[k] = (kt[k] || 0) + amt; };
         Object.keys(agg.equip).forEach((n) => add(n, agg.equip[n]));
         Object.keys(agg.jewel).forEach((n) => add(n, agg.jewel[n]));
@@ -291,7 +310,7 @@ const libaeGear = (() => {
     }
     // kt = 目標の数え先ごとの今の数（装備管理では装備中の分、所有ピースではソルバーが選んだセットの分）。
     function targetRows(kt) {
-        const lines = skillTarget.lines;
+        const lines = effectiveTargetLines();
         const rows = lines.map((l) => { const cur = kt[l.name] || 0; return { name: l.name, target: l.target, current: cur, missing: Math.max(0, l.target - cur), over: Math.max(0, cur - l.target) }; });
         const total = lines.reduce((a, l) => a + l.target, 0);
         const eff = rows.reduce((a, r) => a + Math.min(r.current, r.target), 0);
@@ -305,7 +324,7 @@ const libaeGear = (() => {
         outside: { label: '対象外', cls: 'lg-v-out' },
     };
     function computeLineVerdicts() {
-        const tm = targetMapOf(skillTarget.lines), counters = {};
+        const tm = targetMapOf(effectiveTargetLines()), counters = {};
         const gearV = {}, prisV = {}, summary = {};
         const judge = (name, units) => {
             const key = solverKeyFor(name, tm), t = tm[key] || 0;
@@ -586,13 +605,17 @@ const libaeGear = (() => {
             h += '</ul>';
         }
         const has = new Set(skillTarget.lines.map((l) => l.name));
-        const addable = SKILLS.filter((s) => !has.has(s.name));
+        // どちらでもよい がオンで片方が目標にあれば、もう片方は＋で増やすので追加の選択肢から外す
+        const cdBossIn = cdBossEither && (has.has(CD_NAME) || has.has(BOSS_NAME));
+        const addable = SKILLS.filter((s) => !has.has(s.name) && !(cdBossIn && (s.name === CD_NAME || s.name === BOSS_NAME)));
         if (addable.length || !has.has(ATTACK_TOTAL_NAME)) {
             h += `<div class="join w-full mt-1.5"><select class="select select-xs join-item flex-1 min-w-0" data-target-add aria-label="目標に追加するスキル"><option value="">目標にスキルを追加</option>
                 ${SKILL_GROUPS.map((g) => { const gs = addable.filter((s) => s.group === g.id); return gs.length ? `<optgroup label="${esc(g.label)}">${gs.map((s) => `<option value="${esc(s.name)}">${esc(s.name)}</option>`).join('')}</optgroup>` : ''; }).join('')}
                 ${has.has(ATTACK_TOTAL_NAME) ? '' : `<option value="${esc(ATTACK_TOTAL_NAME)}">${esc(ATTACK_TOTAL_DISPLAY)}（ジョブ攻撃5種の合計）</option>`}
             </select><button type="button" class="btn btn-xs join-item" data-act="t-add">追加</button></div>`;
         }
+        h += `<label class="lg-own ${cdBossEither ? 'lg-own-on' : ''} mt-2" title="オンにすると Critical Damage Enhancement と Boss Damage Enhancement の目標を合わせて1行にし、どちらのラインでも埋まったと数えます（判定・セットソルバーとも）">
+            <input type="checkbox" class="checkbox checkbox-primary checkbox-xs" data-act="t-cdboss" ${cdBossEither ? 'checked' : ''}>クリダメ・ボスダメはどちらでもよい</label>`;
         return h + '</section>';
     }
     function gearHTML() {
@@ -647,7 +670,7 @@ const libaeGear = (() => {
         </div>`;
     }
     function piecesHTML() {
-        const pieces = ownedPieces, lines = skillTarget.lines;
+        const pieces = ownedPieces, lines = effectiveTargetLines();
         // 組み合わせは 全部 と 自前のみ の2通り。ピースの判定（採用／候補／不要）は2通りの良い方
         // （自前のピースは 自前のみ の組み合わせでの判定も見る。どちらかで採用なら採用）。
         const result = pieces.length ? solveSet(pieces, lines) : null;
@@ -892,7 +915,7 @@ const libaeGear = (() => {
     }
     const exportData = () => ({
         app: 'libae-gear', version: 1, exportedAt: new Date().toISOString(), gear, settings,
-        skillTarget: { lines: skillTarget.lines.map((l) => ({ name: l.name, target: l.target })) },
+        skillTarget: { lines: skillTarget.lines.map((l) => ({ name: l.name, target: l.target })), cdBoss: cdBossEither },
         ownedPieces: ownedPieces.map((p) => ({ slot: p.slot, skillLines: p.skillLines.slice(), own: !!p.own })),
     });
     // 単体版の形（gear が部位のオブジェクト）と、本家アプリの形（gear が配列、ソケットは jewelSockets、能力は statsNote）の両方を読む。
@@ -938,7 +961,7 @@ const libaeGear = (() => {
         const notes = [];
         if (data.skillTarget) {
             const tl = sanitizeTargetLines(data.skillTarget.lines);
-            if (tl && tl.length) { skillTarget = { lines: tl, isPreset: isDefaultTarget(tl) }; saveTarget(); notes.push('目標ライン'); }
+            if (tl && tl.length) { skillTarget = { lines: tl, isPreset: isDefaultTarget(tl) }; if ('cdBoss' in data.skillTarget) cdBossEither = !!data.skillTarget.cdBoss; saveTarget(); notes.push('目標ライン'); }
         }
         if (Array.isArray(data.ownedPieces)) {
             ownedPieces = sanitizePieces(data.ownedPieces, false); nextPieceId = ownedPieces.length + 1; pieceDelAsk = null;
@@ -1008,6 +1031,11 @@ const libaeGear = (() => {
                 return;
             }
             const slot = el.dataset.slot, idx = Number(el.dataset.idx);
+            if (act === 't-cdboss') {
+                cdBossEither = el.checked; saveTarget(); render();
+                setMsg(cdBossEither ? 'クリダメとボスダメをどちらでもよい目標にしました' : 'クリダメとボスダメの目標を分けました');
+                return;
+            }
             if (act === 'p-own') {
                 const piece = ownedPieces.find((p) => p.id === Number(el.dataset.pid)); if (!piece) return;
                 piece.own = el.checked; savePieces(); render();
@@ -1053,6 +1081,13 @@ const libaeGear = (() => {
             const el = ev.target.closest && ev.target.closest('[data-act]'); if (!el || !rootEl.contains(el)) return;
             const act = el.dataset.act;
             if (act === 't-inc' || act === 't-dec') {
+                if (el.dataset.name === CDBOSS_NAME) {
+                    // まとめた行: ＋は クリダメ（無ければボスダメ）に足し、−は ボスダメ から先に減らす
+                    const cd = skillTarget.lines.find((l) => l.name === CD_NAME), bs = skillTarget.lines.find((l) => l.name === BOSS_NAME);
+                    if (act === 't-inc') { const t = cd || bs; if (t) setTargetFor(t.name, t.target + 1); }
+                    else { const t = bs || cd; if (t) setTargetFor(t.name, t.target - 1); }
+                    return;
+                }
                 const cur = skillTarget.lines.find((l) => l.name === el.dataset.name);
                 if (cur) setTargetFor(cur.name, cur.target + (act === 't-inc' ? 1 : -1));
             } else if (act === 't-add') {
@@ -1098,7 +1133,7 @@ const libaeGear = (() => {
             } else if (act === 'reset') { resetAsk = true; render(); }
             else if (act === 'reset-no') { resetAsk = false; render(); }
             else if (act === 'reset-yes') {
-                resetAsk = false; gear = blankGear(); settings = presetSettings(); skillTarget = presetTarget(); ownedPieces = []; nextPieceId = 1; pieceDelAsk = null;
+                resetAsk = false; gear = blankGear(); settings = presetSettings(); skillTarget = presetTarget(); cdBossEither = false; ownedPieces = []; nextPieceId = 1; pieceDelAsk = null;
                 saveGear(); saveSettings(); saveTarget(); savePieces(); render(); setMsg('初期化しました');
             }
         });
