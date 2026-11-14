@@ -671,6 +671,7 @@ body {
 .lg-own { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: #64748b; cursor: pointer; user-select: none; }
 .lg-own.lg-own-on { color: #a5b4fc; }
 .lg-piece.lg-piece-dup { border-color: color-mix(in oklab, #fbbf24 60%, transparent); border-style: dashed; }
+.lg-piece.lg-piece-adopted-own { border-color: color-mix(in oklab, var(--color-primary) 70%, transparent); }
 .lg-piece.lg-piece-unneeded { border-color: color-mix(in oklab, #f87171 55%, transparent); background: color-mix(in oklab, #f87171 7%, #0b1222); }
 .lg-solved { border-color: #4ade80; border-width: 2px; }
 .lg-atk { padding: 0 4px; white-space: nowrap; border: 1px solid #334155; border-radius: 9999px; font-weight: 700; color: #475569; text-decoration: line-through; }
