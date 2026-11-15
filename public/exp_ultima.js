@@ -156,7 +156,7 @@ const expUltima = Object.assign(Object.create(expPlan), {
     afterLoad() {
         const st = this.state;
         st.pass = st.pass || {};
-        this.PASSES.forEach(p => { st.pass[p.id] = Object.assign({ buy: {}, char: null }, st.pass[p.id] || {}); });
+        this.PASSES.forEach(p => { st.pass[p.id] = Object.assign({ buy: {}, char: null, left: {} }, st.pass[p.id] || {}); });
         if (st.ultimaBuff == null) st.ultimaBuff = true;
         st.quanah = Object.assign({ char: null, mode: 'lv', lv: 270, date: this.START }, st.quanah || {});
         st.quanah.heir = Object.assign({ name: '後継キャラ', lv: 260, pct: 0, burn: 'none', target: 270, hunt: { kills: 0, hours: 0, pct: 0 } }, st.quanah.heir || {});
@@ -333,14 +333,30 @@ const expUltima = Object.assign(Object.create(expPlan), {
         });
         return out;
     },
-    passTotal(p) {
+    passTotal(p, before = null) {
         const tot = { coupon: 0, farm: 0, sauna: 0, pot: {} };
-        p.steps.forEach((_, i) => {
+        p.steps.forEach((s, i) => {
+            if (before && s.date >= before) return;
             const w = this.passWeek(p, i);
             tot.coupon += w.coupon; tot.farm += w.farm; tot.sauna += w.sauna;
             for (const [k, n] of Object.entries(w.pot)) tot.pot[k] = (tot.pot[k] || 0) + n;
         });
         return tot;
+    },
+    // 計画の開始日より前に届いた分のうち、まだ使っていない数（品目ごと）。届いた数より多い分は切る
+    // left = { coupon, farm, sauna, pot: { id: n } }。入れていない品目は 0（全部使った）
+    passLeft(p) {
+        const got = this.passTotal(p, this.state.start), l = this.state.pass[p.id].left || {};
+        const out = { coupon: 0, farm: 0, sauna: 0, pot: {} };
+        ['coupon', 'farm', 'sauna'].forEach(k => { out[k] = Math.min(got[k], Math.max(0, Number(l[k]) || 0)); });
+        for (const [k, n] of Object.entries(got.pot)) out.pot[k] = Math.min(n, Math.max(0, Number((l.pot || {})[k]) || 0));
+        return out;
+    },
+    setPassLeft(pid, k, v) {
+        const l = this.state.pass[pid].left = this.state.pass[pid].left || {};
+        const n = Math.max(0, Number(v) || 0);
+        if (k.startsWith('pot:')) { l.pot = l.pot || {}; l.pot[k.slice(4)] = n; } else l[k] = n;
+        this.commit();
     },
     farmLabel(id) { return (this.TIX.find(t => t.id === id) || {}).label || id; },
     rewardText(p, r) {
@@ -357,12 +373,25 @@ const expUltima = Object.assign(Object.create(expPlan), {
 
     // シミュレーションの1日ごとに呼ばれる。そのキャラが受け取るパスの報酬のうち、日付が来ていて Lv も足りている週の分を返す。
     // Lv が足りない週の分は、届いた日にまとめて受け取る（取りこぼしたポイントはメイプルポイントで買える）。
-    // 計画の開始日より前の分は、もう持ち物にあるものとして足さない。
+    // 計画の開始日より前の分は、もう使ったものとして足さない。ただし「未使用」に入れた数は、開始日にまとめて足す。
     arrivals(ch, ymd, lv, memo) {
         let out = null;
+        const put = (from, r) => {
+            out = out || { tix: {}, pot: {}, coupon: 0, sauna: 0, from: '' };
+            out.from = out.from ? out.from + '・' + from : from;
+            out.coupon += r.coupon;
+            out.sauna += r.sauna;
+            if (r.farm) out.tix[r.farmId] = (out.tix[r.farmId] || 0) + r.farm;
+            for (const [k, n] of Object.entries(r.pot)) out.pot[k] = (out.pot[k] || 0) + n;
+        };
         this.PASSES.forEach(p => {
             const who = this.passChar(p);
             if (!who || who.id !== ch.id) return;
+            if (!memo[p.id + 'left']) {
+                memo[p.id + 'left'] = true;
+                const l = this.passLeft(p);
+                if (l.coupon || l.farm || l.sauna || Object.values(l.pot).some(n => n)) put(p.short + '（未使用分）', { ...l, farmId: p.farm });
+            }
             p.steps.forEach((_, i) => {
                 const key = p.id + i;
                 if (memo[key]) return;
@@ -371,13 +400,7 @@ const expUltima = Object.assign(Object.create(expPlan), {
                 if (d < this.state.start) { memo[key] = true; return; }
                 if (lv < p.minLv) return;
                 memo[key] = true;
-                const r = this.passWeek(p, i);
-                out = out || { tix: {}, pot: {}, coupon: 0, sauna: 0, from: '' };
-                out.from = out.from ? out.from + '・' + p.short : p.short;
-                out.coupon += r.coupon;
-                out.sauna += r.sauna;
-                if (r.farm) out.tix[p.farm] = (out.tix[p.farm] || 0) + r.farm;
-                for (const [k, n] of Object.entries(r.pot)) out.pot[k] = (out.pot[k] || 0) + n;
+                put(p.short, { ...this.passWeek(p, i), farmId: p.farm });
             });
         });
         return out;
@@ -412,6 +435,7 @@ const expUltima = Object.assign(Object.create(expPlan), {
                     ${low ? `<span class="text-[11px] text-amber-400">Lv${p.minLv} から</span>` : ''}
                 </div>
                 <div class="text-[11px] text-slate-400 font-mono expu-pass-tot">${who ? this.rewardText(p, tot) : '<span class="text-slate-600">—</span>'}</div>
+                ${who ? this.passLeftHTML(p) : ''}
             </div>`;
         }).join('');
         return `
@@ -432,11 +456,33 @@ const expUltima = Object.assign(Object.create(expPlan), {
         </div>`;
     },
 
+    // 開始日より前に届いた分と、そのうち未使用の数（プルダウン）
+    passLeftHTML(p) {
+        const got = this.passTotal(p, this.state.start);
+        const l = this.passLeft(p);
+        const items = [];
+        const sel = (k, max, step, cur, fmt) => {
+            const opts = [];
+            for (let v = 0; v <= max + 1e-9; v = Math.round((v + step) * 100) / 100) opts.push(`<option value="${v}"${Math.abs(v - cur) < 1e-9 ? ' selected' : ''}>${fmt(v)}</option>`);
+            return `<label class="input input-xs font-mono w-32 expp-insel" title="まだ使っていない数"><span class="text-slate-500">未使用</span><select onchange="${this.NS}.setPassLeft('${p.id}','${k}',this.value)">${opts.join('')}</select><i data-lucide="chevron-down" class="w-3 h-3 text-slate-500 shrink-0"></i></label>`;
+        };
+        const item = (label, got, s) => items.push(`<span class="expu-left-item"><span class="text-slate-300 truncate">${label} <b class="font-mono">${got}</b></span>${s}</span>`);
+        if (got.coupon) item('交換券', got.coupon.toLocaleString(), sel('coupon', got.coupon, 100, l.coupon, v => v.toLocaleString()));
+        if (got.farm) item(this.farmLabel(p.farm), got.farm, sel('farm', got.farm, 1, l.farm, v => v));
+        if (got.sauna) item('サウナ', got.sauna + '時間', sel('sauna', got.sauna, 0.5, l.sauna, v => v + '時間'));
+        for (const [k, n] of Object.entries(got.pot)) {
+            const pt = EXP_POTION_TYPES.find(x => x.id === k);
+            item(`秘薬 ${pt ? this.potName(pt) : k}`, n, sel('pot:' + k, n, 1, l.pot[k] || 0, v => v));
+        }
+        if (!items.length) return '';
+        return `<div class="expu-left-lbl">受け取り済み<br>${expDate.short(expDate.add(this.state.start, -1))}まで</div><div class="expu-left">${items.join('')}</div>`;
+    },
+
     notesHTML() {
         return `
         <ul class="expu-notes">
             <li>期間は GMS 2026/11/11〜2027/2/9。チャレンジャーパス・補給報告・バフは GMS v.272 のパッチノートによります。モメンタムパス・PLUS は v.272 にはまだないので、KMS の実績（KMS 6/18 を GMS 11/11 として1週ずつ対応、12/16・1/13 開始）の見込みです。後のパッチノートで分かったら直します。</li>
-            <li>チャレンジャーパスは週 500 ポイント（5Lv）まで、ポイントの週は木曜 9時（日本時間）に切り替わるので、1週目は 11/11 の1日だけです。毎週はじめに上限まで貯めた最短の日で受け取ります（取りこぼしたポイントはメイプルポイントで買えます）。Lv が足りない間の分は、届いた日にまとめて受け取ります。計画の開始日より前の分は、もう持ち物にあるものとして足しません。</li>
+            <li>チャレンジャーパスは週 500 ポイント（5Lv）まで、ポイントの週は木曜 9時（日本時間）に切り替わるので、1週目は 11/11 の1日だけです。毎週はじめに上限まで貯めた最短の日で受け取ります（取りこぼしたポイントはメイプルポイントで買えます）。Lv が足りない間の分は、届いた日にまとめて受け取ります。計画の開始日より前に届いた分は使い終わったものとして足しません。まだ使っていない分は、パスの行の「未使用」に入れると開始日に足します。</li>
             <li>補給報告は毎日のログインで1回、週5回まで（アカウントで1回）。毎週はじめの5日で受け取る最短の日です。サウナ券・秘薬・上級EXP交換券だけ数えています。</li>
             <li>もらったものは受け取ったキャラが使います。農場チケットは入れる Lv になったら、秘薬は上限 Lv から逆算した Lv で（届かなければ期日に）、上級EXP交換券はもらった日に全部使います。サウナ券（1枚30分）はもらった日から、アカウントの1日のサウナ時間の空きで使います。</li>
             <li>上級EXP交換券 1枚は、同じ Lv のグランディスの敵 225 体分（千の単位で切り上げ）、Lv260 から使え、Lv291 以上は増えないとしています（KMS の式）。</li>
