@@ -83,18 +83,19 @@ const expUltima = Object.assign(Object.create(expPlan), {
     // sauna = サウナ券の時間（1枚30分）。tiers が空のものは無料だけ（買う・買わないの比較には入れない）。
     PASSES: [
         {
-            // 1Lv 100pt・週500pt（5Lv）まで、Lv30 まで。ポイントの週は木曜 0時 UTC に切り替わるので、1週目は 11/11 の1日だけ。
-            // 毎週はじめに上限まで貯める最短の日（取りこぼしたポイントはメイプルポイントで買える）。
+            // 1Lv 100pt・週500pt（5Lv）まで、Lv30 まで。ポイントの週は木曜 0時 UTC に切り替わる。11/11 はメンテ明けから切り替わりまで数時間で
+            // 週の任務（ログイン3回・5回、週ボス6回・12回など）を終えられないので数えず（bi 指摘 11/15）、11/12 からの週を1週目とする。
+            // 毎週はじめに上限まで貯める最短の日（取りこぼしたポイントはメイプルポイントで買える）。報酬は 5Lv ごとにまとめる。
             id: 'cp', name: 'チャレンジャーパス', short: 'チャレンジャー', abbr: 'チャレ', world: 'CHALLENGER', minLv: 260, farm: 'blue',
             note: 'Challenger の Lv260 以上',
             tiers: [{ id: 'exp', label: 'EXPパス', price: '19,800NX' }],
             steps: [
-                { date: '2026-11-11', free: { farm: 1 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
-                { date: '2026-11-12', free: { sauna: 0.5 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
-                { date: '2026-11-19', exp: { coupon: 1000, farm: 3, sauna: 1 } },
-                { date: '2026-11-26', free: { sauna: 0.5 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
-                { date: '2026-12-03', free: { coupon: 100 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
-                { date: '2026-12-10', free: { coupon: 2100 }, exp: { coupon: 1000, farm: 2, sauna: 1, pot: { p279: 1 } } },
+                { date: '2026-11-12', free: { farm: 1 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
+                { date: '2026-11-19', free: { sauna: 0.5 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
+                { date: '2026-11-26', exp: { coupon: 1000, farm: 3, sauna: 1 } },
+                { date: '2026-12-03', free: { sauna: 0.5 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
+                { date: '2026-12-10', free: { coupon: 100 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
+                { date: '2026-12-17', free: { coupon: 2100 }, exp: { coupon: 1000, farm: 2, sauna: 1, pot: { p279: 1 } } },
             ],
         },
         // モメンタムパス・PLUS は v.272 のノートにはまだない。後のアップデートで出る見込みなので、KMS の実績（KMS 7/23・8/20 →
@@ -134,6 +135,15 @@ const expUltima = Object.assign(Object.create(expPlan), {
                 }
                 return a;
             }, []),
+        },
+        {
+            // Specter Blast（2人ミニゲーム）。11/11〜12/15、Lv260 以上、クリアでアカウント週1回 EXP（水曜 0時 UTC に切り替わり）。
+            // EXP は上級EXP交換券 3,000 枚分（bi 確認 2026-11-15）なので交換券として足す。その週に Lv260 に届かなければもらえない（within）。
+            id: 'sb', name: 'Specter Blast', short: 'Specter Blast', abbr: 'SB', world: null, minLv: 260, within: 7, end: '2026-12-15',
+            note: 'Lv260 以上・アカウントで週1回',
+            freeText: '無料・週1回（2人ミニゲーム）',
+            tiers: [],
+            steps: ['2026-11-11', '2026-11-18', '2026-11-25', '2026-12-02', '2026-12-09'].map(date => ({ date, free: { coupon: 3000 } })),
         },
     ],
 
@@ -305,7 +315,7 @@ const expUltima = Object.assign(Object.create(expPlan), {
 
     // ---------- パス ----------
     passDate(p, i) { return p.steps[i].date; },
-    passEnd(p) { return this.passDate(p, p.steps.length - 1); },
+    passEnd(p) { return p.end || this.passDate(p, p.steps.length - 1); },
     // 受け取れるキャラ（計画に入れたキャラのうち、ワールドが合うもの）
     passCandidates(p) {
         return this.onChars(p.world || null).sort((a, b) => (this.cfg(b.id).lv || b.level) - (this.cfg(a.id).lv || a.level));
@@ -398,7 +408,11 @@ const expUltima = Object.assign(Object.create(expPlan), {
                 const d = this.passDate(p, i);
                 if (d > ymd) return;
                 if (d < this.state.start) { memo[key] = true; return; }
-                if (lv < p.minLv) return;
+                if (lv < p.minLv) {
+                    // 週ごとのもの（within 日のうちにやる）は、その間に Lv が届かなければもらえない
+                    if (p.within && ymd >= expDate.add(d, p.within - 1)) memo[key] = true;
+                    return;
+                }
                 memo[key] = true;
                 put(p.short, { ...this.passWeek(p, i), farmId: p.farm });
             });
@@ -428,7 +442,7 @@ const expUltima = Object.assign(Object.create(expPlan), {
                     <div class="text-[11px] text-slate-500 font-mono">${expDate.short(this.passDate(p, 0))}〜${expDate.short(this.passEnd(p))}</div>${p.kms ? '<div class="text-[11px] text-amber-400/80">KMS の見込み</div>' : ''}
                 </div>
                 <div class="flex flex-wrap items-center gap-1.5">
-                    ${p.tiers.length ? p.tiers.map(t => this.chipHTML(!!st.pass[p.id].buy[t.id], `${t.label}を買う`, `${this.NS}.togglePassTier('${p.id}','${t.id}')`, t.price)).join('') : '<span class="text-[11px] text-slate-500">無料・毎日ログイン</span>'}
+                    ${p.tiers.length ? p.tiers.map(t => this.chipHTML(!!st.pass[p.id].buy[t.id], `${t.label}を買う`, `${this.NS}.togglePassTier('${p.id}','${t.id}')`, t.price)).join('') : `<span class="text-[11px] text-slate-500">${p.freeText || '無料・毎日ログイン'}</span>`}
                 </div>
                 <div class="flex flex-wrap items-center gap-1.5 min-w-0">
                     <select class="select select-xs w-48" onchange="${this.NS}.setPassChar('${p.id}',this.value)" title="${p.note}">${cand.length ? opts : '<option>対象のキャラがいません</option>'}</select>
@@ -482,7 +496,8 @@ const expUltima = Object.assign(Object.create(expPlan), {
         return `
         <ul class="expu-notes">
             <li>期間は GMS 2026/11/11〜2027/2/9。チャレンジャーパス・補給報告・バフは GMS v.272 のパッチノートによります。モメンタムパス・PLUS は v.272 にはまだないので、KMS の実績（KMS 6/18 を GMS 11/11 として1週ずつ対応、12/16・1/13 開始）の見込みです。後のパッチノートで分かったら直します。</li>
-            <li>チャレンジャーパスは週 500 ポイント（5Lv）まで、ポイントの週は木曜 9時（日本時間）に切り替わるので、1週目は 11/11 の1日だけです。毎週はじめに上限まで貯めた最短の日で受け取ります（取りこぼしたポイントはメイプルポイントで買えます）。Lv が足りない間の分は、届いた日にまとめて受け取ります。計画の開始日より前に届いた分は使い終わったものとして足しません。まだ使っていない分は、パスの行の「未使用」に入れると開始日に足します。</li>
+            <li>チャレンジャーパスは週 500 ポイント（5Lv）まで、ポイントの週は木曜 9時（日本時間）に切り替わります。11/11 はメンテ明けから切り替わりまで数時間で週の任務を終えられないので数えず、11/12 からの週で Lv5、以降毎週 5Lv ずつ、12/17 に Lv30 とします。毎週はじめに上限まで貯めた最短の日で受け取ります（取りこぼしたポイントはメイプルポイントで買えます）。Lv が足りない間の分は、届いた日にまとめて受け取ります。計画の開始日より前に届いた分は使い終わったものとして足しません。まだ使っていない分は、パスの行の「未使用」に入れると開始日に足します。</li>
+            <li>Specter Blast（11/11〜12/15）は Lv260 以上で、アカウントで週1回（水曜 9時に切り替わり）。EXP は上級EXP交換券 3,000 枚分として、毎週はじめの日に受け取るキャラが使います。その週のうちに Lv260 に届かなければ、その週の分はなしです。</li>
             <li>補給報告は毎日のログインで1回、週5回まで（アカウントで1回）。毎週はじめの5日で受け取る最短の日です。サウナ券・秘薬・上級EXP交換券だけ数えています。</li>
             <li>もらったものは受け取ったキャラが使います。農場チケットは入れる Lv になったら、秘薬は上限 Lv から逆算した Lv で（届かなければ期日に）、上級EXP交換券はもらった日に全部使います。サウナ券（1枚30分）はもらった日から、アカウントの1日のサウナ時間の空きで使います。</li>
             <li>上級EXP交換券 1枚は、同じ Lv のグランディスの敵 225 体分（千の単位で切り上げ）、Lv260 から使え、Lv291 以上は増えないとしています（KMS の式）。</li>
