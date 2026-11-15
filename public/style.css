@@ -359,7 +359,7 @@ body {
 .mx-scout b { font-weight: 700; color: #fbbf24; font-variant-numeric: tabular-nums; }
 .mx-scout i { font-style: normal; color: #475569; }
 
-.mx-main { display: flex; flex-direction: column; gap: 4px; padding: 6px 10px 0 10px; min-width: 0; }
+.mx-main { display: flex; flex-direction: column; gap: 4px; padding: 6px 10px 4px 10px; min-width: 0; }
 .mx-top { display: flex; align-items: baseline; gap: 4px; }
 .mx-meso { font: 700 26px/1 "Saira Condensed", sans-serif; color: #34d399; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
 .mx-meso small { font: 600 10px "IBM Plex Sans JP", sans-serif; color: #64748b; margin-left: 4px; }
@@ -406,13 +406,14 @@ body {
 .mx-mo .mx-complete span { font-size: 15px; letter-spacing: .2em; }
 
 /* 下の帯：最初から HEXA＝紫、UPGRADE＝水色、SCOUTER＝琥珀で色を付ける（入力済みかどうかで色は変えない） */
-.mx-tools { display: grid; grid-template-columns: repeat(3, 1fr); margin: auto -10px 0; border-top: 1px solid #ffffff1a; background: #0b1222; }
+.mx-tools { grid-column: 1 / -1; position: relative; z-index: 4; display: grid; grid-template-columns: 124px repeat(3, 1fr); border-top: 1px solid #ffffff1a; background: #0b1222; }
 .mx-tool { position: relative; height: 24px; font: 500 11px "IBM Plex Mono", monospace; letter-spacing: .1em; text-align: center; white-space: nowrap; }
 .mx-tool + .mx-tool { border-left: 1px solid #ffffff1a; }
 .mx-tool b { margin-left: 6px; font-weight: 700; }
 .mx-tool-hexa { color: #a78bfa; background: #a78bfa1a; } .mx-tool-hexa:hover { background: #a78bfa33; }
 .mx-tool-up { color: #38bdf8; background: #38bdf81a; } .mx-tool-up:hover { background: #38bdf833; }
 .mx-tool-scout { color: #fbbf24; background: #fbbf241a; } .mx-tool-scout:hover { background: #fbbf2433; }
+.mx-tool-sym { color: #f472b6; background: #f472b61a; } .mx-tool-sym:hover { background: #f472b633; } .mx-tool-sym .mx-bar { background: #f472b6; }
 .mx-bar { position: absolute; left: 0; bottom: 0; height: 2px; background: #a78bfa; }
 
 /* 全部消し込んだカードは地と名前を沈める。キャラ画像・サーバー色の線・透かしはそのまま（bi 指定） */
@@ -645,6 +646,39 @@ body {
 .lg-field > span { font-size: 10.5px; font-weight: 700; color: #94a3b8; }
 .lg-refgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 6px; }
 .lg-table th { color: #94a3b8; font-weight: 700; font-size: 11px; }
+/* 目標ラインに対するラインの判定（寄与=緑・超過=赤・対象外=灰）。判定のない行も点の幅を空けて選択欄の左端を合わせる */
+.lg-line { display: flex; align-items: center; gap: 5px; }
+.lg-vd { width: 7px; height: 7px; flex-shrink: 0; border-radius: 9999px; background: transparent; }
+.lg-v-ok { --lg-v: #4ade80; }
+.lg-v-over { --lg-v: #f87171; }
+.lg-v-out { --lg-v: #64748b; }
+.lg-line[class*="lg-v-"] > .lg-vd { background: var(--lg-v); }
+.lg-vkey { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: var(--lg-v); letter-spacing: 0; }
+.lg-vkey i { width: 8px; height: 8px; border-radius: 9999px; background: var(--lg-v); }
+.lg-csum { font: 900 11px "IBM Plex Mono", monospace; white-space: nowrap; }
+.lg-cell.lg-noncontrib { border-color: #f87171; background: color-mix(in oklab, #f87171 7%, var(--color-base-100)); }
+/* 目標ライン */
+.lg-trow { display: flex; align-items: center; gap: 6px; padding: 3px 4px 3px 8px; border: 1px solid #1e293b; border-radius: 0.25rem; background: #0b1222; }
+.lg-trow.lg-trow-done { border-color: color-mix(in oklab, #4ade80 45%, transparent); }
+.lg-step { display: inline-flex; align-items: center; flex-shrink: 0; border: 1px solid #334155; border-radius: 0.25rem; overflow: hidden; }
+.lg-step button { width: 22px; height: 22px; font-weight: 900; color: #cbd5e1; background: var(--color-base-200); }
+.lg-step button:hover:not(:disabled) { background: #334155; color: #fff; }
+.lg-step button:disabled { opacity: 0.35; }
+.lg-step b { width: 22px; text-align: center; font-size: 13px; color: #fff; }
+/* 所有ピースとセットソルバー */
+.lg-piece { border: 1px solid #1e293b; border-radius: 0.25rem; background: #0b1222; padding: 6px; }
+.lg-piece.lg-piece-adopted { border-color: color-mix(in oklab, #4ade80 55%, transparent); }
+.lg-own { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: #64748b; cursor: pointer; user-select: none; }
+.lg-own.lg-own-on { color: #a5b4fc; }
+.lg-piece.lg-piece-dup { border-color: color-mix(in oklab, #fbbf24 60%, transparent); border-style: dashed; }
+.lg-piece.lg-piece-adopted-own { border-color: color-mix(in oklab, var(--color-primary) 70%, transparent); }
+.lg-piece.lg-piece-unneeded { border-color: color-mix(in oklab, #f87171 55%, transparent); background: color-mix(in oklab, #f87171 7%, #0b1222); }
+.lg-solved { border-color: #4ade80; border-width: 2px; }
+.lg-atk { padding: 0 4px; white-space: nowrap; border: 1px solid #334155; border-radius: 9999px; font-weight: 700; color: #475569; text-decoration: line-through; }
+.lg-atk.lg-atk-on { border-color: color-mix(in oklab, #4ade80 55%, transparent); color: #4ade80; text-decoration: none; }
+.lg-pick { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; border-top: 1px solid #1e293b; }
+.lg-pick:first-child { border-top: 0; }
+.lg-pick-slot { display: inline-flex; align-items: center; gap: 4px; width: 72px; flex-shrink: 0; font-size: 11.5px; font-weight: 900; color: #cbd5e1; }
 
 /* 上部バーの収入欄のサーバー枠（左線の色はサーバー色のユーティリティで付ける）。 */
 .mm-srv { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px 0 10px; border: 1px solid color-mix(in oklab, var(--color-base-content) 15%, transparent); border-left-width: 3px; background: var(--color-base-200); white-space: nowrap; flex-shrink: 0; transition: opacity 0.15s; }
@@ -853,3 +887,49 @@ i.expp-ico, svg.expp-ico { width: 15px; height: 15px; margin: 0 1.5px; }
 .expp-pick.is-on { border-color: #6366f1; background: #6366f11f; }
 .expp-pick-box { width: 18px; height: 18px; flex-shrink: 0; border-radius: 4px; border: 1.5px solid #475569; display: flex; align-items: center; justify-content: center; color: #fff; }
 .expp-pick.is-on .expp-pick-box { background: #6366f1; border-color: #6366f1; }
+
+/* ---------- Symbol Planner（symbol_planner.js） ---------- */
+.sp-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 18px; padding: 10px 14px; }
+.sp-stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sp-stat-l { font-size: 11px; font-weight: 700; color: #64748b; white-space: nowrap; }
+.sp-stat-v { display: flex; align-items: center; gap: 6px; min-height: 32px; font-size: 16px; font-family: "IBM Plex Mono", monospace; }
+.sp-stat-v .text-xs { font-family: inherit; }
+.sp-check { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: var(--radius-field); border: 1px solid #ffffff1a; font: 500 12px system-ui, sans-serif; color: #94a3b8; cursor: pointer; white-space: nowrap; }
+.sp-check.on { color: #e2e8f0; border-color: #6366f199; background: #6366f11f; }
+.sp-table td { vertical-align: middle; white-space: nowrap; padding-left: 8px; padding-right: 8px; }
+.sp-table th { padding-left: 8px; padding-right: 8px; }
+.sp-table tr > :first-child { padding-left: 12px; }
+.sp-left { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+.sp-table { table-layout: fixed; min-width: 1060px; }
+.sp-table th { font-size: 11px; white-space: nowrap; }
+.sp-lock td:nth-child(n+6) > * { opacity: .45; }
+.sp-name { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.sp-name > span { display: flex; flex-direction: column; line-height: 1.2; }
+.sp-name b { color: #fff; font-size: 13px; }
+.sp-name small { font-size: 10px; color: #64748b; font-family: "IBM Plex Mono", monospace; }
+.sp-name em { font-style: normal; color: #f87171; margin-left: 6px; font-family: system-ui, sans-serif; }
+.sp-ico { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
+.sp-amt { display: inline-flex; align-items: center; gap: 6px; }
+.sp-amt .toggle:checked { --input-color: var(--c); color: var(--c); border-color: var(--c); }
+.sp-bar { display: inline-block; vertical-align: middle; width: 64px; height: 6px; border-radius: 3px; background: var(--color-base-300); overflow: hidden; }
+.sp-bar > span { display: block; height: 100%; border-radius: 3px; }
+.sp-pct { display: inline-block; width: 36px; margin-left: 4px; text-align: right; font: 600 12px "IBM Plex Mono", monospace; color: #cbd5e1; vertical-align: middle; }
+.sp-maxtag { font: 700 11px "IBM Plex Mono", monospace; letter-spacing: .1em; color: #34d399; }
+.sp-lock .sp-ico { filter: grayscale(1); opacity: .45; }
+.sp-lock .sp-name b { color: #64748b; }
+.sp-max td { background: #34d39908; }
+.spe-live td:first-child { box-shadow: inset 3px 0 0 #fbbf24; }
+.sp-tl td { vertical-align: middle; }
+.sp-tl tr.sp-tl-mon td { border-top: 1px solid #22d3ee33; }
+.sp-ico-s { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
+.sp-up { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 8px 0 4px; border-radius: var(--radius-field); border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); background: color-mix(in srgb, var(--c) 8%, transparent); white-space: nowrap; }
+.sp-up-n { font-size: 12px; font-weight: 600; color: #e2e8f0; }
+.sp-up-lv { display: inline-flex; align-items: center; gap: 3px; font: 500 11px "IBM Plex Mono", monospace; color: #94a3b8; }
+.sp-up-lv b { color: var(--c); font-weight: 700; }
+.sp-up-max { border-color: #34d39999; }
+.sp-up-max .sp-up-lv b { color: #34d399; }
+
+/* キャラクタータブの並べ替え（ドラッグ中の行と、落とす位置の線） */
+tr.mm-dragging { opacity: .4; }
+tr.mm-drop-before > td { box-shadow: inset 0 2px 0 #818cf8; }
+tr.mm-drop-after > td { box-shadow: inset 0 -2px 0 #818cf8; }

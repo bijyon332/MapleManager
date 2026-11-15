@@ -53,7 +53,7 @@ const JOB_ART_POS = {
     hoyoung: { x: -67, y: -140, z: 100 },
     lara: { x: -41, y: -104, z: 90 },
     ren: { x: -129, y: -133, z: 122 },
-    kinesis: { x: -46, y: -111, z: 90 },
+    kinesis: { x: -49, y: -53, z: 86 },
     zero: { x: -24, y: -59, z: 68 },
     hayato: { x: -29, y: -121, z: 96 },
     kanna: { x: -66, y: -88, z: 94 },
@@ -61,6 +61,7 @@ const JOB_ART_POS = {
     moxuan: { x: -119, y: -55, z: 92 },
     erellight: { x: -74, y: -91, z: 114 },
     sia: { x: -90, y: -75, z: 92 },
+    lethe: { x: -58, y: -33, z: 82 },
 };
 
 // イラストを使うときの位置と大きさ（立ち絵とは別に持つ。意味は上と同じ）
@@ -99,7 +100,7 @@ const JOB_ART_ILLUST_POS = {
     wildhunter: { x: -137, y: -96, z: 168, f: 1 },
     xenon: { x: -14, y: -59, z: 120, f: 1 },
     demonavenger: { x: -47, y: -54, z: 138 },
-    demonslayer: { x: -280, y: -122, z: 186 },
+    demonslayer: { x: -148, y: -123, z: 186, f: 1 },
     angelicbuster: { x: -130, y: -79, z: 136 },
     cadena: { x: -158, y: -53, z: 154 },
     kain: { x: -15, y: -57, z: 120, f: 1 },
