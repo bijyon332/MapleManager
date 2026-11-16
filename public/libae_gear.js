@@ -197,7 +197,7 @@ const libaeGear = (() => {
         nextPieceId = ownedPieces.reduce((a, p) => Math.max(a, p.id), 0) + 1;
         patView = loadJSON(LS_PAT, 'all') === 'own' ? 'own' : 'all';
         const t = loadJSON(LS_TAB, 'gear');
-        tab = ['gear', 'pieces', 'jewel', 'reference'].includes(t) ? t : 'gear';
+        tab = ['gear', 'pieces', 'jewel', 'battlesim', 'reference'].includes(t) ? t : 'gear';
     }
     function saveGear() { try { localStorage.setItem(LS_GEAR, JSON.stringify(gear)); } catch (e) { setMsg('保存できませんでした（ブラウザの保存領域を確認してください）', false); } }
     function saveSettings() { try { localStorage.setItem(LS_SETTINGS, JSON.stringify(settings)); } catch (e) { setMsg('設定を保存できませんでした', false); } }
@@ -987,8 +987,12 @@ const libaeGear = (() => {
     }
     function render() {
         if (!rootEl) return;
-        const body = tab === 'jewel' ? jewelHTML() : tab === 'reference' ? referenceHTML() : tab === 'pieces' ? piecesHTML() : gearHTML();
-        rootEl.innerHTML = `<div class="lg-root">${body}${dataHTML()}</div>`;
+        // バトルシム（プログラム図鑑、libae_battlesim.js）は装備のデータと関係ないので、下のデータ欄は出さない
+        if (tab === 'battlesim') rootEl.innerHTML = `<div class="lg-root">${window.libaeBattlesim ? libaeBattlesim.html() : ''}</div>`;
+        else {
+            const body = tab === 'jewel' ? jewelHTML() : tab === 'reference' ? referenceHTML() : tab === 'pieces' ? piecesHTML() : gearHTML();
+            rootEl.innerHTML = `<div class="lg-root">${body}${dataHTML()}</div>`;
+        }
         syncNav();
         icons();
     }
@@ -1002,6 +1006,7 @@ const libaeGear = (() => {
         rootEl = document.getElementById(id);
         load();
         bind();
+        if (window.libaeBattlesim) libaeBattlesim.bind(rootEl);
         render();
     }
 
