@@ -355,6 +355,7 @@ const expPlan = {
         { id: 'hunt', label: '狩り', color: '#fb923c' },
         { id: 'th', label: 'トレハン', color: '#e879f9' },
         { id: 'sauna', label: 'サウナ', color: '#a3e635' },
+        { id: 'coupon', label: 'EXP交換券', color: '#e2e8f0' },
     ],
     TH_PER_DAY: 10, // トレジャーハンターの箱は1キャラ1日10箱まで
     SAUNA_PER_DAY: 8, // 放置マップは1日8時間まで（bi 指定）。実際に1日何時間使うかは state.saunaDay（アカウント共有、既定は上限）
@@ -363,7 +364,7 @@ const expPlan = {
         daily: { img: 'assets/exp/sym-r1.png' }, weekly: { img: 'assets/exp/sym-r4.png' },
         monpa: { img: 'assets/exp/monpa.png' }, mpe: { img: 'assets/exp/mpe.png' },
         epic: { lucide: 'castle' }, farm: { img: 'assets/exp/farm.png' }, potion: { img: 'assets/exp/potion.png' },
-        hunt: { lucide: 'swords' }, th: { lucide: 'gem' }, sauna: { img: 'assets/exp/sauna.png' },
+        hunt: { lucide: 'swords' }, th: { lucide: 'gem' }, sauna: { img: 'assets/exp/sauna.png' }, coupon: { lucide: 'ticket' },
         start: { lucide: 'flag' }, burn: { lucide: 'flame' },
     },
     // デイリーの地域のシンボル（テネブリスはシンボルがないので出さない）
@@ -483,7 +484,7 @@ const expPlan = {
             on: false, lv: null, pct: 0, fetchedAt: null, target: null,
             dailyOn: null, weekly: true,
             monpa: 0, mpe: false, epic: 'none', burn: 'none',
-            tix: {}, pot: {},
+            tix: {}, pot: {}, coupon: 0,
             hunt: null, sauna: 0, th: 0,
         };
         for (const k of Object.keys(def)) if (c[k] === undefined) c[k] = def[k];
@@ -512,6 +513,7 @@ const expPlan = {
     epicOwner(dgId, exceptId) { return this.onChars().find(ch => ch.id !== exceptId && this.cfg(ch.id).epic === dgId) || null; },
     tixUsed(world, k, exceptId) { return this.onChars(world).filter(ch => ch.id !== exceptId).reduce((s, ch) => s + (Number(this.cfg(ch.id).tix[k]) || 0), 0); },
     saunaUsed(exceptId) { return this.onChars().filter(ch => ch.id !== exceptId).reduce((s, ch) => s + (Number(this.cfg(ch.id).sauna) || 0), 0); },
+    couponUsed(world, exceptId) { return this.onChars(world).filter(ch => ch.id !== exceptId).reduce((s, ch) => s + (Number(this.cfg(ch.id).coupon) || 0), 0); },
     potUsed(world, k, exceptId) { return this.onChars(world).filter(ch => ch.id !== exceptId).reduce((s, ch) => s + (Number(this.cfg(ch.id).pot[k]) || 0), 0); },
 
     // 持ち物を減らしたときなどに、上限を超えた割り当てを後ろのキャラから削る
@@ -519,7 +521,7 @@ const expPlan = {
         const L = this.LIMITS;
         this.WORLDS.forEach(w => {
             const pool = this.state.pool[w.id];
-            let monpa = 0, mpe = 0;
+            let monpa = 0, mpe = 0, coupon = 0;
             const tix = {}, pot = {}, daily = new Set();
             this.onChars(w.id).forEach(ch => {
                 const c = this.cfg(ch.id);
@@ -538,6 +540,8 @@ const expPlan = {
                     c.pot[p.id] = Math.max(0, Math.min(Number(c.pot[p.id]) || 0, have - (pot[p.id] || 0)));
                     pot[p.id] = (pot[p.id] || 0) + c.pot[p.id];
                 });
+                c.coupon = Math.max(0, Math.min(Number(c.coupon) || 0, (Number(pool.coupon) || 0) - coupon));
+                coupon += c.coupon;
             });
         });
         // VIP サウナはアカウントの時間から割り当てる（多すぎる分は後ろのキャラから削る）
@@ -660,6 +664,9 @@ const expPlan = {
         return out;
     },
     setPool(world, kind, k, v) { this.state.pool[world][kind][k] = Math.max(0, Math.floor(Number(v) || 0)); this.commit(); },
+    // 上級EXP交換券はワールドの所持数（pool.coupon）から、キャラごとに枚数（c.coupon）を割り当てる
+    setPoolCoupon(world, v) { this.state.pool[world].coupon = Math.max(0, Math.floor(Number(v) || 0)); this.commit(); },
+    setCoupon(id, v) { this.cfg(id).coupon = Math.max(0, Math.floor(Number(v) || 0)); this.commit(); },
     commit() { this.normalize(); this.save(); this.render(); },
 
     // Nexon ランキングから今の Lv と EXP% を取る（Worker の /api 経由、NA → EU の順）
@@ -732,7 +739,7 @@ const expPlan = {
         };
         const pendTix = this.TIX.map(t => ({ ...t, n: Number(c.tix[t.id]) || 0 }));
         const pendPot = EXP_POTION_TYPES.map(p => ({ ...p, n: Number(c.pot[p.id]) || 0 }));
-        let pendCoupon = 0, pendSauna = 0;
+        let pendCoupon = Number(c.coupon) || 0, pendSauna = 0; // 持ち物の交換券は Lv260 以上なら初日に使う
         const got0 = {}; // arrivals がもらい済みを覚えておく場所（このシミュレーションの間だけ）
         // 途中で手に入るもの（ウルティマのパスの報酬）を、もらった日に持ち物に足す
         const receive = (ymd) => {
@@ -1059,6 +1066,17 @@ const expPlan = {
                     <div class="expp-lbl">成長の秘薬</div>
                     <div class="grid grid-cols-2 gap-1.5">${EXP_POTION_TYPES.map(p => cell('pot', p.id, this.potName(p))).join('')}</div>
                 </div>
+                <div class="space-y-1.5 pt-3 border-t border-base-content/10">
+                    <div class="expp-lbl">上級EXP交換券</div>
+                    <div class="grid grid-cols-2 gap-1.5">${(() => {
+                        const have = Number(pool.coupon) || 0, u = this.couponUsed(world);
+                        return `<label class="expp-pool ${have ? 'has' : ''}">
+                            <span class="truncate flex items-center gap-1.5">${this.iconHTML('coupon', 'expp-ico-s')}Lv260+</span>
+                            <input type="number" min="0" step="100" class="input input-xs font-mono w-20 text-right" value="${have}" onchange="${this.NS}.setPoolCoupon('${world}',this.value)">
+                            <span class="font-mono text-[10px] ${have && u >= have ? 'text-amber-400' : 'text-slate-500'} w-14 text-right">${have ? `${u.toLocaleString()}/${have.toLocaleString()}` : ''}</span>
+                        </label>`;
+                    })()}</div>
+                </div>
             </div>
         </details>`;
     },
@@ -1113,6 +1131,19 @@ const expPlan = {
         };
         const tixItems = this.TIX.map(t => cntSel('tix', t.id, t.label, Number(c.tix[t.id]) || 0, t.icon)).join('');
         const potItems = EXP_POTION_TYPES.map(p => cntSel('pot', p.id, this.potName(p), Number(c.pot[p.id]) || 0)).join('');
+        // 上級EXP交換券: ワールドの所持数から割り当てる（100枚単位、多いときは刻みを広げる）
+        const couponItem = (() => {
+            const have = Number(pool.coupon) || 0;
+            if (!have) return '';
+            const cur = Number(c.coupon) || 0, max = have - this.couponUsed(ch.server, ch.id);
+            const step = Math.max(100, Math.ceil(have / 100 / 100) * 100);
+            const vals = [];
+            for (let v = 0; v < have; v += step) vals.push(v);
+            vals.push(have);
+            if (!vals.includes(cur)) vals.push(cur), vals.sort((a, b) => a - b);
+            const opts = vals.map(v => `<option value="${v}"${v === cur ? ' selected' : ''}${v > max ? ' disabled' : ''}>${v.toLocaleString()}</option>`).join('');
+            return `<label class="expp-cnt ${cur ? 'on' : ''}" style="--c:${this.srcColor('coupon')}">${this.stableText('上級EXP交換券')}<select class="select select-xs font-mono w-20" onchange="${this.NS}.setCoupon('${ch.id}',this.value)">${opts}</select></label>`;
+        })();
         // 放置マップ: 持ち物の時間から 0.5 時間単位で割り当てる（ほかのキャラに割り当てた分は選べない）
         const saunaHave = Number(this.state.sauna) || 0;
         const saunaItem = saunaHave ? (() => {
@@ -1181,9 +1212,10 @@ const expPlan = {
                 <div class="flex flex-wrap items-center gap-1.5">
                     ${epicChips}
                 </div>
-                ${tixItems || potItems ? '<div class="expp-sec">持ち物</div>' : ''}
+                ${tixItems || potItems || couponItem ? '<div class="expp-sec">持ち物</div>' : ''}
                 ${tixItems ? `${this.rowLbl('farm', '農場')}<div class="flex flex-wrap items-center gap-1.5">${tixItems}</div>` : ''}
                 ${potItems ? `${this.rowLbl('potion', '秘薬')}<div class="flex flex-wrap items-center gap-1.5">${potItems}</div>` : ''}
+                ${couponItem ? `${this.rowLbl('coupon', '交換券')}<div class="flex flex-wrap items-center gap-1.5">${couponItem}${lvNow < 260 ? '<span class="text-[11px] text-slate-500">Lv260 から</span>' : ''}</div>` : ''}
                 <div class="expp-sec">狩り・放置</div>
                 ${this.rowLbl('hunt', '狩り')}
                 <div class="flex flex-wrap items-center gap-1.5">
