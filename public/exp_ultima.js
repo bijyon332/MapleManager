@@ -38,8 +38,6 @@ const expUltima = Object.assign(Object.create(expPlan), {
     fetching: {},
     showNotes: false,
 
-    SRC: [...expPlan.SRC, { id: 'coupon', label: 'EXP交換券', color: '#e2e8f0' }],
-
     // バフ。[対象, ％, 開始, 終了, 内訳]
     // エテリオン・レリック: 週の任務（1万体）を毎週終えて、レリックは決まった順（1週 デイリー、3週 モンパ、9週 エピダン）、
     //   コアは解放したらすぐ Lv6（モンパ 2週、エピダン 4週、デイリー 8週に選ぶ想定。効果はレリックが有効になってから）。
@@ -83,18 +81,19 @@ const expUltima = Object.assign(Object.create(expPlan), {
     // sauna = サウナ券の時間（1枚30分）。tiers が空のものは無料だけ（買う・買わないの比較には入れない）。
     PASSES: [
         {
-            // 1Lv 100pt・週500pt（5Lv）まで、Lv30 まで。ポイントの週は木曜 0時 UTC に切り替わるので、1週目は 11/11 の1日だけ。
-            // 毎週はじめに上限まで貯める最短の日（取りこぼしたポイントはメイプルポイントで買える）。
+            // 1Lv 100pt・週500pt（5Lv）まで、Lv30 まで。ポイントの週は木曜 0時 UTC に切り替わる。11/11 はメンテ明けから切り替わりまで数時間で
+            // 週の任務（ログイン3回・5回、週ボス6回・12回など）を終えられないので数えず（bi 指摘 11/15）、11/12 からの週を1週目とする。
+            // 毎週はじめに上限まで貯める最短の日（取りこぼしたポイントはメイプルポイントで買える）。報酬は 5Lv ごとにまとめる。
             id: 'cp', name: 'チャレンジャーパス', short: 'チャレンジャー', abbr: 'チャレ', world: 'CHALLENGER', minLv: 260, farm: 'blue',
             note: 'Challenger の Lv260 以上',
             tiers: [{ id: 'exp', label: 'EXPパス', price: '19,800NX' }],
             steps: [
-                { date: '2026-11-11', free: { farm: 1 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
-                { date: '2026-11-12', free: { sauna: 0.5 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
-                { date: '2026-11-19', exp: { coupon: 1000, farm: 3, sauna: 1 } },
-                { date: '2026-11-26', free: { sauna: 0.5 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
-                { date: '2026-12-03', free: { coupon: 100 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
-                { date: '2026-12-10', free: { coupon: 2100 }, exp: { coupon: 1000, farm: 2, sauna: 1, pot: { p279: 1 } } },
+                { date: '2026-11-12', free: { farm: 1 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
+                { date: '2026-11-19', free: { sauna: 0.5 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
+                { date: '2026-11-26', exp: { coupon: 1000, farm: 3, sauna: 1 } },
+                { date: '2026-12-03', free: { sauna: 0.5 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
+                { date: '2026-12-10', free: { coupon: 100 }, exp: { coupon: 1000, farm: 3, sauna: 1 } },
+                { date: '2026-12-17', free: { coupon: 2100 }, exp: { coupon: 1000, farm: 2, sauna: 1, pot: { p279: 1 } } },
             ],
         },
         // モメンタムパス・PLUS は v.272 のノートにはまだない。後のアップデートで出る見込みなので、KMS の実績（KMS 7/23・8/20 →
@@ -135,6 +134,15 @@ const expUltima = Object.assign(Object.create(expPlan), {
                 return a;
             }, []),
         },
+        {
+            // Specter Blast（2人ミニゲーム）。11/11〜12/15、Lv260 以上、クリアでアカウント週1回 EXP（水曜 0時 UTC に切り替わり）。
+            // EXP は上級EXP交換券 3,000 枚分（bi 確認 2026-11-15）なので交換券として足す。その週に Lv260 に届かなければもらえない（within）。
+            id: 'sb', name: 'Specter Blast', short: 'Specter Blast', abbr: 'SB', world: null, minLv: 260, within: 7, end: '2026-12-15',
+            note: 'Lv260 以上・アカウントで週1回',
+            freeText: '無料・週1回（2人ミニゲーム）',
+            tiers: [],
+            steps: ['2026-11-11', '2026-11-18', '2026-11-25', '2026-12-02', '2026-12-09'].map(date => ({ date, free: { coupon: 3000 } })),
+        },
     ],
 
     init() {
@@ -156,7 +164,7 @@ const expUltima = Object.assign(Object.create(expPlan), {
     afterLoad() {
         const st = this.state;
         st.pass = st.pass || {};
-        this.PASSES.forEach(p => { st.pass[p.id] = Object.assign({ buy: {}, char: null }, st.pass[p.id] || {}); });
+        this.PASSES.forEach(p => { st.pass[p.id] = Object.assign({ buy: {}, char: null, left: {} }, st.pass[p.id] || {}); });
         if (st.ultimaBuff == null) st.ultimaBuff = true;
         st.quanah = Object.assign({ char: null, mode: 'lv', lv: 270, date: this.START }, st.quanah || {});
         st.quanah.heir = Object.assign({ name: '後継キャラ', lv: 260, pct: 0, burn: 'none', target: 270, hunt: { kills: 0, hours: 0, pct: 0 } }, st.quanah.heir || {});
@@ -305,7 +313,7 @@ const expUltima = Object.assign(Object.create(expPlan), {
 
     // ---------- パス ----------
     passDate(p, i) { return p.steps[i].date; },
-    passEnd(p) { return this.passDate(p, p.steps.length - 1); },
+    passEnd(p) { return p.end || this.passDate(p, p.steps.length - 1); },
     // 受け取れるキャラ（計画に入れたキャラのうち、ワールドが合うもの）
     passCandidates(p) {
         return this.onChars(p.world || null).sort((a, b) => (this.cfg(b.id).lv || b.level) - (this.cfg(a.id).lv || a.level));
@@ -333,14 +341,30 @@ const expUltima = Object.assign(Object.create(expPlan), {
         });
         return out;
     },
-    passTotal(p) {
+    passTotal(p, before = null) {
         const tot = { coupon: 0, farm: 0, sauna: 0, pot: {} };
-        p.steps.forEach((_, i) => {
+        p.steps.forEach((s, i) => {
+            if (before && s.date >= before) return;
             const w = this.passWeek(p, i);
             tot.coupon += w.coupon; tot.farm += w.farm; tot.sauna += w.sauna;
             for (const [k, n] of Object.entries(w.pot)) tot.pot[k] = (tot.pot[k] || 0) + n;
         });
         return tot;
+    },
+    // 計画の開始日より前に届いた分のうち、まだ使っていない数（品目ごと）。届いた数より多い分は切る
+    // left = { coupon, farm, sauna, pot: { id: n } }。入れていない品目は 0（全部使った）
+    passLeft(p) {
+        const got = this.passTotal(p, this.state.start), l = this.state.pass[p.id].left || {};
+        const out = { coupon: 0, farm: 0, sauna: 0, pot: {} };
+        ['coupon', 'farm', 'sauna'].forEach(k => { out[k] = Math.min(got[k], Math.max(0, Number(l[k]) || 0)); });
+        for (const [k, n] of Object.entries(got.pot)) out.pot[k] = Math.min(n, Math.max(0, Number((l.pot || {})[k]) || 0));
+        return out;
+    },
+    setPassLeft(pid, k, v) {
+        const l = this.state.pass[pid].left = this.state.pass[pid].left || {};
+        const n = Math.max(0, Number(v) || 0);
+        if (k.startsWith('pot:')) { l.pot = l.pot || {}; l.pot[k.slice(4)] = n; } else l[k] = n;
+        this.commit();
     },
     farmLabel(id) { return (this.TIX.find(t => t.id === id) || {}).label || id; },
     rewardText(p, r) {
@@ -357,27 +381,38 @@ const expUltima = Object.assign(Object.create(expPlan), {
 
     // シミュレーションの1日ごとに呼ばれる。そのキャラが受け取るパスの報酬のうち、日付が来ていて Lv も足りている週の分を返す。
     // Lv が足りない週の分は、届いた日にまとめて受け取る（取りこぼしたポイントはメイプルポイントで買える）。
-    // 計画の開始日より前の分は、もう持ち物にあるものとして足さない。
+    // 計画の開始日より前の分は、もう使ったものとして足さない。ただし「未使用」に入れた数は、開始日にまとめて足す。
     arrivals(ch, ymd, lv, memo) {
         let out = null;
+        const put = (from, r) => {
+            out = out || { tix: {}, pot: {}, coupon: 0, sauna: 0, from: '' };
+            out.from = out.from ? out.from + '・' + from : from;
+            out.coupon += r.coupon;
+            out.sauna += r.sauna;
+            if (r.farm) out.tix[r.farmId] = (out.tix[r.farmId] || 0) + r.farm;
+            for (const [k, n] of Object.entries(r.pot)) out.pot[k] = (out.pot[k] || 0) + n;
+        };
         this.PASSES.forEach(p => {
             const who = this.passChar(p);
             if (!who || who.id !== ch.id) return;
+            if (!memo[p.id + 'left']) {
+                memo[p.id + 'left'] = true;
+                const l = this.passLeft(p);
+                if (l.coupon || l.farm || l.sauna || Object.values(l.pot).some(n => n)) put(p.short + '（未使用分）', { ...l, farmId: p.farm });
+            }
             p.steps.forEach((_, i) => {
                 const key = p.id + i;
                 if (memo[key]) return;
                 const d = this.passDate(p, i);
                 if (d > ymd) return;
                 if (d < this.state.start) { memo[key] = true; return; }
-                if (lv < p.minLv) return;
+                if (lv < p.minLv) {
+                    // 週ごとのもの（within 日のうちにやる）は、その間に Lv が届かなければもらえない
+                    if (p.within && ymd >= expDate.add(d, p.within - 1)) memo[key] = true;
+                    return;
+                }
                 memo[key] = true;
-                const r = this.passWeek(p, i);
-                out = out || { tix: {}, pot: {}, coupon: 0, sauna: 0, from: '' };
-                out.from = out.from ? out.from + '・' + p.short : p.short;
-                out.coupon += r.coupon;
-                out.sauna += r.sauna;
-                if (r.farm) out.tix[p.farm] = (out.tix[p.farm] || 0) + r.farm;
-                for (const [k, n] of Object.entries(r.pot)) out.pot[k] = (out.pot[k] || 0) + n;
+                put(p.short, { ...this.passWeek(p, i), farmId: p.farm });
             });
         });
         return out;
@@ -405,13 +440,14 @@ const expUltima = Object.assign(Object.create(expPlan), {
                     <div class="text-[11px] text-slate-500 font-mono">${expDate.short(this.passDate(p, 0))}〜${expDate.short(this.passEnd(p))}</div>${p.kms ? '<div class="text-[11px] text-amber-400/80">KMS の見込み</div>' : ''}
                 </div>
                 <div class="flex flex-wrap items-center gap-1.5">
-                    ${p.tiers.length ? p.tiers.map(t => this.chipHTML(!!st.pass[p.id].buy[t.id], `${t.label}を買う`, `${this.NS}.togglePassTier('${p.id}','${t.id}')`, t.price)).join('') : '<span class="text-[11px] text-slate-500">無料・毎日ログイン</span>'}
+                    ${p.tiers.length ? p.tiers.map(t => this.chipHTML(!!st.pass[p.id].buy[t.id], `${t.label}を買う`, `${this.NS}.togglePassTier('${p.id}','${t.id}')`, t.price)).join('') : `<span class="text-[11px] text-slate-500">${p.freeText || '無料・毎日ログイン'}</span>`}
                 </div>
                 <div class="flex flex-wrap items-center gap-1.5 min-w-0">
                     <select class="select select-xs w-48" onchange="${this.NS}.setPassChar('${p.id}',this.value)" title="${p.note}">${cand.length ? opts : '<option>対象のキャラがいません</option>'}</select>
                     ${low ? `<span class="text-[11px] text-amber-400">Lv${p.minLv} から</span>` : ''}
                 </div>
                 <div class="text-[11px] text-slate-400 font-mono expu-pass-tot">${who ? this.rewardText(p, tot) : '<span class="text-slate-600">—</span>'}</div>
+                ${who ? this.passLeftHTML(p) : ''}
             </div>`;
         }).join('');
         return `
@@ -432,103 +468,40 @@ const expUltima = Object.assign(Object.create(expPlan), {
         </div>`;
     },
 
+    // 開始日より前に届いた分と、そのうち未使用の数（プルダウン）
+    passLeftHTML(p) {
+        const got = this.passTotal(p, this.state.start);
+        const l = this.passLeft(p);
+        const items = [];
+        const sel = (k, max, step, cur, fmt) => {
+            const opts = [];
+            for (let v = 0; v <= max + 1e-9; v = Math.round((v + step) * 100) / 100) opts.push(`<option value="${v}"${Math.abs(v - cur) < 1e-9 ? ' selected' : ''}>${fmt(v)}</option>`);
+            return `<label class="input input-xs font-mono w-32 expp-insel" title="まだ使っていない数"><span class="text-slate-500">未使用</span><select onchange="${this.NS}.setPassLeft('${p.id}','${k}',this.value)">${opts.join('')}</select><i data-lucide="chevron-down" class="w-3 h-3 text-slate-500 shrink-0"></i></label>`;
+        };
+        const item = (label, got, s) => items.push(`<span class="expu-left-item"><span class="text-slate-300 truncate">${label} <b class="font-mono">${got}</b></span>${s}</span>`);
+        if (got.coupon) item('交換券', got.coupon.toLocaleString(), sel('coupon', got.coupon, 100, l.coupon, v => v.toLocaleString()));
+        if (got.farm) item(this.farmLabel(p.farm), got.farm, sel('farm', got.farm, 1, l.farm, v => v));
+        if (got.sauna) item('サウナ', got.sauna + '時間', sel('sauna', got.sauna, 0.5, l.sauna, v => v + '時間'));
+        for (const [k, n] of Object.entries(got.pot)) {
+            const pt = EXP_POTION_TYPES.find(x => x.id === k);
+            item(`秘薬 ${pt ? this.potName(pt) : k}`, n, sel('pot:' + k, n, 1, l.pot[k] || 0, v => v));
+        }
+        if (!items.length) return '';
+        return `<div class="expu-left-lbl">受け取り済み<br>${expDate.short(expDate.add(this.state.start, -1))}まで</div><div class="expu-left">${items.join('')}</div>`;
+    },
+
     notesHTML() {
         return `
         <ul class="expu-notes">
             <li>期間は GMS 2026/11/11〜2027/2/9。チャレンジャーパス・補給報告・バフは GMS v.272 のパッチノートによります。モメンタムパス・PLUS は v.272 にはまだないので、KMS の実績（KMS 6/18 を GMS 11/11 として1週ずつ対応、12/16・1/13 開始）の見込みです。後のパッチノートで分かったら直します。</li>
-            <li>チャレンジャーパスは週 500 ポイント（5Lv）まで、ポイントの週は木曜 9時（日本時間）に切り替わるので、1週目は 11/11 の1日だけです。毎週はじめに上限まで貯めた最短の日で受け取ります（取りこぼしたポイントはメイプルポイントで買えます）。Lv が足りない間の分は、届いた日にまとめて受け取ります。計画の開始日より前の分は、もう持ち物にあるものとして足しません。</li>
+            <li>チャレンジャーパスは週 500 ポイント（5Lv）まで、ポイントの週は木曜 9時（日本時間）に切り替わります。11/11 はメンテ明けから切り替わりまで数時間で週の任務を終えられないので数えず、11/12 からの週で Lv5、以降毎週 5Lv ずつ、12/17 に Lv30 とします。毎週はじめに上限まで貯めた最短の日で受け取ります（取りこぼしたポイントはメイプルポイントで買えます）。Lv が足りない間の分は、届いた日にまとめて受け取ります。計画の開始日より前に届いた分は使い終わったものとして足しません。まだ使っていない分は、パスの行の「未使用」に入れると開始日に足します。</li>
+            <li>Specter Blast（11/11〜12/15）は Lv260 以上で、アカウントで週1回（水曜 9時に切り替わり）。EXP は上級EXP交換券 3,000 枚分として、毎週はじめの日に受け取るキャラが使います。その週のうちに Lv260 に届かなければ、その週の分はなしです。</li>
             <li>補給報告は毎日のログインで1回、週5回まで（アカウントで1回）。毎週はじめの5日で受け取る最短の日です。サウナ券・秘薬・上級EXP交換券だけ数えています。</li>
             <li>もらったものは受け取ったキャラが使います。農場チケットは入れる Lv になったら、秘薬は上限 Lv から逆算した Lv で（届かなければ期日に）、上級EXP交換券はもらった日に全部使います。サウナ券（1枚30分）はもらった日から、アカウントの1日のサウナ時間の空きで使います。</li>
             <li>上級EXP交換券 1枚は、同じ Lv のグランディスの敵 225 体分（千の単位で切り上げ）、Lv260 から使え、Lv291 以上は増えないとしています（KMS の式）。</li>
             <li>バフは、エテリオン・レリックの任務を毎週終え、コアは解放したらすぐ Lv6（モンパ・エピダン・デイリーの順）、特殊訓練は無料カードだけで振った想定です。KMS にあったコア合計レベルのボーナスは GMS にはありません。Sunny Sunday（11/15・11/29・12/6・12/13）のモンパ +250% も入れています（エクストリームには乗りません）。トレジャーハンターは 1/20 からレリック＋コアで +125%、Sunny Sunday（11/15・11/29・12/13）の3倍は +200% として足しています。</li>
             <li>狩りの EXP に乗るもの（チャレンジャー EXPパスの +20%、戦闘訓練の EXP 最大 +15%、補給報告の 3倍クーポン）は入れていません。狩りの「EXP +%」に足してください。</li>
         </ul>`;
-    },
-
-    // ---------- パス・狩りの時間で変わる到達日 ----------
-    // 目標 Lv を入れたキャラごとに、同じ条件で計算し直して、今の Lv より上で目標までの 5 の倍数の Lv（と目標）に届く日を比べる。
-    //   パス: 「無料分だけ」「今の買い方」「1つのパスだけ買わない」（パスを受け取るキャラだけ）
-    //   狩り: 1日の狩りの時間を HUNT_HOURS に変えたとき（体/時と EXP +% はそのキャラの値）
-    // 期日を過ぎても目標までは日を進める（イベントのバフは 2/9 まで）。
-    HUNT_HOURS: [0, 1, 2, 3, 4, 6, 8],
-    withBuy(buy, fn) { this._buy = buy; try { return fn(); } finally { this._buy = null; } },
-    reachStudy() {
-        const none = Object.fromEntries(this.PASSES.map(p => [p.id, {}]));
-        const bought = this.PASSES.filter(p => p.tiers.some(t => this.state.pass[p.id].buy[t.id]) && this.passChar(p));
-        // 受け取るパス（買えるもの）の組み合わせ。買うパスは有料分を全部
-        const combos = list => {
-            const out = [];
-            for (let mask = 1; mask < (1 << list.length); mask++) out.push(list.filter((_, i) => mask & (1 << i)));
-            return out.sort((a, b) => a.length - b.length);
-        };
-        const buyOf = set => Object.fromEntries(this.PASSES.map(p => [p.id, set.includes(p) ? Object.fromEntries(p.tiers.map(t => [t.id, true])) : {}]));
-        return this.onChars().filter(ch => Number(this.cfg(ch.id).target) > 0).sort((a, b) => b.level - a.level).map(ch => {
-            const c = this.cfg(ch.id);
-            const run = (buy, cc = c) => this.withBuy(buy, () => this.simulate(ch, cc, this.state.start, this.state.end));
-            const now = run(null);
-            if (!now) return null;
-            const target = Math.min(300, Number(c.target) || 0);
-            const lvs = [];
-            for (let l = Math.floor(now.startLv / 5) * 5 + 5; l <= target; l += 5) lvs.push(l);
-            if (target > now.startLv && !lvs.includes(target)) lvs.push(target);
-            // クアナに移すキャラは、移した日の Lv までを比べる（その先は数えない）
-            if (now.stopped) lvs.splice(0, lvs.length, ...lvs.filter(l => l <= now.endLv));
-            if (!lvs.length) return null;
-            const mine = this.PASSES.filter(p => p.tiers.length && this.passChar(p) && this.passChar(p).id === ch.id);
-            const pass = mine.length ? { free: run(none), combos: combos(mine).map(set => ({ set, r: run(buyOf(set)) })) } : null;
-            const curFree = bought.some(p => this.passChar(p).id === ch.id);
-            const hunt = this.huntCfg(c);
-            const cur = Number(hunt.hours) || 0;
-            const hours = hunt.kills > 0 ? [...new Set([...this.HUNT_HOURS, cur])].sort((a, b) => a - b) : [];
-            const byHour = hours.map(h => {
-                const cc = { ...c, hunt: { ...hunt, hours: h } };
-                return { h, r: h === cur ? now : run(null, cc), free: curFree ? run(none, cc) : null };
-            });
-            return { ch, target, lvs, now, pass, hunt, cur, byHour, curFree };
-        }).filter(Boolean);
-    },
-    studyOpen: true,
-    studyHTML() {
-        const list = this.reachStudy();
-        if (!list.length) return '';
-        const day = d => d ? expDate.short(d) : '<span class="text-slate-600">10年以上</span>';
-        const gap = (a, b) => (a && b) ? expDate.diff(a, b) : null;
-        const cut = n => n == null ? '<span class="text-slate-600">—</span>' : n > 0 ? `<span class="text-emerald-400 font-bold">${n}日</span>` : '<span class="text-slate-500">0日</span>';
-        // 今の設定より早い・遅い日数
-        const diff = n => n == null || n === 0 ? '' : `<span class="${n > 0 ? 'text-emerald-400' : 'text-red-400'}">${n > 0 ? '−' : '+'}${Math.abs(n)}</span>`;
-        const blocks = list.map(({ ch, target, lvs, now, pass, hunt, cur, byHour, curFree }) => {
-            const passTable = pass ? `
-            <div class="expu-sub">${pass.combos.length > 1 ? 'パスの組み合わせ' : 'パスを買ったとき'} <span>無料だけのときより何日早く届くか${pass.combos.length > 1 ? '。買うパスは有料分を全部（PLUS はプレミアムとプライムの両方）' : ''}</span></div>
-            <div class="overflow-x-auto"><table class="table table-xs expu-saved">
-                <thead><tr><th></th><th>無料だけ</th>${pass.combos.map(({ set }) => `<th>${set.map(p => p.abbr).join('＋')}</th>`).join('')}</tr></thead>
-                <tbody>${lvs.map(l => {
-                    const b = pass.free.reachAt[l];
-                    return `<tr><td class="font-bold text-white">Lv ${l}</td><td>${day(b)}</td>
-                        ${pass.combos.map(({ r }) => `<td>${cut(gap(r.reachAt[l], b))}</td>`).join('')}</tr>`;
-                }).join('')}</tbody>
-            </table></div>` : '';
-            const huntTable = byHour.length ? `
-            <div class="expu-sub">1日の狩りの時間 <span>${hunt.kills.toLocaleString()} 体/時・EXP +${Number(hunt.pct) || 0}%。日付は今の買い方、横の数字は今の ${cur} 時間との差${curFree ? '、右端は今の買い方で目標に何日早く届くか' : ''}</span></div>
-            <div class="overflow-x-auto"><table class="table table-xs expu-saved">
-                <thead><tr><th>時間/日</th>${lvs.map(l => `<th>Lv ${l}</th>`).join('')}${curFree ? `<th>パスの短縮</th>` : ''}</tr></thead>
-                <tbody>${byHour.map(({ h, r, free }) => `<tr class="${h === cur ? 'expu-cur' : ''}">
-                    <td class="font-bold text-white">${h} 時間</td>
-                    ${lvs.map(l => `<td>${day(r.reachAt[l])} ${h === cur ? '' : diff(gap(r.reachAt[l], now.reachAt[l]))}</td>`).join('')}
-                    ${curFree ? `<td>${cut(gap(r.reachAt[target], free.reachAt[target]))}</td>` : ''}
-                </tr>`).join('')}</tbody>
-            </table></div>` : `<div class="expu-sub"><span>狩りの「体/時」を入れると、1日の狩りの時間ごとの到達日も出ます</span></div>`;
-            return `
-            <div class="px-3 pt-3 text-sm font-bold text-white">${expEsc(ch.name)} <span class="text-[11px] font-normal text-slate-500">Lv ${now.startLv} → 目標 Lv ${target}${now.stopped ? `（${expDate.short(now.stopped)} にクアナへ移すので Lv ${now.endLv} まで）` : ''}</span></div>
-            ${passTable}${huntTable}`;
-        }).join('');
-        return `
-        <div class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden pb-2">
-            <div class="flex items-center gap-2 px-3 py-2 bg-base-200 border-b border-base-content/10">
-                <i data-lucide="timer-reset" class="w-4 h-4 text-emerald-400"></i>
-                <span class="text-sm font-bold text-white">パスと狩りの時間で変わる到達日</span>
-            </div>
-            ${blocks}
-        </div>`;
     },
 
     // 結果の下に、パスで短縮できた日数と、週ごとのバフとパスの受け取り

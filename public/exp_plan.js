@@ -355,6 +355,7 @@ const expPlan = {
         { id: 'hunt', label: '狩り', color: '#fb923c' },
         { id: 'th', label: 'トレハン', color: '#e879f9' },
         { id: 'sauna', label: 'サウナ', color: '#a3e635' },
+        { id: 'coupon', label: 'EXP交換券', color: '#e2e8f0' },
     ],
     TH_PER_DAY: 10, // トレジャーハンターの箱は1キャラ1日10箱まで
     SAUNA_PER_DAY: 8, // 放置マップは1日8時間まで（bi 指定）。実際に1日何時間使うかは state.saunaDay（アカウント共有、既定は上限）
@@ -363,7 +364,7 @@ const expPlan = {
         daily: { img: 'assets/exp/sym-r1.png' }, weekly: { img: 'assets/exp/sym-r4.png' },
         monpa: { img: 'assets/exp/monpa.png' }, mpe: { img: 'assets/exp/mpe.png' },
         epic: { lucide: 'castle' }, farm: { img: 'assets/exp/farm.png' }, potion: { img: 'assets/exp/potion.png' },
-        hunt: { lucide: 'swords' }, th: { lucide: 'gem' }, sauna: { img: 'assets/exp/sauna.png' },
+        hunt: { lucide: 'swords' }, th: { lucide: 'gem' }, sauna: { img: 'assets/exp/sauna.png' }, coupon: { lucide: 'ticket' },
         start: { lucide: 'flag' }, burn: { lucide: 'flame' },
     },
     // デイリーの地域のシンボル（テネブリスはシンボルがないので出さない）
@@ -433,9 +434,96 @@ const expPlan = {
     buffDaily(region, ymd) { return this.buffPct('daily', ymd) + this.buffPct(region.lv <= 255 ? 'darc' : 'dgrand', ymd); },
     // その日に手に入るもの（ウルティマのパスなど）。アカウント計画にはない
     arrivals(ch, ymd, lv, memo) { return null; },
-    // 入力欄の上・結果の下に足す欄（ウルティマのパスなど）。アカウント計画にはない
+    // 入力欄の上に足す欄（ウルティマのパスなど。アカウント計画にはない）と、結果の下に足す欄（狩りの時間で変わる到達日）
     extraTopHTML() { return ''; },
-    extraResultHTML() { return ''; },
+    extraResultHTML() { return this.studyHTML(); },
+    // ---------- 狩りの時間（とパス）で変わる到達日 ----------
+    // 目標 Lv を入れたキャラごとに、同じ条件で計算し直して、今の Lv より上で目標までの 5 の倍数の Lv（と目標）に届く日を比べる。
+    //   パス: 「無料分だけ」「今の買い方」「1つのパスだけ買わない」（パスを受け取るキャラだけ）
+    //   狩り: 1日の狩りの時間を HUNT_HOURS に変えたとき（体/時と EXP +% はそのキャラの値）
+    // 期日を過ぎても目標までは日を進める。PASSES がない（アカウント計画）ときは狩りの時間だけ比べる。
+    HUNT_HOURS: [0, 1, 2, 3, 4, 6, 8],
+    withBuy(buy, fn) { this._buy = buy; try { return fn(); } finally { this._buy = null; } },
+    reachStudy() {
+        const PASSES = this.PASSES || [];
+        const none = Object.fromEntries(PASSES.map(p => [p.id, {}]));
+        const bought = PASSES.filter(p => p.tiers.some(t => this.state.pass[p.id].buy[t.id]) && this.passChar(p));
+        // 受け取るパス（買えるもの）の組み合わせ。買うパスは有料分を全部
+        const combos = list => {
+            const out = [];
+            for (let mask = 1; mask < (1 << list.length); mask++) out.push(list.filter((_, i) => mask & (1 << i)));
+            return out.sort((a, b) => a.length - b.length);
+        };
+        const buyOf = set => Object.fromEntries(PASSES.map(p => [p.id, set.includes(p) ? Object.fromEntries(p.tiers.map(t => [t.id, true])) : {}]));
+        return this.onChars().filter(ch => Number(this.cfg(ch.id).target) > 0).sort((a, b) => b.level - a.level).map(ch => {
+            const c = this.cfg(ch.id);
+            const run = (buy, cc = c) => this.withBuy(buy, () => this.simulate(ch, cc, this.state.start, this.state.end));
+            const now = run(null);
+            if (!now) return null;
+            const target = Math.min(300, Number(c.target) || 0);
+            const lvs = [];
+            for (let l = Math.floor(now.startLv / 5) * 5 + 5; l <= target; l += 5) lvs.push(l);
+            if (target > now.startLv && !lvs.includes(target)) lvs.push(target);
+            // クアナに移すキャラは、移した日の Lv までを比べる（その先は数えない）
+            if (now.stopped) lvs.splice(0, lvs.length, ...lvs.filter(l => l <= now.endLv));
+            if (!lvs.length) return null;
+            const mine = PASSES.filter(p => p.tiers.length && this.passChar(p) && this.passChar(p).id === ch.id);
+            const pass = mine.length ? { free: run(none), combos: combos(mine).map(set => ({ set, r: run(buyOf(set)) })) } : null;
+            const curFree = bought.some(p => this.passChar(p).id === ch.id);
+            const hunt = this.huntCfg(c);
+            const cur = Number(hunt.hours) || 0;
+            const hours = hunt.kills > 0 ? [...new Set([...this.HUNT_HOURS, cur])].sort((a, b) => a - b) : [];
+            const byHour = hours.map(h => {
+                const cc = { ...c, hunt: { ...hunt, hours: h } };
+                return { h, r: h === cur ? now : run(null, cc), free: curFree ? run(none, cc) : null };
+            });
+            return { ch, target, lvs, now, pass, hunt, cur, byHour, curFree };
+        }).filter(Boolean);
+    },
+    studyOpen: true,
+    studyHTML() {
+        const list = this.reachStudy();
+        if (!list.length) return '';
+        const day = d => d ? expDate.short(d) : '<span class="text-slate-600">10年以上</span>';
+        const gap = (a, b) => (a && b) ? expDate.diff(a, b) : null;
+        const cut = n => n == null ? '<span class="text-slate-600">—</span>' : n > 0 ? `<span class="text-emerald-400 font-bold">${n}日</span>` : '<span class="text-slate-500">0日</span>';
+        // 今の設定より早い・遅い日数
+        const diff = n => n == null || n === 0 ? '' : `<span class="${n > 0 ? 'text-emerald-400' : 'text-red-400'}">${n > 0 ? '−' : '+'}${Math.abs(n)}</span>`;
+        const blocks = list.map(({ ch, target, lvs, now, pass, hunt, cur, byHour, curFree }) => {
+            const passTable = pass ? `
+            <div class="expu-sub">${pass.combos.length > 1 ? 'パスの組み合わせ' : 'パスを買ったとき'} <span>無料だけのときより何日早く届くか${pass.combos.length > 1 ? '。買うパスは有料分を全部（PLUS はプレミアムとプライムの両方）' : ''}</span></div>
+            <div class="overflow-x-auto"><table class="table table-xs expu-saved">
+                <thead><tr><th></th><th>無料だけ</th>${pass.combos.map(({ set }) => `<th>${set.map(p => p.abbr).join('＋')}</th>`).join('')}</tr></thead>
+                <tbody>${lvs.map(l => {
+                    const b = pass.free.reachAt[l];
+                    return `<tr><td class="font-bold text-white">Lv ${l}</td><td>${day(b)}</td>
+                        ${pass.combos.map(({ r }) => `<td>${cut(gap(r.reachAt[l], b))}</td>`).join('')}</tr>`;
+                }).join('')}</tbody>
+            </table></div>` : '';
+            const huntTable = byHour.length ? `
+            <div class="expu-sub">1日の狩りの時間 <span>${hunt.kills.toLocaleString()} 体/時・EXP +${Number(hunt.pct) || 0}%。${(this.PASSES || []).length ? '日付は今の買い方、' : ''}横の数字は今の ${cur} 時間との差${curFree ? '、右端は今の買い方で目標に何日早く届くか' : ''}</span></div>
+            <div class="overflow-x-auto"><table class="table table-xs expu-saved">
+                <thead><tr><th>時間/日</th>${lvs.map(l => `<th>Lv ${l}</th>`).join('')}${curFree ? `<th>パスの短縮</th>` : ''}</tr></thead>
+                <tbody>${byHour.map(({ h, r, free }) => `<tr class="${h === cur ? 'expu-cur' : ''}">
+                    <td class="font-bold text-white">${h} 時間</td>
+                    ${lvs.map(l => `<td>${day(r.reachAt[l])} ${h === cur ? '' : diff(gap(r.reachAt[l], now.reachAt[l]))}</td>`).join('')}
+                    ${curFree ? `<td>${cut(gap(r.reachAt[target], free.reachAt[target]))}</td>` : ''}
+                </tr>`).join('')}</tbody>
+            </table></div>` : `<div class="expu-sub"><span>狩りの「体/時」を入れると、1日の狩りの時間ごとの到達日も出ます</span></div>`;
+            return `
+            <div class="px-3 pt-3 text-sm font-bold text-white">${expEsc(ch.name)} <span class="text-[11px] font-normal text-slate-500">Lv ${now.startLv} → 目標 Lv ${target}${now.stopped ? `（${expDate.short(now.stopped)} にクアナへ移すので Lv ${now.endLv} まで）` : ''}</span></div>
+            ${passTable}${huntTable}`;
+        }).join('');
+        return `
+        <div class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden pb-2">
+            <div class="flex items-center gap-2 px-3 py-2 bg-base-200 border-b border-base-content/10">
+                <i data-lucide="timer-reset" class="w-4 h-4 text-emerald-400"></i>
+                <span class="text-sm font-bold text-white">${(this.PASSES || []).length ? 'パスと狩りの時間' : '狩りの時間'}で変わる到達日</span>
+            </div>
+            ${blocks}
+        </div>`;
+    },
+
     // ウルティマで足すもの（クアナに移すキャラと後を継ぐキャラ）。アカウント計画にはない
     stopAfter(ch, ymd, lv) { return false; },
     extraResults(results, st) {},
@@ -483,7 +571,7 @@ const expPlan = {
             on: false, lv: null, pct: 0, fetchedAt: null, target: null,
             dailyOn: null, weekly: true,
             monpa: 0, mpe: false, epic: 'none', burn: 'none',
-            tix: {}, pot: {},
+            tix: {}, pot: {}, coupon: 0,
             hunt: null, sauna: 0, th: 0,
         };
         for (const k of Object.keys(def)) if (c[k] === undefined) c[k] = def[k];
@@ -512,6 +600,7 @@ const expPlan = {
     epicOwner(dgId, exceptId) { return this.onChars().find(ch => ch.id !== exceptId && this.cfg(ch.id).epic === dgId) || null; },
     tixUsed(world, k, exceptId) { return this.onChars(world).filter(ch => ch.id !== exceptId).reduce((s, ch) => s + (Number(this.cfg(ch.id).tix[k]) || 0), 0); },
     saunaUsed(exceptId) { return this.onChars().filter(ch => ch.id !== exceptId).reduce((s, ch) => s + (Number(this.cfg(ch.id).sauna) || 0), 0); },
+    couponUsed(world, exceptId) { return this.onChars(world).filter(ch => ch.id !== exceptId).reduce((s, ch) => s + (Number(this.cfg(ch.id).coupon) || 0), 0); },
     potUsed(world, k, exceptId) { return this.onChars(world).filter(ch => ch.id !== exceptId).reduce((s, ch) => s + (Number(this.cfg(ch.id).pot[k]) || 0), 0); },
 
     // 持ち物を減らしたときなどに、上限を超えた割り当てを後ろのキャラから削る
@@ -519,7 +608,7 @@ const expPlan = {
         const L = this.LIMITS;
         this.WORLDS.forEach(w => {
             const pool = this.state.pool[w.id];
-            let monpa = 0, mpe = 0;
+            let monpa = 0, mpe = 0, coupon = 0;
             const tix = {}, pot = {}, daily = new Set();
             this.onChars(w.id).forEach(ch => {
                 const c = this.cfg(ch.id);
@@ -538,6 +627,8 @@ const expPlan = {
                     c.pot[p.id] = Math.max(0, Math.min(Number(c.pot[p.id]) || 0, have - (pot[p.id] || 0)));
                     pot[p.id] = (pot[p.id] || 0) + c.pot[p.id];
                 });
+                c.coupon = Math.max(0, Math.min(Number(c.coupon) || 0, (Number(pool.coupon) || 0) - coupon));
+                coupon += c.coupon;
             });
         });
         // VIP サウナはアカウントの時間から割り当てる（多すぎる分は後ろのキャラから削る）
@@ -660,6 +751,9 @@ const expPlan = {
         return out;
     },
     setPool(world, kind, k, v) { this.state.pool[world][kind][k] = Math.max(0, Math.floor(Number(v) || 0)); this.commit(); },
+    // 上級EXP交換券はワールドの所持数（pool.coupon）から、キャラごとに枚数（c.coupon）を割り当てる
+    setPoolCoupon(world, v) { this.state.pool[world].coupon = Math.max(0, Math.floor(Number(v) || 0)); this.commit(); },
+    setCoupon(id, v) { this.cfg(id).coupon = Math.max(0, Math.floor(Number(v) || 0)); this.commit(); },
     commit() { this.normalize(); this.save(); this.render(); },
 
     // Nexon ランキングから今の Lv と EXP% を取る（Worker の /api 経由、NA → EU の順）
@@ -732,7 +826,7 @@ const expPlan = {
         };
         const pendTix = this.TIX.map(t => ({ ...t, n: Number(c.tix[t.id]) || 0 }));
         const pendPot = EXP_POTION_TYPES.map(p => ({ ...p, n: Number(c.pot[p.id]) || 0 }));
-        let pendCoupon = 0, pendSauna = 0;
+        let pendCoupon = Number(c.coupon) || 0, pendSauna = 0; // 持ち物の交換券は Lv260 以上なら初日に使う
         const got0 = {}; // arrivals がもらい済みを覚えておく場所（このシミュレーションの間だけ）
         // 途中で手に入るもの（ウルティマのパスの報酬）を、もらった日に持ち物に足す
         const receive = (ymd) => {
@@ -1059,6 +1153,17 @@ const expPlan = {
                     <div class="expp-lbl">成長の秘薬</div>
                     <div class="grid grid-cols-2 gap-1.5">${EXP_POTION_TYPES.map(p => cell('pot', p.id, this.potName(p))).join('')}</div>
                 </div>
+                <div class="space-y-1.5 pt-3 border-t border-base-content/10">
+                    <div class="expp-lbl">上級EXP交換券</div>
+                    <div class="grid grid-cols-2 gap-1.5">${(() => {
+                        const have = Number(pool.coupon) || 0, u = this.couponUsed(world);
+                        return `<label class="expp-pool ${have ? 'has' : ''}">
+                            <span class="truncate flex items-center gap-1.5">${this.iconHTML('coupon', 'expp-ico-s')}Lv260+</span>
+                            <input type="number" min="0" step="100" class="input input-xs font-mono w-20 text-right" value="${have}" onchange="${this.NS}.setPoolCoupon('${world}',this.value)">
+                            <span class="font-mono text-[10px] ${have && u >= have ? 'text-amber-400' : 'text-slate-500'} w-14 text-right">${have ? `${u.toLocaleString()}/${have.toLocaleString()}` : ''}</span>
+                        </label>`;
+                    })()}</div>
+                </div>
             </div>
         </details>`;
     },
@@ -1113,6 +1218,19 @@ const expPlan = {
         };
         const tixItems = this.TIX.map(t => cntSel('tix', t.id, t.label, Number(c.tix[t.id]) || 0, t.icon)).join('');
         const potItems = EXP_POTION_TYPES.map(p => cntSel('pot', p.id, this.potName(p), Number(c.pot[p.id]) || 0)).join('');
+        // 上級EXP交換券: ワールドの所持数から割り当てる（100枚単位、多いときは刻みを広げる）
+        const couponItem = (() => {
+            const have = Number(pool.coupon) || 0;
+            if (!have) return '';
+            const cur = Number(c.coupon) || 0, max = have - this.couponUsed(ch.server, ch.id);
+            const step = Math.max(100, Math.ceil(have / 100 / 100) * 100);
+            const vals = [];
+            for (let v = 0; v < have; v += step) vals.push(v);
+            vals.push(have);
+            if (!vals.includes(cur)) vals.push(cur), vals.sort((a, b) => a - b);
+            const opts = vals.map(v => `<option value="${v}"${v === cur ? ' selected' : ''}${v > max ? ' disabled' : ''}>${v.toLocaleString()}</option>`).join('');
+            return `<label class="expp-cnt ${cur ? 'on' : ''}" style="--c:${this.srcColor('coupon')}">${this.stableText('上級EXP交換券')}<select class="select select-xs font-mono w-20" onchange="${this.NS}.setCoupon('${ch.id}',this.value)">${opts}</select></label>`;
+        })();
         // 放置マップ: 持ち物の時間から 0.5 時間単位で割り当てる（ほかのキャラに割り当てた分は選べない）
         const saunaHave = Number(this.state.sauna) || 0;
         const saunaItem = saunaHave ? (() => {
@@ -1181,9 +1299,10 @@ const expPlan = {
                 <div class="flex flex-wrap items-center gap-1.5">
                     ${epicChips}
                 </div>
-                ${tixItems || potItems ? '<div class="expp-sec">持ち物</div>' : ''}
+                ${tixItems || potItems || couponItem ? '<div class="expp-sec">持ち物</div>' : ''}
                 ${tixItems ? `${this.rowLbl('farm', '農場')}<div class="flex flex-wrap items-center gap-1.5">${tixItems}</div>` : ''}
                 ${potItems ? `${this.rowLbl('potion', '秘薬')}<div class="flex flex-wrap items-center gap-1.5">${potItems}</div>` : ''}
+                ${couponItem ? `${this.rowLbl('coupon', '交換券')}<div class="flex flex-wrap items-center gap-1.5">${couponItem}${lvNow < 260 ? '<span class="text-[11px] text-slate-500">Lv260 から</span>' : ''}</div>` : ''}
                 <div class="expp-sec">狩り・放置</div>
                 ${this.rowLbl('hunt', '狩り')}
                 <div class="flex flex-wrap items-center gap-1.5">

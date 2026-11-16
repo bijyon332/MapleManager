@@ -126,11 +126,18 @@ const saunaExpPerHour = lv => {
     return Math.ceil(k * mob / 720) * 720;
 };
 
-// トレジャーハンターの箱1つの EXP（期待値）。箱の EXP は狩り場の敵1体の基本 EXP × 箱の倍率（ゴールド 3,000〜24,000、
-// ダイア 30,000〜240,000、等級が上がるごとに2倍）で、どの箱・等級になるかは運なので、メイプル研究所の実測（1,047箱）から出した
-// 1箱あたりの期待倍率 14,361.95 を使う（mushroom-lab.com/growth/leveling/treasure-hunter、Lv260〜299 が対象）。
+// トレジャーハンターの箱1つの EXP（期待値）。箱の EXP は狩り場の敵1体の基本 EXP × 箱の倍率で、
+// ポロ・プリト（ゴールド）はレア 3,000、エスペシア（ダイヤ）はレア 30,000、等級が上がるごとに2倍。
+// 等級はメイプル研究所の推定昇級確率（レア 50%・エピック 35%・ユニーク 12.75%・レジェンダリー 2.25%）、
+// エスペシアとそれ以外は 1:9（bi 指定）として期待値を出す: 等級は平均 1.89 倍 → 0.1×56,700 + 0.9×5,670 = 10,773。
+// （mushroom-lab.com/growth/leveling/treasure-hunter。同ページの実測 1,047 箱の期待倍率は 14,361.95）
 // 自分の Lv の敵を狩る想定。EXP のバフは乗らず、トレジャーハンター EXP の増加だけ乗る。1キャラ1日10箱まで。
-const TREASURE_EXPECTED_MULT = 14361.95;
+const TREASURE_GRADE = [[1, 0.5], [2, 0.35], [4, 0.1275], [8, 0.0225]]; // [倍率, 確率]
+const TREASURE_DIA_SHARE = 0.1;
+const TREASURE_EXPECTED_MULT = (() => {
+    const g = TREASURE_GRADE.reduce((a, [m, p]) => a + m * p, 0);
+    return Math.round((TREASURE_DIA_SHARE * 30000 + (1 - TREASURE_DIA_SHARE) * 3000) * g * 100) / 100;
+})();
 const TREASURE_MIN_LV = 260;
 const treasureBoxExp = lv => lv < TREASURE_MIN_LV ? 0 : Math.floor(mobExpAt(Math.min(lv, 299)) * TREASURE_EXPECTED_MULT);
 
