@@ -38,8 +38,6 @@ const expUltima = Object.assign(Object.create(expPlan), {
     fetching: {},
     showNotes: false,
 
-    SRC: [...expPlan.SRC, { id: 'coupon', label: 'EXP交換券', color: '#e2e8f0' }],
-
     // バフ。[対象, ％, 開始, 終了, 内訳]
     // エテリオン・レリック: 週の任務（1万体）を毎週終えて、レリックは決まった順（1週 デイリー、3週 モンパ、9週 エピダン）、
     //   コアは解放したらすぐ Lv6（モンパ 2週、エピダン 4週、デイリー 8週に選ぶ想定。効果はレリックが有効になってから）。
