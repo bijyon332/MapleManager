@@ -627,7 +627,7 @@ const app = {
         libae: {
             view: 'view-libae',
             nav: 'libae-nav',
-            scripts: ['libae_gear.js'],
+            scripts: ['libae_battlesim.js', 'libae_gear.js'],
             init() { libaeGear.init('view-libae'); },
             reopen() { libaeGear.render(); }
         },

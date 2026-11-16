@@ -679,6 +679,42 @@ body {
 .lg-pick { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; border-top: 1px solid #1e293b; }
 .lg-pick:first-child { border-top: 0; }
 .lg-pick-slot { display: inline-flex; align-items: center; gap: 4px; width: 72px; flex-shrink: 0; font-size: 11.5px; font-weight: 900; color: #cbd5e1; }
+/* Libae's Gear バトルシム（プログラム図鑑） */
+.bs-ico { image-rendering: pixelated; background: #0a1218; border: 1px solid #1e293b; border-radius: 4px; padding: 3px; }
+.bs-fusion { background: #0f172a; border: 1px solid #1e293b; border-left: 4px solid #22d3ee; border-radius: 4px; padding: 12px 14px; }
+.bs-fig { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 92px; cursor: pointer; }
+.bs-fig .bs-ico { width: 56px; height: 56px; }
+.bs-fig:hover .bs-figname { color: #a5b4fc; }
+.bs-step { font-size: 11px; font-weight: 900; color: #4ade80; }
+.bs-last .bs-step { color: #fb7185; }
+.bs-last .bs-ico { outline: 2px solid #fb7185; outline-offset: -2px; }
+.bs-done .bs-step { color: #22d3ee; }
+.bs-done .bs-ico { outline: 2px solid #22d3ee; outline-offset: -2px; }
+.bs-figname { font-family: var(--font-mono, ui-monospace, monospace); font-size: 10.5px; line-height: 1.25; text-align: center; color: #cbd5e1; }
+.bs-op { font-family: ui-monospace, monospace; font-size: 18px; font-weight: 700; color: #22d3ee; margin-bottom: 18px; }
+.bs-board { display: flex; flex-direction: column; gap: 6px; }
+.bs-brow { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; align-items: start; background: #0f172a; border: 1px solid #1e293b; border-left: 4px solid #475569; border-radius: 4px; padding: 8px 10px; }
+.bs-blabel { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.bs-tiles { display: flex; flex-wrap: wrap; gap: 6px 4px; }
+.bs-tile { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 76px; font-size: 10px; line-height: 1.2; text-align: center; color: #cbd5e1; cursor: pointer; }
+.bs-tile .bs-ico { width: 44px; height: 44px; }
+.bs-tile:hover span, .bs-tile:focus-visible span { color: #a5b4fc; }
+.bs-toolbar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; background: #020617; border-bottom: 1px solid #1e293b; margin-top: 8px; box-shadow: 0 -24px 0 #020617; }
+.bs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 8px; }
+.bs-card { display: flex; gap: 12px; background: #0f172a; border: 1px solid #1e293b; border-left: 3px solid #475569; border-radius: 4px; padding: 10px 12px; scroll-margin-top: 72px; }
+.bs-card[hidden] { display: none; }
+.bs-card .bs-ico { width: 56px; height: 56px; }
+.bs-v-fus { border-left-color: #22d3ee; } .bs-v-take { border-left-color: #4ade80; } .bs-v-cond { border-left-color: #facc15; }
+.bs-v-avoid { border-left-color: #fb7185; } .bs-v-bug { border-left-color: #9f1239; }
+.bs-cat { white-space: nowrap; font-size: 10.5px; font-weight: 700; padding: 0 7px; border: 1px solid currentColor; border-radius: 999px; line-height: 1.6; }
+.bs-gc { font-size: 12px; line-height: 1.5; padding: 4px 8px; border-radius: 3px; background: #1e293b; color: #cbd5e1; }
+.bs-gc b { color: #e2e8f0; }
+.bs-v-fus .bs-gc, .bs-v-take .bs-gc { background: rgba(74, 222, 128, .1); }
+.bs-v-cond .bs-gc { background: rgba(250, 204, 21, .1); }
+.bs-v-avoid .bs-gc { background: rgba(251, 113, 133, .1); }
+.bs-note { font-size: 11.5px; padding: 3px 8px; border-radius: 3px; background: rgba(245, 158, 11, .12); color: #fcd34d; }
+.bs-flash { animation: bs-flash 1.4s ease-out; }
+@keyframes bs-flash { 0% { box-shadow: 0 0 0 2px #818cf8; } 100% { box-shadow: 0 0 0 2px transparent; } }
 
 /* 上部バーの収入欄のサーバー枠（左線の色はサーバー色のユーティリティで付ける）。 */
 .mm-srv { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px 0 10px; border: 1px solid color-mix(in oklab, var(--color-base-content) 15%, transparent); border-left-width: 3px; background: var(--color-base-200); white-space: nowrap; flex-shrink: 0; transition: opacity 0.15s; }
