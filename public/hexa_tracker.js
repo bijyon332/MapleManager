@@ -1092,7 +1092,8 @@ const hexaTracker = {
                     </div>
                 </div>
                 <button onclick="hexaTracker.markStep('${s.key}', ${step.to})" title="${this.escHtml(s.name)} を Lv.${step.to} にして進捗入力に保存"
-                    class="shrink-0 px-2.5 py-1 text-[11px] font-bold border border-slate-600 text-slate-300 hover:border-violet-400 hover:text-violet-200 transition-colors">強化した</button>
+                    aria-label="強化済みにする"
+                    class="shrink-0 w-8 h-8 inline-flex items-center justify-center border border-slate-600 text-slate-400 hover:border-violet-400 hover:text-violet-200 transition-colors"><i data-lucide="check" class="w-4 h-4"></i></button>
             </div>`;
         });
 
