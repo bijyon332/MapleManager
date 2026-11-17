@@ -688,6 +688,11 @@ body {
 .bs-last .bs-step { color: #fb7185; }
 .bs-last .bs-ico { outline: 2px solid #fb7185; outline-offset: -2px; }
 .bs-done .bs-step { color: #22d3ee; }
+.bs-combo { border-left-color: #a3e635; }
+.bs-combo .bs-op { color: #a3e635; }
+.bs-combo .bs-step { color: #a3e635; }
+.bs-combo .bs-last .bs-step { color: #a3e635; }
+.bs-combo .bs-last .bs-ico { outline-color: #a3e635; }
 .bs-done .bs-ico { outline: 2px solid #22d3ee; outline-offset: -2px; }
 .bs-figname { font-family: var(--font-mono, ui-monospace, monospace); font-size: 10.5px; line-height: 1.25; text-align: center; color: #cbd5e1; }
 .bs-op { font-family: ui-monospace, monospace; font-size: 18px; font-weight: 700; color: #22d3ee; margin-bottom: 18px; }
