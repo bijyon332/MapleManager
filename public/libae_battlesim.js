@@ -39,7 +39,7 @@ const libaeBattlesim = (() => {
         {"v": "lo", "name": "VPN", "icon": "vpn", "cat": "holo", "eff": ["[Hologram] Registry の再付着時間 -1 / 2 / 3秒"], "gc": "ユーザー判断で「取る（優先度 低）」に分類（ガイドでの言及なし）", "note": "手元の一覧の -1.0秒は1段階目の値。重ね取りで -2 / -3秒"},
         {"v": "avoid", "name": "Entropy", "icon": "entropy", "cat": "atk", "eff": ["最終ダメージ +50%", "フロア入場時、30%の確率で [Disorder] が1スタック", "[Disorder] が3スタックになるとダンジョンから自動退出"], "gc": "フロアに入るたび30%でスタックが溜まり、3つで強制退出。死亡扱いではないので復活系も効かない"},
         {"v": "avoid", "name": "Black Box", "icon": "black-box", "cat": "util", "eff": ["入手した瞬間にランダムなプログラムを3つ獲得し、所持プログラムからランダムに2つ削除（再入手すると再発動）"], "gc": "3つもらえる代わりに自分のプログラムが2つ消える。大事なものを消されるリスクが見合わない"},
-        {"v": "avoid", "name": "Dependency Injection", "icon": "dependency-injection", "cat": "res", "eff": ["フロア入場時に 50 Bytes を消費し、次のどちらかを得る", "・アイテムドロップ率 +40%、獲得EXP +10%", "・獲得EXP +40%、アイテムドロップ率 +10%", "Bytesが足りないと発動しない"], "gc": "毎フロア50 Bytes払う系。Wild Pointer を取っているときだけコストが見合うので取ってもいい（上の「組み合わせ」、ユーザー判断）。ガイドでは：序盤は厳禁。ルートルームで買い物するBytesが足りなくなる。収入が育った後半向け"},
+        {"v": "avoid", "name": "Dependency Injection", "icon": "dependency-injection", "cat": "res", "eff": ["フロア入場時に 50 Bytes を消費し、次のどちらかを得る", "・アイテムドロップ率 +40%、獲得EXP +10%", "・獲得EXP +40%、アイテムドロップ率 +10%", "Bytesが足りないと発動しない"], "gc": "毎フロア50 Bytes払う系。Buffer Overflow・Inspector's Stamp を取っているときだけコストが見合うので取ってもいい（上の「組み合わせ」、ユーザー判断）。ガイドでは：序盤は厳禁。ルートルームで買い物するBytesが足りなくなる。収入が育った後半向け"},
         {"v": "lo", "name": "Simulation Enhancement: M", "icon": "simulation-enhancement-m", "cat": "holo", "eff": ["投影魔法使いの [Hologram] Bolt Barrage ダメージ +10 / 20 / 30%"], "gc": "Jailbreak系（ホログラム投影の強化）。ガイドでは火力が低く優先度は最下位クラスだが、ユーザー判断で「取る（優先度 低）」に分類", "tip": "Type-M Jailbreak"},
         {"v": "lo", "name": "Simulation Enhancement: B", "icon": "simulation-enhancement-b", "cat": "holo", "eff": ["投影弓使いの [Hologram] Ultimate Snipe ダメージ +10 / 20 / 30%"], "gc": "Jailbreak系。ガイドでは優先度最下位クラス。ユーザー判断で「取る（優先度 低）」に分類", "tip": "Type-B Jailbreak"},
         {"v": "lo", "name": "Simulation Enhancement: T", "icon": "simulation-enhancement-t", "cat": "holo", "eff": ["投影盗賊の [Hologram] Shurrikane ダメージ +10 / 20 / 30%"], "gc": "Jailbreak系。ガイドでは優先度最下位クラス。ユーザー判断で「取る（優先度 低）」に分類", "tip": "Type-T Jailbreak"},
@@ -113,12 +113,12 @@ const libaeBattlesim = (() => {
             <p class="bs-boxtext"><b class="text-amber-300">取る順番が大事。</b>Overheated Head は20%で所持プログラムを1つ消す（自分も対象）ので、①②を持ってから<b class="text-white">最後に取る</b>。揃うと <b class="text-white">最終ダメージ +30%・被ダメージ -30%・300 Bytes</b>。</p>
         </section>`;
     }
-    // 組み合わせ: Dependency Injection は Wild Pointer を取っているときだけコストが見合う（bi 指定、フュージョンと同じ形で別枠）
+    // 組み合わせ: Dependency Injection は Buffer Overflow・Inspector's Stamp を取っているときだけコストが見合う（bi 指定、フュージョンと同じ形で別枠）
     function comboHTML() {
         return `<section class="bs-fusion bs-combo">
             <div class="bs-boxhead"><span class="text-white">組み合わせ</span><span class="badge badge-sm font-bold badge-success badge-soft">条件付きで取ってもいい</span></div>
-            <div class="bs-figs">${fig(byName['Wild Pointer'], '持っている')}<span class="bs-op">+</span>${fig(byName['Dependency Injection'], '取ってもいい', 'bs-last')}</div>
-            <p class="bs-boxtext"><b class="text-lime-300">Wild Pointer を取っているときだけ。</b>Dependency Injection は毎フロア <b class="text-white">50 Bytes</b> 払ってドロップ率・EXP を上げるので、Wild Pointer があればコストが見合う。ないなら<b class="text-white">取ってはいけない</b>のまま。</p>
+            <div class="bs-figs">${fig(byName['Buffer Overflow'], '持っている')}<span class="bs-op">/</span>${fig(byName["Inspector's Stamp"], '持っている')}<span class="bs-op">+</span>${fig(byName['Dependency Injection'], '取ってもいい', 'bs-last')}</div>
+            <p class="bs-boxtext"><b class="text-lime-300">Buffer Overflow・Inspector's Stamp が取れているときだけ。</b>Dependency Injection は毎フロア <b class="text-white">50 Bytes</b> 払うので、Bytes 収入が育っていれば見合う。ないなら<b class="text-white">取ってはいけない</b>。</p>
         </section>`;
     }
     // Return Protocol は帰還に使うので、上に別枠で目立たせる（bi 指定）
