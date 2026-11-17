@@ -737,6 +737,11 @@ body {
 .bs-v-fus .bs-gc, .bs-v-key .bs-gc, .bs-v-hi .bs-gc, .bs-v-lo .bs-gc { background: rgba(74, 222, 128, .1); }
 .bs-v-job .bs-gc, .bs-v-speed .bs-gc, .bs-v-other .bs-gc { background: rgba(250, 204, 21, .1); }
 .bs-v-avoid .bs-gc { background: rgba(251, 113, 133, .1); }
+.bs-twarn { color: #fb7185; margin-top: 1px; }
+.bs-tico { position: relative; display: inline-flex; }
+.bs-warnmark { position: absolute; top: -4px; right: -6px; width: 15px; height: 15px; border-radius: 999px; background: #e11d48; color: #fff; font-size: 11px; font-weight: 900; line-height: 15px; text-align: center; box-shadow: 0 0 0 2px #0f172a; }
+.bs-warn { font-size: 12px; line-height: 1.5; padding: 4px 8px; border-radius: 3px; background: rgba(225, 29, 72, .14); color: #fda4af; }
+.bs-warn b { color: #fecdd3; }
 .bs-note { font-size: 11.5px; padding: 3px 8px; border-radius: 3px; background: rgba(245, 158, 11, .12); color: #fcd34d; }
 .bs-flash { animation: bs-flash 1.4s ease-out; }
 @keyframes bs-flash { 0% { box-shadow: 0 0 0 2px #818cf8; } 100% { box-shadow: 0 0 0 2px transparent; } }

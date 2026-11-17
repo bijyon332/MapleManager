@@ -8,7 +8,8 @@ const libaeBattlesim = (() => {
     // v = 分類（2026-11-17 bi 指定）。fus フュージョン素材／key だいじ（Return Protocol、上に別枠）／
     //     取る: hi 優先度 高・lo 優先度 低／状況次第: job 職次第・speed 高速周回用・other その他／avoid 取ってはいけない／bug マイナス効果
     // cat = 系統（atk 火力／def 防御・回復／holo ホログラム強化／res EXP・Bytes／util 特殊／use 使用型（使うと消費。Dummy Mapae・Garbage Collection・Desynced Timer だけ、bi 確認）／bug バグ）
-    // gc = ガイドの評価、note = 元の一覧と値が違う項目の注記、tip = ゲーム内のツールチップ名
+    // gc = ガイドの評価、note = 元の一覧と値が違う項目の注記、tip = ゲーム内のツールチップ名、
+    // warn = 取る前に知っておきたい注意（一覧のアイコンに赤い ! と、カードに赤い注意書きを出す）、warnTag = 一覧のアイコンの下に出す短い注意
     const PROGRAMS = [
         {"v": "fus", "name": "Creaking Limb", "icon": "creaking-limb", "cat": "atk", "eff": ["攻撃力・魔力 +20、移動速度 -20"], "gc": "素材①。単体ではマイナス寄りでも融合のために取る", "note": "手元の一覧では +10（+20表記あり）。データは +20"},
         {"v": "fus", "name": "Broken Heart", "icon": "broken-heart", "cat": "def", "eff": ["専用ポーション回復量 +30%", "被ダメージ +10%"], "gc": "素材②。単体ではマイナス寄りでも融合のために取る"},
@@ -25,13 +26,13 @@ const libaeBattlesim = (() => {
         {"v": "lo", "name": "Simulation W", "icon": "simulation-w", "cat": "holo", "eff": ["ホログラムスキルで攻撃時、投影された戦士が [Hologram] Worldreaver を使用し [Hologram] Format を発動", "投影の Format からも [Hologram] Defrag が発動可能"], "gc": "ユーザー判断で「取る（優先度 低）」に分類（ガイドでの言及なし）。Type系の投影は互いに上書きされるので、投影は1種に絞る", "tip": "Type-W Projection"},
         {"v": "hi", "name": "Data Compression", "icon": "data-compression", "cat": "res", "eff": ["獲得EXP +10 / 20 / 30 / 40%"], "gc": "ユーザー判断で「取る」に分類（ガイドでの言及なし）", "note": "手元の一覧の +10% は1段階目の値"},
         {"v": "hi", "name": "Desynced Timer", "icon": "desynced-timer", "cat": "use", "eff": ["5次以下のスキルのクールタイムをリセット", "使用するたびに1つ消費"], "gc": "ユーザー判断で「取る」に分類（ガイドでの言及なし）", "note": "手元の一覧では「コード」として別枠。データ上はプログラム（使用型）"},
-        {"v": "other", "name": "Hard Reset", "icon": "hard-reset", "cat": "atk", "eff": ["入手した瞬間に、その時点の所持プログラムをすべて削除", "削除した数1つにつき最終ダメージ +5%（再入手すると再発動）"], "gc": "所持数×最終ダメージ+5%（19個なら+95%）。取り直せるので深く潜るランほど強い。中くらいのフロアで切り上げるなら不要"},
+        {"v": "other", "name": "Hard Reset", "icon": "hard-reset", "cat": "atk", "warn": "取った瞬間に所持プログラムが全部消える。初心者は無視してよい", "warnTag": "全部消える", "eff": ["入手した瞬間に、その時点の所持プログラムをすべて削除", "削除した数1つにつき最終ダメージ +5%（再入手すると再発動）"], "gc": "所持数×最終ダメージ+5%（19個なら+95%）。取り直せるので深く潜るランほど強い。中くらいのフロアで切り上げるなら不要"},
         {"v": "speed", "name": "One Coin", "icon": "one-coin", "cat": "atk", "eff": ["最大HPが50%に固定される代わりに最終ダメージ +30%"], "gc": "強いがリスクも大きい。スペックに余裕が出てから"},
         {"v": "speed", "name": "Quality Assurance", "icon": "quality-assurance", "cat": "atk", "eff": ["被弾しない時間10秒ごとに最終ダメージ +3%（最大5スタック）", "被弾でリセット"], "gc": "被弾しなければ最終ダメージが伸びる系。状況次第で可", "note": "手元の一覧では最大Lv3。データ上は重ね取りの段階値なし"},
         {"v": "other", "name": "Emergency Backup", "icon": "emergency-backup", "cat": "def", "eff": ["HPが30%を切ると最大HPの 20 / 30 / 70% を即回復", "クールタイム 120秒"], "gc": "回復系。継戦がきついときに", "note": "手元の一覧では回復量20%のみ。データでは重ね取りで 20/30/70%"},
         {"v": "hi", "name": "Strangler Fig Pattern", "icon": "strangler-fig-pattern", "cat": "def", "eff": ["モンスター撃破時、20 / 40 / 60% の確率でHPを5%回復"], "gc": "回復系。ガイドでは「継戦がきついときに」だが、ユーザー判断で「取る（優先度 高）」に分類", "note": "手元の一覧では「10%で3%回復」。データは 20/40/60% で5%回復"},
         {"v": "other", "name": "Empty Bottle", "icon": "empty-bottle", "cat": "def", "eff": ["専用ポーション回復量 +90%"], "gc": "回復系。継戦がきついときに", "note": "手元の一覧では「回復量が40%に」。データは回復量 +90%"},
-        {"v": "other", "name": "Debuggy", "icon": "debuggy", "cat": "def", "eff": ["死亡時にHP100%で復活", "発動すると消える"], "gc": "死亡時のクッション系。状況次第で可"},
+        {"v": "hi", "name": "Debuggy", "icon": "debuggy", "cat": "def", "eff": ["死亡時にHP100%で復活", "発動すると消える"], "gc": "死亡時のクッション系。レア度が高くなかなか見ないうえ事故が減るので、ユーザー判断で「取る（優先度 高）」に分類（ガイドでは状況次第で可）"},
         {"v": "other", "name": "Garbage Collection", "icon": "garbage-collection", "cat": "use", "eff": ["10秒間無敵", "使用すると消費"], "gc": "無敵化系は「ボスで苦戦するときの保険」くらいの評価", "note": "手元の一覧では「コード」として別枠。データ上はプログラム（使用型）"},
         {"v": "lo", "name": "Simulation Enhancement: W", "icon": "simulation-enhancement-w", "cat": "holo", "eff": ["投影戦士の [Hologram] Worldreaver ダメージ +10 / 20 / 30%"], "gc": "Jailbreak系は優先度最下位クラスだが、大範囲の戦士タイプ（Type-W）だけは例外的にまだマシ", "tip": "Type-W Jailbreak"},
         {"v": "speed", "name": "Overclock Core", "icon": "overclock-core", "cat": "atk", "eff": ["最終ダメージ +8 / 10 / 12%", "被ダメージ +5 / 10 / 15%"], "gc": "ユーザー判断で分類（ガイドでの言及なし）"},
@@ -95,7 +96,7 @@ const libaeBattlesim = (() => {
     const vBadge = (id, extra = '') => { const v = VMAP[id]; return `<span class="badge badge-sm font-bold ${v.badge} ${extra}">${v.label}${v.sub ? `<span class="opacity-50 font-normal">｜</span>${v.sub}` : ''}</span>`; };
     const catTag = (p) => `<span class="bs-cat" style="color:${CATS[p.cat].color}">${esc(CATS[p.cat].label)}</span>`;
     const img = (p, size, cls = '') => `<img class="bs-ico ${cls}" src="${ICON_DIR}${p.icon}.png" alt="" width="${size}" height="${size}" loading="lazy">`;
-    const searchText = (p) => [p.name, p.tip || '', ...p.eff, p.gc || '', p.note || '', CATS[p.cat].label].join(' ').toLowerCase();
+    const searchText = (p) => [p.name, p.tip || '', ...p.eff, p.gc || '', p.note || '', p.warn || '', CATS[p.cat].label].join(' ').toLowerCase();
 
     // 絞り込みの状態（タブを切り替えても残す）
     let filter = 'all', query = '';
@@ -130,7 +131,7 @@ const libaeBattlesim = (() => {
         </section>`).join('');
     }
     function tileHTML(p) {
-        return `<button type="button" class="bs-tile" data-bs-go="${esc(p.name)}" title="${esc(p.name)} の説明へ">${img(p, 40)}<span>${esc(p.name)}</span><i class="bs-tcat" style="color:${CATS[p.cat].color}">${esc(CATS[p.cat].label)}</i></button>`;
+        return `<button type="button" class="bs-tile" data-bs-go="${esc(p.name)}" title="${esc(p.name)}${p.warn ? `（注意: ${esc(p.warn)}）` : ''} の説明へ"><span class="bs-tico">${img(p, 40)}${p.warn ? '<b class="bs-warnmark" aria-hidden="true">!</b>' : ''}</span><span>${esc(p.name)}</span><i class="bs-tcat" style="color:${CATS[p.cat].color}">${esc(CATS[p.cat].label)}</i>${p.warnTag ? `<i class="bs-tcat bs-twarn">${esc(p.warnTag)}</i>` : ''}</button>`;
     }
     // 段ごとに、小区分（優先度 高・低／職次第・高速周回用・その他）を横に詰めて並べる。
     // 取ってはいけない・マイナス効果は数が少ないので、広い画面では2つを横に並べる
@@ -163,6 +164,7 @@ const libaeBattlesim = (() => {
                 <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5"><h3 class="text-[14px] font-black text-white font-mono">${esc(p.name)}</h3>${catTag(p)}${p.tip ? `<span class="text-[11px] text-base-content/50">ツールチップ名: ${esc(p.tip)}</span>` : ''}</div>
                 <p class="text-[13px] text-slate-200 leading-snug">${p.eff.map(esc).join('<br>')}</p>
                 ${p.gc ? `<p class="bs-gc"><b>ガイド：</b>${esc(p.gc)}</p>` : ''}
+                ${p.warn ? `<p class="bs-warn"><b>注意：</b>${esc(p.warn)}</p>` : ''}
                 ${p.note ? `<p class="bs-note">${esc(p.note)}</p>` : ''}
             </div>
         </article>`;
