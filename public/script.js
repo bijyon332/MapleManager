@@ -624,11 +624,12 @@ const app = {
             init() { partyScouter.init('view-ptscouter'); },
             reopen() { partyScouter.render(); }
         },
-        libae: {
-            view: 'view-libae',
-            nav: 'libae-nav',
+        // Quanah Tools（旧名 Libae's Gear）。ファイル名と保存キーは libae のまま
+        quanah: {
+            view: 'view-quanah',
+            nav: 'quanah-nav',
             scripts: ['libae_battlesim.js', 'libae_gear.js'],
-            init() { libaeGear.init('view-libae'); },
+            init() { libaeGear.init('view-quanah'); },
             reopen() { libaeGear.render(); }
         },
         ultima: {
@@ -743,11 +744,19 @@ const app = {
     // ?view=1 などのクエリはそのまま残す。
     // アプリの中の画面も URL にしたいアプリは、/#<キー>/<中の画面> の形にする（今は Journal の回だけ）。
     // APPS の route(sub) が URL から画面を合わせ、subpath() が今の画面の名前を返す。
+    // 改名したアプリの旧キー → 今のキー。共有済みの古い URL もそのアプリで開き、URL は今のキーに直す。
+    // 利用状況（usage_stats.js）も旧キーの記録を今のキーにまとめて数える。
+    APP_ALIASES: { libae: 'quanah' },
+
     hashRoute() {
         let hash = location.hash.slice(1);
         try { hash = decodeURIComponent(hash); } catch (e) { /* 壊れた %xx はそのまま照合して外れる */ }
         const i = hash.indexOf('/');
-        const name = i < 0 ? hash : hash.slice(0, i);
+        let name = i < 0 ? hash : hash.slice(0, i);
+        if (Object.hasOwn(this.APP_ALIASES, name)) {
+            name = this.APP_ALIASES[name];
+            history.replaceState(null, '', `${location.pathname}${location.search}#${name}${i < 0 ? '' : hash.slice(i)}`);
+        }
         if (!Object.hasOwn(this.APPS, name)) return { name: 'planner', sub: '' };
         return { name, sub: i < 0 ? '' : hash.slice(i + 1) };
     },

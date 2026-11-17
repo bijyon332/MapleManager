@@ -1,12 +1,12 @@
 /* =========================================================
- *  Quanah Tools（サイドバーの Event。旧名 Libae's Gear、キー libae はそのまま）
+ *  Quanah Tools（サイドバーの Event。旧名 Libae's Gear。アプリのキーは quanah、ファイル名と保存キーは libae のまま）
  *  Event World: Quanah の装備「Libae's Supercharged」6部位の [Hologram] スキルラインとジュエルを登録して、
  *  スキルの合計レベル・ジュエルのステータス・ジュエル強化の残り素材（Dust 換算）を出す。
  *  bi がアップロードした単体版（Libae's gear 管理アプリ 公開版、2026-11-08 調査の PTS 情報）を移植（2026-11-09）。
  *  2026-11-13 の公開版に合わせて、目標ライン（18ラインの目標配分）・装備ラインの判定（寄与／超過／対象外）・
  *  所有ピースとセットソルバー（各部位1つずつ選んで目標に合う組み合わせを探す）を追加。
  *
- *  - 上部ヘッダーのタブ（#libae-nav）で 装備管理／所有ピース／ジュエル強化／資料 を切り替える。
+ *  - 上部ヘッダーのタブ（#quanah-nav）で 装備管理／所有ピース／ジュエル強化／資料 を切り替える。
  *  - 保存はこのブラウザだけ（libae-gear-public-v1 / libae-jewel-settings-public-v1 / libae-skill-target-public-v1 /
  *    libae-owned-pieces-public-v1、単体版と同じキー）。JSON の書き出し・読み込みは単体版と同じ形
  *    （app: 'libae-gear', version: 1、skillTarget・ownedPieces 付き）で、本家アプリの書き出し（gear が配列）も読める。
@@ -435,7 +435,8 @@ const libaeGear = (() => {
         return { exact: !!best && matched === totalTarget && best[2] === 0, truncated, counts: bestCounts, picks: pickList, shortage, excess, matched, totalTarget,
             atkCovered: ATK.filter((nm) => atkHave.has(nm)), atkPossible: ATK.filter((_, x) => suffixAtk[0] & (1 << x)) };
     }
-    // ピースの判定: 採用（最適セットに入っている）／候補（足りないスキルを含む）／不要（足りないスキルを1つも含まない）。
+    // ピースの判定: 採用（最適セットに入っている）／候補（足りないスキルを含む）／unneeded（足りないスキルを1つも含まない）。
+    // unneeded は画面に札を出さない（入力のたびに変わって誤解を招くため、2026-11-17 bi 指示）。
     function classifyPieces(pieces, targetLines, result) {
         const verdicts = {}; if (!result) return verdicts;
         const tm = targetMapOf(targetLines);
@@ -451,7 +452,6 @@ const libaeGear = (() => {
     const PIECE_VERDICT = {
         adopted: { label: '採用', cls: 'badge-success badge-outline', tip: '最適セットに採用中' },
         candidate: { label: '候補', cls: 'badge-ghost text-base-content/60', tip: '足りないスキルを含むので保持' },
-        unneeded: { label: '不要', cls: 'badge-error badge-outline', tip: '足りないスキルを1つも含まない（処分してよい目安）' },
     };
 
     /* ---------- 装備管理 ---------- */
@@ -662,8 +662,8 @@ const libaeGear = (() => {
         const del = pieceDelAsk === p.id
             ? `<button type="button" class="btn btn-error btn-xs h-5 min-h-0" data-act="p-del-yes" data-pid="${p.id}">本当に削除</button><button type="button" class="btn btn-ghost btn-xs h-5 min-h-0" data-act="p-del-no">キャンセル</button>`
             : `<button type="button" class="btn btn-ghost btn-xs btn-square h-5 min-h-0 w-5 text-base-content/50 hover:text-error" data-act="p-del" data-pid="${p.id}" title="このピースを削除" aria-label="${esc(SLOT_LABEL[slot])}のピースを削除"><i data-lucide="trash-2" class="w-3 h-3"></i></button>`;
-        const badges = v === 'adopted' ? `${adopt.own ? ADOPT_BADGE.own : ''}${adopt.all ? ADOPT_BADGE.all : ''}` : v ? pvBadge(v) : '<span class="text-[11px] text-base-content/40">ライン未入力</span>';
-        const box = dupOf ? 'lg-piece-dup' : v === 'unneeded' ? 'lg-piece-unneeded' : v === 'adopted' ? (adopt.all ? 'lg-piece-adopted' : 'lg-piece-adopted-own') : '';
+        const badges = v === 'adopted' ? `${adopt.own ? ADOPT_BADGE.own : ''}${adopt.all ? ADOPT_BADGE.all : ''}` : v === 'unneeded' ? '' : v ? pvBadge(v) : '<span class="text-[11px] text-base-content/40">ライン未入力</span>';
+        const box = dupOf ? 'lg-piece-dup' : v === 'adopted' ? (adopt.all ? 'lg-piece-adopted' : 'lg-piece-adopted-own') : '';
         return `<div class="lg-piece ${box}">
             <div class="flex items-center gap-1 h-5">${dupOf ? dupBadge(dupOf) : ''}${badges}<span class="ml-auto flex items-center gap-1.5"><label class="lg-own ${p.own ? 'lg-own-on' : ''}" title="自前の装備（自分で持っているピース）。「自前のみ」の組み合わせに使います"><input type="checkbox" class="checkbox checkbox-primary checkbox-xs" data-act="p-own" data-pid="${p.id}" ${p.own ? 'checked' : ''}>自前</label>${del}</span></div>
             <div class="flex flex-col gap-1 mt-1">${vals.map((val, i) => `<select data-act="p-line" data-pid="${p.id}" data-idx="${i}" class="select select-xs w-full min-w-0 ${val ? 'font-bold' : 'text-base-content/45'}" aria-label="${esc(SLOT_LABEL[slot])}のピース スキルライン ${i + 1}">${skillOptionsHTML(val, vals.filter((_, j) => j !== i))}</select>`).join('')}</div>
@@ -671,7 +671,7 @@ const libaeGear = (() => {
     }
     function piecesHTML() {
         const pieces = ownedPieces, lines = effectiveTargetLines();
-        // 組み合わせは 全部 と 自前のみ の2通り。ピースの判定（採用／候補／不要）は2通りの良い方
+        // 組み合わせは 全部 と 自前のみ の2通り。ピースの判定（採用／候補）は2通りの良い方
         // （自前のピースは 自前のみ の組み合わせでの判定も見る。どちらかで採用なら採用）。
         const result = pieces.length ? solveSet(pieces, lines) : null;
         const ownPieces = pieces.filter((p) => p.own);
@@ -722,7 +722,7 @@ const libaeGear = (() => {
         else {
             side += card('own', '自前のみ', ownResult, '「自前」にチェックしたピースがありません。');
             side += card('all', '全部', result, '');
-            side += `<div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-base-content/60">${ownResult ? `<span class="inline-flex items-center gap-1">${ADOPT_BADGE.own}<b class="font-mono text-white">${inOwn.size}</b>件</span>` : ''}<span class="inline-flex items-center gap-1">${ADOPT_BADGE.all}<b class="font-mono text-white">${inAll.size}</b>件</span>${['candidate', 'unneeded'].map((k) => `<span class="inline-flex items-center gap-1" title="${esc(PIECE_VERDICT[k].tip)}（自前のピースは自前のみの組み合わせでも判定し、良い方）">${pvBadge(k)}<b class="font-mono text-white">${counts[k]}</b>件</span>`).join('')}${dupCount ? `<span class="inline-flex items-center gap-1">${dupBadge(0)}<b class="font-mono text-white">${dupCount}</b>件</span>` : ''}</div>`;
+            side += `<div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-base-content/60">${ownResult ? `<span class="inline-flex items-center gap-1">${ADOPT_BADGE.own}<b class="font-mono text-white">${inOwn.size}</b>件</span>` : ''}<span class="inline-flex items-center gap-1">${ADOPT_BADGE.all}<b class="font-mono text-white">${inAll.size}</b>件</span>${['candidate'].map((k) => `<span class="inline-flex items-center gap-1" title="${esc(PIECE_VERDICT[k].tip)}（自前のピースは自前のみの組み合わせでも判定し、良い方）">${pvBadge(k)}<b class="font-mono text-white">${counts[k]}</b>件</span>`).join('')}${dupCount ? `<span class="inline-flex items-center gap-1">${dupBadge(0)}<b class="font-mono text-white">${dupCount}</b>件</span>` : ''}</div>`;
         }
         const shown = patView === 'own' ? ownResult : result;
         const toggle = pieces.length && result ? `<div class="join w-full mb-1.5" role="group" aria-label="目標ラインに出す組み合わせ">${[['own', '自前のみ'], ['all', '全部']].map(([k, l]) => `<button type="button" class="btn btn-xs join-item flex-1 ${patView === k ? 'btn-primary' : ''}" data-act="pat" data-pat="${k}" aria-pressed="${patView === k}">${l}の組み合わせ</button>`).join('')}</div>` : '';
@@ -983,7 +983,7 @@ const libaeGear = (() => {
     /* ---------- 描画 ---------- */
     const icons = () => { if (window.lucide) lucide.createIcons(); };
     function syncNav() {
-        document.querySelectorAll('#libae-nav [data-tab]').forEach((b) => b.classList.toggle('tab-active', b.dataset.tab === tab));
+        document.querySelectorAll('#quanah-nav [data-tab]').forEach((b) => b.classList.toggle('tab-active', b.dataset.tab === tab));
     }
     function render() {
         if (!rootEl) return;

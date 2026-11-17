@@ -115,7 +115,7 @@
                 </button></li>
                 <!-- 期間限定のイベント用のアプリ。 -->
                 <li class="menu-title">Event</li>
-                <li><button onclick="app.switchApp('libae')" id="app-libae"
+                <li><button onclick="app.switchApp('quanah')" id="app-quanah"
                     class="nav-item" title="Quanah Tools（Quanah の Libae's Supercharged 装備のスキルラインとジュエル、バトルシムのプログラム図鑑）">
                     <i data-lucide="gem" class="w-5 h-5"></i>
                     <span class="nav-label">Quanah Tools</span>
@@ -326,7 +326,7 @@
                 <button onclick="expUltima.setWorld('CHALLENGER')" data-world="CHALLENGER" role="tab" class="tab">Challenger</button>
             </nav>
             <!-- Quanah Tools の 装備管理／所有ピース／ジュエル強化／バトルシム／資料（Quanah Tools のときだけ出す）。押したときの切り替えは libae_gear.js -->
-            <nav id="libae-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
+            <nav id="quanah-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="libaeGear.setTab('gear')" data-tab="gear" role="tab" class="tab tab-active gap-1.5">
                     <i data-lucide="shirt" class="w-3.5 h-3.5"></i>装備管理
                 </button>
@@ -486,7 +486,7 @@
                 <!-- 中身は symbol_planner.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
                 <div id="view-symbol" class="hidden-page fade-in"></div>
                 <!-- 中身は libae_gear.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
-                <div id="view-libae" class="hidden-page fade-in"></div>
+                <div id="view-quanah" class="hidden-page fade-in"></div>
                 <!-- 中身は exp_ultima.js が描く（計算は exp_plan.js と共通）。初回オープン時に読み込む（script.js の APPS）。 -->
                 <div id="view-ultima" class="hidden-page fade-in"></div>
                 <!-- 中身は kms_videos.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
