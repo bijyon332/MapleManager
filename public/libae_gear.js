@@ -1,5 +1,5 @@
 /* =========================================================
- *  Libae's Gear（サイドバーの Event）
+ *  Quanah Tools（サイドバーの Event。旧名 Libae's Gear、キー libae はそのまま）
  *  Event World: Quanah の装備「Libae's Supercharged」6部位の [Hologram] スキルラインとジュエルを登録して、
  *  スキルの合計レベル・ジュエルのステータス・ジュエル強化の残り素材（Dust 換算）を出す。
  *  bi がアップロードした単体版（Libae's gear 管理アプリ 公開版、2026-11-08 調査の PTS 情報）を移植（2026-11-09）。

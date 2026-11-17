@@ -1,5 +1,5 @@
 /**
- * Libae's Gear の「バトルシム」タブ: Quanah のダンジョン Battlesim で手に入るプログラム全46種の図鑑。
+ * Quanah Tools の「バトルシム」タブ: Quanah のダンジョン Battlesim で手に入るプログラム全46種の図鑑。
  * bi の単体版「Quanah バトルシム プログラム図鑑」（2026-11-16）を移植。評価は Shapaz さんのダンジョン解説動画（Quanah ガイドまとめ 3章）、
  * アイコンと効果は masonym.dev の Quanah データ（GMS クライアントから抽出、2026-11-15 版）。名前は GMS の英語表記のまま。
  * アイコンは public/assets/libae/battlesim/<icon>.png。
