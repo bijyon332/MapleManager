@@ -39,7 +39,7 @@ const libaeBattlesim = (() => {
         {"v": "lo", "name": "VPN", "icon": "vpn", "cat": "holo", "eff": ["[Hologram] Registry の再付着時間 -1 / 2 / 3秒"], "gc": "ユーザー判断で「取る（優先度 低）」に分類（ガイドでの言及なし）", "note": "手元の一覧の -1.0秒は1段階目の値。重ね取りで -2 / -3秒"},
         {"v": "avoid", "name": "Entropy", "icon": "entropy", "cat": "atk", "eff": ["最終ダメージ +50%", "フロア入場時、30%の確率で [Disorder] が1スタック", "[Disorder] が3スタックになるとダンジョンから自動退出"], "gc": "フロアに入るたび30%でスタックが溜まり、3つで強制退出。死亡扱いではないので復活系も効かない"},
         {"v": "avoid", "name": "Black Box", "icon": "black-box", "cat": "util", "eff": ["入手した瞬間にランダムなプログラムを3つ獲得し、所持プログラムからランダムに2つ削除（再入手すると再発動）"], "gc": "3つもらえる代わりに自分のプログラムが2つ消える。大事なものを消されるリスクが見合わない"},
-        {"v": "avoid", "name": "Dependency Injection", "icon": "dependency-injection", "cat": "res", "eff": ["フロア入場時に 50 Bytes を消費し、次のどちらかを得る", "・アイテムドロップ率 +40%、獲得EXP +10%", "・獲得EXP +40%、アイテムドロップ率 +10%", "Bytesが足りないと発動しない"], "gc": "毎フロア50 Bytes払う系。序盤は厳禁。ルートルームで買い物するBytesが足りなくなる。収入が育った後半向け"},
+        {"v": "avoid", "name": "Dependency Injection", "icon": "dependency-injection", "cat": "res", "eff": ["フロア入場時に 50 Bytes を消費し、次のどちらかを得る", "・アイテムドロップ率 +40%、獲得EXP +10%", "・獲得EXP +40%、アイテムドロップ率 +10%", "Bytesが足りないと発動しない"], "gc": "毎フロア50 Bytes払う系。Wild Pointer を取っているときだけコストが見合うので取ってもいい（上の「組み合わせ」、ユーザー判断）。ガイドでは：序盤は厳禁。ルートルームで買い物するBytesが足りなくなる。収入が育った後半向け"},
         {"v": "lo", "name": "Simulation Enhancement: M", "icon": "simulation-enhancement-m", "cat": "holo", "eff": ["投影魔法使いの [Hologram] Bolt Barrage ダメージ +10 / 20 / 30%"], "gc": "Jailbreak系（ホログラム投影の強化）。ガイドでは火力が低く優先度は最下位クラスだが、ユーザー判断で「取る（優先度 低）」に分類", "tip": "Type-M Jailbreak"},
         {"v": "lo", "name": "Simulation Enhancement: B", "icon": "simulation-enhancement-b", "cat": "holo", "eff": ["投影弓使いの [Hologram] Ultimate Snipe ダメージ +10 / 20 / 30%"], "gc": "Jailbreak系。ガイドでは優先度最下位クラス。ユーザー判断で「取る（優先度 低）」に分類", "tip": "Type-B Jailbreak"},
         {"v": "lo", "name": "Simulation Enhancement: T", "icon": "simulation-enhancement-t", "cat": "holo", "eff": ["投影盗賊の [Hologram] Shurrikane ダメージ +10 / 20 / 30%"], "gc": "Jailbreak系。ガイドでは優先度最下位クラス。ユーザー判断で「取る（優先度 低）」に分類", "tip": "Type-T Jailbreak"},
@@ -102,43 +102,48 @@ const libaeBattlesim = (() => {
     // Return Protocol（だいじ）は「取る」で絞り込んだときも出す
     const matches = (p) => (filter === 'all' || groupOf(p.v) === filter || (filter === 'take' && p.v === 'key')) && (!query || searchText(p).includes(query));
 
+    // 上の3枠（フュージョン／組み合わせ／Return Protocol）は広い画面で横並び、下の一覧と合わせて1画面に収める（bi 指定）
+    const fig = (p, step, cls = '') => `<button type="button" class="bs-fig ${cls}" data-bs-go="${esc(p.name)}" title="${esc(p.name)} の説明へ"><span class="bs-step">${step}</span>${img(p, 44)}<span class="bs-figname">${esc(p.name)}</span></button>`;
     function fusionHTML() {
         const steps = [['Creaking Limb', '①'], ['Broken Heart', '②'], ['Overheated Head', '③ 最後']];
-        const fig = (p, step, cls) => `<button type="button" class="bs-fig ${cls}" data-bs-go="${esc(p.name)}" title="${esc(p.name)} の説明へ"><span class="bs-step">${step}</span>${img(p, 48)}<span class="bs-figname">${esc(p.name)}</span></button>`;
         const parts = steps.map(([n, s], i) => fig(byName[n], s, i === 2 ? 'bs-last' : '')).join('<span class="bs-op">+</span>');
         return `<section class="bs-fusion">
-            <div class="flex items-center gap-2"><span class="text-[13px] font-black text-white">フュージョン</span><span class="text-[13px] font-bold text-cyan-300">Overclocked Fusion</span>${vBadge('hi')}</div>
-            <div class="flex flex-wrap items-center gap-x-8 gap-y-2 mt-2">
-            <div class="flex flex-wrap items-center gap-2">${parts}<span class="bs-op">→</span>${fig(byName['Overclocked Fusion'], '完成', 'bs-done')}</div>
-            <p class="text-[12.5px] leading-relaxed flex-1 min-w-[260px] max-w-[640px]"><b class="text-amber-300">取る順番が大事。</b>Overheated Head は20%で所持プログラムを1つ消す（自分も対象）ので、①②を持ってから<b class="text-white">最後に取る</b>。3つ揃うと <b class="text-white">最終ダメージ +30%・被ダメージ -30%・300 Bytes</b>。</p>
-            </div>
+            <div class="bs-boxhead"><span class="text-white">フュージョン</span><span class="text-cyan-300">Overclocked Fusion</span>${vBadge('hi')}</div>
+            <div class="bs-figs">${parts}<span class="bs-op">→</span>${fig(byName['Overclocked Fusion'], '完成', 'bs-done')}</div>
+            <p class="bs-boxtext"><b class="text-amber-300">取る順番が大事。</b>Overheated Head は20%で所持プログラムを1つ消す（自分も対象）ので、①②を持ってから<b class="text-white">最後に取る</b>。揃うと <b class="text-white">最終ダメージ +30%・被ダメージ -30%・300 Bytes</b>。</p>
         </section>`;
     }
-    // Return Protocol は帰還に使うので、フュージョンの下に別枠で目立たせる（bi 指定）
+    // 組み合わせ: Dependency Injection は Wild Pointer を取っているときだけコストが見合う（bi 指定、フュージョンと同じ形で別枠）
+    function comboHTML() {
+        return `<section class="bs-fusion bs-combo">
+            <div class="bs-boxhead"><span class="text-white">組み合わせ</span><span class="badge badge-sm font-bold badge-success badge-soft">条件付きで取ってもいい</span></div>
+            <div class="bs-figs">${fig(byName['Wild Pointer'], '持っている')}<span class="bs-op">+</span>${fig(byName['Dependency Injection'], '取ってもいい', 'bs-last')}</div>
+            <p class="bs-boxtext"><b class="text-lime-300">Wild Pointer を取っているときだけ。</b>Dependency Injection は毎フロア <b class="text-white">50 Bytes</b> 払ってドロップ率・EXP を上げるので、Wild Pointer があればコストが見合う。ないなら<b class="text-white">取ってはいけない</b>のまま。</p>
+        </section>`;
+    }
+    // Return Protocol は帰還に使うので、上に別枠で目立たせる（bi 指定）
     function keyHTML() {
-        return PROGRAMS.filter((p) => p.v === 'key').map((p) => `<section class="bs-key">
-            <button type="button" class="shrink-0" data-bs-go="${esc(p.name)}" title="${esc(p.name)} の説明へ">${img(p, 56)}</button>
-            <div class="min-w-0 flex flex-col gap-1">
-                <div class="flex flex-wrap items-center gap-2"><span class="text-[13px] font-black text-white font-mono">${esc(p.name)}</span>${vBadge('key')}${catTag(p)}</div>
-                <p class="text-[12.5px] leading-relaxed"><b class="text-amber-300">帰還に使う。</b>使うと休憩マップを飛ばしてすぐダンジョンから出られ、<b class="text-white">報酬はすべて受け取れる</b>。もう無理そうと思ったら迷わず使う（使うと消える）。</p>
-            </div>
+        return PROGRAMS.filter((p) => p.v === 'key').map((p) => `<section class="bs-fusion bs-key">
+            <div class="bs-boxhead"><span class="text-white">だいじ</span><span class="text-amber-300">${esc(p.name)}</span>${catTag(p)}</div>
+            <div class="bs-figs">${fig(p, '帰還用')}</div>
+            <p class="bs-boxtext"><b class="text-amber-300">帰還に使う。</b>使うと休憩マップを飛ばしてすぐダンジョンから出られ、<b class="text-white">報酬はすべて受け取れる</b>。もう無理そうと思ったら迷わず使う（使うと消える）。</p>
         </section>`).join('');
     }
     function tileHTML(p) {
         return `<button type="button" class="bs-tile" data-bs-go="${esc(p.name)}" title="${esc(p.name)} の説明へ">${img(p, 40)}<span>${esc(p.name)}</span><i class="bs-tcat" style="color:${CATS[p.cat].color}">${esc(CATS[p.cat].label)}</i></button>`;
     }
+    // 段ごとに、小区分（優先度 高・低／職次第・高速周回用・その他）を横に詰めて並べる。
+    // 取ってはいけない・マイナス効果は数が少ないので、広い画面では2つを横に並べる
     function boardHTML() {
         let h = '<section class="bs-board">';
         GROUPS.filter((g) => g.id !== 'fus').forEach((g) => {
             const subs = g.vs.map((id) => VMAP[id]);
             const n = PROGRAMS.filter((p) => g.vs.includes(p.v)).length;
-            h += `<div class="bs-brow" style="border-left-color:${subs[0].border}">
+            h += `<div class="bs-brow bs-brow-${g.id}" style="border-left-color:${subs[0].border}">
                 <div class="bs-blabel"><span class="badge badge-sm font-bold whitespace-nowrap ${subs[0].badge.replace(' badge-soft', '')}">${esc(g.label)}</span><span class="font-mono text-[11px] text-base-content/50">${n}種</span></div>
-                <div class="flex flex-col gap-2 min-w-0">${subs.map((v) => {
+                <div class="bs-subs">${subs.map((v) => {
                     const ps = PROGRAMS.filter((p) => p.v === v.id);
-                    const tiles = `<div class="bs-tiles">${ps.map(tileHTML).join('')}</div>`;
-                    // 小区分のない段も同じ幅の空き列を取り、全段でアイコンの左端をそろえる
-                    return `<div class="bs-sub"><span class="bs-sublabel">${esc(v.sub || '')}</span>${tiles}</div>`;
+                    return `<div class="bs-sub">${v.sub ? `<span class="bs-sublabel">${esc(v.sub)}</span>` : ''}<div class="bs-tiles">${ps.map(tileHTML).join('')}</div></div>`;
                 }).join('')}</div>
             </div>`;
         });
@@ -189,8 +194,8 @@ const libaeBattlesim = (() => {
         </div>`;
     }
     function html() {
-        return `<div class="bs-root flex flex-col gap-4">
-            ${fusionHTML()}${keyHTML()}${boardHTML()}
+        return `<div class="bs-root flex flex-col gap-3">
+            <div class="bs-top">${fusionHTML()}${comboHTML()}${keyHTML()}</div>${boardHTML()}
             ${toolbarHTML()}
             <div class="flex flex-col gap-5">${listHTML()}</div>
             ${footHTML()}

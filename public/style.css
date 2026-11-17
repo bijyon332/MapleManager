@@ -680,37 +680,50 @@ body {
 .lg-pick-slot { display: inline-flex; align-items: center; gap: 4px; width: 72px; flex-shrink: 0; font-size: 11.5px; font-weight: 900; color: #cbd5e1; }
 /* Quanah Tools バトルシム（プログラム図鑑） */
 .bs-ico { image-rendering: pixelated; background: #0a1218; border: 1px solid #1e293b; border-radius: 4px; padding: 3px; }
-.bs-fusion { background: #0f172a; border: 1px solid #1e293b; border-left: 4px solid #22d3ee; border-radius: 4px; padding: 12px 14px; }
-.bs-fig { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 92px; cursor: pointer; }
-.bs-fig .bs-ico { width: 56px; height: 56px; }
+.bs-top { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1280px) { .bs-top { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .9fr); } }
+.bs-fusion { display: flex; flex-direction: column; gap: 6px; background: #0f172a; border: 1px solid #1e293b; border-left: 4px solid #22d3ee; border-radius: 4px; padding: 8px 12px 10px; }
+.bs-boxhead { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 13px; font-weight: 900; }
+.bs-figs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.bs-boxtext { font-size: 12px; line-height: 1.55; }
+.bs-fig { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 78px; cursor: pointer; }
+.bs-fig .bs-ico { width: 48px; height: 48px; }
 .bs-fig:hover .bs-figname { color: #a5b4fc; }
-.bs-step { font-size: 11px; font-weight: 900; color: #4ade80; }
+.bs-step { font-size: 11px; font-weight: 900; color: #4ade80; white-space: nowrap; }
 .bs-last .bs-step { color: #fb7185; }
 .bs-last .bs-ico { outline: 2px solid #fb7185; outline-offset: -2px; }
 .bs-done .bs-step { color: #22d3ee; }
 .bs-done .bs-ico { outline: 2px solid #22d3ee; outline-offset: -2px; }
-.bs-figname { font-family: var(--font-mono, ui-monospace, monospace); font-size: 10.5px; line-height: 1.25; text-align: center; color: #cbd5e1; }
-.bs-op { font-family: ui-monospace, monospace; font-size: 18px; font-weight: 700; color: #22d3ee; margin-bottom: 18px; }
-.bs-board { display: flex; flex-direction: column; gap: 6px; }
-.bs-brow { display: grid; grid-template-columns: 116px minmax(0, 1fr); gap: 10px; align-items: start; background: #0f172a; border: 1px solid #1e293b; border-left: 4px solid #475569; border-radius: 4px; padding: 8px 10px; }
+.bs-combo { border-left-color: #a3e635; }
+.bs-combo .bs-op, .bs-combo .bs-step, .bs-combo .bs-last .bs-step { color: #a3e635; }
+.bs-combo .bs-last .bs-ico { outline-color: #a3e635; }
+.bs-key { background: color-mix(in oklab, #f59e0b 7%, #0f172a); border-color: color-mix(in oklab, #f59e0b 30%, transparent); border-left-color: #f59e0b; }
+.bs-key .bs-step { color: #f59e0b; }
+.bs-key .bs-ico { outline: 2px solid #f59e0b; outline-offset: -2px; }
+.bs-figname { font-family: var(--font-mono, ui-monospace, monospace); font-size: 10px; line-height: 1.2; text-align: center; color: #cbd5e1; }
+.bs-op { font-family: ui-monospace, monospace; font-size: 16px; font-weight: 700; color: #22d3ee; margin-bottom: 16px; }
+.bs-board { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+@media (min-width: 1280px) { .bs-board { grid-template-columns: minmax(0, 3fr) minmax(0, 5fr); } .bs-brow-take, .bs-brow-cond { grid-column: 1 / -1; } }
+.bs-brow { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 8px; align-items: start; background: #0f172a; border: 1px solid #1e293b; border-left: 4px solid #475569; border-radius: 4px; padding: 6px 10px; }
 .bs-blabel { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
-.bs-tiles { display: flex; flex-wrap: wrap; gap: 6px 4px; }
-.bs-tile { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 76px; font-size: 10px; line-height: 1.2; text-align: center; color: #cbd5e1; cursor: pointer; }
-.bs-tile .bs-ico { width: 44px; height: 44px; }
-.bs-tcat { font-style: normal; font-size: 9.5px; font-weight: 700; line-height: 1; margin-top: -1px; }
-.bs-sub { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; align-items: start; }
-.bs-sub + .bs-sub { border-top: 1px dashed #1e293b; padding-top: 8px; }
-.bs-sublabel { font-size: 11.5px; font-weight: 800; color: #e2e8f0; padding-top: 14px; }
-.bs-key { display: flex; align-items: center; gap: 14px; background: color-mix(in oklab, #f59e0b 8%, #0f172a); border: 1px solid color-mix(in oklab, #f59e0b 35%, transparent); border-left: 4px solid #f59e0b; border-radius: 4px; padding: 10px 14px; }
-.bs-key .bs-ico { width: 56px; height: 56px; outline: 2px solid #f59e0b; outline-offset: -2px; }
+.bs-subs { display: flex; flex-wrap: wrap; gap: 4px 0; min-width: 0; }
+.bs-sub { display: flex; flex-direction: column; gap: 1px; padding: 0 10px; border-left: 1px dashed #334155; }
+.bs-sub:first-child { padding-left: 0; border-left: 0; }
+/* 取るの 優先度 高・低 はどちらも1行ずつになるので、縦に積んで区切りは横線に */
+.bs-brow-take .bs-subs { flex-direction: column; gap: 4px; }
+.bs-brow-take .bs-sub { padding: 0; border-left: 0; }
+.bs-brow-take .bs-sub + .bs-sub { border-top: 1px dashed #334155; padding-top: 4px; }
+.bs-sublabel { font-size: 11px; font-weight: 800; color: #e2e8f0; line-height: 1.3; }
+.bs-tiles { display: flex; flex-wrap: wrap; gap: 4px 2px; }
+.bs-tile { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 72px; font-size: 10px; line-height: 1.15; text-align: center; color: #cbd5e1; cursor: pointer; }
+.bs-tile .bs-ico { width: 40px; height: 40px; }
+.bs-tile:hover span, .bs-tile:focus-visible span { color: #a5b4fc; }
+.bs-tcat { font-style: normal; font-size: 9.5px; font-weight: 700; line-height: 1; }
 @media (max-width: 640px) {
     .bs-brow { grid-template-columns: minmax(0, 1fr); }
     .bs-blabel { flex-direction: row; align-items: center; gap: 8px; }
-    .bs-sub { grid-template-columns: minmax(0, 1fr); gap: 4px; }
-    .bs-sublabel { padding-top: 0; }
-    .bs-sublabel:empty { display: none; }
+    .bs-sub { padding: 0; border-left: 0; width: 100%; }
 }
-.bs-tile:hover span, .bs-tile:focus-visible span { color: #a5b4fc; }
 .bs-toolbar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; background: #020617; border-bottom: 1px solid #1e293b; margin-top: 8px; box-shadow: 0 -24px 0 #020617; }
 .bs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 8px; }
 .bs-card { display: flex; gap: 12px; background: #0f172a; border: 1px solid #1e293b; border-left: 3px solid #475569; border-radius: 4px; padding: 10px 12px; scroll-margin-top: 72px; }
