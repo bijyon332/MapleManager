@@ -692,24 +692,37 @@ body {
 .bs-figname { font-family: var(--font-mono, ui-monospace, monospace); font-size: 10.5px; line-height: 1.25; text-align: center; color: #cbd5e1; }
 .bs-op { font-family: ui-monospace, monospace; font-size: 18px; font-weight: 700; color: #22d3ee; margin-bottom: 18px; }
 .bs-board { display: flex; flex-direction: column; gap: 6px; }
-.bs-brow { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; align-items: start; background: #0f172a; border: 1px solid #1e293b; border-left: 4px solid #475569; border-radius: 4px; padding: 8px 10px; }
+.bs-brow { display: grid; grid-template-columns: 116px minmax(0, 1fr); gap: 10px; align-items: start; background: #0f172a; border: 1px solid #1e293b; border-left: 4px solid #475569; border-radius: 4px; padding: 8px 10px; }
 .bs-blabel { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 .bs-tiles { display: flex; flex-wrap: wrap; gap: 6px 4px; }
 .bs-tile { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 76px; font-size: 10px; line-height: 1.2; text-align: center; color: #cbd5e1; cursor: pointer; }
 .bs-tile .bs-ico { width: 44px; height: 44px; }
+.bs-tcat { font-style: normal; font-size: 9.5px; font-weight: 700; line-height: 1; margin-top: -1px; }
+.bs-sub { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; align-items: start; }
+.bs-sub + .bs-sub { border-top: 1px dashed #1e293b; padding-top: 8px; }
+.bs-sublabel { font-size: 11.5px; font-weight: 800; color: #e2e8f0; padding-top: 14px; }
+.bs-key { display: flex; align-items: center; gap: 14px; background: color-mix(in oklab, #f59e0b 8%, #0f172a); border: 1px solid color-mix(in oklab, #f59e0b 35%, transparent); border-left: 4px solid #f59e0b; border-radius: 4px; padding: 10px 14px; }
+.bs-key .bs-ico { width: 56px; height: 56px; outline: 2px solid #f59e0b; outline-offset: -2px; }
+@media (max-width: 640px) {
+    .bs-brow { grid-template-columns: minmax(0, 1fr); }
+    .bs-blabel { flex-direction: row; align-items: center; gap: 8px; }
+    .bs-sub { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    .bs-sublabel { padding-top: 0; }
+    .bs-sublabel:empty { display: none; }
+}
 .bs-tile:hover span, .bs-tile:focus-visible span { color: #a5b4fc; }
 .bs-toolbar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; background: #020617; border-bottom: 1px solid #1e293b; margin-top: 8px; box-shadow: 0 -24px 0 #020617; }
 .bs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 8px; }
 .bs-card { display: flex; gap: 12px; background: #0f172a; border: 1px solid #1e293b; border-left: 3px solid #475569; border-radius: 4px; padding: 10px 12px; scroll-margin-top: 72px; }
 .bs-card[hidden] { display: none; }
 .bs-card .bs-ico { width: 56px; height: 56px; }
-.bs-v-fus { border-left-color: #22d3ee; } .bs-v-take { border-left-color: #4ade80; } .bs-v-cond { border-left-color: #facc15; }
+.bs-v-fus { border-left-color: #22d3ee; } .bs-v-key { border-left-color: #f59e0b; } .bs-v-hi, .bs-v-lo { border-left-color: #4ade80; } .bs-v-job, .bs-v-speed, .bs-v-other { border-left-color: #facc15; }
 .bs-v-avoid { border-left-color: #fb7185; } .bs-v-bug { border-left-color: #9f1239; }
 .bs-cat { white-space: nowrap; font-size: 10.5px; font-weight: 700; padding: 0 7px; border: 1px solid currentColor; border-radius: 999px; line-height: 1.6; }
 .bs-gc { font-size: 12px; line-height: 1.5; padding: 4px 8px; border-radius: 3px; background: #1e293b; color: #cbd5e1; }
 .bs-gc b { color: #e2e8f0; }
-.bs-v-fus .bs-gc, .bs-v-take .bs-gc { background: rgba(74, 222, 128, .1); }
-.bs-v-cond .bs-gc { background: rgba(250, 204, 21, .1); }
+.bs-v-fus .bs-gc, .bs-v-key .bs-gc, .bs-v-hi .bs-gc, .bs-v-lo .bs-gc { background: rgba(74, 222, 128, .1); }
+.bs-v-job .bs-gc, .bs-v-speed .bs-gc, .bs-v-other .bs-gc { background: rgba(250, 204, 21, .1); }
 .bs-v-avoid .bs-gc { background: rgba(251, 113, 133, .1); }
 .bs-note { font-size: 11.5px; padding: 3px 8px; border-radius: 3px; background: rgba(245, 158, 11, .12); color: #fcd34d; }
 .bs-flash { animation: bs-flash 1.4s ease-out; }
