@@ -972,3 +972,7 @@ i.expp-ico, svg.expp-ico { width: 15px; height: 15px; margin: 0 1.5px; }
 tr.mm-dragging { opacity: .4; }
 tr.mm-drop-before > td { box-shadow: inset 0 2px 0 #818cf8; }
 tr.mm-drop-after > td { box-shadow: inset 0 -2px 0 #818cf8; }
+
+/* HEXA 強化順マップ（マス）: クリックで強化済みにできることを、乗せたときの紫の枠で見せる */
+.hx-mark-tile { transition: background-color .12s, box-shadow .12s; }
+.hx-mark-tile:hover { background-color: rgb(30 41 59); box-shadow: inset 0 0 0 1px rgb(167 139 250); }
