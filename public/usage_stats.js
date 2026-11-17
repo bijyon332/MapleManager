@@ -88,8 +88,12 @@ const usageStats = {
 
         const d = this.data;
         const site = d.daily.filter(r => r.app === '*');
-        const apps = d.daily.filter(r => r.app !== '*');
-        const periodBrowsers = Object.fromEntries(d.period.map(r => [r.app, r.browsers]));
+        // 改名したアプリの旧キー（script.js の APP_ALIASES）は今のキーにまとめる。
+        // ブラウザ数は旧と新で同じブラウザが重なるので、合計せず多い方を出す（下限の目安）。
+        const alias = (window.app && app.APP_ALIASES) || {};
+        const apps = d.daily.filter(r => r.app !== '*').map(r => alias[r.app] ? { ...r, app: alias[r.app] } : r);
+        const periodBrowsers = {};
+        d.period.forEach(r => { const k = alias[r.app] || r.app; periodBrowsers[k] = Math.max(periodBrowsers[k] || 0, r.browsers); });
 
         // アプリ別
         const byApp = {};

@@ -600,7 +600,7 @@ body {
 .ps-tbl td.sc-bc:hover { background-color: #1e293b80; }
 .ps-tbl td.ps-ref { outline: 2px solid #fbbf24; outline-offset: -2px; }
 .ps-mmss { display: flex; align-items: center; height: 24px; font: 700 13px "IBM Plex Mono", monospace; color: #cbd5e1; }
-/* Libae's Gear（Event）。装備欄は1マス 290px 以上で並べ、右に合計の列 */
+/* Quanah Tools（Event）。装備欄は1マス 290px 以上で並べ、右に合計の列 */
 .lg-root { max-width: 1600px; }
 .lg-gear { display: grid; gap: 12px; align-items: start; }
 @media (min-width: 1280px) { .lg-gear { grid-template-columns: minmax(0, 1fr) 340px; } #lg-side { position: sticky; top: 0; } }
@@ -672,14 +672,13 @@ body {
 .lg-own.lg-own-on { color: #a5b4fc; }
 .lg-piece.lg-piece-dup { border-color: color-mix(in oklab, #fbbf24 60%, transparent); border-style: dashed; }
 .lg-piece.lg-piece-adopted-own { border-color: color-mix(in oklab, var(--color-primary) 70%, transparent); }
-.lg-piece.lg-piece-unneeded { border-color: color-mix(in oklab, #f87171 55%, transparent); background: color-mix(in oklab, #f87171 7%, #0b1222); }
 .lg-solved { border-color: #4ade80; border-width: 2px; }
 .lg-atk { padding: 0 4px; white-space: nowrap; border: 1px solid #334155; border-radius: 9999px; font-weight: 700; color: #475569; text-decoration: line-through; }
 .lg-atk.lg-atk-on { border-color: color-mix(in oklab, #4ade80 55%, transparent); color: #4ade80; text-decoration: none; }
 .lg-pick { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; border-top: 1px solid #1e293b; }
 .lg-pick:first-child { border-top: 0; }
 .lg-pick-slot { display: inline-flex; align-items: center; gap: 4px; width: 72px; flex-shrink: 0; font-size: 11.5px; font-weight: 900; color: #cbd5e1; }
-/* Libae's Gear バトルシム（プログラム図鑑） */
+/* Quanah Tools バトルシム（プログラム図鑑） */
 .bs-ico { image-rendering: pixelated; background: #0a1218; border: 1px solid #1e293b; border-radius: 4px; padding: 3px; }
 .bs-fusion { background: #0f172a; border: 1px solid #1e293b; border-left: 4px solid #22d3ee; border-radius: 4px; padding: 12px 14px; }
 .bs-fig { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 92px; cursor: pointer; }
@@ -843,7 +842,7 @@ header .tabs-box > .tab-active svg { color: #a5b4fc; }
 .guide .guide-table th, .guide .guide-table td { padding-top: 7px; padding-bottom: 7px; }
 .guide .guide-table th, .guide .guide-table td { vertical-align: top; }
 
-/* Libae's Gear: 長いスキル名が選択欄の矢印にかからないように（daisyUI の select は utilities 層なので層の外で上書き） */
+/* Quanah Tools: 長いスキル名が選択欄の矢印にかからないように（daisyUI の select は utilities 層なので層の外で上書き） */
 .lg-root select.select { padding-inline-end: 1.75rem; overflow: hidden; text-overflow: ellipsis; }
 
 /* ===== EXP Simulator のアカウント計画とイベントバフ（exp_plan.js） ===== */
