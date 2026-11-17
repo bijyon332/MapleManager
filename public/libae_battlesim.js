@@ -35,7 +35,7 @@ const libaeBattlesim = (() => {
         {"v": "other", "name": "Garbage Collection", "icon": "garbage-collection", "cat": "use", "eff": ["10秒間無敵", "使用すると消費"], "gc": "無敵化系は「ボスで苦戦するときの保険」くらいの評価", "note": "手元の一覧では「コード」として別枠。データ上はプログラム（使用型）"},
         {"v": "lo", "name": "Simulation Enhancement: W", "icon": "simulation-enhancement-w", "cat": "holo", "eff": ["投影戦士の [Hologram] Worldreaver ダメージ +10 / 20 / 30%"], "gc": "Jailbreak系は優先度最下位クラスだが、大範囲の戦士タイプ（Type-W）だけは例外的にまだマシ", "tip": "Type-W Jailbreak"},
         {"v": "speed", "name": "Overclock Core", "icon": "overclock-core", "cat": "atk", "eff": ["最終ダメージ +8 / 10 / 12%", "被ダメージ +5 / 10 / 15%"], "gc": "ユーザー判断で分類（ガイドでの言及なし）"},
-        {"v": "job", "name": "Backspace", "icon": "backspace", "cat": "util", "eff": ["10 / 20 / 30% の確率でスキルのクールタイムが即リセット"], "gc": "ユーザー判断で分類（ガイドでの言及なし）"},
+        {"v": "job", "name": "Backspace", "icon": "backspace", "cat": "atk", "eff": ["10 / 20 / 30% の確率でスキルのクールタイムが即リセット"], "gc": "ユーザー判断で分類（ガイドでの言及なし）"},
         {"v": "lo", "name": "VPN", "icon": "vpn", "cat": "holo", "eff": ["[Hologram] Registry の再付着時間 -1 / 2 / 3秒"], "gc": "ユーザー判断で「取る（優先度 低）」に分類（ガイドでの言及なし）", "note": "手元の一覧の -1.0秒は1段階目の値。重ね取りで -2 / -3秒"},
         {"v": "avoid", "name": "Entropy", "icon": "entropy", "cat": "atk", "eff": ["最終ダメージ +50%", "フロア入場時、30%の確率で [Disorder] が1スタック", "[Disorder] が3スタックになるとダンジョンから自動退出"], "gc": "フロアに入るたび30%でスタックが溜まり、3つで強制退出。死亡扱いではないので復活系も効かない"},
         {"v": "avoid", "name": "Black Box", "icon": "black-box", "cat": "util", "eff": ["入手した瞬間にランダムなプログラムを3つ獲得し、所持プログラムからランダムに2つ削除（再入手すると再発動）"], "gc": "3つもらえる代わりに自分のプログラムが2つ消える。大事なものを消されるリスクが見合わない"},
