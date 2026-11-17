@@ -684,12 +684,13 @@ body {
 @media (min-width: 1280px) { .bs-top { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .9fr); } }
 .bs-fusion { display: flex; flex-direction: column; gap: 6px; background: #0f172a; border: 1px solid #1e293b; border-left: 4px solid #22d3ee; border-radius: 4px; padding: 8px 12px 10px; }
 .bs-boxhead { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 13px; font-weight: 900; }
-.bs-figs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+/* 名前が1行・2行の図が並んでもアイコンの高さをそろえる（上端そろえ＋名前は2行分の高さ）。+ / → はアイコンの縦中央 */
+.bs-figs { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px; }
 .bs-boxtext { font-size: 12px; line-height: 1.55; }
 .bs-fig { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 78px; cursor: pointer; }
 .bs-fig .bs-ico { width: 48px; height: 48px; }
 .bs-fig:hover .bs-figname { color: #a5b4fc; }
-.bs-step { font-size: 11px; font-weight: 900; color: #4ade80; white-space: nowrap; }
+.bs-step { font-size: 11px; line-height: 14px; font-weight: 900; color: #4ade80; white-space: nowrap; }
 .bs-last .bs-step { color: #fb7185; }
 .bs-last .bs-ico { outline: 2px solid #fb7185; outline-offset: -2px; }
 .bs-done .bs-step { color: #22d3ee; }
@@ -700,19 +701,18 @@ body {
 .bs-key { background: color-mix(in oklab, #f59e0b 7%, #0f172a); border-color: color-mix(in oklab, #f59e0b 30%, transparent); border-left-color: #f59e0b; }
 .bs-key .bs-step { color: #f59e0b; }
 .bs-key .bs-ico { outline: 2px solid #f59e0b; outline-offset: -2px; }
-.bs-figname { font-family: var(--font-mono, ui-monospace, monospace); font-size: 10px; line-height: 1.2; text-align: center; color: #cbd5e1; }
-.bs-op { font-family: ui-monospace, monospace; font-size: 16px; font-weight: 700; color: #22d3ee; margin-bottom: 16px; }
+.bs-figname { font-family: var(--font-mono, ui-monospace, monospace); font-size: 10px; line-height: 12px; min-height: 24px; text-align: center; color: #cbd5e1; }
+.bs-op { font-family: ui-monospace, monospace; font-size: 16px; line-height: 20px; font-weight: 700; color: #22d3ee; margin-top: 30px; }
 .bs-board { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
-@media (min-width: 1280px) { .bs-board { grid-template-columns: minmax(0, 3fr) minmax(0, 5fr); } .bs-brow-take, .bs-brow-cond { grid-column: 1 / -1; } }
+@media (min-width: 1280px) { .bs-board { grid-template-columns: minmax(0, 3fr) minmax(0, 5fr); } .bs-brow-take, .bs-brow-cond, .bs-brow-holo { grid-column: 1 / -1; } }
 .bs-brow { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 8px; align-items: start; background: #0f172a; border: 1px solid #1e293b; border-left: 4px solid #475569; border-radius: 4px; padding: 6px 10px; }
 .bs-blabel { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
-.bs-subs { display: flex; flex-wrap: wrap; gap: 4px 0; min-width: 0; }
-.bs-sub { display: flex; flex-direction: column; gap: 1px; padding: 0 10px; border-left: 1px dashed #334155; }
-.bs-sub:first-child { padding-left: 0; border-left: 0; }
-/* 取るの 優先度 高・低 はどちらも1行ずつになるので、縦に積んで区切りは横線に */
-.bs-brow-take .bs-subs { flex-direction: column; gap: 4px; }
-.bs-brow-take .bs-sub { padding: 0; border-left: 0; }
-.bs-brow-take .bs-sub + .bs-sub { border-top: 1px dashed #334155; padding-top: 4px; }
+/* 小区分の区切り線は左の余白に置き、折り返して行頭に来たときは .bs-subs の外にはみ出して見えない（アイコンの左端がずれない） */
+.bs-subs { display: flex; flex-wrap: wrap; gap: 4px 20px; min-width: 0; overflow: hidden; }
+.bs-sub { position: relative; display: flex; flex-direction: column; gap: 1px; }
+.bs-sub::before { content: ''; position: absolute; left: -10px; top: 0; bottom: 0; border-left: 1px dashed #334155; }
+.bs-gnote { flex: 1 1 260px; max-width: 520px; align-self: center; font-size: 11.5px; line-height: 1.55; color: #ddd6fe; padding: 6px 10px; border-radius: 3px; background: rgba(167, 139, 250, .1); }
+.bs-v-holoS, .bs-v-holoE { border-left-color: #a78bfa; }
 .bs-sublabel { font-size: 11px; font-weight: 800; color: #e2e8f0; line-height: 1.3; }
 .bs-tiles { display: flex; flex-wrap: wrap; gap: 4px 2px; }
 .bs-tile { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 72px; font-size: 10px; line-height: 1.15; text-align: center; color: #cbd5e1; cursor: pointer; }
@@ -722,7 +722,7 @@ body {
 @media (max-width: 640px) {
     .bs-brow { grid-template-columns: minmax(0, 1fr); }
     .bs-blabel { flex-direction: row; align-items: center; gap: 8px; }
-    .bs-sub { padding: 0; border-left: 0; width: 100%; }
+    .bs-sub { width: 100%; }
 }
 .bs-toolbar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; background: #020617; border-bottom: 1px solid #1e293b; margin-top: 8px; box-shadow: 0 -24px 0 #020617; }
 .bs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 8px; }
@@ -737,7 +737,10 @@ body {
 .bs-v-fus .bs-gc, .bs-v-key .bs-gc, .bs-v-hi .bs-gc, .bs-v-lo .bs-gc { background: rgba(74, 222, 128, .1); }
 .bs-v-job .bs-gc, .bs-v-speed .bs-gc, .bs-v-other .bs-gc { background: rgba(250, 204, 21, .1); }
 .bs-v-avoid .bs-gc { background: rgba(251, 113, 133, .1); }
-.bs-twarn { color: #fb7185; margin-top: 1px; }
+/* 名前が1〜3行で違っても、系統タグはその行のいちばん下にそろえる */
+.bs-tile .bs-tcat { margin-top: auto; padding-top: 1px; }
+.bs-sub > .bs-tiles { flex: 1 1 auto; }
+.bs-warntag { position: absolute; left: 50%; bottom: 1px; transform: translateX(-50%); white-space: nowrap; font-size: 9px; font-weight: 900; line-height: 12px; padding: 0 4px; border-radius: 3px; background: #e11d48; color: #fff; box-shadow: 0 0 0 1.5px #0f172a; }
 .bs-tico { position: relative; display: inline-flex; }
 .bs-warnmark { position: absolute; top: -4px; right: -6px; width: 15px; height: 15px; border-radius: 999px; background: #e11d48; color: #fff; font-size: 11px; font-weight: 900; line-height: 15px; text-align: center; box-shadow: 0 0 0 2px #0f172a; }
 .bs-warn { font-size: 12px; line-height: 1.5; padding: 4px 8px; border-radius: 3px; background: rgba(225, 29, 72, .14); color: #fda4af; }

@@ -6,10 +6,11 @@
  */
 const libaeBattlesim = (() => {
     // v = 分類（2026-11-17 bi 指定）。fus フュージョン素材／key だいじ（Return Protocol、上に別枠）／
-    //     取る: hi 優先度 高・lo 優先度 低／状況次第: job 職次第・speed 高速周回用・other その他／avoid 取ってはいけない／bug マイナス効果
+    //     取る: hi 優先度 高・lo 優先度 低／状況次第: job 職次第・speed 高速周回用・other その他／
+    //     ホログラム系: holoS Simulation M/B/T/P（1種類だけ）・holoE Enhancement M/B/T/P（全部取れる）／avoid 取ってはいけない／bug マイナス効果
     // cat = 系統（atk 火力／def 防御・回復／holo ホログラム強化／res EXP・Bytes／util 特殊／use 使用型（使うと消費。Dummy Mapae・Garbage Collection・Desynced Timer だけ、bi 確認）／bug バグ）
     // gc = ガイドの評価、note = 元の一覧と値が違う項目の注記、tip = ゲーム内のツールチップ名、
-    // warn = 取る前に知っておきたい注意（一覧のアイコンに赤い ! と、カードに赤い注意書きを出す）、warnTag = 一覧のアイコンの下に出す短い注意
+    // warn = 取る前に知っておきたい注意（一覧のアイコンに赤い ! と、カードに赤い注意書きを出す）、warnTag = 一覧のアイコンの下端に重ねる短い注意
     const PROGRAMS = [
         {"v": "fus", "name": "Creaking Limb", "icon": "creaking-limb", "cat": "atk", "eff": ["攻撃力・魔力 +20、移動速度 -20"], "gc": "素材①。単体ではマイナス寄りでも融合のために取る", "note": "手元の一覧では +10（+20表記あり）。データは +20"},
         {"v": "fus", "name": "Broken Heart", "icon": "broken-heart", "cat": "def", "eff": ["専用ポーション回復量 +30%", "被ダメージ +10%"], "gc": "素材②。単体ではマイナス寄りでも融合のために取る"},
@@ -41,20 +42,20 @@ const libaeBattlesim = (() => {
         {"v": "avoid", "name": "Entropy", "icon": "entropy", "cat": "atk", "eff": ["最終ダメージ +50%", "フロア入場時、30%の確率で [Disorder] が1スタック", "[Disorder] が3スタックになるとダンジョンから自動退出"], "gc": "フロアに入るたび30%でスタックが溜まり、3つで強制退出。死亡扱いではないので復活系も効かない"},
         {"v": "avoid", "name": "Black Box", "icon": "black-box", "cat": "util", "eff": ["入手した瞬間にランダムなプログラムを3つ獲得し、所持プログラムからランダムに2つ削除（再入手すると再発動）"], "gc": "3つもらえる代わりに自分のプログラムが2つ消える。大事なものを消されるリスクが見合わない"},
         {"v": "avoid", "name": "Dependency Injection", "icon": "dependency-injection", "cat": "res", "eff": ["フロア入場時に 50 Bytes を消費し、次のどちらかを得る", "・アイテムドロップ率 +40%、獲得EXP +10%", "・獲得EXP +40%、アイテムドロップ率 +10%", "Bytesが足りないと発動しない"], "gc": "毎フロア50 Bytes払う系。Buffer Overflow・Inspector's Stamp を取っているときだけコストが見合うので取ってもいい（上の「組み合わせ」、ユーザー判断）。ガイドでは：序盤は厳禁。ルートルームで買い物するBytesが足りなくなる。収入が育った後半向け"},
-        {"v": "lo", "name": "Simulation Enhancement: M", "icon": "simulation-enhancement-m", "cat": "holo", "eff": ["投影魔法使いの [Hologram] Bolt Barrage ダメージ +10 / 20 / 30%"], "gc": "Jailbreak系（ホログラム投影の強化）。ガイドでは火力が低く優先度は最下位クラスだが、ユーザー判断で「取る（優先度 低）」に分類", "tip": "Type-M Jailbreak"},
-        {"v": "lo", "name": "Simulation Enhancement: B", "icon": "simulation-enhancement-b", "cat": "holo", "eff": ["投影弓使いの [Hologram] Ultimate Snipe ダメージ +10 / 20 / 30%"], "gc": "Jailbreak系。ガイドでは優先度最下位クラス。ユーザー判断で「取る（優先度 低）」に分類", "tip": "Type-B Jailbreak"},
-        {"v": "lo", "name": "Simulation Enhancement: T", "icon": "simulation-enhancement-t", "cat": "holo", "eff": ["投影盗賊の [Hologram] Shurrikane ダメージ +10 / 20 / 30%"], "gc": "Jailbreak系。ガイドでは優先度最下位クラス。ユーザー判断で「取る（優先度 低）」に分類", "tip": "Type-T Jailbreak"},
-        {"v": "lo", "name": "Simulation Enhancement: P", "icon": "simulation-enhancement-p", "cat": "holo", "eff": ["投影海賊の [Hologram] Rolling Rainbow ダメージ +10 / 20 / 30%"], "gc": "Jailbreak系。ガイドでは優先度最下位クラス。ユーザー判断で「取る（優先度 低）」に分類", "tip": "Type-P Jailbreak"},
+        {"v": "holoE", "name": "Simulation Enhancement: M", "icon": "simulation-enhancement-m", "cat": "holo", "eff": ["投影魔法使いの [Hologram] Bolt Barrage ダメージ +10 / 20 / 30%"], "gc": "Jailbreak系（ホログラム投影の強化）。ガイドでは火力が低く優先度は最下位クラス。Enhancement は全種類取れる。ユーザー判断で「ホログラム系」に分類", "tip": "Type-M Jailbreak"},
+        {"v": "holoE", "name": "Simulation Enhancement: B", "icon": "simulation-enhancement-b", "cat": "holo", "eff": ["投影弓使いの [Hologram] Ultimate Snipe ダメージ +10 / 20 / 30%"], "gc": "Jailbreak系。ガイドでは優先度最下位クラス。Enhancement は全種類取れる。ユーザー判断で「ホログラム系」に分類", "tip": "Type-B Jailbreak"},
+        {"v": "holoE", "name": "Simulation Enhancement: T", "icon": "simulation-enhancement-t", "cat": "holo", "eff": ["投影盗賊の [Hologram] Shurrikane ダメージ +10 / 20 / 30%"], "gc": "Jailbreak系。ガイドでは優先度最下位クラス。Enhancement は全種類取れる。ユーザー判断で「ホログラム系」に分類", "tip": "Type-T Jailbreak"},
+        {"v": "holoE", "name": "Simulation Enhancement: P", "icon": "simulation-enhancement-p", "cat": "holo", "eff": ["投影海賊の [Hologram] Rolling Rainbow ダメージ +10 / 20 / 30%"], "gc": "Jailbreak系。ガイドでは優先度最下位クラス。Enhancement は全種類取れる。ユーザー判断で「ホログラム系」に分類", "tip": "Type-P Jailbreak"},
         {"v": "bug", "name": "Bug: Clogged Fan", "icon": "bug-clogged-fan", "cat": "bug", "eff": ["最終ダメージ -5%"]},
         {"v": "bug", "name": "Bug: Deadlock", "icon": "bug-deadlock", "cat": "bug", "eff": ["移動速度 -20"], "tip": "Bug: Glass Slippers"},
         {"v": "bug", "name": "Bug: Battery Drain", "icon": "bug-battery-drain", "cat": "bug", "eff": ["獲得EXP -20%"], "tip": "Bug: Empty Battery"},
         {"v": "bug", "name": "Bug: Underflow", "icon": "bug-underflow", "cat": "bug", "eff": ["獲得Bytes -20%"], "tip": "Bug: Goose Egg"},
         {"v": "bug", "name": "Bug: Off-By-One", "icon": "bug-off-by-one", "cat": "bug", "eff": ["選べるプログラムの数 -1"], "tip": "Bug: Blue Pill"},
         {"v": "job", "name": "Memory Leak", "icon": "memory-leak", "cat": "atk", "eff": ["所持プログラム1つにつき最終ダメージ +1%（最大20）", "10秒ごとに最大HPの3%が減少"]},
-        {"v": "lo", "name": "Simulation M", "icon": "simulation-m", "cat": "holo", "eff": ["ホログラムスキルで攻撃時、投影された魔法使いが [Hologram] Bolt Barrage を使用し [Hologram] Format を発動", "投影の Format からも [Hologram] Defrag が発動可能"], "gc": "ユーザー判断で「取る（優先度 低）」に分類（ガイドでの言及なし）。Type系の投影は互いに上書きされるので全部は集められない", "tip": "Type-M Projection"},
-        {"v": "lo", "name": "Simulation B", "icon": "simulation-b", "cat": "holo", "eff": ["ホログラムスキルで攻撃時、投影された弓使いが [Hologram] Ultimate Snipe を使用し [Hologram] Format を発動", "投影の Format からも [Hologram] Defrag が発動可能"], "gc": "ユーザー判断で「取る（優先度 低）」に分類（ガイドでの言及なし）。Type系の投影は互いに上書きされるので全部は集められない", "tip": "Type-B Projection"},
-        {"v": "lo", "name": "Simulation T", "icon": "simulation-t", "cat": "holo", "eff": ["ホログラムスキルで攻撃時、投影された盗賊が [Hologram] Shurrikane を使用し [Hologram] Format を発動", "投影の Format からも [Hologram] Defrag が発動可能"], "gc": "ユーザー判断で「取る（優先度 低）」に分類（ガイドでの言及なし）。Type系の投影は互いに上書きされるので全部は集められない", "tip": "Type-T Projection"},
-        {"v": "lo", "name": "Simulation P", "icon": "simulation-p", "cat": "holo", "eff": ["ホログラムスキルで攻撃時、投影された海賊が [Hologram] Rolling Rainbow を使用し [Hologram] Format を発動", "投影の Format からも [Hologram] Defrag が発動可能"], "gc": "ユーザー判断で「取る（優先度 低）」に分類（ガイドでの言及なし）。Type系の投影は互いに上書きされるので全部は集められない", "tip": "Type-P Projection"},
+        {"v": "holoS", "name": "Simulation M", "icon": "simulation-m", "cat": "holo", "eff": ["ホログラムスキルで攻撃時、投影された魔法使いが [Hologram] Bolt Barrage を使用し [Hologram] Format を発動", "投影の Format からも [Hologram] Defrag が発動可能"], "gc": "Simulation 系（投影）は1種類しか持てず、別の種類を取ると上書きされる。ユーザー判断で「ホログラム系」に分類（ガイドでの言及なし）", "tip": "Type-M Projection"},
+        {"v": "holoS", "name": "Simulation B", "icon": "simulation-b", "cat": "holo", "eff": ["ホログラムスキルで攻撃時、投影された弓使いが [Hologram] Ultimate Snipe を使用し [Hologram] Format を発動", "投影の Format からも [Hologram] Defrag が発動可能"], "gc": "Simulation 系（投影）は1種類しか持てず、別の種類を取ると上書きされる。ユーザー判断で「ホログラム系」に分類（ガイドでの言及なし）", "tip": "Type-B Projection"},
+        {"v": "holoS", "name": "Simulation T", "icon": "simulation-t", "cat": "holo", "eff": ["ホログラムスキルで攻撃時、投影された盗賊が [Hologram] Shurrikane を使用し [Hologram] Format を発動", "投影の Format からも [Hologram] Defrag が発動可能"], "gc": "Simulation 系（投影）は1種類しか持てず、別の種類を取ると上書きされる。ユーザー判断で「ホログラム系」に分類（ガイドでの言及なし）", "tip": "Type-T Projection"},
+        {"v": "holoS", "name": "Simulation P", "icon": "simulation-p", "cat": "holo", "eff": ["ホログラムスキルで攻撃時、投影された海賊が [Hologram] Rolling Rainbow を使用し [Hologram] Format を発動", "投影の Format からも [Hologram] Defrag が発動可能"], "gc": "Simulation 系（投影）は1種類しか持てず、別の種類を取ると上書きされる。ユーザー判断で「ホログラム系」に分類（ガイドでの言及なし）", "tip": "Type-P Projection"},
         {"v": "other", "name": "Rubber Duck", "icon": "rubber-duck", "cat": "util", "eff": ["効果は一切なし"], "note": "手元の一覧ではコード枠にも同名あり。データ上はプログラム1種のみ"},
         {"v": "other", "name": "Dummy Mapae", "icon": "dummy-mapae", "cat": "use", "eff": ["命中した敵を5秒間スタン", "ボスを含め15体まで適用。使用すると消費"]},
     ];
@@ -67,6 +68,8 @@ const libaeBattlesim = (() => {
         { id: 'job', group: 'cond', sub: '職次第', label: '状況次第', badge: 'badge-warning badge-soft', border: '#facc15', meta: '職業によって強さが変わる' },
         { id: 'speed', group: 'cond', sub: '高速周回用', label: '状況次第', badge: 'badge-warning badge-soft', border: '#facc15', meta: '火力が足りていて速く回したいとき' },
         { id: 'other', group: 'cond', sub: 'その他', label: '状況次第', badge: 'badge-warning badge-soft', border: '#facc15', meta: '必要に応じて' },
+        { id: 'holoS', group: 'holo', sub: 'Simulation（1種類だけ）', label: 'ホログラム系', badge: 'badge-secondary badge-soft', border: '#a78bfa', meta: '投影は1種類しか持てない。別の種類を取ると上書き' },
+        { id: 'holoE', group: 'holo', sub: 'Enhancement（全部取れる）', label: 'ホログラム系', badge: 'badge-secondary badge-soft', border: '#a78bfa', meta: '強化は全種類取れるが、効くのは持っている投影の種類だけ' },
         { id: 'avoid', label: '取ってはいけない', badge: 'badge-error', border: '#fb7185', meta: '取ると損をするもの' },
         { id: 'bug', label: 'マイナス効果', badge: 'badge-error badge-outline', border: '#9f1239', meta: '効果がマイナスだけのバグ枠' },
     ];
@@ -76,6 +79,8 @@ const libaeBattlesim = (() => {
         { id: 'fus', label: 'フュージョン', vs: ['fus'] },
         { id: 'take', label: '取る', vs: ['hi', 'lo'] },
         { id: 'cond', label: '状況次第', vs: ['job', 'speed', 'other'] },
+        // W 以外のホログラム系は、仕組みの注釈を付けて別の段に（bi 指定）
+        { id: 'holo', label: 'ホログラム系', vs: ['holoS', 'holoE'], note: 'Simulation（投影）は1種類しか持てず、別の種類を取ると上書きされる。上書きできるので、W が出るまで仮に取っておくのはあり。Simulation Enhancement は全種類取れるが、効くのは持っている投影と同じ種類だけ。おすすめは W（優先度 低）。' },
         { id: 'avoid', label: '取ってはいけない', vs: ['avoid'] },
         { id: 'bug', label: 'マイナス効果', vs: ['bug'] },
     ];
@@ -131,7 +136,7 @@ const libaeBattlesim = (() => {
         </section>`).join('');
     }
     function tileHTML(p) {
-        return `<button type="button" class="bs-tile" data-bs-go="${esc(p.name)}" title="${esc(p.name)}${p.warn ? `（注意: ${esc(p.warn)}）` : ''} の説明へ"><span class="bs-tico">${img(p, 40)}${p.warn ? '<b class="bs-warnmark" aria-hidden="true">!</b>' : ''}</span><span>${esc(p.name)}</span><i class="bs-tcat" style="color:${CATS[p.cat].color}">${esc(CATS[p.cat].label)}</i>${p.warnTag ? `<i class="bs-tcat bs-twarn">${esc(p.warnTag)}</i>` : ''}</button>`;
+        return `<button type="button" class="bs-tile" data-bs-go="${esc(p.name)}" title="${esc(p.name)}${p.warn ? `（注意: ${esc(p.warn)}）` : ''} の説明へ"><span class="bs-tico">${img(p, 40)}${p.warn ? '<b class="bs-warnmark" aria-hidden="true">!</b>' : ''}${p.warnTag ? `<b class="bs-warntag">${esc(p.warnTag)}</b>` : ''}</span><span>${esc(p.name)}</span><i class="bs-tcat" style="color:${CATS[p.cat].color}">${esc(CATS[p.cat].label)}</i></button>`;
     }
     // 段ごとに、小区分（優先度 高・低／職次第・高速周回用・その他）を横に詰めて並べる。
     // 取ってはいけない・マイナス効果は数が少ないので、広い画面では2つを横に並べる
@@ -145,7 +150,7 @@ const libaeBattlesim = (() => {
                 <div class="bs-subs">${subs.map((v) => {
                     const ps = PROGRAMS.filter((p) => p.v === v.id);
                     return `<div class="bs-sub">${v.sub ? `<span class="bs-sublabel">${esc(v.sub)}</span>` : ''}<div class="bs-tiles">${ps.map(tileHTML).join('')}</div></div>`;
-                }).join('')}</div>
+                }).join('')}${g.note ? `<p class="bs-gnote">${esc(g.note)}</p>` : ''}</div>
             </div>`;
         });
         return h + '</section>';
