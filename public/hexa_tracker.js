@@ -14,11 +14,11 @@ const hexaTracker = {
     // 討伐時間の補正（強化順マップ）。秒数はその戦闘で何秒打つかの目安。
     // 「補正なし」は元データのまま（20分戦闘とみなす）。それより長い戦闘は考えない（bi 指定）。
     FIGHT_OPTIONS: [
-        { sec: 0,   label: '補正なし',     hint: '元データのまま（20分戦闘とみなす）' },
-        { sec: 30,  label: '開幕瞬間のみ', hint: '30秒' },
-        { sec: 150, label: '1瞬間',        hint: '150秒（開幕＋2分後の瞬間）' },
-        { sec: 270, label: '2瞬間',        hint: '270秒（開幕＋2分後・4分後の瞬間）' },
-        { sec: 390, label: '2オリジン',    hint: '390秒（開幕と6分後にオリジン）' },
+        { sec: 0,   label: '補正なし', hint: '元データのまま（20分戦闘とみなす）' },
+        { sec: 30,  label: '30秒',     hint: '30秒で倒す' },
+        { sec: 150, label: '150秒',    hint: '150秒で倒す' },
+        { sec: 270, label: '270秒',    hint: '270秒で倒す' },
+        { sec: 390, label: '390秒',    hint: '390秒で倒す' },
     ],
     FIGHT_BASE_SEC: 1200,       // 元データの最終ダメージを何秒の戦闘の値とみなすか
     CT_OPTIONS: [0, 60, 120, 360],
@@ -1163,7 +1163,7 @@ const hexaTracker = {
     buildFightControls() {
         const sec = this.fightOf(this.modalTrackingId);
         const fightBtns = this.FIGHT_OPTIONS.map(o => `<button onclick="hexaTracker.setFight(${o.sec})" title="${o.hint}"
-            class="px-2.5 py-1 text-[11px] font-bold whitespace-nowrap transition-colors ${sec === o.sec ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'}">${o.label}${o.sec ? `<span class="ml-1 font-normal ${sec === o.sec ? 'text-violet-200' : 'text-slate-500'}">${o.sec}s</span>` : ''}</button>`).join('');
+            class="px-2.5 py-1 text-[11px] font-bold whitespace-nowrap transition-colors ${sec === o.sec ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'}">${o.label}</button>`).join('');
         const set = this.ctSummary(this.modalClassId);
         return `<div class="flex flex-wrap items-center gap-x-4 gap-y-2 border border-slate-800 bg-slate-900 px-2.5 py-2 mb-2">
             <div class="flex items-center gap-2">
@@ -1215,12 +1215,9 @@ const hexaTracker = {
         return `<div>
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 mb-2 px-1">
                 <span>${this.escHtml(this.getClassInfo(classId)?.name || cls.gms || '')} 共通</span>
-                <span>討伐時間 <span class="font-bold text-slate-200">${fight && sec ? `${fight.label}（${sec}s）` : '補正なし'}</span></span>
+                <span>討伐時間 <span class="font-bold text-slate-200">${fight ? fight.label : '補正なし'}</span></span>
             </div>
             <div class="bg-slate-900/40 border border-slate-800 divide-y divide-slate-800/40">${rows}</div>
-            <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
-                強化順マップで討伐時間を選んだとき、ここで選んだCTから短い戦闘での伸びを見積もって順番を組み直します。右の倍率はその見積もりです（討伐時間が「補正なし」のときは出ません）。
-            </p>
         </div>`;
     },
 
