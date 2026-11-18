@@ -75,6 +75,14 @@ const hexaTracker = {
         return (window.HEXA_CLASS_SKILLS || []).find(c => c.id === id);
     },
 
+    // Classes added by hand with an outside build order but no Final Damage
+    // weights yet (hexa_lethe.js). Their 強化順マップ follows cls.order, and FD
+    // shows as "—".
+    isProvisional(classId) {
+        const cls = this.getClassSkills(classId);
+        return !!(cls && cls.provisional);
+    },
+
     getClassInfo(id) {
         for (const group of Object.values(window.CLASS_DATA || {})) {
             const f = group.find(c => c.id === id);
@@ -198,7 +206,7 @@ const hexaTracker = {
     // figure, so damage math leaves them out entirely. They stay on the board so
     // you can still record their level.
     countsForDamage(skill) {
-        return skill.fd > 0;
+        return skill.fd > 0 || !!skill.prov;
     },
 
     // Every aggregate on every tab is built from these.
@@ -210,7 +218,7 @@ const hexaTracker = {
     // so it stays out of the FD math and the plan, but its fragment / Sol Erda
     // cost still counts toward the resource totals and the HEXA %.
     isThird(skill) {
-        return skill.type === 'third';
+        return skill.type === 'third' && !skill.prov;
     },
 
     // Nodes whose cost goes into the フラグメント / ソルエルダ totals.
@@ -237,7 +245,7 @@ const hexaTracker = {
         };
         if (!this.getClassSkills(classId)) return empty;
 
-        const out = { ...empty };
+        const out = { ...empty, noFd: this.isProvisional(classId) };
         for (const s of this.costSkills(trackingId, classId)) {
             const lv = this.levelOf(trackingId, s);
             const tg = this.targetOf(trackingId, s);
@@ -378,7 +386,28 @@ const hexaTracker = {
     buildPlan(trackingId, classId) {
         const { skills, current, target, max } = this.planScope(trackingId, classId);
         const upTo = this.planCap === 'max' ? max : target;
+        if (this.isProvisional(classId)) return this.fixedSteps(this.getClassSkills(classId).order, skills, current, upTo);
         return this.mergeSteps(this.planSingles(skills, current, upTo, this.prioritySort === 'erda'));
+    },
+
+    // A provisional class walks its given order instead: each [key, lv] raises
+    // that node to lv, from wherever it is, but never past `to`. Steps already
+    // behind `from` drop out, and one already half done keeps only its rest.
+    // Anything the order leaves short of `to` goes at the end, in board order.
+    fixedSteps(order, skills, from, to) {
+        const byKey = Object.fromEntries(skills.map(s => [s.key, s]));
+        const cursor = { ...from };
+        const singles = [];
+        const raise = (s, lv) => {
+            for (let n = cursor[s.key] + 1; n <= Math.min(lv, to[s.key]); n++) {
+                singles.push({ skill: s, from: n - 1, frag: this.fragAt(s, n) - this.fragAt(s, n - 1),
+                    erda: this.erdaAt(s, n) - this.erdaAt(s, n - 1), fd: 0, ratio: 0 });
+                cursor[s.key] = n;
+            }
+        };
+        for (const [key, lv] of (order || [])) if (byKey[key]) raise(byKey[key], lv);
+        for (const s of this.boardOrder(skills)) raise(s, this.MAX_LEVEL);
+        return this.mergeSteps(singles);
     },
 
     // ========== Efficiency curve ==========
@@ -410,7 +439,8 @@ const hexaTracker = {
     // answers "what do I buy next", one level at a time; this one traces the best
     // rate achievable at each spend level, so it is allowed to commit to a block.
     curveData(trackingId, classId) {
-        const skills = this.damageSkills(trackingId, classId);
+        // No FD weights, nothing to trace. Also keeps the class out of the rankings.
+        const skills = this.isProvisional(classId) ? [] : this.damageSkills(trackingId, classId);
         const cursor = {}, top = {};
         let fd = 0;
         for (const s of skills) {
@@ -779,7 +809,7 @@ const hexaTracker = {
                     <div class="flex-1 min-w-0">
                         <div class="text-[13px] font-bold ${started ? 'text-white' : 'text-base-content/60'} truncate">${this.escHtml(cls.name)}</div>
                         ${started
-                            ? `<div class="text-[10px] text-emerald-300 tabular-nums">+${p.fdNow.toFixed(1)}% <span class="text-base-content/40">/ +${p.fdMax.toFixed(1)}%</span></div>
+                            ? `<div class="text-[10px] text-emerald-300 tabular-nums">${p.noFd ? '<span class="text-base-content/40">FD —</span>' : `+${p.fdNow.toFixed(1)}% <span class="text-base-content/40">/ +${p.fdMax.toFixed(1)}%</span>`}</div>
                                <progress class="progress progress-secondary h-1 w-full block mt-1" value="${p.pct}" max="100"></progress>`
                             : `<div class="text-[10px] text-base-content/40">未入力</div>`}
                     </div>
@@ -903,7 +933,9 @@ const hexaTracker = {
         return `<div class="flex border border-base-content/10 bg-base-200">
             ${block('フラグメント', '#a78bfa', p.fragSpent.toLocaleString(), p.fragTarget.toLocaleString(), p.fragMax.toLocaleString(), remFrag.toLocaleString(), pctOf(p.fragSpent, p.fragMax))}
             ${block('ソルエルダ', '#fbbf24', p.erdaSpent.toLocaleString(), p.erdaTarget.toLocaleString(), p.erdaMax.toLocaleString(), remErda.toLocaleString(), pctOf(p.erdaSpent, p.erdaMax))}
-            ${block('最終ダメージ', '#34d399', `+${p.fdNow.toFixed(1)}%`, `+${p.fdTarget.toFixed(1)}%`, `+${p.fdMax.toFixed(1)}%`, `+${remFd.toFixed(1)}%`, pctOf(p.fdNow, p.fdMax))}
+            ${p.noFd
+                ? block('最終ダメージ', '#34d399', '—', '—', '—', '—', 0)
+                : block('最終ダメージ', '#34d399', `+${p.fdNow.toFixed(1)}%`, `+${p.fdTarget.toFixed(1)}%`, `+${p.fdMax.toFixed(1)}%`, `+${remFd.toFixed(1)}%`, pctOf(p.fdNow, p.fdMax))}
         </div>`;
     },
 
@@ -930,6 +962,9 @@ const hexaTracker = {
                 ? `${s.name}${s.kmsName ? `（KMS: ${s.kmsName}）` : ''}\nGMS未実装のため、最終ダメージと強化順の計算には入れていません。`
                     + `\nフラグメント ${fragNow.toLocaleString()} / 全取得 ${fragMax.toLocaleString()}`
                     + `\nソルエルダ ${this.erdaAt(s, lvl).toLocaleString()} / 全取得 ${this.erdaAt(s, this.MAX_LEVEL).toLocaleString()}（KMSの値）`
+                : s.prov
+                ? `${s.name}\n最終ダメージは元データ待ち（振り順だけ暫定）`
+                    + `\nフラグメント ${fragNow.toLocaleString()} / 全取得 ${fragMax.toLocaleString()}`
                 : counts
                 ? `${s.name}\n最終ダメージ 現在 +${fdNow.toFixed(2)}% / 全取得 +${s.fd.toFixed(2)}%`
                     + `\nフラグメント ${fragNow.toLocaleString()} / 全取得 ${fragMax.toLocaleString()}`
@@ -938,6 +973,7 @@ const hexaTracker = {
             const stat = isExcl ? '<span class="text-base-content/40">除外</span>'
                 : third ? `<span class="text-base-content/40">FD未計算</span><span class="text-base-content/20 mx-1">·</span><span class="text-base-content/50">${fragNow.toLocaleString()}</span>`
                 : !counts ? '<span class="text-base-content/40">火力計算外</span>'
+                : s.prov ? `<span class="text-base-content/40">FD —</span><span class="text-base-content/20 mx-1">·</span><span class="text-base-content/50">${fragNow.toLocaleString()}</span>`
                 : `<span class="text-accent">+${fdNow.toFixed(1)}%</span><span class="text-base-content/20 mx-1">·</span><span class="text-base-content/50">${fragNow.toLocaleString()}</span>`;
 
             const iconUrl = this.getSkillIcon(s);
@@ -1018,7 +1054,7 @@ const hexaTracker = {
             <i data-lucide="undo-2" class="w-3.5 h-3.5 shrink-0"></i>取り消す<span class="inline-flex min-w-0 font-normal text-slate-400">（<span class="max-w-[11rem] truncate">${this.escHtml(last.name)}</span>&nbsp;Lv.${last.to}→${last.fromShown}）</span></button>` : '';
         return `<div class="flex flex-wrap items-center gap-x-5 gap-y-2 border border-slate-800 bg-slate-900 px-2.5 py-2 mb-2">
             ${view}
-            ${group('並べ替え',
+            ${this.isProvisional(this.modalClassId) ? '' : group('並べ替え',
                 seg(this.prioritySort === 'frag', "hexaTracker.setPrioritySort('frag')", 'フラグメント効率', '最終ダメージ / ソルエルダフラグメント で並べ替え')
                 + seg(this.prioritySort === 'erda', "hexaTracker.setPrioritySort('erda')", 'エルダ効率', '最終ダメージ / ソルエルダ で並べ替え'))}
             ${group('上限',
@@ -1038,6 +1074,7 @@ const hexaTracker = {
         const steps = this.buildPlan(trackingId, classId);
         const now = this.getProgress(trackingId, classId);
         const perErda = this.prioritySort === 'erda';
+        const noFd = now.noFd;
 
         const header = this.buildPlanControls();
 
@@ -1046,7 +1083,7 @@ const hexaTracker = {
                 <div class="flex items-center justify-center h-40 text-center text-slate-500">
                     <div><i data-lucide="check-circle-2" class="w-10 h-10 mx-auto mb-3 opacity-30"></i>
                     <p class="text-sm">${this.planCap === 'max' ? '全ノードLv.30に到達済みです' : '目標値に到達済みです'}</p>
-                    <p class="text-xs mt-1">
+                    <p class="text-xs mt-1 ${noFd ? 'hidden' : ''}">
                         最終ダメージ <span class="font-bold text-emerald-300">+${now.fdNow.toFixed(1)}%</span>
                         ${now.fdMax - now.fdNow > 0.05
                             ? ` — 全取得まで残り <span class="font-bold text-amber-300">+${(now.fdMax - now.fdNow).toFixed(1)}%</span>`
@@ -1084,13 +1121,13 @@ const hexaTracker = {
                         · ここまで計 <span class="text-slate-400">${cumFrag.toLocaleString()}</span> フラグメント
                     </div>
                 </div>
-                <div class="text-right shrink-0">
+                ${noFd ? '' : `<div class="text-right shrink-0">
                     <div class="text-sm font-bold text-emerald-300 tabular-nums">+${step.fd.toFixed(2)}%</div>
                     <div class="text-[9px] text-slate-500 tabular-nums" title="${perErda ? 'エルダ1あたりの最終ダメージ' : 'フラグメント100あたりの最終ダメージ'}">
                         ${perErda ? (step.erda > 0 ? (step.fd / step.erda).toFixed(3) : '—') + ' /エルダ'
                                   : (step.frag > 0 ? (step.fd / step.frag * 100).toFixed(3) : '—') + ' /100frag'}
                     </div>
-                </div>
+                </div>`}
                 <button onclick="hexaTracker.markStep('${s.key}', ${step.to})" title="${this.escHtml(s.name)} を Lv.${step.to} にして進捗入力に保存"
                     aria-label="強化済みにする"
                     class="shrink-0 w-8 h-8 inline-flex items-center justify-center border border-slate-600 text-slate-400 hover:border-violet-400 hover:text-violet-200 transition-colors"><i data-lucide="check" class="w-4 h-4"></i></button>
@@ -1103,7 +1140,7 @@ const hexaTracker = {
                 <span>全${steps.length}ステップ</span>
                 <span class="text-violet-300">フラグメント計 <span class="font-bold tabular-nums">${cumFrag.toLocaleString()}</span></span>
                 <span class="text-amber-300">エルダ計 <span class="font-bold tabular-nums">${cumErda.toLocaleString()}</span></span>
-                <span class="text-emerald-300" title="この計画をやりきったときに増える最終ダメージ。実ダメージでは +${this.damageGain(now.fdNow, now.fdNow + cumFd).toFixed(1)}% です。">
+                <span class="text-emerald-300 ${noFd ? 'hidden' : ''}" title="この計画をやりきったときに増える最終ダメージ。実ダメージでは +${this.damageGain(now.fdNow, now.fdNow + cumFd).toFixed(1)}% です。">
                     最終ダメージ <span class="font-bold tabular-nums">+${now.fdNow.toFixed(1)}%</span>
                     <span class="text-slate-500">→</span>
                     <span class="font-bold tabular-nums">+${(now.fdNow + cumFd).toFixed(1)}%</span>
@@ -1111,9 +1148,11 @@ const hexaTracker = {
                 </span>
             </div>
             <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-2 divide-y divide-slate-800/40">${rows}</div>
-            <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
+            <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">${noFd
+                ? `暫定の振り順（元データにまだないため、別の情報源の順番）を、現在地から${this.planCap === 'max' ? '全ノードLv.30' : '目標値'}まで並べたものです。リソース消費量は正確な値です。`
+                : `
                 現在地から${this.planCap === 'max' ? '全ノードLv.30' : '目標値'}まで、1レベルずつ「最終ダメージ / 消費リソース」が最大の一手を選び続けた順序です。
-                同じスキルの連続レベルは1ステップにまとめています。リソース消費量は正確な値、最終ダメージ量はノード係数からの推定値です。
+                同じスキルの連続レベルは1ステップにまとめています。リソース消費量は正確な値、最終ダメージ量はノード係数からの推定値です。`}
             </p>
         </div>`;
     },
@@ -1154,7 +1193,7 @@ const hexaTracker = {
             const icon = iconUrl
                 ? `<img src="${iconUrl}" class="w-8 h-8 object-contain" loading="lazy" alt="">`
                 : `<div class="w-8 h-8 flex items-center justify-center text-[11px] font-bold text-white" style="background:${sCfg.badge}">${sCfg.label}</div>`;
-            const hint = `${i + 1}. ${s.name}\nLv.${step.from} → ${step.to}\nフラグメント ${step.frag.toLocaleString()}（計 ${cumFrag.toLocaleString()}）\nエルダ ${step.erda.toLocaleString()}\n最終ダメージ +${step.fd.toFixed(2)}%（計 +${fd.toFixed(1)}%）\n\nクリックで強化済みに（Lv.${step.to} を進捗入力に保存）`;
+            const hint = `${i + 1}. ${s.name}\nLv.${step.from} → ${step.to}\nフラグメント ${step.frag.toLocaleString()}（計 ${cumFrag.toLocaleString()}）\nエルダ ${step.erda.toLocaleString()}${now.noFd ? '' : `\n最終ダメージ +${step.fd.toFixed(2)}%（計 +${fd.toFixed(1)}%）`}\n\nクリックで強化済みに（Lv.${step.to} を進捗入力に保存）`;
             // Mark the tile that carries you past each 10% of max Final Damage.
             let crossed = null;
             while (nextMark <= 100 && pctOf(fd) >= nextMark - 1e-9) { crossed = nextMark; nextMark += 10; }
@@ -1168,18 +1207,20 @@ const hexaTracker = {
 
         return `<div>
             ${header}
-            ${this.buildPlanSummary(steps.length, cumFrag, cumErda, now.fdNow, fd)}
+            ${this.buildPlanSummary(steps.length, cumFrag, cumErda, now.noFd ? null : now.fdNow, fd)}
             <div class="grid gap-1" style="grid-template-columns:repeat(auto-fill,minmax(58px,1fr))">${tiles}</div>
             <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
                 効率順と同じ順番を、左上から右へ並べたものです。数字は「今のLv→上げた後のLv」。マスにマウスを乗せると消費量が出ます。クリックすると強化済みとして進捗入力に保存します。
-                緑の枠と%は、そのマスで全取得時の最終ダメージの何%に届くかの目印です。
+                ${now.noFd ? '' : '緑の枠と%は、そのマスで全取得時の最終ダメージの何%に届くかの目印です。'}
             </p>
         </div>`;
     },
 
     // One line of totals over every 強化順マップ view, with the node-type legend.
     buildPlanSummary(count, frag, erda, fdFrom, fdTo) {
-        const legend = ['origin', 'ascent', 'mastery', 'enhance', 'common'].map(t => {
+        // A provisional board (hexa_lethe.js) puts the 3rd Skill Core in its order too.
+        const types = ['origin', 'ascent', ...(this.isProvisional(this.modalClassId) ? ['third'] : []), 'mastery', 'enhance', 'common'];
+        const legend = types.map(t => {
             const c = this.SKILL_TYPE_CONFIG[t];
             return `<span class="inline-flex items-center gap-1"><span class="inline-block w-2.5 h-0.5" style="background:${c.badge}"></span>${c.title}</span>`;
         }).join('');
@@ -1187,7 +1228,7 @@ const hexaTracker = {
             <span>全${count}ステップ</span>
             <span class="text-violet-300">フラグメント計 <span class="font-bold tabular-nums">${frag.toLocaleString()}</span></span>
             <span class="text-amber-300">エルダ計 <span class="font-bold tabular-nums">${erda.toLocaleString()}</span></span>
-            <span class="text-emerald-300">最終ダメージ <span class="font-bold tabular-nums">+${fdFrom.toFixed(1)}%</span> <span class="text-slate-500">→</span> <span class="font-bold tabular-nums">+${fdTo.toFixed(1)}%</span></span>
+            ${fdFrom === null ? '' : `<span class="text-emerald-300">最終ダメージ <span class="font-bold tabular-nums">+${fdFrom.toFixed(1)}%</span> <span class="text-slate-500">→</span> <span class="font-bold tabular-nums">+${fdTo.toFixed(1)}%</span></span>`}
             <span class="ml-auto flex items-center gap-3 text-[10px] text-slate-500">${legend}</span>
         </div>`;
     },
@@ -1216,7 +1257,9 @@ const hexaTracker = {
         // The timeline starts from an untouched board. The levels you already
         // have come first, in the order the same greedy rule would have taken
         // them, so where you are now is an exact point on the line.
-        const past = this.mergeSteps(this.planSingles(skills, start, current, this.prioritySort === 'erda'));
+        const past = this.isProvisional(classId)
+            ? this.fixedSteps(this.getClassSkills(classId).order, skills, start, current)
+            : this.mergeSteps(this.planSingles(skills, start, current, this.prioritySort === 'erda'));
         const singles = [];
         const frag = [fragBase], erda = [erdaBase], fd = [fdBase];
         const segs = [];
@@ -1294,7 +1337,7 @@ const hexaTracker = {
         const total = { frag: tl.frag[L] - tl.frag[tl.nowK], erda: tl.erda[L] - tl.erda[tl.nowK], fd: tl.fd[L] };
         const html = `<div>
             ${this.buildPlanControls()}
-            ${this.buildPlanSummary(steps.length, total.frag, total.erda, now.fdNow, total.fd)}
+            ${this.buildPlanSummary(steps.length, total.frag, total.erda, now.noFd ? null : now.fdNow, total.fd)}
             <div class="border border-slate-800 bg-slate-900 select-none">
                 <div class="flex border-b border-slate-800">
                     <div class="shrink-0 border-r border-slate-800 px-1.5 flex items-center justify-between text-[9px] text-slate-500" style="width:${LABEL_W}px">
@@ -1327,8 +1370,8 @@ const hexaTracker = {
             </div>
             <div id="tl-readout" class="mt-2"></div>
             <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
-                未強化の盤面からの強化順を、ノードごとの行に分けて並べました。今までに上げた分も同じ効率の順に並べ、その先は効率順と同じ順番です。横軸は使ったフラグメントで、帯の幅がその一手の消費量、帯の数字は上げた後のLvです。
-                線は最初、今の進捗（点線）の位置にあります。上のバーか図の上をドラッグすると線が動き、その時点の各ノードのLv（白は今より上、暗いのは今より下）と、そこまでの消費量・最終ダメージが下に出ます。バーの白い目印を押すと今の進捗に戻り、緑の%を押すと全取得時FDのその割合に届く位置へ飛びます。
+                未強化の盤面からの強化順を、ノードごとの行に分けて並べました。今までに上げた分も同じ${now.noFd ? '' : '効率の'}順に並べ、その先は効率順と同じ順番です。横軸は使ったフラグメントで、帯の幅がその一手の消費量、帯の数字は上げた後のLvです。
+                線は最初、今の進捗（点線）の位置にあります。上のバーか図の上をドラッグすると線が動き、その時点の各ノードのLv（白は今より上、暗いのは今より下）と、そこまでの消費量・最終ダメージが下に出ます。バーの白い目印を押すと今の進捗に戻り${now.noFd ? 'ます。' : '、緑の%を押すと全取得時FDのその割合に届く位置へ飛びます。'}
             </p>
         </div>`;
         // Fill in the line-dependent parts once the markup is in the page.
@@ -1438,7 +1481,7 @@ const hexaTracker = {
             <div class="flex flex-wrap gap-x-4 gap-y-0.5 px-2 py-1 border-b border-slate-800 text-[10px] text-slate-500">
                 ${stat('フラグメント', fragAll.toLocaleString(), `(${diff(fragAll - now.fragSpent)} / ${now.fragMax.toLocaleString()})`, '#c4b5fd')}
                 ${stat('ソルエルダ', erdaAll.toLocaleString(), `(${diff(erdaAll - now.erdaSpent)} / ${now.erdaMax.toLocaleString()})`, '#fcd34d')}
-                ${stat('最終ダメージ', `+${fd.toFixed(1)}%`, `(全取得時の ${fdPct.toFixed(1)}%)`, '#6ee7b7')}
+                ${now.noFd ? '' : stat('最終ダメージ', `+${fd.toFixed(1)}%`, `(全取得時の ${fdPct.toFixed(1)}%)`, '#6ee7b7')}
                 ${stat('進捗', `${pct.toFixed(1)}%`, '(フラグメント換算)', '#a5b4fc')}
             </div>
             <div class="grid border-l border-slate-800 -ml-px" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${nodes}</div>
@@ -1463,7 +1506,7 @@ const hexaTracker = {
         if (curve.totalFrag <= 0) {
             return `<div class="flex items-center justify-center h-40 text-center text-slate-500">
                 <div><i data-lucide="activity" class="w-10 h-10 mx-auto mb-3 opacity-30"></i>
-                <p class="text-sm">この職業はまだ効率を計算できるノードがありません</p></div>
+                <p class="text-sm">${this.isProvisional(classId) ? '最終ダメージの元データがまだないため、効率カーブは出せません' : 'この職業はまだ効率を計算できるノードがありません'}</p></div>
             </div>`;
         }
 
@@ -2126,7 +2169,7 @@ const hexaTracker = {
 
     buildModalHeaderStat() {
         const p = this.getProgress(this.modalTrackingId, this.modalClassId);
-        return `<span title="いま出ている最終ダメージ / 全取得時">FD <b class="font-['Saira_Condensed'] text-base text-emerald-300">+${p.fdNow.toFixed(1)}%</b> / +${p.fdMax.toFixed(1)}%</span>
+        return `<span title="いま出ている最終ダメージ / 全取得時">FD ${p.noFd ? '—' : `<b class="font-['Saira_Condensed'] text-base text-emerald-300">+${p.fdNow.toFixed(1)}%</b> / +${p.fdMax.toFixed(1)}%`}</span>
             <span title="投入済みフラグメント / 全取得に必要なフラグメント">欠片 <b class="font-['Saira_Condensed'] text-base text-violet-300">${p.fragSpent.toLocaleString()}</b> / ${p.fragMax.toLocaleString()}</span>
             <b class="font-['Saira_Condensed'] text-lg text-slate-100 w-11 text-right">${p.pct}%</b>`;
     },
@@ -2180,6 +2223,7 @@ const hexaTracker = {
                         ${portrait ? `<img src="${portrait}" class="${portraitClass} shrink-0">` : ''}
                         <span class="font-bold text-white truncate">${title}</span>
                         ${badge}
+                        ${this.isProvisional(this.modalClassId) ? '<span class="badge badge-sm badge-warning badge-soft shrink-0 whitespace-nowrap" title="元データにまだないため、別の情報源の振り順だけ入れています。最終ダメージは出ません。">暫定の振り順</span>' : ''}
                     </div>
                     <nav id="hexa-modal-tabs" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap ml-2 shrink-0">${this.buildTabs()}</nav>
                     <div id="hexa-modal-progress" class="ml-auto flex items-center gap-4 text-xs text-base-content/50 font-mono tabular-nums whitespace-nowrap">${this.buildModalHeaderStat()}</div>

@@ -82,8 +82,10 @@ const TYPE = {
 const NAME_ALIAS = { firepoison: 'archmagefp', icelightning: 'archmageil' };
 
 // Classes we keep hand-maintained because the source has no HEXA table for them
-// (Erel Light is on the Erda Link system, not the HEXA Matrix).
-const KEEP_LOCAL = ['erellight'];
+// (Erel Light is on the Erda Link system, not the HEXA Matrix). Lethe is not in
+// the source yet; its provisional board lives in public/hexa_lethe.js, which
+// steps aside on its own once a regenerated hexa_data.js carries Lethe.
+const KEEP_LOCAL = ['erellight', 'lethe'];
 
 const norm = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
 

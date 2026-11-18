@@ -616,7 +616,8 @@ const scouter = (() => {
         const used = HEXA_KEYS.filter(([, k]) => num(f.hexa[k]) > 0).length;
         const tiles = HEXA_KEYS.map(([hk, k, label]) => {
             const s = cls && cls.skills.find((x) => x.key === hk);
-            const ico = s && s.icon ? `<img class="w-6 h-6 shrink-0 object-contain" src="assets/hexa_icons/gms/${esc(s.icon)}.png" alt="" loading="lazy">`
+            const src = s && (s.iconSrc || (s.icon ? `assets/hexa_icons/gms/${s.icon}.png` : ''));
+            const ico = src ? `<img class="w-6 h-6 shrink-0 object-contain" src="${esc(src)}" alt="" loading="lazy">`
                 : `<span class="w-6 h-6 shrink-0 grid place-items-center border border-base-content/20 text-[10px] font-bold">${esc(label.slice(0, 2))}</span>`;
             return tileLv(ico, label, 'hexa.' + k, f.hexa[k], s ? s.name : label);
         }).join('');
