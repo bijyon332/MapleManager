@@ -25,6 +25,9 @@
  *  メモ:
  *  - 最初の対敵者ハード/エクストリームのボスLv（285/290）は Mapler House の値。MapleStory Wiki は 270。
  *  - ベローナは KMS で 2026-08 実装。GMS に来ているかは未確認のまま載せている（結晶価格なし）。
+ *  - GMS v.272（2026-11-11）でヒルラ Hard・ピンクビーン Chaos・シグナス Normal がデイリーボスに
+ *    （シグナス Easy は削除）。デイリーの結晶価格もこのとき改定（v.272 パッチノートの表、Heroic の値）。
+ *    type: "DAILY" は Character Manager の編集画面・カード・週のメルには出さない。
  * ========================================================= */
 
 const BOSS_MASTER = [
@@ -245,7 +248,7 @@ const BOSS_MASTER = [
         en: "Magnus", ja: "マグナス", ko: "매그너스",
         maxMembers: 6, image: "magnus",
         diffs: [
-            { d: "NORMAL", id: "b_mag_normal", type: "DAILY", meso: 12960000 },
+            { d: "NORMAL", id: "b_mag_normal", type: "DAILY", meso: 10368000 },
             { d: "HARD", id: "b_mag_hard", type: "WEEKLY", meso: 95062500 },
         ],
     },
@@ -290,7 +293,7 @@ const BOSS_MASTER = [
         en: "Cygnus", ja: "シグナス", ko: "시그너스",
         maxMembers: 6, image: "cygnus",
         diffs: [
-            { d: "NORMAL", id: "b_cygnus_normal", type: "WEEKLY", meso: 72250000 },
+            { d: "NORMAL", id: "b_cygnus_normal", type: "DAILY", meso: 14450000 },
         ],
     },
     {
@@ -298,21 +301,21 @@ const BOSS_MASTER = [
         maxMembers: 6, image: "pink-bean",
         diffs: [
             { d: "NORMAL", id: "b_pink_normal", type: "DAILY", meso: 7022500 },
-            { d: "CHAOS", id: "b_pink_chaos", type: "WEEKLY", meso: 64000000 },
+            { d: "CHAOS", id: "b_pink_chaos", type: "DAILY", meso: 12800000 },
         ],
     },
     {
         en: "Hilla", ja: "ヒルラ", ko: "힐라",
         maxMembers: 6, image: "hilla",
         diffs: [
-            { d: "HARD", id: "b_hilla_hard", type: "WEEKLY", meso: 56250000 },
+            { d: "HARD", id: "b_hilla_hard", type: "DAILY", meso: 11250000 },
         ],
     },
     {
         en: "Arkarium", ja: "アーカイラム", ko: "아카이럼",
         maxMembers: 6, image: "arkarium",
         diffs: [
-            { d: "NORMAL", id: "b_ark_normal", type: "DAILY", meso: 12602500 },
+            { d: "NORMAL", id: "b_ark_normal", type: "DAILY", meso: 10082000 },
         ],
     },
     {
