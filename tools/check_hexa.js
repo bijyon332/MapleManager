@@ -15,7 +15,8 @@ const PUB = path.join(REPO, 'public');
 // Icons the upstream source does not publish; these fall back to a type badge.
 const KNOWN_ICONLESS = new Set([]);
 // Classes with no GMS HEXA table (Erel Light is on Erda Link).
-const PLACEHOLDER_CLASSES = new Set(['erellight']);
+// Lethe has a provisional board with no icons (public/hexa_lethe.js).
+const PLACEHOLDER_CLASSES = new Set(['erellight', 'lethe']);
 
 const failures = [];
 const notes = [];
@@ -34,7 +35,7 @@ sandbox.window.localStorage = sandbox.localStorage;
 vm.createContext(sandbox);
 // The browser loads these as classic scripts sharing one global lexical scope,
 // so concatenate them rather than running each on its own.
-const src = ['class_data.js', 'hexa_data.js', 'hexa_tracker.js']
+const src = ['class_data.js', 'hexa_data.js', 'hexa_lethe.js', 'hexa_tracker.js']
     .map(f => fs.readFileSync(path.join(PUB, f), 'utf8'))
     .join('\n;\n') + '\n;({ tracker: hexaTracker, classData: CLASS_DATA })';
 const loaded = vm.runInContext(src, sandbox, { filename: 'hexa bundle' });
@@ -155,7 +156,8 @@ for (const c of CLASSES) {
     check(!!janus, 'no Sol Janus node on ' + c.id);
     if (janus) check(!t.countsForDamage(janus), 'Sol Janus must not count for damage on ' + c.id);
     for (const s of t.damageSkills(c.id, c.id)) {
-        check(s.fd > 0, 'a zero-FD node reached the damage aggregates on ' + c.id + ': ' + s.name);
+        // Provisional nodes (hexa_lethe.js) count for cost and the fixed order, with no FD.
+        check(s.fd > 0 || s.prov, 'a zero-FD node reached the damage aggregates on ' + c.id + ': ' + s.name);
     }
 }
 const heroCls2 = CLASSES.find(c => c.id === 'hero');
@@ -292,6 +294,32 @@ check(heroBreakAfter === heroBreak,
     'a saved exclusion leaked into the ranking (' + heroBreak + ' -> ' + heroBreakAfter + ')');
 t.data = {};
 t._rankCurves = null;
+
+// ------------------------------------------------- provisional order (Lethe)
+
+// A provisional class follows its given order: from an untouched board the plan
+// is that order exactly, and part-way through it picks up where you are.
+const lethe = CLASSES.find(c => c.id === 'lethe');
+if (lethe && lethe.provisional) {
+    t.data = {};
+    t.planCap = 'max';
+    const full = t.buildPlan('lethe', 'lethe');
+    // Back-to-back lines on one node (left by the dropped HEXA Stat lines) merge into one step.
+    const want = lethe.order.filter(([k, lv]) => !(k === 'origin' && lv <= 1))
+        .filter((x, i, a) => !(a[i + 1] && a[i + 1][0] === x[0]));
+    check(full.length === want.length && full.every((st, i) => st.skill.key === want[i][0] && st.to === want[i][1]),
+        'lethe plan does not follow its order (' + full.length + ' steps vs ' + want.length + ')');
+    check(full.every(st => st.fd === 0), 'lethe plan carries Final Damage');
+    // Halfway through a step only the rest of it is left.
+    t.updateLevel('lethe', 'lethe', 'mastery2', 2);
+    const mid = t.buildPlan('lethe', 'lethe');
+    const m2 = mid.find(st => st.skill.key === 'mastery2');
+    check(m2 && m2.from === 2 && m2.to === 4, 'lethe plan does not resume a half-done step');
+    check(!t.rankRows('break').some(r => r.id === 'lethe'), 'lethe reached the ranking without FD weights');
+    notes.push('lethe: provisional order, ' + full.length + ' steps to max');
+    t.data = {};
+    t.planCap = 'target';
+}
 
 // ------------------------------------------------------------------- report
 
