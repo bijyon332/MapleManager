@@ -23,12 +23,13 @@
 // hexa_third.js), saved under assets/hexa_icons/lethe/<node key>.png. Skill IDs
 // from the KMST 1.2.202 / 1.2.203 diffs (Jancy-49/Papulatus-Daily):
 //   origin 192141500 오버로드 : 이터널 게이즈, ascent 192141502 앱솔루트 레인,
-//   skill3 192141504 보이드 오리진, mastery1 192141015 임펠 VI,
-//   mastery2 192140011 인보크 : 템플러 VI, mastery3 192140000 임프린트 VI,
-//   mastery4 192141005 인보크 : 바르가르 VI, enhance1 500004216 체인 커맨드 강화,
+//   skill3 192141504 보이드 오리진, mastery1 (Assize) 192140000 임프린트 VI,
+//   mastery2 (Vargr) 192141005 인보크 : 바르가르 VI, mastery3 (Dread Knight) 192140011 인보크 : 템플러 VI,
+//   mastery4 (Majeure) 192141015 임펠 VI, enhance1 500004216 체인 커맨드 강화,
 //   enhance2 500004213 오버로드 : 템플러 온슬로트 강화, enhance3 500004215 인보크/오버로드 : 아즈라스 강화,
 //   enhance4 500004214 오버로드 : 바르가르 트라이던트 강화, common3 500001136 프라이멀 퓨리 VI.
-// Majeure = 임펠 and Assize = 임프린트 are matched by elimination, not by a source.
+// Mastery slots follow the in-game board, top to bottom: Assize, Vargr, Dread
+// Knight, Majeure (bi, 2026-11-18; bi also confirmed the Majeure icon).
 //
 // When the source gains Lethe, regenerate hexa_data.js: this file then sees a
 // real Lethe entry and steps aside, so it can simply be deleted.
@@ -43,10 +44,10 @@
         node('origin', 'origin', 'skillNodes', 0, 'Dominus: Eye of Eternity'),
         node('ascent', 'ascent', 'skillNodes', 1, 'Sovereign Everlasting'),
         node('skill3', 'third', 'skillNodes', 2, 'Void Origin'),
-        node('mastery1', 'mastery', 'mastery', 0, 'HEXA Majeure'),
-        node('mastery2', 'mastery', 'mastery', 1, 'HEXA Beckon: Dread Knight / HEXA Edict: Dread Advance'),
-        node('mastery3', 'mastery', 'mastery', 2, 'HEXA Assize / HEXA Edict: Fell Storm'),
-        node('mastery4', 'mastery', 'mastery', 3, 'HEXA Beckon: Vargr / HEXA Edict: Rampage'),
+        node('mastery1', 'mastery', 'mastery', 0, 'HEXA Assize / HEXA Edict: Fell Storm'),
+        node('mastery2', 'mastery', 'mastery', 1, 'HEXA Beckon: Vargr / HEXA Edict: Rampage'),
+        node('mastery3', 'mastery', 'mastery', 2, 'HEXA Beckon: Dread Knight / HEXA Edict: Dread Advance'),
+        node('mastery4', 'mastery', 'mastery', 3, 'HEXA Majeure'),
         node('enhance1', 'enhance', 'boost', 0, 'Chains of Command Boost'),
         node('enhance2', 'enhance', 'boost', 1, 'Dominus: Dread Onslaught Boost'),
         node('enhance3', 'enhance', 'boost', 2, 'Dominus: Azrath Boost'),
@@ -58,22 +59,22 @@
 
     // [node key, level to raise it to], in the order of the source list.
     const ORDER = [
-        ['mastery1', 1], ['mastery2', 4], ['enhance1', 1], ['mastery2', 5], ['mastery3', 4], ['mastery4', 3], ['mastery2', 6], ['mastery4', 4],
-        ['mastery3', 5], ['mastery2', 7], ['common3', 1], ['mastery3', 6], ['mastery2', 8], ['mastery4', 5], ['mastery1', 2], ['skill3', 1],
-        ['mastery4', 6], ['mastery3', 7], ['mastery2', 9], ['mastery3', 8], ['mastery1', 3], ['mastery4', 7], ['mastery3', 9], ['mastery4', 8],
-        ['mastery1', 4], ['mastery4', 9], ['mastery1', 5], ['mastery1', 7], ['mastery2', 14], ['mastery2', 15], ['mastery1', 8], ['mastery2', 16],
-        ['mastery1', 9], ['mastery3', 14], ['mastery2', 17], ['mastery3', 15], ['mastery2', 18], ['mastery4', 14], ['ascent', 1], ['skill3', 3],
-        ['mastery3', 16], ['mastery4', 15], ['mastery2', 19], ['mastery3', 17], ['enhance2', 1], ['mastery4', 16], ['mastery3', 18], ['mastery4', 17],
-        ['enhance3', 1], ['enhance1', 6], ['mastery3', 19], ['mastery4', 18], ['enhance4', 1], ['mastery4', 19], ['mastery2', 26], ['origin', 2],
-        ['mastery2', 27], ['mastery1', 15], ['mastery2', 29], ['mastery3', 26], ['mastery1', 16], ['origin', 3], ['common2', 2], ['mastery3', 27],
-        ['skill3', 9], ['ascent', 2], ['mastery1', 17], ['mastery4', 25], ['mastery3', 29], ['mastery4', 26], ['origin', 4], ['mastery4', 27],
-        ['mastery1', 18], ['common2', 3], ['ascent', 3], ['mastery4', 29], ['mastery1', 19], ['origin', 5], ['common2', 4], ['ascent', 4],
-        ['enhance1', 12], ['origin', 6], ['common2', 5], ['origin', 7], ['ascent', 5], ['mastery1', 25], ['common2', 6], ['mastery1', 26],
-        ['origin', 8], ['ascent', 6], ['mastery1', 27], ['origin', 9], ['common2', 7], ['mastery1', 29], ['mastery2', 30], ['ascent', 7],
-        ['common2', 8], ['ascent', 8], ['common3', 2], ['enhance2', 2], ['common2', 9], ['mastery3', 30], ['enhance1', 18], ['ascent', 9],
-        ['enhance3', 2], ['enhance2', 3], ['mastery4', 30], ['common3', 3], ['enhance4', 2], ['enhance2', 4], ['enhance3', 3], ['skill3', 18],
+        ['mastery4', 1], ['mastery3', 4], ['enhance1', 1], ['mastery3', 5], ['mastery1', 4], ['mastery2', 3], ['mastery3', 6], ['mastery2', 4],
+        ['mastery1', 5], ['mastery3', 7], ['common3', 1], ['mastery1', 6], ['mastery3', 8], ['mastery2', 5], ['mastery4', 2], ['skill3', 1],
+        ['mastery2', 6], ['mastery1', 7], ['mastery3', 9], ['mastery1', 8], ['mastery4', 3], ['mastery2', 7], ['mastery1', 9], ['mastery2', 8],
+        ['mastery4', 4], ['mastery2', 9], ['mastery4', 5], ['mastery4', 7], ['mastery3', 14], ['mastery3', 15], ['mastery4', 8], ['mastery3', 16],
+        ['mastery4', 9], ['mastery1', 14], ['mastery3', 17], ['mastery1', 15], ['mastery3', 18], ['mastery2', 14], ['ascent', 1], ['skill3', 3],
+        ['mastery1', 16], ['mastery2', 15], ['mastery3', 19], ['mastery1', 17], ['enhance2', 1], ['mastery2', 16], ['mastery1', 18], ['mastery2', 17],
+        ['enhance3', 1], ['enhance1', 6], ['mastery1', 19], ['mastery2', 18], ['enhance4', 1], ['mastery2', 19], ['mastery3', 26], ['origin', 2],
+        ['mastery3', 27], ['mastery4', 15], ['mastery3', 29], ['mastery1', 26], ['mastery4', 16], ['origin', 3], ['common2', 2], ['mastery1', 27],
+        ['skill3', 9], ['ascent', 2], ['mastery4', 17], ['mastery2', 25], ['mastery1', 29], ['mastery2', 26], ['origin', 4], ['mastery2', 27],
+        ['mastery4', 18], ['common2', 3], ['ascent', 3], ['mastery2', 29], ['mastery4', 19], ['origin', 5], ['common2', 4], ['ascent', 4],
+        ['enhance1', 12], ['origin', 6], ['common2', 5], ['origin', 7], ['ascent', 5], ['mastery4', 25], ['common2', 6], ['mastery4', 26],
+        ['origin', 8], ['ascent', 6], ['mastery4', 27], ['origin', 9], ['common2', 7], ['mastery4', 29], ['mastery3', 30], ['ascent', 7],
+        ['common2', 8], ['ascent', 8], ['common3', 2], ['enhance2', 2], ['common2', 9], ['mastery1', 30], ['enhance1', 18], ['ascent', 9],
+        ['enhance3', 2], ['enhance2', 3], ['mastery2', 30], ['common3', 3], ['enhance4', 2], ['enhance2', 4], ['enhance3', 3], ['skill3', 18],
         ['common3', 4], ['enhance2', 10], ['enhance4', 3], ['enhance3', 4], ['enhance1', 24], ['origin', 14], ['enhance3', 10], ['enhance4', 4],
-        ['origin', 15], ['common3', 5], ['enhance1', 30], ['enhance4', 10], ['origin', 16], ['common3', 6], ['common2', 15], ['mastery1', 30],
+        ['origin', 15], ['common3', 5], ['enhance1', 30], ['enhance4', 10], ['origin', 16], ['common3', 6], ['common2', 15], ['mastery4', 30],
         ['origin', 17], ['ascent', 14], ['origin', 18], ['ascent', 15], ['common3', 7], ['ascent', 16], ['common3', 8], ['common2', 16],
         ['skill3', 24], ['ascent', 17], ['common2', 30], ['common3', 9], ['ascent', 18], ['enhance2', 11], ['skill3', 30], ['ascent', 19],
         ['enhance3', 11], ['enhance2', 12], ['enhance4', 11], ['enhance2', 20], ['enhance3', 12], ['origin', 30], ['enhance3', 20], ['enhance4', 12],

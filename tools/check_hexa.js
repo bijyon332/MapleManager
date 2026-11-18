@@ -311,9 +311,9 @@ if (lethe && lethe.provisional) {
         'lethe plan does not follow its order (' + full.length + ' steps vs ' + want.length + ')');
     check(full.every(st => st.fd === 0), 'lethe plan carries Final Damage');
     // Halfway through a step only the rest of it is left.
-    t.updateLevel('lethe', 'lethe', 'mastery2', 2);
+    t.updateLevel('lethe', 'lethe', 'mastery3', 2);
     const mid = t.buildPlan('lethe', 'lethe');
-    const m2 = mid.find(st => st.skill.key === 'mastery2');
+    const m2 = mid.find(st => st.skill.key === 'mastery3');
     check(m2 && m2.from === 2 && m2.to === 4, 'lethe plan does not resume a half-done step');
     check(!t.rankRows('break').some(r => r.id === 'lethe'), 'lethe reached the ranking without FD weights');
     notes.push('lethe: provisional order, ' + full.length + ' steps to max');
