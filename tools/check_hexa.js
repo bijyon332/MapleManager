@@ -15,7 +15,7 @@ const PUB = path.join(REPO, 'public');
 // Icons the upstream source does not publish; these fall back to a type badge.
 const KNOWN_ICONLESS = new Set([]);
 // Classes with no GMS HEXA table (Erel Light is on Erda Link).
-// Lethe has a provisional board with no icons (public/hexa_lethe.js).
+// Lethe has a provisional board (public/hexa_lethe.js) with its own KMS icons.
 const PLACEHOLDER_CLASSES = new Set(['erellight', 'lethe']);
 
 const failures = [];

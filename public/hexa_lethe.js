@@ -19,6 +19,17 @@
 // Lv.2, and Origin Lv.1 is free on 6th job). Void Origin is the 3rd Skill Core
 // and Sovereign Everlasting the Ascent (bi, 2026-11-18). Sol Janus is not in the order and carries no FD, as for every class.
 //
+// Icons: KMS skill icons from the Nexon Open API static path (as in
+// hexa_third.js), saved under assets/hexa_icons/lethe/<node key>.png. Skill IDs
+// from the KMST 1.2.202 / 1.2.203 diffs (Jancy-49/Papulatus-Daily):
+//   origin 192141500 오버로드 : 이터널 게이즈, ascent 192141502 앱솔루트 레인,
+//   skill3 192141504 보이드 오리진, mastery1 192141015 임펠 VI,
+//   mastery2 192140011 인보크 : 템플러 VI, mastery3 192140000 임프린트 VI,
+//   mastery4 192141005 인보크 : 바르가르 VI, enhance1 500004216 체인 커맨드 강화,
+//   enhance2 500004213 오버로드 : 템플러 온슬로트 강화, enhance3 500004215 인보크/오버로드 : 아즈라스 강화,
+//   enhance4 500004214 오버로드 : 바르가르 트라이던트 강화, common3 500001136 프라이멀 퓨리 VI.
+// Majeure = 임펠 and Assize = 임프린트 are matched by elimination, not by a source.
+//
 // When the source gains Lethe, regenerate hexa_data.js: this file then sees a
 // real Lethe entry and steps aside, so it can simply be deleted.
 
@@ -26,7 +37,8 @@
     if (typeof HEXA_CLASS_SKILLS === 'undefined') return;
     if (HEXA_CLASS_SKILLS.some(c => c.id === 'lethe')) return;
 
-    const node = (key, type, tier, slot, name) => ({ key, type, tier, slot, name, fd: 0, c: -1, icon: null, prov: true });
+    const node = (key, type, tier, slot, name) => ({ key, type, tier, slot, name, fd: 0, c: -1, icon: null,
+        iconSrc: 'assets/hexa_icons/lethe/' + key + '.png', prov: true });
     const skills = [
         node('origin', 'origin', 'skillNodes', 0, 'Dominus: Eye of Eternity'),
         node('ascent', 'ascent', 'skillNodes', 1, 'Sovereign Everlasting'),
@@ -40,7 +52,7 @@
         node('enhance3', 'enhance', 'boost', 2, 'Dominus: Azrath Boost'),
         node('enhance4', 'enhance', 'boost', 3, 'Dominus: Pack United Boost'),
         { key: 'common1', type: 'common', tier: 'common', slot: 0, name: 'Sol Janus', fd: 0, c: -1, icon: 'General_1' },
-        Object.assign(node('common2', 'common', 'common', 1, 'Sol Hekate'), { icon: 'General_2' }),
+        Object.assign(node('common2', 'common', 'common', 1, 'Sol Hekate'), { icon: 'General_2', iconSrc: null }),
         node('common3', 'common', 'common', 2, 'HEXA Demonic Wrath'),
     ];
 
