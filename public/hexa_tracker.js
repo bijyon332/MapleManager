@@ -941,7 +941,8 @@ const hexaTracker = {
         </button>`;
         return tab('progress', '進捗入力', 'sliders-horizontal')
             + tab('map', '強化順マップ', 'layout-grid')
-            + tab('curve', '効率カーブ', 'activity');
+            + tab('curve', '効率カーブ', 'activity')
+            + (this.isProvisional(this.modalClassId) ? '' : tab('ct', 'CT設定', 'timer'));
     },
 
     setTab(tab) {
@@ -1158,38 +1159,68 @@ const hexaTracker = {
         return `<span class="text-[10px] font-bold tabular-nums shrink-0 ${up ? 'text-amber-300' : 'text-sky-300'}" title="討伐時間の補正で、順番を決めるときの最終ダメージを ${m.toFixed(2)} 倍にしています（表示の最終ダメージは元の値）">×${m >= 10 ? m.toFixed(0) : m.toFixed(1)}</span>`;
     },
 
-    // 討伐時間の補正: 戦闘の長さと、各ノードのCT。
+    // 討伐時間の補正: 戦闘の長さ。ノードごとのCTは上の「CT設定」タブ。
     buildFightControls() {
-        const classId = this.modalClassId, trackingId = this.modalTrackingId;
-        const cls = this.getClassSkills(classId);
-        if (!cls) return '';
-        const sec = this.fightOf(trackingId);
+        const sec = this.fightOf(this.modalTrackingId);
         const fightBtns = this.FIGHT_OPTIONS.map(o => `<button onclick="hexaTracker.setFight(${o.sec})" title="${o.hint}"
             class="px-2.5 py-1 text-[11px] font-bold whitespace-nowrap transition-colors ${sec === o.sec ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'}">${o.label}${o.sec ? `<span class="ml-1 font-normal ${sec === o.sec ? 'text-violet-200' : 'text-slate-500'}">${o.sec}s</span>` : ''}</button>`).join('');
-        const ctLabel = v => v ? `${v / 60}分` : 'なし';
-        const chips = !sec ? '' : this.boardOrder(cls.skills.filter(s => this.countsForDamage(s))).map(s => {
-            const sCfg = this.SKILL_TYPE_CONFIG[s.type] || this.SKILL_TYPE_CONFIG.mastery;
-            const iconUrl = this.getSkillIcon(s);
-            const icon = iconUrl
-                ? `<img src="${iconUrl}" class="w-6 h-6 object-contain shrink-0" loading="lazy" alt="">`
-                : `<div class="w-6 h-6 flex items-center justify-center text-[10px] font-bold text-white shrink-0" style="background:${sCfg.badge}">${sCfg.label}</div>`;
-            const ct = this.ctOf(classId, s);
-            const m = this.fightFactor(sec, s, ct);
-            const pick = s.type === 'ascent'
-                ? `<span class="px-2 py-0.5 text-[11px] font-bold whitespace-nowrap text-slate-300 border border-slate-700 bg-slate-950">ボス1体 3回まで</span>`
-                : `<div class="inline-flex border border-slate-700 bg-slate-950 divide-x divide-slate-700">${this.CT_OPTIONS.map(v => `<button onclick="hexaTracker.setCt('${s.key}', ${v})"
-                    class="px-2 py-0.5 text-[11px] font-bold whitespace-nowrap transition-colors ${ct === v ? 'bg-violet-600 text-white' : 'text-slate-500 hover:text-slate-200'}">${ctLabel(v)}</button>`).join('')}</div>`;
-            return `<div class="flex items-center gap-2 px-1.5 py-1 bg-slate-950/60 border border-slate-800" title="${this.escHtml(s.name)}">
-                ${icon}${pick}<span class="ml-auto w-8 text-right">${this.multTag(m) || '<span class="text-[10px] text-slate-600">×1</span>'}</span>
-            </div>`;
-        }).join('');
-        return `<div class="border border-slate-800 bg-slate-900 px-2.5 py-2 mb-2">
-            <div class="flex flex-wrap items-center gap-2">
+        const set = this.ctSummary(this.modalClassId);
+        return `<div class="flex flex-wrap items-center gap-x-4 gap-y-2 border border-slate-800 bg-slate-900 px-2.5 py-2 mb-2">
+            <div class="flex items-center gap-2">
                 <span class="text-[10px] text-slate-500">討伐時間</span>
                 <div class="inline-flex border border-slate-700 bg-slate-950 divide-x divide-slate-700">${fightBtns}</div>
             </div>
-            ${sec ? `<div class="mt-2 flex items-center gap-2 text-[10px] text-slate-500">スキルのCT<span class="text-slate-600">（${this.escHtml(this.getClassInfo(classId)?.name || cls.gms || '')}共通）</span></div>
-            <div class="mt-1 grid gap-1" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">${chips}</div>` : ''}
+            ${sec ? `<button onclick="hexaTracker.setTab('ct')" class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-slate-200 transition-colors" title="ノードごとのCTは「CT設定」タブで選びます">
+                <i data-lucide="timer" class="w-3.5 h-3.5"></i>CT設定 <span class="font-bold text-slate-200">${set}</span></button>` : ''}
+        </div>`;
+    },
+
+    // How many nodes have a CT picked on the CT tab, for the map's band.
+    ctSummary(classId) {
+        const cls = this.getClassSkills(classId);
+        if (!cls) return '';
+        const on = cls.skills.filter(s => this.countsForDamage(s) && s.type !== 'ascent' && this.ctOf(classId, s) > 0);
+        return on.length ? `${on.length}件` : 'なし';
+    },
+
+    // CT設定タブ: この職のダメージのあるノードごとに CT を選ぶ。職業ごとに共通。
+    buildCtTab(classId, trackingId) {
+        const cls = this.getClassSkills(classId);
+        if (!cls || this.isProvisional(classId)) return this.buildEmptyState();
+        const sec = this.fightOf(trackingId);
+        const fight = this.FIGHT_OPTIONS.find(o => o.sec === sec);
+        const ctLabel = v => v ? `${v / 60}分` : 'なし';
+        const rows = this.boardOrder(cls.skills.filter(s => this.countsForDamage(s))).map((s, i) => {
+            const sCfg = this.SKILL_TYPE_CONFIG[s.type] || this.SKILL_TYPE_CONFIG.mastery;
+            const iconUrl = this.getSkillIcon(s);
+            const icon = iconUrl
+                ? `<img src="${iconUrl}" class="w-8 h-8 object-contain shrink-0" loading="lazy" alt="">`
+                : `<div class="w-8 h-8 flex items-center justify-center text-[11px] font-bold text-white shrink-0" style="background:${sCfg.badge}">${sCfg.label}</div>`;
+            const ct = this.ctOf(classId, s);
+            const m = this.fightFactor(sec, s, ct);
+            const pick = s.type === 'ascent'
+                ? `<span class="inline-flex items-center h-7 px-3 text-[11px] font-bold whitespace-nowrap text-slate-300 border border-slate-700 bg-slate-950">ボス1体 3回まで</span>`
+                : `<div class="inline-flex h-7 border border-slate-700 bg-slate-950 divide-x divide-slate-700">${this.CT_OPTIONS.map(v => `<button onclick="hexaTracker.setCt('${s.key}', ${v})"
+                    class="w-12 text-[11px] font-bold whitespace-nowrap transition-colors ${ct === v ? 'bg-violet-600 text-white' : 'text-slate-500 hover:text-slate-200'}">${ctLabel(v)}</button>`).join('')}</div>`;
+            return `<div class="flex items-center gap-3 py-1.5 px-2.5 ${i % 2 ? 'bg-slate-900/40' : ''}">
+                ${icon}
+                <div class="flex-1 min-w-0 flex items-baseline gap-2">
+                    <span class="text-xs text-slate-200 truncate" title="${this.escHtml(s.name)}">${this.escHtml(s.name)}</span>
+                    <span class="text-[9px] font-bold uppercase tracking-wider shrink-0" style="color:${sCfg.color}">${sCfg.title}</span>
+                </div>
+                ${pick}
+                <span class="w-10 text-right shrink-0">${sec ? (this.multTag(m) || '<span class="text-[10px] text-slate-600">×1</span>') : ''}</span>
+            </div>`;
+        }).join('');
+        return `<div>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 mb-2 px-1">
+                <span>${this.escHtml(this.getClassInfo(classId)?.name || cls.gms || '')} 共通</span>
+                <span>討伐時間 <span class="font-bold text-slate-200">${fight && sec ? `${fight.label}（${sec}s）` : '補正なし'}</span></span>
+            </div>
+            <div class="bg-slate-900/40 border border-slate-800 divide-y divide-slate-800/40">${rows}</div>
+            <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
+                強化順マップで討伐時間を選んだとき、ここで選んだCTから短い戦闘での伸びを見積もって順番を組み直します。右の倍率はその見積もりです（討伐時間が「補正なし」のときは出ません）。
+            </p>
         </div>`;
     },
 
@@ -2308,6 +2339,7 @@ const hexaTracker = {
     buildModalContent() {
         if (this.modalTab === 'map') return this.buildPlanMap(this.modalClassId, this.modalTrackingId);
         if (this.modalTab === 'curve') return this.buildCurveTab(this.modalClassId, this.modalTrackingId);
+        if (this.modalTab === 'ct') return this.buildCtTab(this.modalClassId, this.modalTrackingId);
         return this.buildSkillPanel(this.modalClassId, this.modalTrackingId);
     },
 
