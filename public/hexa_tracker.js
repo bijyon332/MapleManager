@@ -35,6 +35,7 @@ const hexaTracker = {
         NOVA: 'Nova', FLORA: 'Flora', ANIMA: 'Anima',
         FRIENDSWORLD: 'Friendship World', TRANSCENDENT: 'Transcendent',
         SENGOKU: 'Sengoku', JIANGHU: 'Jianghu', SHINE: 'Shine',
+        ASMODIAN: 'Asmodian',
     },
 
     page: 'ranking',        // 'ranking' | 'tracker'
@@ -42,6 +43,7 @@ const hexaTracker = {
     planCap: 'target',      // 'target' | 'max' — where the 効率順 chain stops
     mapView: 'list',        // 'list' | 'tiles' | 'timeline' — how 強化順マップ draws the chain
     mapCursor: 0,           // timeline position, in levels taken from where you are now
+    markLog: [],            // 「強化した」の取り消し用。モーダルを閉じると消える
     data: {},
     _loaded: false,
 
@@ -1010,6 +1012,10 @@ const hexaTracker = {
             seg(this.mapView === 'list', "hexaTracker.setMapView('list')", '効率順', '次に上げるものを1行ずつ並べる')
             + seg(this.mapView === 'tiles', "hexaTracker.setMapView('tiles')", 'マス', '同じ順番を左上から右へアイコンで並べる')
             + seg(this.mapView === 'timeline', "hexaTracker.setMapView('timeline')", 'タイムライン', 'ノードごとの行に、上げる時期を横に並べる')) : '';
+        const last = this.lastMark();
+        const undo = last ? `<button onclick="hexaTracker.undoMark()" title="${this.escHtml(last.name)} Lv.${last.to}→${last.fromShown}\n押した順にさかのぼって戻します（残り${this.markLog.filter(m => m.trackingId === this.modalTrackingId).length}回分）"
+            class="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold border border-slate-600 text-slate-300 hover:border-slate-400 hover:text-slate-100 transition-colors">
+            <i data-lucide="undo-2" class="w-3.5 h-3.5 shrink-0"></i>取り消す<span class="inline-flex min-w-0 font-normal text-slate-400">（<span class="max-w-[11rem] truncate">${this.escHtml(last.name)}</span>&nbsp;Lv.${last.to}→${last.fromShown}）</span></button>` : '';
         return `<div class="flex flex-wrap items-center gap-x-5 gap-y-2 border border-slate-800 bg-slate-900 px-2.5 py-2 mb-2">
             ${view}
             ${group('並べ替え',
@@ -1018,6 +1024,7 @@ const hexaTracker = {
             ${group('上限',
                 seg(this.planCap === 'target', "hexaTracker.setPlanCap('target')", '目標値まで', '進捗入力で決めた目標値で止める')
                 + seg(this.planCap === 'max', "hexaTracker.setPlanCap('max')", '最大 Lv.30 まで', '目標値を無視して全ノードLv.30まで並べる'))}
+            ${undo}
         </div>`;
     },
 
@@ -1084,6 +1091,9 @@ const hexaTracker = {
                                   : (step.frag > 0 ? (step.fd / step.frag * 100).toFixed(3) : '—') + ' /100frag'}
                     </div>
                 </div>
+                <button onclick="hexaTracker.markStep('${s.key}', ${step.to})" title="${this.escHtml(s.name)} を Lv.${step.to} にして進捗入力に保存"
+                    aria-label="強化済みにする"
+                    class="shrink-0 w-8 h-8 inline-flex items-center justify-center border border-slate-600 text-slate-400 hover:border-violet-400 hover:text-violet-200 transition-colors"><i data-lucide="check" class="w-4 h-4"></i></button>
             </div>`;
         });
 
@@ -1144,11 +1154,11 @@ const hexaTracker = {
             const icon = iconUrl
                 ? `<img src="${iconUrl}" class="w-8 h-8 object-contain" loading="lazy" alt="">`
                 : `<div class="w-8 h-8 flex items-center justify-center text-[11px] font-bold text-white" style="background:${sCfg.badge}">${sCfg.label}</div>`;
-            const hint = `${i + 1}. ${s.name}\nLv.${step.from} → ${step.to}\nフラグメント ${step.frag.toLocaleString()}（計 ${cumFrag.toLocaleString()}）\nエルダ ${step.erda.toLocaleString()}\n最終ダメージ +${step.fd.toFixed(2)}%（計 +${fd.toFixed(1)}%）`;
+            const hint = `${i + 1}. ${s.name}\nLv.${step.from} → ${step.to}\nフラグメント ${step.frag.toLocaleString()}（計 ${cumFrag.toLocaleString()}）\nエルダ ${step.erda.toLocaleString()}\n最終ダメージ +${step.fd.toFixed(2)}%（計 +${fd.toFixed(1)}%）\n\nクリックで強化済みに（Lv.${step.to} を進捗入力に保存）`;
             // Mark the tile that carries you past each 10% of max Final Damage.
             let crossed = null;
             while (nextMark <= 100 && pctOf(fd) >= nextMark - 1e-9) { crossed = nextMark; nextMark += 10; }
-            tiles += `<div class="relative flex flex-col items-center pt-3 pb-1 bg-slate-900 border border-slate-800 ${crossed !== null ? 'ring-1 ring-inset ring-emerald-500/60' : ''}" style="border-top:2px solid ${sCfg.badge}" title="${this.escHtml(hint)}">
+            tiles += `<div onclick="hexaTracker.markStep('${s.key}', ${step.to})" class="hx-mark-tile relative flex flex-col items-center pt-3 pb-1 bg-slate-900 border border-slate-800 cursor-pointer ${crossed !== null ? 'ring-1 ring-inset ring-emerald-500/60' : ''}" style="border-top:2px solid ${sCfg.badge}" title="${this.escHtml(hint)}">
                 <span class="absolute top-0.5 left-1 text-[9px] text-slate-500 tabular-nums">${i + 1}</span>
                 ${crossed !== null ? `<span class="absolute top-0.5 right-1 text-[9px] font-bold text-emerald-300 tabular-nums">${crossed}%</span>` : ''}
                 ${icon}
@@ -1161,7 +1171,7 @@ const hexaTracker = {
             ${this.buildPlanSummary(steps.length, cumFrag, cumErda, now.fdNow, fd)}
             <div class="grid gap-1" style="grid-template-columns:repeat(auto-fill,minmax(58px,1fr))">${tiles}</div>
             <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
-                効率順と同じ順番を、左上から右へ並べたものです。数字は「今のLv→上げた後のLv」。マスにマウスを乗せると消費量が出ます。
+                効率順と同じ順番を、左上から右へ並べたものです。数字は「今のLv→上げた後のLv」。マスにマウスを乗せると消費量が出ます。クリックすると強化済みとして進捗入力に保存します。
                 緑の枠と%は、そのマスで全取得時の最終ダメージの何%に届くかの目印です。
             </p>
         </div>`;
@@ -1726,6 +1736,42 @@ const hexaTracker = {
         this.refreshAll();
     },
 
+    // 強化順マップの「強化した」: そのノードを段の到達Lvにして保存する。順番を
+    // 飛ばして押しても同じで、同じノードの手前の段もまとめて済みになる。
+    // 取り消し用に押す前の値（未入力なら undefined）を覚えておく。
+    markStep(skillKey, toLevel) {
+        const trackingId = this.modalTrackingId, classId = this.modalClassId;
+        const skill = this.findSkill(classId, skillKey);
+        if (!skill || !trackingId) return;
+        const e = this.ensureEntry(trackingId);
+        const before = this.levelOf(trackingId, skill);
+        const lvl = this.clampLevel(skill, toLevel);
+        if (lvl <= before) return;
+        this.markLog.push({
+            trackingId, key: skillKey, name: skill.name, to: lvl, fromShown: before,
+            level: e.levels[skillKey], target: e.targets[skillKey],
+        });
+        this.updateLevel(trackingId, classId, skillKey, lvl);
+    },
+
+    lastMark() {
+        for (let i = this.markLog.length - 1; i >= 0; i--) {
+            if (this.markLog[i].trackingId === this.modalTrackingId) return this.markLog[i];
+        }
+        return null;
+    },
+
+    undoMark() {
+        const m = this.lastMark();
+        if (!m) return;
+        this.markLog.splice(this.markLog.lastIndexOf(m), 1);
+        const e = this.ensureEntry(m.trackingId);
+        if (m.level === undefined) delete e.levels[m.key]; else e.levels[m.key] = m.level;
+        if (m.target === undefined) delete e.targets[m.key]; else e.targets[m.key] = m.target;
+        this.saveData();
+        this.refreshAll();
+    },
+
     toggleExclude(trackingId, skillKey) {
         const e = this.ensureEntry(trackingId);
         e.excluded[skillKey] = !e.excluded[skillKey];
@@ -2162,6 +2208,7 @@ const hexaTracker = {
         this.modalClassId = null;
         this._tlKey = null;
         this.modalTrackingId = null;
+        this.markLog = [];
         const page = document.getElementById('hexa-page');
         if (page && this.page === 'tracker') {
             page.innerHTML = this.buildPageBody();

@@ -113,6 +113,18 @@
                     <i data-lucide="book-open" class="w-5 h-5"></i>
                     <span class="nav-label">Guide</span>
                 </button></li>
+                <!-- 期間限定のイベント用のアプリ。 -->
+                <li class="menu-title">Event</li>
+                <li><button onclick="app.switchApp('quanah')" id="app-quanah"
+                    class="nav-item" title="Quanah Tools（Quanah の Libae's Supercharged 装備のスキルラインとジュエル、バトルシムのプログラム図鑑）">
+                    <i data-lucide="gem" class="w-5 h-5"></i>
+                    <span class="nav-label">Quanah Tools</span>
+                </button></li>
+                <li><button onclick="app.switchApp('ultima')" id="app-ultima"
+                    class="nav-item" title="Ultima EXP Plan（ミッション・ウルティマ期間のアカウントの EXP 計画。パスの報酬込み）">
+                    <i data-lucide="trending-up" class="w-5 h-5"></i>
+                    <span class="nav-label">Ultima EXP Plan</span>
+                </button></li>
                 <li class="menu-title">Tools</li>
                 <li><button onclick="app.switchApp('planner')" id="app-planner"
                     class="nav-item menu-active" title="Character Manager（自分のキャラの管理）">
@@ -145,6 +157,16 @@
                     <i data-lucide="users" class="w-5 h-5"></i>
                     <span class="nav-label">Party Scouter</span>
                 </button></li>
+                <li><button onclick="app.switchApp('exp')" id="app-exp"
+                    class="nav-item" title="EXP Simulator（Lv の伸びの計算、アカウント全体の経験値の割り振り）">
+                    <i data-lucide="chart-no-axes-combined" class="w-5 h-5"></i>
+                    <span class="nav-label">EXP Simulator</span>
+                </button></li>
+                <li><button onclick="app.switchApp('symbol')" id="app-symbol"
+                    class="nav-item" title="Symbol Planner（アーケイン・オーセンティックシンボルが最大になる日の予測）">
+                    <i data-lucide="orbit" class="w-5 h-5"></i>
+                    <span class="nav-label">Symbol Planner</span>
+                </button></li>
                 <li><button onclick="app.switchApp('cheatsheet')" id="app-cheatsheet"
                     class="nav-item" title="Cheat Sheet（ボスの必要フォース・レベル差補正の早見表）">
                     <i data-lucide="table-2" class="w-5 h-5"></i>
@@ -174,12 +196,6 @@
                 </button></li>
                 <!-- In-development apps -->
                 <li class="menu-title nav-group-dev" title="開発中 / In Development">DEV</li>
-                <li><button onclick="app.switchApp('exp')" id="app-exp"
-                    class="nav-item dev-app" title="EXP Simulator(開発中)">
-                    <i data-lucide="flask-conical" class="w-5 h-5"></i>
-                    <span class="nav-label">EXP Simulator</span>
-                    <span class="dev-dot"></span>
-                </button></li>
                 <li><button onclick="app.switchApp('cost')" id="app-cost"
                     class="nav-item dev-app" title="Gear Cost Calculator(開発中)">
                     <i data-lucide="coins" class="w-5 h-5"></i>
@@ -255,6 +271,18 @@
                     <i data-lucide="hexagon" class="w-3.5 h-3.5"></i>HEXAステ最適化
                 </button>
             </nav>
+            <!-- Symbol Planner の 進捗／イベント（Symbol Planner のときだけ出す）。押したときの切り替えは symbol_planner.js -->
+            <nav id="symbol-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
+                <button onclick="symbolPlanner.setTab('progress')" data-tab="progress" role="tab" class="tab tab-active gap-1.5">
+                    <i data-lucide="chart-gantt" class="w-3.5 h-3.5"></i>進捗
+                </button>
+                <button onclick="symbolPlanner.setTab('timeline')" data-tab="timeline" role="tab" class="tab gap-1.5">
+                    <i data-lucide="calendar-days" class="w-3.5 h-3.5"></i>早見表
+                </button>
+                <button onclick="symbolPlanner.setTab('events')" data-tab="events" role="tab" class="tab gap-1.5">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>イベント
+                </button>
+            </nav>
             <!-- Journal の GMS／KMS（パッチ情報）と、少し離して Column（Journal のときだけ出す）。押したときの切り替えは gms_updates.js -->
             <div id="updates-nav" class="hidden items-center gap-4 mr-3 shrink-0">
                 <nav role="tablist" class="tabs tabs-box tabs-sm flex-nowrap shrink-0">
@@ -272,6 +300,49 @@
                     </button>
                 </nav>
             </div>
+            <!-- EXP Simulator の 1キャラ／アカウント計画／イベントバフ と、計画のときだけ Kronos／Challenger（EXP Simulator のときだけ出す）。押したときの切り替えは exp_plan.js -->
+            <div id="exp-nav" class="hidden items-center gap-4 mr-3 shrink-0">
+                <nav role="tablist" class="tabs tabs-box tabs-sm flex-nowrap shrink-0">
+                    <button onclick="expPlan.setTab('sim')" data-tab="sim" role="tab" class="tab tab-active gap-1.5">
+                        <i data-lucide="user" class="w-3.5 h-3.5"></i>1キャラ
+                    </button>
+                    <button onclick="expPlan.setTab('plan')" data-tab="plan" role="tab" class="tab gap-1.5">
+                        <i data-lucide="users" class="w-3.5 h-3.5"></i>アカウント計画
+                    </button>
+                    <button onclick="expPlan.setTab('buffs')" data-tab="buffs" role="tab" class="tab gap-1.5">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>イベントバフ
+                    </button>
+                </nav>
+                <nav id="exp-world-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap shrink-0 hidden">
+                    <button onclick="expPlan.setWorld('ALL')" data-world="ALL" role="tab" class="tab tab-active">両方</button>
+                    <button onclick="expPlan.setWorld('KRONOS')" data-world="KRONOS" role="tab" class="tab">Kronos</button>
+                    <button onclick="expPlan.setWorld('CHALLENGER')" data-world="CHALLENGER" role="tab" class="tab">Challenger</button>
+                </nav>
+            </div>
+            <!-- Ultima EXP Plan の 両方／Kronos／Challenger（Ultima EXP Plan のときだけ出す）。押したときの切り替えは exp_ultima.js -->
+            <nav id="ultima-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
+                <button onclick="expUltima.setWorld('ALL')" data-world="ALL" role="tab" class="tab tab-active">両方</button>
+                <button onclick="expUltima.setWorld('KRONOS')" data-world="KRONOS" role="tab" class="tab">Kronos</button>
+                <button onclick="expUltima.setWorld('CHALLENGER')" data-world="CHALLENGER" role="tab" class="tab">Challenger</button>
+            </nav>
+            <!-- Quanah Tools の 装備管理／所有ピース／ジュエル強化／バトルシム／資料（Quanah Tools のときだけ出す）。押したときの切り替えは libae_gear.js -->
+            <nav id="quanah-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
+                <button onclick="libaeGear.setTab('gear')" data-tab="gear" role="tab" class="tab tab-active gap-1.5">
+                    <i data-lucide="shirt" class="w-3.5 h-3.5"></i>装備管理
+                </button>
+                <button onclick="libaeGear.setTab('pieces')" data-tab="pieces" role="tab" class="tab gap-1.5">
+                    <i data-lucide="puzzle" class="w-3.5 h-3.5"></i>所有ピース
+                </button>
+                <button onclick="libaeGear.setTab('jewel')" data-tab="jewel" role="tab" class="tab gap-1.5">
+                    <i data-lucide="gem" class="w-3.5 h-3.5"></i>ジュエル強化
+                </button>
+                <button onclick="libaeGear.setTab('battlesim')" data-tab="battlesim" role="tab" class="tab gap-1.5">
+                    <i data-lucide="cpu" class="w-3.5 h-3.5"></i>バトルシム
+                </button>
+                <button onclick="libaeGear.setTab('reference')" data-tab="reference" role="tab" class="tab gap-1.5">
+                    <i data-lucide="book-open" class="w-3.5 h-3.5"></i>資料
+                </button>
+            </nav>
             <!-- Boss Scheduler sub navigation (shown only for the scheduler app) -->
             <nav id="scheduler-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="app.schedulerTab('members')" id="snav-members"
@@ -352,6 +423,8 @@
         <main class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-950">
             <div class="max-w-[1920px] mx-auto pb-10">
                 <div id="view-dashboard" class="fade-in">
+                    <!-- カードの並び: 獲得メル順／自分の並び順（キャラクタータブで並べた順）。renderDashboard で描く。 -->
+                    <div id="dashboard-sortbar" class="flex items-center gap-2 mb-2"></div>
                     <div id="dashboard-list" class="grid grid-cols-[repeat(auto-fill,430px)] gap-2"></div>
                     <div id="empty-state" class="hidden text-center py-20">
                         <div class="bg-slate-900/50 inline-block p-6 rounded-full mb-4"><i data-lucide="ghost"
@@ -410,6 +483,12 @@
                 <div id="view-scouter" class="hidden-page fade-in"></div>
                 <!-- 中身は party_scouter.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
                 <div id="view-ptscouter" class="hidden-page fade-in"></div>
+                <!-- 中身は symbol_planner.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
+                <div id="view-symbol" class="hidden-page fade-in"></div>
+                <!-- 中身は libae_gear.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
+                <div id="view-quanah" class="hidden-page fade-in"></div>
+                <!-- 中身は exp_ultima.js が描く（計算は exp_plan.js と共通）。初回オープン時に読み込む（script.js の APPS）。 -->
+                <div id="view-ultima" class="hidden-page fade-in"></div>
                 <!-- 中身は kms_videos.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
                 <div id="view-kmsvideos" class="hidden-page fade-in"></div>
                 <!-- 中身は gms_updates.js が描く。初回オープン時に読み込む（script.js の APPS）。 -->
@@ -577,6 +656,7 @@
                                     <button type="button" id="cm-link-hexa" onclick="app.openLinkedFromModal('hexa')" class="btn btn-sm btn-soft btn-secondary">HEXA</button>
                                     <button type="button" id="cm-link-gear" onclick="app.openLinkedFromModal('gear')" class="btn btn-sm btn-soft btn-info">UPGRADE</button>
                                     <button type="button" id="cm-link-scouter" onclick="app.openLinkedFromModal('scouter')" class="btn btn-sm btn-soft btn-warning">SCOUTER</button>
+                                    <button type="button" id="cm-link-symbol" onclick="app.openLinkedFromModal('symbol')" class="btn btn-sm btn-soft" style="--btn-color:#f472b6">SYMBOL</button>
                                 </div>
                             </div>
                         </div>
