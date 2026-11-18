@@ -9,6 +9,20 @@
 
 const hexaTracker = {
     STORAGE_KEY: 'mapleManager_hexa_v1',
+    CT_STORAGE_KEY: 'mapleManager_hexa_ct_v1',   // { classId: { skillKey: CT秒（0=なし） } }
+
+    // 討伐時間の補正（強化順マップ）。秒数はその戦闘で何秒打つかの目安。
+    // 「補正なし」は元データのまま（20分戦闘とみなす）。それより長い戦闘は考えない（bi 指定）。
+    FIGHT_OPTIONS: [
+        { sec: 0,   label: '補正なし',     hint: '元データのまま（20分戦闘とみなす）' },
+        { sec: 30,  label: '開幕瞬間のみ', hint: '30秒' },
+        { sec: 150, label: '1瞬間',        hint: '150秒（開幕＋2分後の瞬間）' },
+        { sec: 270, label: '2瞬間',        hint: '270秒（開幕＋2分後・4分後の瞬間）' },
+        { sec: 390, label: '2オリジン',    hint: '390秒（開幕と6分後にオリジン）' },
+    ],
+    FIGHT_BASE_SEC: 1200,       // 元データの最終ダメージを何秒の戦闘の値とみなすか
+    CT_OPTIONS: [0, 60, 120, 360],
+    ASCENT_USES: 3,             // アセントはボス1体につき3回まで、ボスではCTなし
     MAX_LEVEL: 30,
     ICON_BASE: 'assets/hexa_icons/gms/',
 
@@ -58,6 +72,10 @@ const hexaTracker = {
             const s = localStorage.getItem(this.STORAGE_KEY);
             if (s) this.data = JSON.parse(s);
         } catch (e) { this.data = {}; }
+        try {
+            const c = localStorage.getItem(this.CT_STORAGE_KEY);
+            this.ctData = c ? JSON.parse(c) || {} : {};
+        } catch (e) { this.ctData = {}; }
         this._loaded = true;
     },
 
@@ -69,6 +87,10 @@ const hexaTracker = {
 
     saveData() {
         try { localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data)); } catch (e) {}
+    },
+
+    saveCt() {
+        try { localStorage.setItem(this.CT_STORAGE_KEY, JSON.stringify(this.ctData || {})); } catch (e) {}
     },
 
     getClassSkills(id) {
@@ -324,10 +346,75 @@ const hexaTracker = {
         return table[level];
     },
 
+    // ========== 討伐時間の補正 ==========
+    //
+    // 元データの最終ダメージは長い戦闘（20分）での値とみなす。短い戦闘では、CTの
+    // 長いスキルやアセント（ボス1体3回まで）の取り分が大きくなるので、
+    //   倍率 = (討伐時間での1秒あたりの発動回数) ÷ (20分での1秒あたりの発動回数)
+    // を最終ダメージに掛けてから順番を決める。発動回数は開幕に1回目、以降CTごと
+    // （時間÷CTの切り上げ）。アセントは3回固定なので 20分÷討伐時間。
+    // 倍率は順番決めだけに使い、画面の最終ダメージは元の値のまま（全体ダメージに
+    // 占める割合が元データにないので、補正後の％は正しく出せない）。
+
+    fightOf(trackingId) {
+        const v = this.entry(trackingId).fight;
+        return this.FIGHT_OPTIONS.some(o => o.sec === v) ? v : 0;
+    },
+
+    setFight(sec) {
+        const e = this.ensureEntry(this.modalTrackingId);
+        if (sec) e.fight = sec; else delete e.fight;
+        this.saveData();
+        this.refreshAll();
+    },
+
+    // CT in seconds (0 = none). CTs change with patches, so you pick them: only
+    // Origin starts at 6 minutes, everything else at none (bi 指定).
+    ctDefault(skill) {
+        return skill.type === 'origin' ? 360 : 0;
+    },
+
+    ctOf(classId, skill) {
+        const saved = ((this.ctData || {})[classId] || {})[skill.key];
+        return typeof saved === 'number' ? saved : this.ctDefault(skill);
+    },
+
+    setCt(skillKey, sec) {
+        const classId = this.modalClassId;
+        const skill = this.findSkill(classId, skillKey);
+        if (!skill) return;
+        if (!this.ctData) this.ctData = {};
+        const c = this.ctData[classId] || (this.ctData[classId] = {});
+        if (sec === this.ctDefault(skill)) delete c[skillKey]; else c[skillKey] = sec;
+        if (!Object.keys(c).length) delete this.ctData[classId];
+        this.saveCt();
+        this.refreshAll();
+    },
+
+    fightFactor(sec, skill, ct) {
+        if (!sec) return 1;
+        const base = this.FIGHT_BASE_SEC;
+        if (skill.type === 'ascent') return base / sec;
+        if (!ct) return 1;
+        return (Math.ceil(sec / ct) / sec) / (Math.ceil(base / ct) / base);
+    },
+
+    // { skillKey: 倍率 } for the planner, or null when nothing changes.
+    fightMults(trackingId, classId) {
+        const sec = this.fightOf(trackingId);
+        if (!sec || this.isProvisional(classId)) return null;
+        const cls = this.getClassSkills(classId);
+        if (!cls) return null;
+        const out = {};
+        for (const s of cls.skills) out[s.key] = this.fightFactor(sec, s, this.ctOf(classId, s));
+        return out;
+    },
+
     // Greedy chain from current levels to targets: repeatedly take the single
     // level with the best FD per resource (cost as orderCost weighs it), then
     // merge consecutive levels of the same node into one step.
-    planSingles(skills, from, to, perErda) {
+    // `mult` (from fightMults) scales each node's FD for the comparison only.
+    planSingles(skills, from, to, perErda, mult) {
         const cursor = { ...from };
         const singles = [];
         // Bounded by every node's remaining levels, so this always terminates.
@@ -341,7 +428,8 @@ const hexaTracker = {
                 const erda = this.erdaAt(s, lv + 1) - this.erdaAt(s, lv);
                 const fd = this.fdAt(s, lv + 1) - this.fdAt(s, lv);
                 const cost = this.orderCost(s, lv + 1, perErda);
-                const ratio = cost > 0 ? fd / cost : (fd > 0 ? Infinity : 0);
+                const w = fd * (mult ? mult[s.key] : 1);
+                const ratio = cost > 0 ? w / cost : (w > 0 ? Infinity : 0);
                 if (!best || ratio > best.ratio) best = { skill: s, from: lv, frag, erda, fd, ratio };
             }
             if (!best) break;
@@ -387,7 +475,7 @@ const hexaTracker = {
         const { skills, current, target, max } = this.planScope(trackingId, classId);
         const upTo = this.planCap === 'max' ? max : target;
         if (this.isProvisional(classId)) return this.fixedSteps(this.getClassSkills(classId).order, skills, current, upTo);
-        return this.mergeSteps(this.planSingles(skills, current, upTo, this.prioritySort === 'erda'));
+        return this.mergeSteps(this.planSingles(skills, current, upTo, this.prioritySort === 'erda', this.fightMults(trackingId, classId)));
     },
 
     // A provisional class walks its given order instead: each [key, lv] raises
@@ -853,7 +941,8 @@ const hexaTracker = {
         </button>`;
         return tab('progress', '進捗入力', 'sliders-horizontal')
             + tab('map', '強化順マップ', 'layout-grid')
-            + tab('curve', '効率カーブ', 'activity');
+            + tab('curve', '効率カーブ', 'activity')
+            + (this.isProvisional(this.modalClassId) ? '' : tab('ct', 'CT設定', 'timer'));
     },
 
     setTab(tab) {
@@ -1061,6 +1150,77 @@ const hexaTracker = {
                 seg(this.planCap === 'target', "hexaTracker.setPlanCap('target')", '目標値まで', '進捗入力で決めた目標値で止める')
                 + seg(this.planCap === 'max', "hexaTracker.setPlanCap('max')", '最大 Lv.30 まで', '目標値を無視して全ノードLv.30まで並べる'))}
             ${undo}
+        </div>${this.modalTab === 'map' && !this.isProvisional(this.modalClassId) ? this.buildFightControls() : ''}`;
+    },
+
+    multTag(m) {
+        if (!m || Math.abs(m - 1) < 0.005) return '';
+        const up = m > 1;
+        return `<span class="text-[10px] font-bold tabular-nums shrink-0 ${up ? 'text-amber-300' : 'text-sky-300'}" title="討伐時間の補正で、順番を決めるときの最終ダメージを ${m.toFixed(2)} 倍にしています（表示の最終ダメージは元の値）">×${m >= 10 ? m.toFixed(0) : m.toFixed(1)}</span>`;
+    },
+
+    // 討伐時間の補正: 戦闘の長さ。ノードごとのCTは上の「CT設定」タブ。
+    buildFightControls() {
+        const sec = this.fightOf(this.modalTrackingId);
+        const fightBtns = this.FIGHT_OPTIONS.map(o => `<button onclick="hexaTracker.setFight(${o.sec})" title="${o.hint}"
+            class="px-2.5 py-1 text-[11px] font-bold whitespace-nowrap transition-colors ${sec === o.sec ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'}">${o.label}${o.sec ? `<span class="ml-1 font-normal ${sec === o.sec ? 'text-violet-200' : 'text-slate-500'}">${o.sec}s</span>` : ''}</button>`).join('');
+        const set = this.ctSummary(this.modalClassId);
+        return `<div class="flex flex-wrap items-center gap-x-4 gap-y-2 border border-slate-800 bg-slate-900 px-2.5 py-2 mb-2">
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] text-slate-500">討伐時間</span>
+                <div class="inline-flex border border-slate-700 bg-slate-950 divide-x divide-slate-700">${fightBtns}</div>
+            </div>
+            ${sec ? `<button onclick="hexaTracker.setTab('ct')" class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-slate-200 transition-colors" title="ノードごとのCTは「CT設定」タブで選びます">
+                <i data-lucide="timer" class="w-3.5 h-3.5"></i>CT設定 <span class="font-bold text-slate-200">${set}</span></button>` : ''}
+        </div>`;
+    },
+
+    // How many nodes have a CT picked on the CT tab, for the map's band.
+    ctSummary(classId) {
+        const cls = this.getClassSkills(classId);
+        if (!cls) return '';
+        const on = cls.skills.filter(s => this.countsForDamage(s) && s.type !== 'ascent' && this.ctOf(classId, s) > 0);
+        return on.length ? `${on.length}件` : 'なし';
+    },
+
+    // CT設定タブ: この職のダメージのあるノードごとに CT を選ぶ。職業ごとに共通。
+    buildCtTab(classId, trackingId) {
+        const cls = this.getClassSkills(classId);
+        if (!cls || this.isProvisional(classId)) return this.buildEmptyState();
+        const sec = this.fightOf(trackingId);
+        const fight = this.FIGHT_OPTIONS.find(o => o.sec === sec);
+        const ctLabel = v => v ? `${v / 60}分` : 'なし';
+        const rows = this.boardOrder(cls.skills.filter(s => this.countsForDamage(s))).map((s, i) => {
+            const sCfg = this.SKILL_TYPE_CONFIG[s.type] || this.SKILL_TYPE_CONFIG.mastery;
+            const iconUrl = this.getSkillIcon(s);
+            const icon = iconUrl
+                ? `<img src="${iconUrl}" class="w-8 h-8 object-contain shrink-0" loading="lazy" alt="">`
+                : `<div class="w-8 h-8 flex items-center justify-center text-[11px] font-bold text-white shrink-0" style="background:${sCfg.badge}">${sCfg.label}</div>`;
+            const ct = this.ctOf(classId, s);
+            const m = this.fightFactor(sec, s, ct);
+            const pick = s.type === 'ascent'
+                ? `<span class="inline-flex items-center h-7 px-3 text-[11px] font-bold whitespace-nowrap text-slate-300 border border-slate-700 bg-slate-950">ボス1体 3回まで</span>`
+                : `<div class="inline-flex h-7 border border-slate-700 bg-slate-950 divide-x divide-slate-700">${this.CT_OPTIONS.map(v => `<button onclick="hexaTracker.setCt('${s.key}', ${v})"
+                    class="w-12 text-[11px] font-bold whitespace-nowrap transition-colors ${ct === v ? 'bg-violet-600 text-white' : 'text-slate-500 hover:text-slate-200'}">${ctLabel(v)}</button>`).join('')}</div>`;
+            return `<div class="flex items-center gap-3 py-1.5 px-2.5 ${i % 2 ? 'bg-slate-900/40' : ''}">
+                ${icon}
+                <div class="flex-1 min-w-0 flex items-baseline gap-2">
+                    <span class="text-xs text-slate-200 truncate" title="${this.escHtml(s.name)}">${this.escHtml(s.name)}</span>
+                    <span class="text-[9px] font-bold uppercase tracking-wider shrink-0" style="color:${sCfg.color}">${sCfg.title}</span>
+                </div>
+                ${pick}
+                <span class="w-10 text-right shrink-0">${sec ? (this.multTag(m) || '<span class="text-[10px] text-slate-600">×1</span>') : ''}</span>
+            </div>`;
+        }).join('');
+        return `<div>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 mb-2 px-1">
+                <span>${this.escHtml(this.getClassInfo(classId)?.name || cls.gms || '')} 共通</span>
+                <span>討伐時間 <span class="font-bold text-slate-200">${fight && sec ? `${fight.label}（${sec}s）` : '補正なし'}</span></span>
+            </div>
+            <div class="bg-slate-900/40 border border-slate-800 divide-y divide-slate-800/40">${rows}</div>
+            <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
+                強化順マップで討伐時間を選んだとき、ここで選んだCTから短い戦闘での伸びを見積もって順番を組み直します。右の倍率はその見積もりです（討伐時間が「補正なし」のときは出ません）。
+            </p>
         </div>`;
     },
 
@@ -1075,6 +1235,7 @@ const hexaTracker = {
         const now = this.getProgress(trackingId, classId);
         const perErda = this.prioritySort === 'erda';
         const noFd = now.noFd;
+        const mult = this.fightMults(trackingId, classId);
 
         const header = this.buildPlanControls();
 
@@ -1113,6 +1274,7 @@ const hexaTracker = {
                     <div class="flex items-baseline gap-2">
                         <span class="text-xs text-slate-200 truncate" title="${this.escHtml(s.name)}">${this.escHtml(s.name)}</span>
                         <span class="text-[9px] font-bold uppercase tracking-wider shrink-0" style="color:${sCfg.color}">${sCfg.title}</span>
+                        ${mult ? this.multTag(mult[s.key]) : ''}
                     </div>
                     <div class="text-[10px] text-slate-500 tabular-nums">
                         Lv.${step.from} → ${step.to}${levels > 1 ? `（${levels}段階）` : ''}
@@ -1259,7 +1421,7 @@ const hexaTracker = {
         // them, so where you are now is an exact point on the line.
         const past = this.isProvisional(classId)
             ? this.fixedSteps(this.getClassSkills(classId).order, skills, start, current)
-            : this.mergeSteps(this.planSingles(skills, start, current, this.prioritySort === 'erda'));
+            : this.mergeSteps(this.planSingles(skills, start, current, this.prioritySort === 'erda', this.fightMults(trackingId, classId)));
         const singles = [];
         const frag = [fragBase], erda = [erdaBase], fd = [fdBase];
         const segs = [];
@@ -2177,6 +2339,7 @@ const hexaTracker = {
     buildModalContent() {
         if (this.modalTab === 'map') return this.buildPlanMap(this.modalClassId, this.modalTrackingId);
         if (this.modalTab === 'curve') return this.buildCurveTab(this.modalClassId, this.modalTrackingId);
+        if (this.modalTab === 'ct') return this.buildCtTab(this.modalClassId, this.modalTrackingId);
         return this.buildSkillPanel(this.modalClassId, this.modalTrackingId);
     },
 
