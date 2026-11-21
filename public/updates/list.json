@@ -1,5 +1,15 @@
 [
   {
+    "id": "col-kms-1-2-419-rework",
+    "region": "COLUMN",
+    "date": "2026-11-21",
+    "kind": "Column",
+    "title": "KMS 1.2.419再整備後の全職業 GMS現行との比較",
+    "subtitle": "by Bijyon",
+    "period": "",
+    "summary": "KMS 1.2.419（9月17日）の全職業スキル再整備を、職業ごとに GMS 現行（v.272）と KMS 本実装（1.2.421）でスキルごとに比較。GMS の v.269 以降の調整履歴と、KMS 本実装の調整履歴（全項目）も載せています。"
+  },
+  {
     "id": "col-hologram-skill-fd",
     "region": "COLUMN",
     "date": "2026-11-11",
