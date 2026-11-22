@@ -3,7 +3,9 @@
 //
 // Saved shape, per tracking id (a classId for the standalone tab, 'char:<id>' for
 // a roster character):
-//   { classId?, levels: {skillKey: 0..30}, targets: {skillKey: 0..30}, excluded: {skillKey: bool} }
+//   { classId?, levels: {skillKey: 0..30}, targets: {skillKey: 0..30}, excluded: {skillKey: bool},
+//     costIn: {skillKey: bool} }
+// `costIn` is the opt-in for Sol Janus: on, its cost joins the fragment / Sol Erda totals.
 // `levels` is where you are now, `targets` is where you want to end up. Keys match
 // the ones written by earlier versions, so existing saves carry over untouched.
 
@@ -236,6 +238,17 @@ const hexaTracker = {
         return this.activeSkills(trackingId, classId).filter(s => this.countsForDamage(s));
     },
 
+    // Sol Janus has no FD, but you may still want its cost in the fragment / Sol
+    // Erda totals. A per-character opt-in (off by default): on, it counts like the
+    // 3rd skill core — in the resource totals and the HEXA %, never in FD or the plan.
+    isJanus(skill) {
+        return skill.type === 'common' && skill.slot === 0 && !this.countsForDamage(skill);
+    },
+
+    janusIn(trackingId, skill) {
+        return this.isJanus(skill) && !!(this.entry(trackingId).costIn || {})[skill.key];
+    },
+
     // The 3rd skill core (hexa_third.js) is not in GMS yet: it has no FD weight,
     // so it stays out of the FD math and the plan, but its fragment / Sol Erda
     // cost still counts toward the resource totals and the HEXA %.
@@ -245,14 +258,16 @@ const hexaTracker = {
 
     // Nodes whose cost goes into the フラグメント / ソルエルダ totals.
     costSkills(trackingId, classId) {
-        return this.activeSkills(trackingId, classId).filter(s => this.countsForDamage(s) || this.isThird(s));
+        return this.activeSkills(trackingId, classId).filter(s => this.countsForDamage(s) || this.isThird(s) || this.janusIn(trackingId, s));
     },
 
-    // The ones left out, for the note under the board.
-    nonDamageSkills(classId) {
+    // The ones left out, for the note under the board. Without a trackingId
+    // (the curve tab, which ignores saved state) Sol Janus is always listed.
+    nonDamageSkills(classId, trackingId) {
         const cls = this.getClassSkills(classId);
         if (!cls) return [];
-        return cls.skills.filter(s => !this.countsForDamage(s) && !this.isThird(s) && s.name !== 'TBD');
+        return cls.skills.filter(s => !this.countsForDamage(s) && !this.isThird(s) && s.name !== 'TBD'
+            && !(trackingId !== undefined && this.janusIn(trackingId, s)));
     },
 
     // trackingId selects which saved data set to use; classId selects the board.
@@ -967,14 +982,14 @@ const hexaTracker = {
             ${this.buildScanBar(classId, trackingId)}
             ${this.buildResourceSummary(p)}
             <div class="grid grid-cols-2 gap-2 items-start">${column(['skillNodes', 'boost'])}${column(['mastery', 'common'])}</div>
-            ${this.buildExclusionNote(classId)}
+            ${this.buildExclusionNote(classId, trackingId)}
         </div>`;
     },
 
     // Say plainly which nodes are kept out of the numbers, so a total that looks
     // short has a visible reason.
-    buildExclusionNote(classId) {
-        const sentence = this.exclusionSentence(classId);
+    buildExclusionNote(classId, trackingId) {
+        const sentence = this.exclusionSentence(classId, trackingId);
         if (!sentence) return '';
         return `<p class="text-[11px] text-base-content/40 leading-relaxed flex items-start gap-1.5">
             <i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i>
@@ -983,14 +998,19 @@ const hexaTracker = {
     },
 
     // Same sentence, for tabs that already have a footnote to append it to.
-    exclusionSentence(classId) {
-        const left = this.nonDamageSkills(classId);
+    exclusionSentence(classId, trackingId) {
+        const left = this.nonDamageSkills(classId, trackingId);
         const cls = this.getClassSkills(classId);
         const third = cls && cls.skills.some(s => this.isThird(s));
+        const janus = trackingId !== undefined && cls ? cls.skills.filter(s => this.janusIn(trackingId, s) && !this.isExcluded(trackingId, s)) : [];
         const out = [];
         if (left.length) {
             const names = [...new Set(left.map(s => s.name))].join('、');
             out.push(`${this.escHtml(names)} は最終ダメージに寄与しないため、フラグメント・エルダ・FDのすべての集計から除外しています（レベルの記録のみ可）。`);
+        }
+        if (janus.length) {
+            const names = [...new Set(janus.map(s => s.name))].join('、');
+            out.push(`${this.escHtml(names)} は欠片・エルダの集計にだけ入れています（最終ダメージ・強化順には入れていません）。`);
         }
         if (third) out.push('3rd Skill Core はGMS未実装のため、最終ダメージと強化順の計算には入れていません（必要なフラグメント・エルダはKMSの値で集計に入れています）。');
         return out.join('');
@@ -1046,8 +1066,17 @@ const hexaTracker = {
             const tgtPct = fragMax > 0 ? Math.round(fragTgt / fragMax * 100) : 0;
             const counts = this.countsForDamage(s);
             const third = this.isThird(s);
+            const janus = this.isJanus(s);
+            const janusOn = janus && this.janusIn(trackingId, s);
             const fdNow = this.fdAt(s, lvl);
-            const hint = third
+            const hint = janus
+                ? `${s.name}\n最終ダメージがないため、最終ダメージと強化順の計算には入れていません。`
+                    + (janusOn
+                        ? `\n右のチェックがオンなので、フラグメント・ソルエルダの集計には入れています。`
+                        : `\n右のチェックをオンにすると、フラグメント・ソルエルダの集計に入れます。`)
+                    + `\nフラグメント ${fragNow.toLocaleString()} / 全取得 ${fragMax.toLocaleString()}`
+                    + `\nソルエルダ ${this.erdaAt(s, lvl).toLocaleString()} / 全取得 ${this.erdaAt(s, this.MAX_LEVEL).toLocaleString()}`
+                : third
                 ? `${s.name}${s.kmsName ? `（KMS: ${s.kmsName}）` : ''}\nGMS未実装のため、最終ダメージと強化順の計算には入れていません。`
                     + `\nフラグメント ${fragNow.toLocaleString()} / 全取得 ${fragMax.toLocaleString()}`
                     + `\nソルエルダ ${this.erdaAt(s, lvl).toLocaleString()} / 全取得 ${this.erdaAt(s, this.MAX_LEVEL).toLocaleString()}（KMSの値）`
@@ -1060,6 +1089,8 @@ const hexaTracker = {
                 : `${s.name}\n最終ダメージに寄与しないため、画面上のすべての集計から除外しています。`
                     + `\nレベルの記録だけできます（フラグメント ${fragNow.toLocaleString()}）。`;
             const stat = isExcl ? '<span class="text-base-content/40">除外</span>'
+                : janus && !janusOn ? '<span class="text-base-content/40">集計外</span>'
+                : janusOn ? `<span class="text-base-content/40">FD対象外</span><span class="text-base-content/20 mx-1">·</span><span class="text-base-content/50">${fragNow.toLocaleString()}</span>`
                 : third ? `<span class="text-base-content/40">FD未計算</span><span class="text-base-content/20 mx-1">·</span><span class="text-base-content/50">${fragNow.toLocaleString()}</span>`
                 : !counts ? '<span class="text-base-content/40">火力計算外</span>'
                 : s.prov ? `<span class="text-base-content/40">FD —</span><span class="text-base-content/20 mx-1">·</span><span class="text-base-content/50">${fragNow.toLocaleString()}</span>`
@@ -1067,10 +1098,19 @@ const hexaTracker = {
 
             const iconUrl = this.getSkillIcon(s);
             const iconHtml = iconUrl
-                ? `<img src="${iconUrl}" class="w-6 h-6 object-contain ${(counts || third) && !isExcl ? '' : 'grayscale'}" loading="lazy" alt="">`
+                ? `<img src="${iconUrl}" class="w-6 h-6 object-contain ${(counts || third || janusOn) && !isExcl ? '' : 'grayscale'}" loading="lazy" alt="">`
                 : `<div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style="background:${sCfg.badge}">${sCfg.label}</div>`;
-            const tracked = counts || third;
-            rows += `<li class="grid grid-cols-[24px_minmax(0,1fr)_auto_auto] items-center gap-x-2 py-1 ${isExcl || !tracked ? 'opacity-50' : ''}">
+            const tracked = counts || third || janusOn;
+            // Sol Janus's box is the opt-in to the resource totals; every other
+            // node's box is the usual "count toward progress".
+            const box = janus
+                ? `<input type="checkbox" class="checkbox checkbox-xs" ${janusOn ? 'checked' : ''}
+                    title="${janusOn ? 'フラグメント・ソルエルダの集計から外す' : 'フラグメント・ソルエルダの集計に入れる（最終ダメージには入れません）'}"
+                    onchange="hexaTracker.toggleCostIn('${trackingId}','${s.key}')">`
+                : `<input type="checkbox" class="checkbox checkbox-xs" ${tracked ? '' : 'disabled'} ${tracked && !isExcl ? 'checked' : ''}
+                    title="${!tracked ? '最終ダメージに寄与しないため集計外' : isExcl ? '進捗に含める' : '進捗から除外'}"
+                    ${tracked ? `onchange="hexaTracker.toggleExclude('${trackingId}','${s.key}')"` : ''}>`;
+            rows += `<li class="grid grid-cols-[24px_minmax(0,1fr)_auto_auto] items-center gap-x-2 py-1 ${(isExcl || !tracked) && !janus ? 'opacity-50' : ''}">
                 ${iconHtml}
                 <div class="min-w-0">
                     <div class="flex items-baseline gap-2" title="${this.escHtml(hint)}">
@@ -1089,9 +1129,7 @@ const hexaTracker = {
                     <select title="目標値" class="select select-xs w-14 font-mono text-violet-200"
                         onchange="hexaTracker.updateTarget('${trackingId}','${classId}','${s.key}',this.value)">${this.levelOptions(lvl, tgt)}</select>
                 </div>
-                <input type="checkbox" class="checkbox checkbox-xs" ${tracked ? '' : 'disabled'} ${tracked && !isExcl ? 'checked' : ''}
-                    title="${!tracked ? '最終ダメージに寄与しないため集計外' : isExcl ? '進捗に含める' : '進捗から除外'}"
-                    ${tracked ? `onchange="hexaTracker.toggleExclude('${trackingId}','${s.key}')"` : ''}>
+                ${box}
             </li>`;
         }
 
@@ -1970,6 +2008,14 @@ const hexaTracker = {
         const e = this.ensureEntry(m.trackingId);
         if (m.level === undefined) delete e.levels[m.key]; else e.levels[m.key] = m.level;
         if (m.target === undefined) delete e.targets[m.key]; else e.targets[m.key] = m.target;
+        this.saveData();
+        this.refreshAll();
+    },
+
+    toggleCostIn(trackingId, skillKey) {
+        const e = this.ensureEntry(trackingId);
+        if (!e.costIn) e.costIn = {};
+        if (e.costIn[skillKey]) delete e.costIn[skillKey]; else e.costIn[skillKey] = true;
         this.saveData();
         this.refreshAll();
     },
