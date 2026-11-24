@@ -561,9 +561,9 @@ const quanahHexa = (() => {
             setMsg(el.checked ? 'ソルヤヌスを欠片・HEXA% の集計に入れました（HEXA Tracker も同じ設定になります）' : 'ソルヤヌスを欠片・HEXA% の集計から外しました（HEXA Tracker も同じ設定になります）');
             refresh(); return;
         }
-        if (k === 'lv') { draft.levels[el.dataset.key] = Number(el.value) || 0; refresh(); return; }
+        if (k === 'lv') { draft.levels[el.dataset.key] = Number(el.value) || 0; draft.dirty = true; refresh(); return; }
         if (k === 'date') {
-            if (okDate(el.value)) { draft.date = el.value; if (draft.auto && draft.date !== draft.editing) { draft.editing = null; draft.auto = false; } }
+            if (okDate(el.value)) { draft.date = el.value; draft.userDate = true; if (draft.auto && draft.date !== draft.editing) { draft.editing = null; draft.auto = false; } }
             refreshSoon('date'); return;
         }
         if (k === 'start' || k === 'end') { if (okDate(el.value)) c.e.opt[k] = el.value; else delete c.e.opt[k]; saveEntry(c.e); refreshSoon(k); return; }
@@ -629,6 +629,22 @@ const quanahHexa = (() => {
         });
         obs.observe(document.body, { childList: true });
     }
+
+    // 日付が変わったら（開いたまま日をまたいだとき）、入力欄の日付を今日に合わせる（bi 指定）。
+    // 自分で日付を入れた・「編集」で開いた記録はそのまま。Lv を変えていたら Lv は残して日付だけ今日の新しい記録にする
+    let lastToday = today();
+    function checkDay() {
+        const td = today();
+        if (td === lastToday) return;
+        lastToday = td;
+        if (!draft || draft.userDate || (draft.editing && !draft.auto)) return;
+        if (draft.dirty) { draft.date = td; draft.editing = null; draft.auto = false; }
+        else draft = null;
+        refresh();
+    }
+    setInterval(checkDay, 15000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDay(); });
+    window.addEventListener('focus', checkDay);
 
     function bind(el) {
         el.addEventListener('change', (ev) => { const t = ev.target; if (active && t.dataset && t.dataset.qh) onChange(t); });
