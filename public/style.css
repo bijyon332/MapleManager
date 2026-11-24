@@ -894,7 +894,7 @@ header .tabs-box > .tab-active svg { color: #a5b4fc; }
 @media (min-width: 1536px) { .qh-grid { grid-template-columns: minmax(0, 1fr) 460px; } }
 .qh-tiers { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); align-items: start; }
 .qh-tier { padding: 8px 10px; }
-.qh-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) 32px auto; align-items: center; gap: 8px; height: 32px; }
+.qh-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) 32px auto 16px; align-items: center; gap: 8px; height: 32px; }
 .qh-up { font: 700 12px "IBM Plex Mono", monospace; color: #34d399; text-align: right; }
 .qh-up.qh-zero { color: #334155; }
 .qh-down { font: 700 12px "IBM Plex Mono", monospace; color: #f87171; text-align: right; }

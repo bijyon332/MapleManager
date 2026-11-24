@@ -315,11 +315,18 @@ const quanahHexa = (() => {
                     const lv = lvOf(d.levels, s), pv = prev ? lvOf(prev.levels, s) : null;
                     const up = pv != null && lv > pv ? `<span class="qh-up">+${lv - pv}</span>` : pv != null && lv < pv ? `<span class="qh-down">${lv - pv}</span>` : '<span class="qh-up qh-zero">+0</span>';
                     const icon = H().getSkillIcon(s);
-                    return `<li class="qh-row ${counts(s) ? '' : 'opacity-60'}" title="${esc(s.name)}${counts(s) ? '' : '\n最終ダメージがないため、欠片・HEXA% の集計には入れていません'}">
+                    // ソルヤヌスは右端のチェックで欠片・HEXA% の集計に入れる（HEXA Tracker の進捗入力と同じチェック）
+                    const janus = H().isJanus(s), on = counts(s);
+                    const box = janus ? `<input type="checkbox" class="checkbox checkbox-xs" data-qh="janus" data-key="${esc(s.key)}" ${on ? 'checked' : ''}
+                        title="${on ? '欠片・HEXA% の集計から外す' : '欠片・HEXA% の集計に入れる（最終ダメージと振り順には入れません）'}" aria-label="${esc(s.name)} を集計に入れる">` : '<span></span>';
+                    const hint = on ? (janus ? '\n欠片・HEXA% の集計に入れています（最終ダメージと振り順には入れません）' : '')
+                        : janus ? '\n右のチェックをオンにすると、欠片・HEXA% の集計に入れます（HEXA Tracker と共通）' : '\n最終ダメージがないため、欠片・HEXA% の集計には入れていません';
+                    return `<li class="qh-row ${on ? '' : 'opacity-60'}" title="${esc(s.name)}${hint}">
                         ${icon ? `<img src="${esc(icon)}" class="w-6 h-6 object-contain" loading="lazy" alt="">` : '<span class="w-6 h-6"></span>'}
                         <span class="truncate text-[13px]">${esc(s.name)}</span>
                         ${up}
                         <select class="select select-xs w-16 font-mono" data-qh="lv" data-key="${esc(s.key)}">${levelOpts(H().minLevel(s), lv)}</select>
+                        ${box}
                     </li>`;
                 }).join('')}</ul></div>`;
         }).join('');
@@ -518,6 +525,14 @@ const quanahHexa = (() => {
             draft = null; H().saveData(); refresh(); return;
         }
         if (!c.classId) return;
+        if (k === 'janus') {
+            attach(c.e);
+            if (!c.e.t.costIn) c.e.t.costIn = {};
+            if (el.checked) c.e.t.costIn[el.dataset.key] = true; else delete c.e.t.costIn[el.dataset.key];
+            H().saveData();
+            setMsg(el.checked ? 'ソルヤヌスを欠片・HEXA% の集計に入れました（HEXA Tracker も同じ設定になります）' : 'ソルヤヌスを欠片・HEXA% の集計から外しました（HEXA Tracker も同じ設定になります）');
+            refresh(); return;
+        }
         if (k === 'lv') { draft.levels[el.dataset.key] = Number(el.value) || 0; refresh(); return; }
         if (k === 'date') {
             if (okDate(el.value)) { draft.date = el.value; if (draft.auto && draft.date !== draft.editing) { draft.editing = null; draft.auto = false; } }
