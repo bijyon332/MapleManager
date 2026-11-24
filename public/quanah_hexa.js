@@ -13,8 +13,9 @@
  *    HEXA Tracker と共通。
  *  - 盤面・コスト・最終ダメージ・強化順は HEXA Tracker（hexa_tracker.js）の計算をそのまま使う。
  *    3rd Skill Core（GMS 未実装）は入力・集計に出さない。
- *  - 予測: 開始日までの記録から「1日あたりの欠片」を最小二乗の傾きで出し（手入力で上書きも可）、
- *    開始日以前の最新の記録からそのペースで欠片が増えるとして終了日まで伸ばす。
+ *  - 予測: 開始日から1週間さかのぼった記録の「1日あたりの欠片」を最小二乗の傾きで出し（bi 指定。手入力の欄は作らない、bi 指定）、
+ *    開始日以前の最新の記録からそのペースで欠片が増えるとして終了日まで伸ばす。開始日は最初の記録より前にもでき、
+ *    その間はペースから逆算する。
  *    増えた欠片は HEXA Tracker の強化順マップと同じ順（並び・上限・討伐時間の補正も同じ設定）で振ったとして、
  *    どのスキルがいつ何 Lv になるかを出す（振り順）。開始日を過去にすると、その後の記録と予測を見比べられる。
  *    強化順マップそのもの（効率順／マス／タイムライン）は HEXA Tracker の画面をこの上に開いて見る。
@@ -26,6 +27,7 @@ const quanahHexa = (() => {
 
     const LS = 'mm-quanah-hexa';
     const DEFAULT_END = '2027-02-09';
+    const PACE_DAYS = 7;   // ペースを出す期間（直近1週間、bi 指定）
     const DEPS = ['hexa_data.js', 'hexa_lethe.js', 'hexa_third.js', 'hexa_tracker.js'];
     const CHART_SRC = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
 
@@ -80,7 +82,7 @@ const quanahHexa = (() => {
     function saveEntry(e) {
         attach(e);
         if (e.records.length) e.t.history = e.records; else delete e.t.history;
-        const o = {}; ['start', 'end', 'pace'].forEach((k) => { if (e.opt[k] != null && e.opt[k] !== '') o[k] = e.opt[k]; });
+        const o = {}; ['start', 'end'].forEach((k) => { if (e.opt[k] != null && e.opt[k] !== '') o[k] = e.opt[k]; });
         if (Object.keys(o).length) e.t.histOpt = o; else delete e.t.histOpt;
         H().saveData();
     }
@@ -158,26 +160,31 @@ const quanahHexa = (() => {
         const recs = e.records.map((r) => ({ date: r.date, levels: r.levels, st: stats(r.levels, skills) }));
         if (!recs.length) return { recs, ok: false, why: '記録がまだありません。記録が2件以上（日付違い）になると予測を出します。', order: orderFrom(classId, skills, e.t.levels) };
         const end = okDate(e.opt.end) ? e.opt.end : DEFAULT_END;
-        let start = okDate(e.opt.start) ? e.opt.start : recs[recs.length - 1].date;
-        if (start < recs[0].date) start = recs[0].date;
+        const start = okDate(e.opt.start) ? e.opt.start : recs[recs.length - 1].date;
+        // 起点 = 開始日以前で一番新しい記録。開始日が最初の記録より前なら最初の記録（その間はペースから逆算）
         const base = recs.filter((r) => r.date <= start);
-        const anchor = base[base.length - 1];
-        // ペース: 開始日までの記録の傾き（最小二乗）。手入力があればそちら
+        const anchor = base.length ? base[base.length - 1] : recs[0];
+        // ペース: 直近1週間の記録の傾き（最小二乗、bi 指定）。基準日は開始日（開始日が最初の記録より前なら、
+        // 最初の記録から1週間）。1週間の中に日付の違う記録が2件ないときは、その前の記録を足して2件にする。
+        // 手入力があればそちら
         let auto = null;
-        const days = new Set(base.map((r) => r.date));
-        if (days.size >= 2) {
-            const xs = base.map((r) => dayNum(r.date)), ys = base.map((r) => r.st.frag);
+        const daysOf = (rs) => new Set(rs.map((r) => r.date)).size;
+        const refN = base.length ? dayNum(start) : dayNum(recs[0].date) + PACE_DAYS;
+        const upTo = recs.filter((r) => dayNum(r.date) <= refN);
+        let paceRecs = upTo.filter((r) => dayNum(r.date) >= refN - PACE_DAYS);
+        while (daysOf(paceRecs) < 2 && paceRecs.length < upTo.length) paceRecs = upTo.slice(upTo.length - paceRecs.length - 1);
+        if (daysOf(paceRecs) >= 2) {
+            const xs = paceRecs.map((r) => dayNum(r.date)), ys = paceRecs.map((r) => r.st.frag);
             const mx = xs.reduce((a, b) => a + b, 0) / xs.length, my = ys.reduce((a, b) => a + b, 0) / ys.length;
             let num = 0, den = 0;
             xs.forEach((x, i) => { num += (x - mx) * (ys[i] - my); den += (x - mx) * (x - mx); });
             auto = den > 0 ? num / den : null;
         }
-        const manual = Number(e.opt.pace) > 0 ? Number(e.opt.pace) : null;
-        const pace = manual != null ? manual : auto;
-        const out = { recs, start, end, anchor, auto, manual, pace, baseCount: base.length, fragMax: anchor.st.fragMax, order: orderFrom(classId, skills, anchor.levels) };
+        const pace = auto;
+        const out = { recs, start, end, anchor, pace, baseCount: paceRecs.length, paceFrom: paceRecs.length ? paceRecs[0].date : null, paceTo: paceRecs.length ? paceRecs[paceRecs.length - 1].date : null, fragMax: anchor.st.fragMax, order: orderFrom(classId, skills, anchor.levels) };
         if (end <= start) return { ...out, ok: false, why: '終了日を開始日より後にしてください。' };
-        if (pace == null) return { ...out, ok: false, why: base.length < 2 ? '開始日までに日付の違う記録が2件以上あるとペースを出せます（下の「1日あたり」に手入力しても予測できます）。' : 'ペースを出せませんでした。' };
-        if (!(pace > 0)) return { ...out, ok: false, why: '記録から出したペースが 0 以下です（欠片が増えていません）。下の「1日あたり」に手入力すると予測できます。' };
+        if (pace == null) return { ...out, ok: false, why: daysOf(recs) < 2 ? '日付の違う記録が2件以上あるとペースを出して予測します。' : 'ペースを出せませんでした。' };
+        if (!(pace > 0)) return { ...out, ok: false, why: `${short(paceRecs[0].date)}〜${short(paceRecs[paceRecs.length - 1].date)} の記録で欠片が増えていないため、予測できません。` };
 
         // 強化順に振ったとき、各段が何日目に届くか
         const singles = chain(classId, skills, anchor.levels);
@@ -198,8 +205,11 @@ const quanahHexa = (() => {
             if (last && last.skill.key === st.skill.key && last.to === st.from && (last.day > startN) === (d > startN)) { last.to++; last.day = d; continue; }
             steps.push({ skill: st.skill, from: st.from, to: st.from + 1, day: d });
         }
-        const fragAt = (n) => Math.min(anchor.st.fragMax, anchor.st.frag + pace * Math.max(0, n - a0));
-        return { ...out, ok: true, steps, levelsEnd: levels, levelsStart: atStart, stStart: stats(atStart, skills), stEnd: stats(levels, skills), fragAt, startN, endN, a0 };
+        // 起点より前（開始日が最初の記録より前）はペースから逆算した値。0 未満にはしない
+        const fragAt = (n) => Math.max(0, Math.min(anchor.st.fragMax, anchor.st.frag + pace * (n - a0)));
+        let stStart = stats(atStart, skills);
+        if (startN < a0) { const f = fragAt(startN); stStart = { ...stStart, frag: f, pct: stStart.fragMax > 0 ? f / stStart.fragMax * 100 : 0, fd: null }; }
+        return { ...out, ok: true, steps, levelsEnd: levels, levelsStart: atStart, stStart, stEnd: stats(levels, skills), fragAt, startN, endN, a0, back: startN < a0 };
     }
 
     /* ---------- 画面 ---------- */
@@ -234,6 +244,15 @@ const quanahHexa = (() => {
     let active = false;
     function setActive(on) { active = on; if (!on) { syncHead(false); if (chart) { chart.destroy(); chart = null; } } }
     function refresh() { if (active) mount(); }
+    // 日付欄は打っている途中でも change が来るので、少し待ってから描き直し、同じ欄にフォーカスを戻す
+    let soonTimer = null;
+    function refreshSoon(key) {
+        clearTimeout(soonTimer);
+        soonTimer = setTimeout(() => {
+            refresh();
+            const el = root && root.querySelector(`input[data-qh="${key}"]`); if (el) el.focus();
+        }, 700);
+    }
 
     // ヘッダーのキャラ選択
     function syncHead(show) {
@@ -393,7 +412,6 @@ const quanahHexa = (() => {
     function forecastHTML(e, fc, skills, classId) {
         const startVal = fc.start || (okDate(e.opt.start) ? e.opt.start : today());
         const endVal = fc.end || (okDate(e.opt.end) ? e.opt.end : DEFAULT_END);
-        const autoTxt = fc.auto != null ? `記録から ${fmt(fc.auto)}` : '記録から出せません';
         const settings = `<div class="grid grid-cols-2 gap-2">
                 <label class="flex flex-col gap-1"><span class="lg-k">開始日</span>
                     <input type="date" class="input input-sm font-mono w-full" data-qh="start" value="${esc(startVal)}"></label>
@@ -403,9 +421,7 @@ const quanahHexa = (() => {
             <div class="flex items-center gap-2 flex-wrap text-[11px] text-base-content/50">
                 ${okDate(e.opt.start) ? '<button type="button" class="btn btn-xs btn-ghost px-1.5" data-qh="start-auto">開始日を最新の記録に戻す</button>' : '<span>開始日は最新の記録の日です</span>'}
             </div>
-            <label class="flex items-center gap-2"><span class="lg-k whitespace-nowrap">1日あたり</span>
-                <input type="number" min="0" step="1" class="input input-sm font-mono w-28" data-qh="pace" value="${fc.manual != null ? fc.manual : ''}" placeholder="自動">
-                <span class="text-[11px] text-base-content/50">欠片（空欄なら${esc(autoTxt)}）</span></label>`;
+`;
         let body;
         const orderRows = (list) => list.map((st, i) => `<li class="qh-step">
                     <span class="font-mono text-[11px] text-base-content/40 w-6 text-right shrink-0">${i + 1}</span>
@@ -437,11 +453,11 @@ const quanahHexa = (() => {
                     <span class="ml-auto font-mono text-[12px] whitespace-nowrap">${st.from} → <b class="text-white">${st.to}</b></span>
                 </li>`;
             }).join('');
-            body = `<div class="text-[11px] text-base-content/55">${withWd(fc.anchor.date)} の記録から <b class="text-white">${fmt(fc.pace)}</b> 欠片/日 で進んだ場合（${fc.manual != null ? '手入力' : '記録から'}）。${withWd(fc.start)}〜${withWd(fc.end)}（${daysN}日）で <b class="text-violet-300">+${fmt(s1.frag - s0.frag)}</b> 欠片。</div>
+            body = `<div class="text-[11px] text-base-content/55">${withWd(fc.anchor.date)} の記録から <b class="text-white">${fmt(fc.pace)}</b> 欠片/日 で進んだ場合（直近1週間 ${short(fc.paceFrom)}〜${short(fc.paceTo)} の記録から）。${fc.back ? '開始日は最初の記録より前なので、その間はペースから逆算しています。' : ''}${withWd(fc.start)}〜${withWd(fc.end)}（${daysN}日）で <b class="text-violet-300">+${fmt(s1.frag - s0.frag)}</b> 欠片。</div>
                 <div class="grid ${noFd ? 'grid-cols-2' : 'grid-cols-3'} gap-2">
                     ${cell(`欠片（${short(fc.end)}）`, fmt(s0.frag), fmt(s1.frag), 'text-violet-300')}
                     ${cell(`HEXA（${short(fc.end)}）`, `${s0.pct.toFixed(1)}%`, `${s1.pct.toFixed(1)}%`, '')}
-                    ${noFd ? '' : cell(`最終ダメージ（${short(fc.end)}）`, `+${s0.fd.toFixed(1)}%`, `+${s1.fd.toFixed(1)}%`, 'text-emerald-300')}
+                    ${noFd ? '' : cell(`最終ダメージ（${short(fc.end)}）`, s0.fd == null ? '—' : `+${s0.fd.toFixed(1)}%`, `+${s1.fd.toFixed(1)}%`, 'text-emerald-300')}
                 </div>
                 ${capNote}
                 <div class="qh-chart"><canvas id="qh-chart"></canvas></div>
@@ -536,10 +552,9 @@ const quanahHexa = (() => {
         if (k === 'lv') { draft.levels[el.dataset.key] = Number(el.value) || 0; refresh(); return; }
         if (k === 'date') {
             if (okDate(el.value)) { draft.date = el.value; if (draft.auto && draft.date !== draft.editing) { draft.editing = null; draft.auto = false; } }
-            refresh(); return;
+            refreshSoon('date'); return;
         }
-        if (k === 'start' || k === 'end') { if (okDate(el.value)) c.e.opt[k] = el.value; else delete c.e.opt[k]; saveEntry(c.e); refresh(); return; }
-        if (k === 'pace') { const v = Number(el.value); if (v > 0) c.e.opt.pace = v; else delete c.e.opt.pace; saveEntry(c.e); refresh(); return; }
+        if (k === 'start' || k === 'end') { if (okDate(el.value)) c.e.opt[k] = el.value; else delete c.e.opt[k]; saveEntry(c.e); refreshSoon(k); return; }
         if (k === 'import') {
             const file = el.files && el.files[0]; if (!file) return;
             const reader = new FileReader();
