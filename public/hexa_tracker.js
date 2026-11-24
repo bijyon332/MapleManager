@@ -6,6 +6,8 @@
 //   { classId?, levels: {skillKey: 0..30}, targets: {skillKey: 0..30}, excluded: {skillKey: bool},
 //     costIn: {skillKey: bool} }
 // `costIn` is the opt-in for Sol Janus: on, its cost joins the fragment / Sol Erda totals.
+// Roster characters can also carry `history: [{ date, levels }]` and `histOpt: { start, end, pace }`,
+// written by Quanah Tools' 6次進捗 tab (quanah_hexa.js); its newest record also sets `levels`.
 // `levels` is where you are now, `targets` is where you want to end up. Keys match
 // the ones written by earlier versions, so existing saves carry over untouched.
 

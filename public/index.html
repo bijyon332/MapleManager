@@ -325,8 +325,10 @@
                 <button onclick="expUltima.setWorld('KRONOS')" data-world="KRONOS" role="tab" class="tab">Kronos</button>
                 <button onclick="expUltima.setWorld('CHALLENGER')" data-world="CHALLENGER" role="tab" class="tab">Challenger</button>
             </nav>
-            <!-- Quanah Tools の 装備管理／所有ピース／ジュエル強化／バトルシム／資料（Quanah Tools のときだけ出す）。押したときの切り替えは libae_gear.js -->
-            <nav id="quanah-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
+            <!-- Quanah Tools の 装備管理／所有ピース／ジュエル強化／バトルシム／6次進捗／資料（Quanah Tools のときだけ出す）。押したときの切り替えは libae_gear.js。
+                 6次進捗のときだけ右に対象キャラの選択（quanah_hexa.js） -->
+            <div id="quanah-nav" class="hidden items-center gap-3 mr-3 shrink-0">
+            <nav role="tablist" class="tabs tabs-box tabs-sm flex-nowrap shrink-0">
                 <button onclick="libaeGear.setTab('gear')" data-tab="gear" role="tab" class="tab tab-active gap-1.5">
                     <i data-lucide="shirt" class="w-3.5 h-3.5"></i>装備管理
                 </button>
@@ -339,10 +341,18 @@
                 <button onclick="libaeGear.setTab('battlesim')" data-tab="battlesim" role="tab" class="tab gap-1.5">
                     <i data-lucide="cpu" class="w-3.5 h-3.5"></i>バトルシム
                 </button>
+                <button onclick="libaeGear.setTab('hexa')" data-tab="hexa" role="tab" class="tab gap-1.5">
+                    <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>6次進捗
+                </button>
                 <button onclick="libaeGear.setTab('reference')" data-tab="reference" role="tab" class="tab gap-1.5">
                     <i data-lucide="book-open" class="w-3.5 h-3.5"></i>資料
                 </button>
             </nav>
+            <div id="quanah-hexa-head" class="hidden items-center gap-2 shrink-0">
+                <img src="" alt="" class="w-6 h-6 object-contain hidden">
+                <select class="select select-sm w-64" aria-label="対象キャラ" onchange="quanahHexa.pickChar(this.value)"></select>
+            </div>
+            </div>
             <!-- Boss Scheduler sub navigation (shown only for the scheduler app) -->
             <nav id="scheduler-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="app.schedulerTab('members')" id="snav-members"

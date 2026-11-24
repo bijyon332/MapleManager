@@ -6,7 +6,8 @@
  *  2026-11-13 の公開版に合わせて、目標ライン（18ラインの目標配分）・装備ラインの判定（寄与／超過／対象外）・
  *  所有ピースとセットソルバー（各部位1つずつ選んで目標に合う組み合わせを探す）を追加。
  *
- *  - 上部ヘッダーのタブ（#quanah-nav）で 装備管理／所有ピース／ジュエル強化／資料 を切り替える。
+ *  - 上部ヘッダーのタブ（#quanah-nav）で 装備管理／所有ピース／ジュエル強化／バトルシム／6次進捗／資料 を切り替える。
+ *    6次進捗（HEXA の進捗記録と予測）は quanah_hexa.js。
  *  - 保存はこのブラウザだけ（libae-gear-public-v1 / libae-jewel-settings-public-v1 / libae-skill-target-public-v1 /
  *    libae-owned-pieces-public-v1、単体版と同じキー）。JSON の書き出し・読み込みは単体版と同じ形
  *    （app: 'libae-gear', version: 1、skillTarget・ownedPieces 付き）で、本家アプリの書き出し（gear が配列）も読める。
@@ -197,7 +198,7 @@ const libaeGear = (() => {
         nextPieceId = ownedPieces.reduce((a, p) => Math.max(a, p.id), 0) + 1;
         patView = loadJSON(LS_PAT, 'all') === 'own' ? 'own' : 'all';
         const t = loadJSON(LS_TAB, 'gear');
-        tab = ['gear', 'pieces', 'jewel', 'battlesim', 'reference'].includes(t) ? t : 'gear';
+        tab = ['gear', 'pieces', 'jewel', 'battlesim', 'hexa', 'reference'].includes(t) ? t : 'gear';
     }
     function saveGear() { try { localStorage.setItem(LS_GEAR, JSON.stringify(gear)); } catch (e) { setMsg('保存できませんでした（ブラウザの保存領域を確認してください）', false); } }
     function saveSettings() { try { localStorage.setItem(LS_SETTINGS, JSON.stringify(settings)); } catch (e) { setMsg('設定を保存できませんでした', false); } }
@@ -987,6 +988,9 @@ const libaeGear = (() => {
     }
     function render() {
         if (!rootEl) return;
+        // 6次進捗（quanah_hexa.js）は自前で描く。キャラの選択はヘッダー（#quanah-hexa-head）
+        if (window.quanahHexa) quanahHexa.setActive(tab === 'hexa');
+        if (tab === 'hexa' && window.quanahHexa) { syncNav(); quanahHexa.mount(rootEl); return; }
         // バトルシム（プログラム図鑑、libae_battlesim.js）は装備のデータと関係ないので、下のデータ欄は出さない
         if (tab === 'battlesim') rootEl.innerHTML = `<div class="lg-root">${window.libaeBattlesim ? libaeBattlesim.html() : ''}</div>`;
         else {
@@ -1007,6 +1011,7 @@ const libaeGear = (() => {
         load();
         bind();
         if (window.libaeBattlesim) libaeBattlesim.bind(rootEl);
+        if (window.quanahHexa) quanahHexa.bind(rootEl);
         render();
     }
 
