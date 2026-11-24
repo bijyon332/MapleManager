@@ -628,7 +628,8 @@ const app = {
         quanah: {
             view: 'view-quanah',
             nav: 'quanah-nav',
-            scripts: ['libae_battlesim.js', 'libae_gear.js'],
+            // 6次進捗タブの HEXA のデータ（hexa_*.js）と Chart.js は、そのタブを開いたときに quanah_hexa.js が読む
+            scripts: ['libae_battlesim.js', 'quanah_hexa.js', 'libae_gear.js'],
             init() { libaeGear.init('view-quanah'); },
             reopen() { libaeGear.render(); }
         },
