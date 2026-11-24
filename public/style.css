@@ -902,6 +902,10 @@ header .tabs-box > .tab-active svg { color: #a5b4fc; }
 .qh-table td { font-size: 12px; vertical-align: middle; }
 .qh-table tr.qh-editing td { background: rgba(251, 191, 36, 0.08); }
 .qh-chart { position: relative; height: 220px; }
+.qh-finish { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 8px 12px; border: 1px solid #1e293b; border-radius: 0.25rem; background: #0b1222; }
+.qh-finish b { font: 900 18px "IBM Plex Mono", monospace; color: #fbbf24; }
+.qh-finish.qh-finish-in { border-color: rgba(52, 211, 153, 0.4); }
+.qh-finish.qh-finish-in b { color: #34d399; }
 .qh-steps { max-height: 340px; overflow-y: auto; border: 1px solid #1e293b; border-radius: 0.25rem; background: #0b1222; }
 .qh-step { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border-top: 1px solid #1e293b; }
 .qh-step:first-child { border-top: 0; }

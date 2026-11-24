@@ -212,7 +212,10 @@ const quanahHexa = (() => {
         const fragAt = (n) => Math.max(0, Math.min(anchor.st.fragMax, anchor.st.frag + pace * (n - a0)));
         let stStart = stats(atStart, skills);
         if (startN < a0) { const f = fragAt(startN); stStart = { ...stStart, frag: f, pct: stStart.fragMax > 0 ? f / stStart.fragMax * 100 : 0, fd: null }; }
-        return { ...out, ok: true, steps, levelsEnd: levels, levelsStart: atStart, stStart, stEnd: stats(levels, skills), fragAt, startN, endN, a0, back: startN < a0 };
+        // 完了予定日: 強化順マップの上限（目標値まで／Lv30 まで）まで振り終わる日。終了日より後でも出す
+        const chainFrag = singles.reduce((a, st) => a + st.frag, 0);
+        const finishDay = singles.length ? a0 + Math.ceil(chainFrag / pace - 1e-9) : null;
+        return { ...out, ok: true, steps, finishDay, finishCap: H().planCap === 'max' ? '全スキル Lv30' : '目標値', levelsEnd: levels, levelsStart: atStart, stStart, stEnd: stats(levels, skills), fragAt, startN, endN, a0, back: startN < a0 };
     }
 
     /* ---------- 画面 ---------- */
@@ -440,7 +443,13 @@ const quanahHexa = (() => {
             const noFd = H().isProvisional(classId);
             const s0 = fc.stStart, s1 = fc.stEnd;
             const cell = (label, a, b, cls) => `<div class="lg-stat"><span>${label}</span><b class="${cls}">${b}</b><small>${a} から</small></div>`;
-            const capNote = s1.frag >= s1.fragMax - 0.5 ? '<div class="text-[11px] text-success font-bold">終了日までに全スキル Lv30 に届く見込みです。</div>' : '';
+            // 完了予定日（強化順マップの上限まで振り終わる日）
+            const fy = fc.finishDay != null ? fromDay(fc.finishDay) : null;
+            const capNote = `<div class="qh-finish ${fy && fc.finishDay <= fc.endN ? 'qh-finish-in' : ''}" title="今のペースのまま、強化順マップの上限（${fc.finishCap}、HEXA Tracker の「上限」の設定）まで振り終わる日">
+                <span class="lg-k">完了予定日（${fc.finishCap}まで）</span>
+                ${fy ? `<b>${fy.slice(0, 4)}/${withWd(fy)}</b><span class="text-[11px] text-base-content/50">${fc.finishDay <= fc.endN ? '終了日までに届く見込み' : `終了日の ${fc.finishDay - fc.endN} 日後`}</span>`
+                    : '<b class="text-success">完了済み</b>'}
+            </div>`;
             const daysN = fc.endN - fc.startN;
             let prevLabel = null;
             const stepRows = fc.steps.map((st) => {
