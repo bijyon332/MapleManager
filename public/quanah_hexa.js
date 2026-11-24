@@ -15,7 +15,7 @@
  *    3rd Skill Core（GMS 未実装）は入力・集計に出さない。
  *  - 予測: 開始日から1週間さかのぼった記録の「1日あたりの欠片」を最小二乗の傾きで出し（bi 指定。手入力の欄は作らない、bi 指定）、
  *    開始日以前の最新の記録からそのペースで欠片が増えるとして終了日まで伸ばす。開始日は最初の記録より前にもでき、
- *    その間はペースから逆算する。
+ *    その間はペースから逆算する。記録が1日分しかないときは、最初の記録より前の開始日を欠片0の点として足す（bi 決定）。
  *    増えた欠片は HEXA Tracker の強化順マップと同じ順（並び・上限・討伐時間の補正も同じ設定）で振ったとして、
  *    どのスキルがいつ何 Lv になるかを出す（振り順）。開始日を過去にすると、その後の記録と予測を見比べられる。
  *    強化順マップそのもの（効率順／マス／タイムライン）は HEXA Tracker の画面をこの上に開いて見る。
@@ -173,6 +173,9 @@ const quanahHexa = (() => {
         const upTo = recs.filter((r) => dayNum(r.date) <= refN);
         let paceRecs = upTo.filter((r) => dayNum(r.date) >= refN - PACE_DAYS);
         while (daysOf(paceRecs) < 2 && paceRecs.length < upTo.length) paceRecs = upTo.slice(upTo.length - paceRecs.length - 1);
+        // 記録が1日分しかなく、開始日が最初の記録より前なら、開始日を欠片0の点として足す（bi 決定）
+        const zeroStart = daysOf(paceRecs) < 2 && start < recs[0].date;
+        if (zeroStart) paceRecs = [{ date: start, st: { frag: 0 } }, ...paceRecs];
         if (daysOf(paceRecs) >= 2) {
             const xs = paceRecs.map((r) => dayNum(r.date)), ys = paceRecs.map((r) => r.st.frag);
             const mx = xs.reduce((a, b) => a + b, 0) / xs.length, my = ys.reduce((a, b) => a + b, 0) / ys.length;
@@ -181,9 +184,9 @@ const quanahHexa = (() => {
             auto = den > 0 ? num / den : null;
         }
         const pace = auto;
-        const out = { recs, start, end, anchor, pace, baseCount: paceRecs.length, paceFrom: paceRecs.length ? paceRecs[0].date : null, paceTo: paceRecs.length ? paceRecs[paceRecs.length - 1].date : null, fragMax: anchor.st.fragMax, order: orderFrom(classId, skills, anchor.levels) };
+        const out = { recs, start, end, anchor, pace, baseCount: paceRecs.length, paceFrom: paceRecs.length ? paceRecs[0].date : null, paceTo: paceRecs.length ? paceRecs[paceRecs.length - 1].date : null, zeroStart, fragMax: anchor.st.fragMax, order: orderFrom(classId, skills, anchor.levels) };
         if (end <= start) return { ...out, ok: false, why: '終了日を開始日より後にしてください。' };
-        if (pace == null) return { ...out, ok: false, why: daysOf(recs) < 2 ? '日付の違う記録が2件以上あるとペースを出して予測します。' : 'ペースを出せませんでした。' };
+        if (pace == null) return { ...out, ok: false, why: daysOf(recs) < 2 ? '日付の違う記録が2件以上あるか、開始日を最初の記録より前（6次を始めた日など、欠片0とみなします）にするとペースを出して予測します。' : 'ペースを出せませんでした。' };
         if (!(pace > 0)) return { ...out, ok: false, why: `${short(paceRecs[0].date)}〜${short(paceRecs[paceRecs.length - 1].date)} の記録で欠片が増えていないため、予測できません。` };
 
         // 強化順に振ったとき、各段が何日目に届くか
@@ -453,7 +456,7 @@ const quanahHexa = (() => {
                     <span class="ml-auto font-mono text-[12px] whitespace-nowrap">${st.from} → <b class="text-white">${st.to}</b></span>
                 </li>`;
             }).join('');
-            body = `<div class="text-[11px] text-base-content/55">${withWd(fc.anchor.date)} の記録から <b class="text-white">${fmt(fc.pace)}</b> 欠片/日 で進んだ場合（直近1週間 ${short(fc.paceFrom)}〜${short(fc.paceTo)} の記録から）。${fc.back ? '開始日は最初の記録より前なので、その間はペースから逆算しています。' : ''}${withWd(fc.start)}〜${withWd(fc.end)}（${daysN}日）で <b class="text-violet-300">+${fmt(s1.frag - s0.frag)}</b> 欠片。</div>
+            body = `<div class="text-[11px] text-base-content/55">${withWd(fc.anchor.date)} の記録から <b class="text-white">${fmt(fc.pace)}</b> 欠片/日 で進んだ場合（${fc.zeroStart ? `開始日 ${short(fc.paceFrom)} を欠片0として ${short(fc.paceTo)} の記録まで` : `直近1週間 ${short(fc.paceFrom)}〜${short(fc.paceTo)} の記録から`}）。${fc.back && !fc.zeroStart ? '開始日は最初の記録より前なので、その間はペースから逆算しています。' : ''}${withWd(fc.start)}〜${withWd(fc.end)}（${daysN}日）で <b class="text-violet-300">+${fmt(s1.frag - s0.frag)}</b> 欠片。</div>
                 <div class="grid ${noFd ? 'grid-cols-2' : 'grid-cols-3'} gap-2">
                     ${cell(`欠片（${short(fc.end)}）`, fmt(s0.frag), fmt(s1.frag), 'text-violet-300')}
                     ${cell(`HEXA（${short(fc.end)}）`, `${s0.pct.toFixed(1)}%`, `${s1.pct.toFixed(1)}%`, '')}
