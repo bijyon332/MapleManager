@@ -256,31 +256,31 @@
             <!-- Scouter の入力／結果（Scouter のときだけ出す）。「計算する」を押すと結果へ移る。押したときの切り替えは scouter.js -->
             <nav id="scouter-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="scouter.setTab('input')" data-tab="input" role="tab" class="tab tab-active gap-1.5">
-                    <i data-lucide="pencil-line" class="w-3.5 h-3.5"></i>入力
+                    <i data-lucide="pencil-line" class="w-3.5 h-3.5"></i>Input
                 </button>
                 <button onclick="scouter.setTab('result')" data-tab="result" role="tab" class="tab gap-1.5">
-                    <i data-lucide="gauge" class="w-3.5 h-3.5"></i>結果
+                    <i data-lucide="gauge" class="w-3.5 h-3.5"></i>Result
                 </button>
                 <button onclick="scouter.setTab('quick')" data-tab="quick" role="tab" class="tab gap-1.5">
-                    <i data-lucide="timer" class="w-3.5 h-3.5"></i>簡易換算
+                    <i data-lucide="timer" class="w-3.5 h-3.5"></i>Quick
                 </button>
                 <button onclick="scouter.setTab('hyper')" data-tab="hyper" role="tab" class="tab gap-1.5">
-                    <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>ハイパー最適化
+                    <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>Hyper Stat
                 </button>
                 <button onclick="scouter.setTab('hstat')" data-tab="hstat" role="tab" class="tab gap-1.5">
-                    <i data-lucide="hexagon" class="w-3.5 h-3.5"></i>HEXAステ最適化
+                    <i data-lucide="hexagon" class="w-3.5 h-3.5"></i>HEXA Stat
                 </button>
             </nav>
             <!-- Symbol Planner の 進捗／イベント（Symbol Planner のときだけ出す）。押したときの切り替えは symbol_planner.js -->
             <nav id="symbol-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="symbolPlanner.setTab('progress')" data-tab="progress" role="tab" class="tab tab-active gap-1.5">
-                    <i data-lucide="chart-gantt" class="w-3.5 h-3.5"></i>進捗
+                    <i data-lucide="chart-gantt" class="w-3.5 h-3.5"></i>Progress
                 </button>
                 <button onclick="symbolPlanner.setTab('timeline')" data-tab="timeline" role="tab" class="tab gap-1.5">
-                    <i data-lucide="calendar-days" class="w-3.5 h-3.5"></i>早見表
+                    <i data-lucide="calendar-days" class="w-3.5 h-3.5"></i>Timeline
                 </button>
                 <button onclick="symbolPlanner.setTab('events')" data-tab="events" role="tab" class="tab gap-1.5">
-                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>イベント
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>Events
                 </button>
             </nav>
             <!-- Journal の GMS／KMS（パッチ情報）と、少し離して Column（Journal のときだけ出す）。押したときの切り替えは gms_updates.js -->
@@ -304,13 +304,13 @@
             <div id="exp-nav" class="hidden items-center gap-4 mr-3 shrink-0">
                 <nav role="tablist" class="tabs tabs-box tabs-sm flex-nowrap shrink-0">
                     <button onclick="expPlan.setTab('sim')" data-tab="sim" role="tab" class="tab tab-active gap-1.5">
-                        <i data-lucide="user" class="w-3.5 h-3.5"></i>1キャラ
+                        <i data-lucide="user" class="w-3.5 h-3.5"></i>Character
                     </button>
                     <button onclick="expPlan.setTab('plan')" data-tab="plan" role="tab" class="tab gap-1.5">
-                        <i data-lucide="users" class="w-3.5 h-3.5"></i>アカウント計画
+                        <i data-lucide="users" class="w-3.5 h-3.5"></i>Account Plan
                     </button>
                     <button onclick="expPlan.setTab('buffs')" data-tab="buffs" role="tab" class="tab gap-1.5">
-                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>イベントバフ
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>Event Buffs
                     </button>
                 </nav>
                 <nav id="exp-world-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap shrink-0 hidden">
@@ -330,22 +330,22 @@
             <div id="quanah-nav" class="hidden items-center gap-3 mr-3 shrink-0">
             <nav role="tablist" class="tabs tabs-box tabs-sm flex-nowrap shrink-0">
                 <button onclick="libaeGear.setTab('gear')" data-tab="gear" role="tab" class="tab tab-active gap-1.5">
-                    <i data-lucide="shirt" class="w-3.5 h-3.5"></i>装備管理
+                    <i data-lucide="shirt" class="w-3.5 h-3.5"></i>Gear
                 </button>
                 <button onclick="libaeGear.setTab('pieces')" data-tab="pieces" role="tab" class="tab gap-1.5">
-                    <i data-lucide="puzzle" class="w-3.5 h-3.5"></i>所有ピース
+                    <i data-lucide="puzzle" class="w-3.5 h-3.5"></i>Pieces
                 </button>
                 <button onclick="libaeGear.setTab('jewel')" data-tab="jewel" role="tab" class="tab gap-1.5">
-                    <i data-lucide="gem" class="w-3.5 h-3.5"></i>ジュエル強化
+                    <i data-lucide="gem" class="w-3.5 h-3.5"></i>Jewels
                 </button>
                 <button onclick="libaeGear.setTab('battlesim')" data-tab="battlesim" role="tab" class="tab gap-1.5">
-                    <i data-lucide="cpu" class="w-3.5 h-3.5"></i>バトルシム
+                    <i data-lucide="cpu" class="w-3.5 h-3.5"></i>Battle Sim
                 </button>
                 <button onclick="libaeGear.setTab('hexa')" data-tab="hexa" role="tab" class="tab gap-1.5">
-                    <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>6次進捗
+                    <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>6th Job
                 </button>
                 <button onclick="libaeGear.setTab('reference')" data-tab="reference" role="tab" class="tab gap-1.5">
-                    <i data-lucide="book-open" class="w-3.5 h-3.5"></i>資料
+                    <i data-lucide="book-open" class="w-3.5 h-3.5"></i>Reference
                 </button>
             </nav>
             <div id="quanah-hexa-head" class="hidden items-center gap-2 shrink-0">
@@ -372,20 +372,20 @@
             <nav id="hexa-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="hexaTracker.setPage('ranking')" id="hnav-ranking"
                     role="tab" class="tab tab-active gap-1.5">
-                    <i data-lucide="trophy" class="w-3.5 h-3.5"></i>効率ランキング
+                    <i data-lucide="trophy" class="w-3.5 h-3.5"></i>Ranking
                 </button>
                 <button onclick="hexaTracker.setPage('tracker')" id="hnav-tracker"
                     role="tab" class="tab gap-1.5">
-                    <i data-lucide="hexagon" class="w-3.5 h-3.5"></i>トラッカー
+                    <i data-lucide="hexagon" class="w-3.5 h-3.5"></i>Tracker
                 </button>
             </nav>
             <!-- EXP Tracker sub navigation (shown only for the ranks app) -->
             <nav id="ranks-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button type="button" data-tab="board" role="tab" class="ranks-tab-btn tab tab-active gap-1.5">
-                    <i data-lucide="list-ordered" class="w-3.5 h-3.5"></i>リーダーボード
+                    <i data-lucide="list-ordered" class="w-3.5 h-3.5"></i>Leaderboard
                 </button>
                 <button type="button" data-tab="trend" role="tab" class="ranks-tab-btn tab gap-1.5">
-                    <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>推移
+                    <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>Trend
                 </button>
             </nav>
             <!-- Weapon Liberation sub navigation (shown only for the liberation app) -->
@@ -401,19 +401,19 @@
             <nav id="community-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="community.setTab('roster')" id="cnav-roster"
                     role="tab" class="tab tab-active gap-1.5">
-                    <i data-lucide="contact" class="w-3.5 h-3.5"></i>名簿
+                    <i data-lucide="contact" class="w-3.5 h-3.5"></i>Roster
                 </button>
                 <button onclick="community.setTab('list')" id="cnav-list"
                     role="tab" class="tab gap-1.5">
-                    <i data-lucide="table" class="w-3.5 h-3.5"></i>キャラ一覧
+                    <i data-lucide="table" class="w-3.5 h-3.5"></i>Characters
                 </button>
                 <button onclick="community.setTab('guild')" id="cnav-guild"
                     role="tab" class="tab gap-1.5">
-                    <i data-lucide="shield" class="w-3.5 h-3.5"></i>ギルド別
+                    <i data-lucide="shield" class="w-3.5 h-3.5"></i>Guilds
                 </button>
                 <button onclick="community.setTab('todo')" id="cnav-todo"
                     role="tab" class="tab gap-1.5">
-                    <i data-lucide="inbox" class="w-3.5 h-3.5"></i>未割り当て<span id="cm-todo-badge" class="cm-nav-badge"></span>
+                    <i data-lucide="inbox" class="w-3.5 h-3.5"></i>Unassigned<span id="cm-todo-badge" class="cm-nav-badge"></span>
                 </button>
             </nav>
             <!-- Dashboard Stats -->

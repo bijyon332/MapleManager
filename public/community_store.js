@@ -101,7 +101,7 @@
     }
 
     // 持ち主が決まっていないキャラ。キャラ名だけの一括登録で入り、
-    // Community の「未割り当て」タブから人へ割り当てる。
+    // Community の「Unassigned」タブから人へ割り当てる。
     // 他のアプリ（Scheduler / Planner / Leaderboard）からは見えない。
     function normalizePending(list, members) {
         const seen = new Set(
@@ -136,7 +136,7 @@
 
         /* ---------- 読み書き ---------- */
         members() { return this.members_; },
-        // 人に割り当てられていないキャラ。名簿の「未割り当て」タブだけが扱う。
+        // 人に割り当てられていないキャラ。名簿の「Unassigned」タブだけが扱う。
         pending() { return this.pending_; },
         characters() {
             return this.members_.flatMap((m) => m.characters.map((c) => Object.assign({}, c, {

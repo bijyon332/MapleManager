@@ -456,7 +456,7 @@ const scouter = (() => {
                 ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-8 h-8 object-contain bg-base-300 border border-base-content/10">` : ''}
                 <b class="text-white">${esc(char ? char.name : '仮入力')}</b>
                 <span class="text-xs text-base-content/50">の Scouter</span>
-                <nav role="tablist" class="tabs tabs-box tabs-sm ml-2">${tab('input', 'pencil-line', '入力')}${tab('result', 'gauge', '結果')}${tab('quick', 'timer', '簡易換算')}${tab('hyper', 'sliders-horizontal', 'ハイパー最適化')}${tab('hstat', 'hexagon', 'HEXAステ最適化')}</nav>
+                <nav role="tablist" class="tabs tabs-box tabs-sm ml-2">${tab('input', 'pencil-line', 'Input')}${tab('result', 'gauge', 'Result')}${tab('quick', 'timer', 'Quick')}${tab('hyper', 'sliders-horizontal', 'Hyper Stat')}${tab('hstat', 'hexagon', 'HEXA Stat')}</nav>
                 <button data-sc="close" class="btn btn-sm btn-ghost btn-square ml-auto" title="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>
             </div>`;
         veil.innerHTML = `<div class="sc-modal ${cur.page ? '' : 'modal-box max-w-[1400px] w-[96vw] h-[94vh] max-h-[94vh] p-0 flex flex-col bg-base-200 border border-base-content/15'}">
@@ -653,8 +653,8 @@ const scouter = (() => {
         const now = hyperLv(f);
         const used = H.costOf(now);
         // 計算できないときは、今のレベルの入力だけ出す（理由は右の枠に）。
-        const why = !cls || !num(f.main.base) || !num(f.atk.base) ? '「入力」で職業と主ステータス・攻撃力の内訳を入れると、一番伸びる振り方が出ます。'
-            : !total ? '「入力」で Lv を入れてください（所持ポイントを Lv から出します）。' : '';
+        const why = !cls || !num(f.main.base) || !num(f.atk.base) ? '「Input」で職業と主ステータス・攻撃力の内訳を入れると、一番伸びる振り方が出ます。'
+            : !total ? '「Input」で Lv を入れてください（所持ポイントを Lv から出します）。' : '';
         // 結果は「ハイパーを計算する」を押したときのもの。そのあと入力や条件が変わったら古い印を出す。
         const run = e.hyperRun || null;
         const r = run && run.levels ? run : null;
@@ -697,7 +697,7 @@ const scouter = (() => {
             : chk ? `<p class="text-[11px] text-base-content/50">手元の計算の見込みです。もう一度「ハイパーを計算する」を押すと ${ENGINE_NAME} の値になります。</p>`
             : `<p class="text-[11px] text-base-content/50">${ENGINE_NAME} で確かめています。いま出ているのは手元の計算の見込みです。</p>`;
         const staleNote = stale ? '<p class="text-[11px] text-warning">計算したあとに入力や条件が変わりました。もう一度「ハイパーを計算する」を押してください。</p>' : '';
-        const effNote = r && !r.byEff ? '<p class="text-[11px] text-warning">「入力」で一度「計算する」をしてから押すと、計算元のスペック効率で振り方を選びます（今は手元の式で、防御率無視を高めに見ています）。</p>' : '';
+        const effNote = r && !r.byEff ? '<p class="text-[11px] text-warning">「Input」で一度「計算する」をしてから押すと、計算元のスペック効率で振り方を選びます（今は手元の式で、防御率無視を高めに見ています）。</p>' : '';
         const gainBox = r && !why ? card('伸び', same ? '今の振り方が一番です' : '今の振り方と比べた最終ダメージ', `
                     ${staleNote}
                     <div class="sc-big"><span>最終ダメージ（ボス防御率 380%）</span><b>${pct(g380)}</b></div>
@@ -737,7 +737,7 @@ const scouter = (() => {
         const f = e.form, X = HX();
         const cls = CLASSES[f.classId];
         if (!X) return '<div class="sc-res-empty">読み込み中です。</div>';
-        const why = !cls || !num(f.main.base) || !num(f.atk.base) ? '「入力」で職業と主ステータス・攻撃力の内訳を入れると、一番伸びる置き方が出ます。' : '';
+        const why = !cls || !num(f.main.base) || !num(f.atk.base) ? '「Input」で職業と主ステータス・攻撃力の内訳を入れると、一番伸びる置き方が出ます。' : '';
         const run = e.hstatRun || null;
         const r = run && run.nodes ? run : null;
         const stale = !!run && run.sig !== hstatSig(e);
@@ -782,7 +782,7 @@ const scouter = (() => {
             : `<p class="text-[11px] text-base-content/50">${ENGINE_NAME} で確かめています。いま出ているのは手元の計算の見込みです。</p>`;
         const staleNote = stale ? '<p class="text-[11px] text-warning">計算したあとに入力や条件が変わりました。もう一度「HEXAステを計算する」を押してください。</p>' : '';
         // 置き方は計算元のスペック効率で選ぶ。まだ「計算する」をしていないと手元の式になり、防御率無視を高く見がち。
-        const effNote = r && !r.byEff ? '<p class="text-[11px] text-warning">「入力」で一度「計算する」をしてから押すと、計算元のスペック効率で置き方を選びます（今は手元の式で、防御率無視を高めに見ています）。</p>' : '';
+        const effNote = r && !r.byEff ? '<p class="text-[11px] text-warning">「Input」で一度「計算する」をしてから押すと、計算元のスペック効率で置き方を選びます（今は手元の式で、防御率無視を高めに見ています）。</p>' : '';
         const gainBox = r && !why ? card('伸び', same ? '今の置き方が一番です' : `選び直すコア ${r.changed} 個`, `
                     ${staleNote}
                     <div class="sc-big"><span>最終ダメージ（ボス防御率 380%）</span><b>${pct(g380)}</b></div>
@@ -809,7 +809,7 @@ const scouter = (() => {
         if (!cur || cur.busy) return;
         const e = cur.e, f = e.form, X = HX(), cls = CLASSES[f.classId];
         if (!X) return;
-        if (!cls || !num(f.main.base) || !num(f.atk.base)) { setMsg('「入力」で職業・主ステータスと攻撃力の内訳を入れてください。', 'err'); return; }
+        if (!cls || !num(f.main.base) || !num(f.atk.base)) { setMsg('「Input」で職業・主ステータスと攻撃力の内訳を入れてください。', 'err'); return; }
         const sig = hstatSig(e), at = new Date().toISOString();
         const r = X.optimize(f, cls, f.classId, f.hexaStat, { pdr: 380, critBuff: 0, eff: e.result && e.result.eff });
         if (r.error) { e.hstatRun = { sig, at, error: r.error }; save(); renderModal(); return; }
@@ -820,7 +820,7 @@ const scouter = (() => {
         const neg = [['main', '主ステ'], ['sub', '副ステ'], ['sub2', '第3ステ'], ['atk', isMagic(f.classId) ? '魔力' : '攻撃力']]
             .find(([k]) => st[k].base < 0 || st[k].abs < 0);
         if (neg) {
-            e.hstatRun.check = { error: `入力の${neg[1]}の内訳より今のHEXAステの${neg[1]}の方が大きくなっています。「入力」の${neg[1]}の Base Value・% Value Not Applied と、HEXAステの種類・Lv を確かめてください。` };
+            e.hstatRun.check = { error: `入力の${neg[1]}の内訳より今のHEXAステの${neg[1]}の方が大きくなっています。「Input」の${neg[1]}の Base Value・% Value Not Applied と、HEXAステの種類・Lv を確かめてください。` };
             save(); renderModal(); return;
         }
         const g = JSON.parse(JSON.stringify(f));
@@ -882,7 +882,7 @@ const scouter = (() => {
         const e = cur.e, f = e.form, o = e.hyperOpt, H = HY(), cls = CLASSES[f.classId];
         if (!H) return;
         const total = hyperTotal(f);
-        if (!cls || !num(f.main.base) || !num(f.atk.base) || !total) { setMsg('「入力」で職業・Lv・主ステータスと攻撃力の内訳を入れてください。', 'err'); return; }
+        if (!cls || !num(f.main.base) || !num(f.atk.base) || !total) { setMsg('「Input」で職業・Lv・主ステータスと攻撃力の内訳を入れてください。', 'err'); return; }
         const now = hyperLv(f);
         const sig = hyperSig(e), at = new Date().toISOString();
         const r = H.optimize(f, cls, f.classId, now, { total, locked: o.locked, fixed: { cr: hyperCrLv(e) }, pdr: 380, critBuff: 0, eff: e.result && e.result.eff });
@@ -1115,7 +1115,7 @@ const scouter = (() => {
     //   - 防御率 300% のボスは、換算主ステが 380% と同じとみる（防御無視の差は見られない）。
     //   - 職業ごとの時間補正（timeFactor）は掛けない。
     //   - シンボルはダメージの値が無いので、該当地域のボスに最終ダメージ QUICK_SYM_FD % を掛ける（bi 指定）。
-    // 入力の Lv・フォース・シンボルは「入力」タブと同じ値（form）を使う。時間だけ e.quick.min（分）に持つ。
+    // 入力の Lv・フォース・シンボルは「Input」タブと同じ値（form）を使う。時間だけ e.quick.min（分）に持つ。
     const QUICK_SYM_FD = 0.4;
     function quickCuts(f, min) {
         const B = typeof scouterBossCut !== 'undefined' ? scouterBossCut : null;
@@ -1366,7 +1366,7 @@ const scouter = (() => {
         const f = e.form;
         if (!r) return `<div class="sc-big sc-big-empty"><span>HEXA換算（防御率380%）</span><b>—</b></div>
             <table class="sc-kv"><tr><th>換算戦闘力</th><td>—</td></tr><tr><th>戦闘力（計算）</th><td>—</td></tr></table>
-            <p class="text-xs text-base-content/50">「入力」で「計算する」を押すと出ます。</p>`;
+            <p class="text-xs text-base-content/50">「Input」で「計算する」を押すと出ます。</p>`;
         if (r.error) return `<div class="sc-res-empty sc-err">${esc(r.error)}</div>`;
         const eff = r.eff || {};
         // 各スペックが主ステ（Base に足す主ステ 1）いくつ分かで出す。
