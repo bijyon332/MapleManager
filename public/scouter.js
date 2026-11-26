@@ -465,16 +465,25 @@ const scouter = (() => {
             <div class="${cur.page ? '' : 'flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3'} flex flex-col gap-3 [&>*]:shrink-0">
                 ${result && cur.live ? `<div class="flex">${actionsHTML()}</div>` : ''}
                 <div class="sc-msg ${cur.msgKind}" id="sc-msg">${esc(cur.msg)}</div>
-                ${result ? `<div class="card card-sm bg-base-100 border border-base-content/10 overflow-hidden"><div class="sc-body sc-resbody">
+                ${result ? `<section class="card card-sm bg-base-100 border border-base-content/10 overflow-hidden"><div class="sc-body sc-resbody">
                     <div class="sc-side" id="sc-result">${resultHTML(e)}</div>
-                    <div class="sc-cutpage">${cutPageHTML(e)}</div>
-                </div></div>` : tabNow === 'quick' ? quickPageHTML(e) : tabNow === 'hyper' ? hyperPageHTML(e) : tabNow === 'hstat' ? hstatPageHTML(e) : `${stepsHTML(inputSteps())}
-                <div id="sc-reads">${readsHTML()}</div>
-                ${formHTML(e.form)}`}
+                    <div class="sc-cutpage">${cutPageHTML(e) || cutSkeletonHTML()}</div>
+                </div></section>` : tabNow === 'quick' ? quickPageHTML(e) : tabNow === 'hyper' ? hyperPageHTML(e) : tabNow === 'hstat' ? hstatPageHTML(e) : `
+                <section class="card card-sm bg-base-100 border border-base-content/10 sc-input">
+                    ${stepsHTML(inputSteps(), true)}
+                    <div id="sc-reads" class="px-4 pb-3 empty:hidden">${readsHTML()}</div>
+                    ${formHTML(e.form)}
+                </section>`}
             </div>
         </div>`;
         bindDrop(veil);
         if (window.lucide) lucide.createIcons();
+        // 計算した直後に結果タブへ移ったときは、一番上から見せる
+        if (cur.jump) {
+            cur.jump = false;
+            const box = cur.page ? document.querySelector('main') : veil.querySelector('.overflow-y-auto');
+            if (box) box.scrollTop = 0;
+        }
     }
     // ページのときだけ、上部ヘッダーのタブの選択を合わせる。
     function syncNav() {
@@ -507,6 +516,10 @@ const scouter = (() => {
     const card = (title, small, body, count) => `<section class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
         <div class="flex items-baseline gap-2"><h3 class="font-bold text-sm text-white">${title}</h3><span class="text-[11px] text-base-content/50">${small || ''}</span>${count ? `<span class="ml-auto badge badge-sm badge-ghost">${count}</span>` : ''}</div>
         ${body}</div></section>`;
+    // 入力の面の中の1区切り。見出しは1種類の書式。small は特殊な入力の補足だけに使う（UI で分かることは書かない）。
+    const sec = (title, small, body, count) => `<section class="sc-sec">
+        <div class="sc-sec-h"><h3>${title}</h3>${small ? `<span>${small}</span>` : ''}${count ? `<em>${count}</em>` : ''}</div>
+        ${body}</section>`;
     const grid4 = (html) => `<div class="grid grid-cols-4 gap-1">${html}</div>`;
 
     function formHTML(f) {
@@ -537,8 +550,8 @@ const scouter = (() => {
                 <tbody>${statRows}</tbody>
             </table></div>` : '<p class="text-xs text-base-content/50">先に職業を選んでください。</p>';
         const filled = DETAIL.filter(([k]) => num(f[k])).length;
-        const detail = `<div class="grid grid-cols-2 gap-x-6 gap-y-1">${DETAIL.map(([k, label, unit]) => `<label class="flex items-center gap-2">
-                <span class="text-xs flex-1 ${num(f[k]) ? 'text-base-content/75' : 'text-base-content/40'}">${esc(label)}</span>${inp(k, f[k], 'w-20')}<span class="w-4 text-[11px] text-base-content/40">${unit}</span></label>`).join('')}</div>`;
+        const detail = `<div class="grid grid-cols-2 gap-x-4 gap-y-1">${DETAIL.map(([k, label, unit]) => `<label class="flex items-center gap-2">
+                <span class="text-xs flex-1 min-w-0 truncate ${num(f[k]) ? 'text-base-content/75' : 'text-base-content/40'}">${esc(label)}</span>${inp(k, f[k], 'w-16')}<span class="w-4 text-[11px] text-base-content/40">${unit}</span></label>`).join('')}</div>`;
         const links = LINKS.filter(([, , , only]) => !only || only === f.classId);
         const linkBody = grid4(links.map(([k, label, icon]) => lvTile(label, icon, 'link.' + k, f.link[k])).join(''));
         // Wild Hunter のユニオン効果は、ユニオンに置いた Wild Hunter のレベルで決まる。
@@ -548,19 +561,19 @@ const scouter = (() => {
         const buffOn = allBuffs.filter((it) => buffIsOn(f, it)).length;
         const buffBody = BUFFS.map((g) => `<div class="text-[11px] text-base-content/50 mt-1">${esc(g.title)}</div>${grid4(g.items.map((it) => buffTile(f, it)).join(''))}`).join('');
         const note = 'ゲーム内の値は MapleScouter の前提の状態で入れます: 秘薬・外部バフ・ギルドスキルなし、リンクスキル装着（スタックなし）、シードリング装着、召喚獣（ソル・ヘカテなど）On、コンバットオーダーズ・シャープアイズ使用、ソウルゲージ初期化、ファミリア召喚。ボス戦で使うバフは「バフアイテム」で選びます。';
-        return `<div class="grid grid-cols-1 xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] gap-3 items-start">
-            <div class="flex flex-col gap-3">
-                ${card('基本・主ステータス', 'ステータス画面で STR などをクリックすると出る STAT INFO の値', basic + main)}
-                ${card('詳細ステータス', '', detail, `入力済み ${filled} / ${DETAIL.length}`)}
-                ${card('リンクスキル', '全キャラ共通のレベル', linkBody)}
-                ${card('Wild Hunter（ユニオン）', 'Wild Hunter のレベルを入力（全キャラ共通）', whBody)}
-                ${card('シードリング', 'このキャラのレベル', seedBody)}
+        return `<div class="sc-cols">
+            <div class="sc-col">
+                ${sec('基本・主ステータス', 'ステータス画面で STR などをクリックすると出る STAT INFO の値', basic + main)}
+                ${sec('詳細ステータス', '', detail, `入力済み ${filled} / ${DETAIL.length}`)}
+                ${sec('リンクスキル', '全キャラ共通のレベル', linkBody)}
+                ${sec('Wild Hunter（ユニオン）', 'Wild Hunter のレベルを入力（全キャラ共通）', whBody)}
+                ${sec('シードリング', 'このキャラのレベル', seedBody)}
             </div>
-            <div class="flex flex-col gap-3">
+            <div class="sc-col">
                 ${hexaHTML(f)}
-                ${card('バフアイテム', 'ボス戦で使うもの。押すと On / Off', buffBody, `使用 ${buffOn} / ${allBuffs.length}`)}
+                ${sec('バフアイテム', 'ボス戦で使うもの', buffBody, `使用 ${buffOn} / ${allBuffs.length}`)}
                 ${symbolHTML(f)}
-                <div role="alert" class="alert alert-soft alert-info text-[11px] py-2 leading-relaxed">${esc(note)}</div>
+                <section class="sc-sec"><p class="text-[11px] leading-relaxed text-base-content/60">${esc(note)}</p></section>
             </div>
         </div>`;
     }
@@ -606,7 +619,7 @@ const scouter = (() => {
             return `<button type="button" class="btn btn-sm h-9 justify-start gap-2 px-1.5 font-normal ${on ? 'btn-soft btn-secondary' : 'btn-ghost border-base-content/10 [&_img]:grayscale [&_img]:opacity-50'}" data-sc="sym" data-key="${k}" title="${esc(`${region}（${names}）: Lv11 以上でダメージ +${SYMBOL_DMG}%`)}">
                 ${img(`symbol/${k}.png`)}<span class="truncate text-xs ${on ? 'text-base-content font-semibold' : 'text-base-content/45'}">${esc(region)}</span><span class="ml-auto text-[10px] font-mono font-bold ${on ? 'text-secondary' : 'text-base-content/30'}">${on ? 'ON' : 'OFF'}</span></button>`;
         }).join('');
-        return card('オーセンティックシンボル', `Lv11 以上の地域。そのボスにだけダメージ +${SYMBOL_DMG}%`, grid4(tiles), `Lv11 ${n} / ${SYMBOLS.length}`);
+        return sec('オーセンティックシンボル', `Lv11 以上の地域。そのボスにだけダメージ +${SYMBOL_DMG}%`, grid4(tiles), `Lv11 ${n} / ${SYMBOLS.length}`);
     }
 
     // HEXA。手で入れる。キャラは HEXA Tracker の今のレベルをボタンで取り込める。
@@ -622,7 +635,7 @@ const scouter = (() => {
             return tileLv(ico, label, 'hexa.' + k, f.hexa[k], s ? s.name : label);
         }).join('');
         const imp = canImport ? '<button data-sc="hexa" class="btn btn-xs"><i data-lucide="download" class="w-3 h-3"></i>HEXA Tracker から取り込む</button>' : '';
-        return card('HEXA', 'レベル', (imp ? `<div>${imp}</div>` : '') + grid4(tiles), `使用 ${used} / ${HEXA_KEYS.length}`);
+        return sec('HEXA', '', (imp ? `<div>${imp}</div>` : '') + grid4(tiles), `使用 ${used} / ${HEXA_KEYS.length}`);
     }
     /* ---------- ハイパーステータス ---------- */
     const hyperLv = (f) => Object.fromEntries(HYPER_KEYS.map((k) => [k, num(f.hyper && f.hyper[k])]));
@@ -1067,6 +1080,16 @@ const scouter = (() => {
             </div>
             ${table}`;
     }
+    // 計算前（結果が無い・失敗した）ときのボスカット。表の形だけ出して、どこに何が出るか分かるようにする。
+    function cutSkeletonHTML() {
+        const list = window.BOSS_MASTER || [];
+        const names = CUT_ORDER.map((en) => { const b = list.find((x) => x.en === en); return b ? (b.short || b.ja) : en; });
+        return `<h3 class="sc-bc-h"><i data-lucide="skull"></i>ボスカット</h3>
+            <table class="sc-bctbl sc-bc-skel">
+                <thead><tr><th></th>${CUT_COLS.map((ds) => `<th>${ds.join(' / ')}</th>`).join('')}</tr></thead>
+                <tbody>${names.map((n) => `<tr><th><b>${esc(n)}</b></th>${CUT_COLS.map(() => '<td class="sc-bc-none"></td>').join('')}</tr>`).join('')}</tbody>
+            </table>`;
+    }
     // ボスカットの凡例（判定ごとの数）と表。結果タブと簡易換算タブで使う。
     function cutTableHTML(cuts) {
         const rows = cutRows(cuts || []);
@@ -1341,7 +1364,9 @@ const scouter = (() => {
     function resultHTML(e) {
         const r = e.result;
         const f = e.form;
-        if (!r) return `<div class="sc-res-empty">「入力」で値を入れて「計算する」を押すと、ここに結果が出ます。</div>`;
+        if (!r) return `<div class="sc-big sc-big-empty"><span>HEXA換算（防御率380%）</span><b>—</b></div>
+            <table class="sc-kv"><tr><th>換算戦闘力</th><td>—</td></tr><tr><th>戦闘力（計算）</th><td>—</td></tr></table>
+            <p class="text-xs text-base-content/50">「入力」で「計算する」を押すと出ます。</p>`;
         if (r.error) return `<div class="sc-res-empty sc-err">${esc(r.error)}</div>`;
         const eff = r.eff || {};
         // 各スペックが主ステ（Base に足す主ステ 1）いくつ分かで出す。
@@ -1514,7 +1539,7 @@ const scouter = (() => {
             };
             e.history = (e.history || []).concat({ at, b300: d.boss300_stat, b300h: d.boss300_hexaStat, b380h: d.boss380_hexaStat }).slice(-30);
             save();
-            if (cur === mine) { cur.tab = 'result'; setMsg('計算しました。', 'ok'); }
+            if (cur === mine) { cur.tab = 'result'; cur.jump = true; setMsg('計算しました。', 'ok'); }
         } catch (err) {
             if (cur === mine) setMsg('計算に失敗しました: ' + (err && err.message || err) + (location.protocol === 'file:' ? '（Worker 経由で開いてください）' : ''), 'err');
         } finally {
@@ -1632,7 +1657,7 @@ const scouter = (() => {
         if (cur.step && steps.includes(cur.step)) return cur.step;
         return steps.find((x) => !stepDone(x)) || null;
     }
-    function stepsHTML(steps) {
+    function stepsHTML(steps, bare) {
         const now = curStep();
         const needClass = steps.length > 1 && !cur.e.form.classId;
         const btns = steps.map((st, i) => {
@@ -1643,7 +1668,7 @@ const scouter = (() => {
         }).join('');
         const help = needClass ? '先に下の「職業」を選ぶと、主ステ・副ステの段階が出ます。'
             : now ? stepHelp(now) : '全部取れました。内容を確かめて「反映して保存」を押してください。';
-        return `<div class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
+        return `<div class="${bare ? 'sc-sec sc-steps' : 'card card-sm bg-base-100 border border-base-content/10'}"><div class="${bare ? 'grid gap-2' : 'card-body gap-2'}">
             <div class="flex items-center gap-1.5 flex-wrap"><b class="text-sm text-white mr-2">読み取りの手順</b>${btns}${actionsHTML()}</div>
             <div class="flex items-baseline gap-3 flex-wrap">
                 <p class="text-xs ${now ? 'text-base-content/80' : 'text-success'}">${now ? `<b class="text-primary">${esc(stepLabel(now))}:</b> ` : ''}${esc(help)}</p>
