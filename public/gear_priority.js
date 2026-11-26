@@ -1086,35 +1086,12 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
 
             return `<style>${CSS}</style>
 <div class="gp">
-    <div class="flex items-baseline gap-3 mb-3 flex-wrap"><h1 class="text-lg font-bold text-white">Upgrade Priority</h1>
-    <p class="text-xs text-base-content/50 leading-relaxed">いま持っている装備を入れると、次に伸ばすべき順番をメソ効率順に並べます。リブート／シャイニングスターフォース前提、潜在はレジェンダリー基準。${this.storageKey ? '' : '<br>ここはキャラに紐づかない仮の入力です。キャラごとの入力は Character Manager のカードの「UPGRADE」から開きます。'}</p></div>
-
     <div class="grid grid-cols-1 xl:grid-cols-[11fr_12fr] gap-3 items-start">
-    <div class="flex flex-col gap-3 xl:sticky xl:top-0">
-        <div class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
-            <h2 class="card-title text-sm">スコア重み・設定</h2>
-            <div class="grid grid-cols-5 gap-1.5">${weights}</div>
-            <div class="pt-2 border-t border-base-content/10 flex flex-col gap-2">
-                <div class="flex flex-wrap gap-x-4 gap-y-1 whitespace-nowrap">
-                    ${chk('ssf', 'シャイニングスターフォース')}${chk('safeguard', '15-17★で破壊防止')}${chk('starCatch', 'スターキャッチ')}${chk('blackOnly', 'キューブはブライト固定')}
-                </div>
-                <div class="grid grid-cols-[minmax(0,1.3fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_auto] gap-x-3 items-end whitespace-nowrap">
-                    ${field('<label for="gp-plan">18★以降のモード（既定）</label>', `<select id="gp-plan" class="select select-xs w-full" data-gp="planName">
-                        ${Object.keys(PLANS).map((k) => `<option value="${k}" ${o.planName === k ? 'selected' : ''}>${esc(PLAN_LABEL[k])}</option>`).join('')}
-                    </select>`)}
-                    ${field('<label for="gp-flame-price">黒転生 1回（M）</label>', `<input id="gp-flame-price" class="input input-xs font-mono w-full" type="number" min="0" step="0.1" value="${(o.flamePrice || 3e6) / 1e6}" data-gp="flamePrice">`)}
-                    ${field('<label for="gp-limit">読む手数</label>', `<input id="gp-limit" class="input input-xs font-mono w-full" type="number" min="1" max="80" value="${limit}" data-gp="limit">`)}
-                    ${field('<label for="gp-sale-pct">キューブの割引</label>', `<div class="flex items-center gap-1.5">${chk('cubeSale', 'ブラックフライデー')}
-                        <input id="gp-sale-pct" class="input input-xs font-mono w-12" type="number" min="0" max="100" step="1" value="${o.cubeSalePct ?? 25}" data-gp="cubeSalePct" aria-label="割引率（%）" ${o.cubeSale ? '' : 'disabled'}><span class="text-xs text-base-content/50">%引き</span></div>`)}
-                </div>
-            </div>
-        </div></div>
-
-        <div class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
-            <div class="flex items-center gap-2">
-                <h2 class="card-title text-sm whitespace-nowrap">装備</h2>
-                <span class="text-[11px] text-base-content/50">クリックで詳細を入力。チェックを外した部位は計算から除外します。</span>
-                <div class="join ml-auto shrink-0">
+    <div class="mm-face xl:sticky xl:top-0">
+        <section class="mm-sec">
+            <div class="mm-sec-h">
+                <h3>装備</h3><span>チェックを外した部位は計算に入れません</span>
+                <div class="mm-sec-r join">
                     <button type="button" class="btn btn-xs join-item" data-gp="all-on">すべて有効</button>
                     <button type="button" class="btn btn-xs join-item" data-gp="all-off">すべて無効</button>
                 </div>
@@ -1130,19 +1107,42 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
                 <p class="rdmsg" data-rd="msg">ゲームで装備にカーソルを合わせたスクショを、Ctrl+V かドラッグでも渡せます。</p>
                 <div id="gp-reads"></div>
             </div>
-        </div></div>
+        </section>
+        <details class="mm-sec" data-gp="opts-box" ${this.optsOpen ? 'open' : ''}>
+            <summary class="mm-sec-h"><span class="mm-caret"></span><h3>スコア重み・設定</h3><span data-gp="opts-sum">${esc(this.optsSummary())}</span></summary>
+            <div class="grid gap-2 pt-1">
+            <div class="grid grid-cols-5 gap-1.5">${weights}</div>
+            <div class="pt-2 border-t border-base-content/10 flex flex-col gap-2">
+                <div class="flex flex-wrap gap-x-4 gap-y-1 whitespace-nowrap">
+                    ${chk('ssf', 'シャイニングスターフォース')}${chk('safeguard', '15-17★で破壊防止')}${chk('starCatch', 'スターキャッチ')}${chk('blackOnly', 'キューブはブライト固定')}
+                </div>
+                <div class="grid grid-cols-[minmax(0,1.3fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_auto] gap-x-3 items-end whitespace-nowrap">
+                    ${field('<label for="gp-plan">18★以降のモード（既定）</label>', `<select id="gp-plan" class="select select-xs w-full" data-gp="planName">
+                        ${Object.keys(PLANS).map((k) => `<option value="${k}" ${o.planName === k ? 'selected' : ''}>${esc(PLAN_LABEL[k])}</option>`).join('')}
+                    </select>`)}
+                    ${field('<label for="gp-flame-price">黒転生 1回（M）</label>', `<input id="gp-flame-price" class="input input-xs font-mono w-full" type="number" min="0" step="0.1" value="${(o.flamePrice || 3e6) / 1e6}" data-gp="flamePrice">`)}
+                    ${field('<label for="gp-limit">読む手数</label>', `<input id="gp-limit" class="input input-xs font-mono w-full" type="number" min="1" max="80" value="${limit}" data-gp="limit">`)}
+                    ${field('<label for="gp-sale-pct">キューブの割引</label>', `<div class="flex items-center gap-1.5">${chk('cubeSale', 'ブラックフライデー')}
+                        <input id="gp-sale-pct" class="input input-xs font-mono w-12" type="number" min="0" max="100" step="1" value="${o.cubeSalePct ?? 25}" data-gp="cubeSalePct" aria-label="割引率（%）" ${o.cubeSale ? '' : 'disabled'}><span class="text-xs text-base-content/50">%引き</span></div>`)}
+                </div>
+            </div>
+            </div>
+        </details>
+        <section class="mm-sec"><p class="mm-note">リブート・シャイニングスターフォース前提、潜在はレジェンダリー基準です。${this.storageKey ? '' : 'ここはキャラに紐付かない仮の入力です（キャラごとの入力はダッシュボードのカードの「UPGRADE」から）。'}</p></section>
     </div>
 
-    <div class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
-        <div class="flex items-center gap-2 flex-wrap">
-            <h2 class="card-title text-sm">この順で伸ばす</h2>
-            <span id="gp-picked" class="order-last ml-auto"></span>
-            ${legend('warning', 'スターフォース')}${legend('info', '潜在')}${legend('success', '転生')}${legend('secondary', '武器・補助武器・エンブレムの潜在')}
-            <span class="text-[11px] text-base-content/50">バーは1スコアあたりの単価（対数）。長いほど割高。</span>
-        </div>
-        <ul id="gp-plan-list" class="-mx-1"></ul>
-        <p class="text-[11px] text-base-content/40 leading-relaxed">スターフォースは破壊で★が戻るため、0→18・18→20・20→21・21→22、以降は1★ずつをひとまとまりとして扱い、その区切りまで到達する期待額を出しています（再登坂込み、予備装備は0メソ扱い）。潜在はKMSの行ごとの確率（Lv160以上は値+1%）で3行の組み合わせを全部数えています。手袋以外は節目（2ライン → 3ライン（オール含み） → 3ライン（オール抜き） → レジェンダリー2ライン → レジェンダリー3ライン。武器・補助武器は攻撃力%をメイン、ボスダメをオールとして数える）を1段ずつ目標にし、届くまで回す期待個数と、届いたときの平均スコアで見ています。届いても今よりスコアが下がりやすい段は飛ばします。手袋は今の3行の合計スコアを上回るまで回します。転生は黒転生（結果を選べる）で同じように、今を上回るまでの期待回数で見ています。</p>
-    </div></div>
+    <div class="mm-face">
+        <section class="mm-sec">
+            <div class="mm-sec-h">
+                <h3>この順で伸ばす</h3>
+                ${legend('warning', 'スターフォース')}${legend('info', '潜在')}${legend('success', '転生')}${legend('secondary', '武器・補助武器・エンブレムの潜在')}
+                <span id="gp-picked" class="mm-sec-r"></span>
+            </div>
+            <p class="mm-note">バーは1スコアあたりの単価（対数）で、長いほど割高です。左のチェックで行を選ぶと、合計の期待メルが見出しの右に出ます。</p>
+            <ul id="gp-plan-list" class="-mx-1"></ul>
+            <p class="mm-note">スターフォースは破壊で★が戻るため、0→18・18→20・20→21・21→22、以降は1★ずつをひとまとまりとして扱い、その区切りまで到達する期待額を出しています（再登坂込み、予備装備は0メソ扱い）。潜在はKMSの行ごとの確率（Lv160以上は値+1%）で3行の組み合わせを全部数えています。手袋以外は節目（2ライン → 3ライン（オール含み） → 3ライン（オール抜き） → レジェンダリー2ライン → レジェンダリー3ライン。武器・補助武器は攻撃力%をメイン、ボスダメをオールとして数える）を1段ずつ目標にし、届くまで回す期待個数と、届いたときの平均スコアで見ています。届いても今よりスコアが下がりやすい段は飛ばします。手袋は今の3行の合計スコアを上回るまで回します。転生は黒転生（結果を選べる）で同じように、今を上回るまでの期待回数で見ています。</p>
+        </section>
+    </div>
     </div>
 </div>
 <div id="gp-modal-host"></div>`;
@@ -1168,6 +1168,10 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
                     this.save(); this.renderPlan();
                 }
             });
+            // 「スコア重み・設定」の開閉は描き直しても保つ（toggle は伝わらないので capture で拾う）。
+            root.addEventListener('toggle', (e) => {
+                if (e.target.matches && e.target.matches('[data-gp="opts-box"]')) this.optsOpen = e.target.open;
+            }, true);
             root.addEventListener('change', (e) => {
                 const t = e.target.closest('[data-gp]');
                 if (!t) return;
@@ -1235,6 +1239,12 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
             const o = this.state.o;
             const job = JOB_STAT[this.charJob || this.state.slots.weapon.job] || { main: 'str', sub: 'dex', att: 'att' };
             return { main: o.rdMain || job.main, sub: o.rdSub || job.sub, att: o.rdAtt || job.att };
+        },
+        // 畳んだ「スコア重み・設定」の見出し横に出す、今の設定の要約。
+        optsSummary() {
+            const o = this.state.o;
+            const on = [o.ssf && 'シャイニング', o.safeguard && '15-17★破壊防止', o.starCatch && 'スターキャッチ', o.blackOnly && 'ブライト固定', o.cubeSale && `キューブ${o.cubeSalePct ?? 25}%引き`].filter(Boolean);
+            return [PLAN_LABEL[o.planName] || o.planName, ...on].join('・');
         },
         statPicks() {
             const st = this.rdStats();
@@ -1582,6 +1592,8 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
         },
 
         renderPlan() {
+            const optsSum = this.root && this.root.querySelector('[data-gp="opts-sum"]');
+            if (optsSum) optsSum.textContent = this.optsSummary();
             const el = this.root.querySelector('#gp-plan-list');
             const plan = buildPlan(this.entries(), this.state.w, this.opts(), this.state.limit);
             const pickedEl = this.root.querySelector('#gp-picked');
@@ -1595,7 +1607,7 @@ padding:3px 6px;border-bottom:1px solid var(--ln);font-size:12px}
             const sum = chosen.reduce((a, s) => a + s.cost, 0);
             pickedEl.innerHTML = chosen.length
                 ? `<span class="flex items-center gap-2 whitespace-nowrap"><span class="text-xs text-base-content/60">選んだ ${chosen.length}件</span><span class="text-xs text-base-content/60">期待</span><b class="font-mono tabular-nums text-lg text-success">${fmtB(sum)}</b><button type="button" class="btn btn-xs btn-ghost text-base-content/50" data-gp="pick-clear">選択を外す</button></span>`
-                : '<span class="text-[11px] text-base-content/45">左のチェックで、やる予定の行を選ぶと合計の期待メルを出します。</span>';
+                : '';
             this.planKeys = [];
             if (!plan.length) {
                 el.innerHTML = '<li class="text-base-content/50 text-center py-4">伸ばせる先がありません。装備を有効にするか、進捗を下げてみてください。</li>';
@@ -2009,7 +2021,7 @@ ${grades}
         veil.className = 'modal modal-open bg-slate-950/80 z-[45]';
         const portrait = (char.image && char.image.startsWith('http')) ? char.image : (char.classImage || '');
         veil.innerHTML = `
-<div class="modal-box max-w-[1400px] w-[96vw] max-h-[94vh] p-0 flex flex-col bg-base-200 border border-base-content/15">
+<div class="modal-box max-w-[1400px] w-[96vw] h-[94vh] max-h-[94vh] p-0 flex flex-col bg-base-200 border border-base-content/15">
     <div class="flex items-center gap-3 h-12 px-3 shrink-0 bg-base-100 border-b border-base-content/10">
         ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-8 h-8 object-cover bg-base-300 border border-base-content/10">` : ''}
         <span class="font-bold text-white">${esc(char.name)}</span>

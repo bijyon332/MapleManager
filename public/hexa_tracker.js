@@ -776,18 +776,11 @@ const hexaTracker = {
         });
 
         const top = rows[0], bottom = rows[rows.length - 1];
-        return `<div class="max-w-6xl flex flex-col gap-3">
-            <section class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div class="min-w-0">
-                        <h2 class="font-bold text-sm text-white flex items-center gap-1.5">
-                            <i data-lucide="trophy" class="w-4 h-4 text-amber-300"></i>HEXA効率ランキング
-                        </h2>
-                        <p class="text-[11px] text-base-content/50">ソルエルダフラグメントを <b class="text-violet-300">${frag.toLocaleString()}</b> 個使ったときの、全取得時の最終ダメージに対する到達率が高い順です。</p>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-2">${this.buildRankModeSwitch()}<div class="join shrink-0">${steps}</div></div>
-                </div>
-                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-base-content/60 pt-2 border-t border-base-content/10">
+        return `<div class="mm-face">
+            <section class="mm-sec">
+                <div class="flex flex-wrap items-center gap-2">${this.buildRankModeSwitch()}<div class="join shrink-0">${steps}</div></div>
+                <p class="mm-note">ソルエルダフラグメントを <b class="text-violet-300">${frag.toLocaleString()}</b> 個使ったときの、全取得時の最終ダメージに対する到達率が高い順です。</p>
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-base-content/60">
                     <span class="badge badge-sm badge-ghost">${rows.length}職</span>
                     <span>最高 <span class="text-white font-bold">${this.escHtml(top.name)}</span>
                         <span class="text-violet-300 tabular-nums font-bold">${top.share.toFixed(1)}%</span></span>
@@ -795,9 +788,8 @@ const hexaTracker = {
                         <span class="text-violet-300 tabular-nums font-bold">${bottom.share.toFixed(1)}%</span></span>
                     <span class="text-base-content/40">差 ${(top.share - bottom.share).toFixed(1)}ポイント</span>
                 </div>
-            </div></section>
-
-            <div class="card bg-base-100 border border-base-content/10 overflow-x-auto">
+            </section>
+            <div class="overflow-x-auto border-t border-base-content/10">
                 <table class="table table-sm [&_td]:py-0.5">
                     <thead><tr class="text-[11px] text-base-content/50">
                         <th class="w-10 text-right">#</th><th class="w-72">職業</th><th class="hidden sm:table-cell"></th>
@@ -806,11 +798,11 @@ const hexaTracker = {
                     <tbody>${list}</tbody>
                 </table>
             </div>
-            <p class="text-[11px] text-base-content/40 leading-relaxed">
+            <section class="mm-sec"><p class="mm-note">
                 未強化の盤面から、「最終ダメージ / 欠片」が最大の順に振った場合の到達率です。全取得に必要な欠片より多い数を選ぶと100%になります。
                 行をクリックすると、その職業のトラッカーが開きます。
                 消費リソースは正確な値、最終ダメージはノード係数からの推定値です。
-            </p>
+            </p></section>
         </div>`;
     },
 
@@ -851,22 +843,15 @@ const hexaTracker = {
         });
 
         const fastest = rows[0], slowest = rows[rows.length - 1];
-        return `<div class="max-w-6xl flex flex-col gap-3">
-            <section class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div class="min-w-0">
-                        <h2 class="font-bold text-sm text-white flex items-center gap-1.5">
-                            <i data-lucide="trophy" class="w-4 h-4 text-amber-300"></i>HEXA効率ランキング
-                        </h2>
-                        <p class="text-[11px] text-base-content/50">
+        return `<div class="mm-face">
+            <section class="mm-sec">
+                <div class="flex flex-wrap items-center gap-2">${this.buildRankModeSwitch()}<div class="join shrink-0">${steps}</div></div>
+                <p class="mm-note">
                             ${isBreak
                                 ? 'コスパの分岐点（1レベルの効率が全体平均まで落ちる地点）に必要なソルエルダフラグメントが少ない順です。'
                                 : `全取得時の最終ダメージの${this.rankStep}%に到達するまでに必要なソルエルダフラグメントが少ない順です。`}
                         </p>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-2">${this.buildRankModeSwitch()}<div class="join shrink-0">${steps}</div></div>
-                </div>
-                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-base-content/60 pt-2 border-t border-base-content/10">
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-base-content/60">
                     <span class="badge badge-sm badge-ghost">${rows.length}職</span>
                     <span>最少 <span class="text-white font-bold">${this.escHtml(fastest.name)}</span>
                         <span class="text-violet-300 tabular-nums font-bold">${Math.round(fastest.frag).toLocaleString()}</span> 欠片</span>
@@ -874,9 +859,8 @@ const hexaTracker = {
                         <span class="text-violet-300 tabular-nums font-bold">${Math.round(slowest.frag).toLocaleString()}</span> 欠片</span>
                     <span class="text-base-content/40">差 ${Math.round(slowest.frag - fastest.frag).toLocaleString()} 欠片（${(slowest.frag / Math.max(1, fastest.frag)).toFixed(1)}倍）</span>
                 </div>
-            </div></section>
-
-            <div class="card bg-base-100 border border-base-content/10 overflow-x-auto">
+            </section>
+            <div class="overflow-x-auto border-t border-base-content/10">
                 <table class="table table-sm [&_td]:py-0.5">
                     <thead><tr class="text-[11px] text-base-content/50">
                         <th class="w-10 text-right">#</th><th class="w-72">職業</th><th class="hidden sm:table-cell"></th>
@@ -886,11 +870,11 @@ const hexaTracker = {
                     <tbody>${list}</tbody>
                 </table>
             </div>
-            <p class="text-[11px] text-base-content/40 leading-relaxed">
+            <section class="mm-sec"><p class="mm-note">
                 未強化の盤面から、「最終ダメージ / 欠片」が最大の順に振った場合の必要量です。
                 行をクリックすると、その職業のトラッカーが開きます。
                 消費リソースは正確な値、最終ダメージはノード係数からの推定値です。
-            </p>
+            </p></section>
         </div>`;
     },
 
@@ -922,21 +906,13 @@ const hexaTracker = {
                 </button>`;
             }
 
-            html += `<div>
-                <div class="flex items-baseline gap-2 mb-1">
-                    <h3 class="font-bold text-xs text-base-content/70">${this.escHtml(label)}</h3>
-                    <span class="text-[10px] text-base-content/40">${hexaClasses.length}職</span>
-                </div>
+            html += `<section class="mm-sec">
+                <div class="mm-sec-h"><h3>${this.escHtml(label)}</h3><span>${hexaClasses.length}職</span></div>
                 <div class="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-1">${cards}</div>
-            </div>`;
+            </section>`;
         }
-        return `<div class="flex flex-col gap-3">
-            <div class="flex items-baseline gap-3">
-                <h2 class="font-bold text-sm text-white">HEXAトラッカー</h2>
-                <p class="text-[11px] text-base-content/50">職業カードをクリックすると、進捗入力・効率順・効率カーブを開けます。</p>
-            </div>
-            <section class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-3">${html}</div></section>
-        </div>`;
+        // 見出しと説明文は置かない（上部のタブが「トラッカー」、職業のカードは押せる見た目）。
+        return `<div class="mm-face">${html}</div>`;
     },
 
     buildEmptyState() {
@@ -978,13 +954,15 @@ const hexaTracker = {
         // Two columns that stack on their own, so a long Mastery list doesn't
         // leave a gap under a short Skill Node box.
         const tier = id => this.TIERS.find(t => t.id === id);
-        const column = ids => `<div class="flex flex-col gap-2">${ids.map(id => this.buildSkillGroup(tier(id), cls, trackingId, classId)).join('')}</div>`;
+        const column = ids => `<div class="mm-col">${ids.map(id => this.buildSkillGroup(tier(id), cls, trackingId, classId)).join('')}</div>`;
+        const note = this.buildExclusionNote(classId, trackingId);
 
-        return `<div class="flex flex-col gap-2">
+        // 1面にまとめ、中は見出しと区切り線で分ける（読み取り → 合計 → ノード → 注記）。
+        return `<div class="mm-face">
             ${this.buildScanBar(classId, trackingId)}
             ${this.buildResourceSummary(p)}
-            <div class="grid grid-cols-2 gap-2 items-start">${column(['skillNodes', 'boost'])}${column(['mastery', 'common'])}</div>
-            ${this.buildExclusionNote(classId, trackingId)}
+            <div class="mm-cols">${column(['skillNodes', 'boost'])}${column(['mastery', 'common'])}</div>
+            ${note ? `<section class="mm-sec">${note}</section>` : ''}
         </div>`;
     },
 
@@ -1041,7 +1019,7 @@ const hexaTracker = {
             </div>
         </div>`;
 
-        return `<div class="flex border border-base-content/10 bg-base-200">
+        return `<div class="flex py-1">
             ${block('フラグメント', '#a78bfa', p.fragSpent.toLocaleString(), p.fragTarget.toLocaleString(), p.fragMax.toLocaleString(), remFrag.toLocaleString(), pctOf(p.fragSpent, p.fragMax))}
             ${block('ソルエルダ', '#fbbf24', p.erdaSpent.toLocaleString(), p.erdaTarget.toLocaleString(), p.erdaMax.toLocaleString(), remErda.toLocaleString(), pctOf(p.erdaSpent, p.erdaMax))}
             ${p.noFd
@@ -1144,12 +1122,10 @@ const hexaTracker = {
             pendingHtml = `<div class="text-[11px] text-base-content/30 pt-1">未実装 ×${pending}</div>`;
         }
 
-        return `<div class="card card-sm bg-base-100 border border-base-content/10">
-            <div class="card-body gap-0 py-2">
-                <h3 class="text-[11px] font-bold tracking-wider uppercase" style="color:${tier.color}">${tier.label}</h3>
-                <ul>${rows}</ul>${pendingHtml}
-            </div>
-        </div>`;
+        return `<section class="mm-sec gap-1">
+            <div class="mm-sec-h"><span class="mm-mark" style="background:${tier.color}"></span><h3>${tier.label}</h3></div>
+            <ul>${rows}</ul>${pendingHtml}
+        </section>`;
     },
 
     // Level pickers are dropdowns rather than number fields: every change
@@ -1189,8 +1165,9 @@ const hexaTracker = {
             ${group('上限',
                 seg(this.planCap === 'target', "hexaTracker.setPlanCap('target')", '目標値まで', '進捗入力で決めた目標値で止める')
                 + seg(this.planCap === 'max', "hexaTracker.setPlanCap('max')", '最大 Lv.30 まで', '目標値を無視して全ノードLv.30まで並べる'))}
+            ${this.modalTab === 'map' && !this.isProvisional(this.modalClassId) ? this.buildFightControls() : ''}
             ${undo}
-        </div>${this.modalTab === 'map' && !this.isProvisional(this.modalClassId) ? this.buildFightControls() : ''}`;
+        </div>`;
     },
 
     multTag(m) {
@@ -1205,7 +1182,7 @@ const hexaTracker = {
         const fightBtns = this.FIGHT_OPTIONS.map(o => `<button onclick="hexaTracker.setFight(${o.sec})" title="${o.hint}"
             class="px-2.5 py-1 text-[11px] font-bold whitespace-nowrap transition-colors ${sec === o.sec ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-slate-200'}">${o.label}</button>`).join('');
         const set = this.ctSummary(this.modalClassId);
-        return `<div class="flex flex-wrap items-center gap-x-4 gap-y-2 border border-slate-800 bg-slate-900 px-2.5 py-2 mb-2">
+        return `<div class="contents">
             <div class="flex items-center gap-2">
                 <span class="text-[10px] text-slate-500">討伐時間</span>
                 <div class="inline-flex border border-slate-700 bg-slate-950 divide-x divide-slate-700">${fightBtns}</div>
@@ -1724,7 +1701,7 @@ const hexaTracker = {
             <div class="text-[10px] text-slate-500 leading-tight mt-0.5">${sub}</div>
         </div>`;
 
-        const summary = `<div class="bg-slate-900 rounded-xl border border-slate-800 p-3 mb-3">
+        const summary = `<div class="px-1 py-3">
             <div class="flex flex-wrap items-stretch divide-x divide-slate-800">
                 ${tile('全体の平均効率', per1k(curve.avg), '欠片1,000あたりのFD', '#94a3b8',
                     '未強化の盤面を全ノードLv.30まで持っていったときの、欠片あたり最終ダメージの平均。下のグラフの破線の傾きです。')}
@@ -1737,16 +1714,16 @@ const hexaTracker = {
             </div>
         </div>`;
 
-        return `<div>
+        return `<div class="mm-face">
             ${summary}
             ${this.buildCurveChart(curve, now)}
             ${this.buildCurveTable(curve, now, per1k)}
-            <p class="text-[10px] text-slate-600 mt-2 leading-relaxed">
+            <section class="mm-sec"><p class="mm-note">
                 未強化の盤面から全ノードLv.30までを、「最終ダメージ / 欠片」が最大の順に振ったときの積み上げです。
                 Lv.10/20/30はコストが跳ね上がるため、壁をまたぐ複数レベルをひとまとめに評価しています。
                 現在地や目標値には影響されないので、職業ごとの伸び方の目安として使えます。
                 消費リソースは正確な値、最終ダメージはノード係数からの推定値です。${this.exclusionSentence(classId)}
-            </p>
+            </p></section>
         </div>`;
     },
 
@@ -1786,12 +1763,10 @@ const hexaTracker = {
         const showYou = now.fragSpent > 0;
         const yx = x(Math.min(now.fragSpent, curve.totalFrag)), yy = y(Math.min(now.fdNow, curve.fdMax));
 
-        return `<div class="bg-slate-900 rounded-xl border border-slate-800 p-3 mb-3 relative">
-            <div class="flex flex-wrap items-center justify-between gap-2 mb-1 px-1">
-                <div class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
-                    <i data-lucide="activity" class="w-3.5 h-3.5"></i>欠片の投入量と最終ダメージ
-                </div>
-                <div class="flex items-center gap-3 text-[10px] text-slate-400">
+        return `<div class="mm-sec relative">
+            <div class="mm-sec-h">
+                <h3>欠片の投入量と最終ダメージ</h3>
+                <div class="mm-sec-r gap-3 text-[10px] text-slate-400">
                     <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5" style="background:${ink.curve}"></span>最適順で振った場合</span>
                     <span class="flex items-center gap-1"><span class="inline-block w-3 border-t border-dashed border-slate-500"></span>全体平均の傾き</span>
                 </div>
@@ -1906,12 +1881,10 @@ const hexaTracker = {
             </tr>`;
         }
 
-        return `<div class="bg-slate-900 rounded-xl border border-slate-800 p-3">
-            <div class="flex flex-wrap items-center justify-between gap-2 mb-2 px-1">
-                <div class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-300">
-                    <i data-lucide="table" class="w-3.5 h-3.5"></i>FD進捗ごとの必要量（早見表）
-                </div>
-                <span class="text-[10px] text-slate-500">現在 ${nowPct.toFixed(0)}%</span>
+        return `<div class="mm-sec">
+            <div class="mm-sec-h">
+                <h3>FD進捗ごとの必要量</h3>
+                <em>現在 ${nowPct.toFixed(0)}%</em>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-[11px] border-collapse">
@@ -2047,9 +2020,8 @@ const hexaTracker = {
     buildScanBar(classId, trackingId) {
         const st = this.scanState(trackingId, classId);
         const msgColor = st.kind === 'err' ? 'text-error' : st.kind === 'ok' ? 'text-success' : 'text-base-content/60';
-        const bar = `<div id="hexa-scan" class="flex items-center gap-2 flex-wrap px-3 py-2 border border-dashed border-base-content/15 bg-base-200">
-            <i data-lucide="scan-line" class="w-4 h-4 text-secondary shrink-0"></i>
-            <span class="text-[13px] font-bold">ゲーム画面から読み取り</span>
+        const bar = `<div id="hexa-scan" class="mm-sec-h px-4 py-3" style="align-items:center">
+            <h3 class="whitespace-nowrap">ゲーム画面から読み取り</h3>
             <button onclick="document.getElementById('hexa-scan-file').click()" class="btn btn-sm" ${st.busy ? 'disabled' : ''}
                 title="HEXA Matrix（HEXA Skill タブ）のスクショを読み取る。貼り付け・ドロップでも読めます">
                 <i data-lucide="image" class="w-3.5 h-3.5"></i>スクショ読み取り</button>
@@ -2425,7 +2397,7 @@ const hexaTracker = {
         // One header row, laid out like the site's own top bar: who, then the
         // tabs, then the running totals, then close.
         overlay.innerHTML = `
-            <div class="modal-box max-w-[1100px] w-[92vw] max-h-[94vh] p-0 flex flex-col bg-base-200 border border-base-content/15">
+            <div class="modal-box max-w-[1100px] w-[92vw] h-[94vh] max-h-[94vh] p-0 flex flex-col bg-base-200 border border-base-content/15">
                 <div class="flex items-center gap-3 px-3 h-12 shrink-0 bg-base-100 border-b border-base-content/10">
                     <div class="flex items-center gap-2 min-w-0 max-w-[260px]">
                         ${portrait ? `<img src="${portrait}" class="${portraitClass} shrink-0">` : ''}
@@ -2440,7 +2412,7 @@ const hexaTracker = {
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
                 </div>
-                <div id="hexa-modal-content" class="overflow-y-auto custom-scrollbar p-3 flex-1"
+                <div id="hexa-modal-content" class="overflow-y-auto custom-scrollbar p-3 flex-1 min-h-0"
                     ondragover="if(hexaTracker.modalTab==='progress')event.preventDefault()" ondrop="hexaTracker.onScanDrop(event)">
                     ${this.buildModalContent()}
                 </div>
