@@ -2021,7 +2021,7 @@ ${grades}
         veil.className = 'modal modal-open bg-slate-950/80 z-[45]';
         const portrait = (char.image && char.image.startsWith('http')) ? char.image : (char.classImage || '');
         veil.innerHTML = `
-<div class="modal-box max-w-[1400px] w-[96vw] max-h-[94vh] p-0 flex flex-col bg-base-200 border border-base-content/15">
+<div class="modal-box max-w-[1400px] w-[96vw] h-[94vh] max-h-[94vh] p-0 flex flex-col bg-base-200 border border-base-content/15">
     <div class="flex items-center gap-3 h-12 px-3 shrink-0 bg-base-100 border-b border-base-content/10">
         ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-8 h-8 object-cover bg-base-300 border border-base-content/10">` : ''}
         <span class="font-bold text-white">${esc(char.name)}</span>

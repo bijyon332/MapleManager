@@ -459,7 +459,7 @@ const scouter = (() => {
                 <nav role="tablist" class="tabs tabs-box tabs-sm ml-2">${tab('input', 'pencil-line', '入力')}${tab('result', 'gauge', '結果')}${tab('quick', 'timer', '簡易換算')}${tab('hyper', 'sliders-horizontal', 'ハイパー最適化')}${tab('hstat', 'hexagon', 'HEXAステ最適化')}</nav>
                 <button data-sc="close" class="btn btn-sm btn-ghost btn-square ml-auto" title="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>
             </div>`;
-        veil.innerHTML = `<div class="sc-modal ${cur.page ? '' : 'modal-box max-w-[1400px] w-[96vw] max-h-[94vh] p-0 flex flex-col bg-base-200 border border-base-content/15'}">
+        veil.innerHTML = `<div class="sc-modal ${cur.page ? '' : 'modal-box max-w-[1400px] w-[96vw] h-[94vh] max-h-[94vh] p-0 flex flex-col bg-base-200 border border-base-content/15'}">
             ${head}
             <!-- 中の枠は縮ませない（overflow-hidden のカードが枠の高さまで縮んで、下が切れてスクロールできなくなる） -->
             <div class="${cur.page ? '' : 'flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3'} flex flex-col gap-3 [&>*]:shrink-0">

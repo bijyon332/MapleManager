@@ -2397,7 +2397,7 @@ const hexaTracker = {
         // One header row, laid out like the site's own top bar: who, then the
         // tabs, then the running totals, then close.
         overlay.innerHTML = `
-            <div class="modal-box max-w-[1100px] w-[92vw] max-h-[94vh] p-0 flex flex-col bg-base-200 border border-base-content/15">
+            <div class="modal-box max-w-[1100px] w-[92vw] h-[94vh] max-h-[94vh] p-0 flex flex-col bg-base-200 border border-base-content/15">
                 <div class="flex items-center gap-3 px-3 h-12 shrink-0 bg-base-100 border-b border-base-content/10">
                     <div class="flex items-center gap-2 min-w-0 max-w-[260px]">
                         ${portrait ? `<img src="${portrait}" class="${portraitClass} shrink-0">` : ''}
@@ -2412,7 +2412,7 @@ const hexaTracker = {
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
                 </div>
-                <div id="hexa-modal-content" class="overflow-y-auto custom-scrollbar p-3 flex-1"
+                <div id="hexa-modal-content" class="overflow-y-auto custom-scrollbar p-3 flex-1 min-h-0"
                     ondragover="if(hexaTracker.modalTab==='progress')event.preventDefault()" ondrop="hexaTracker.onScanDrop(event)">
                     ${this.buildModalContent()}
                 </div>
