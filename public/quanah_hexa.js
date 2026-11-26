@@ -13,7 +13,7 @@
  *    HEXA Tracker と共通。
  *  - 盤面・コスト・最終ダメージ・強化順は HEXA Tracker（hexa_tracker.js）の計算をそのまま使う。
  *    3rd Skill Core（GMS 未実装）は入力・集計に出さない。
- *  - 予測: 開始日から1週間さかのぼった記録の「1日あたりの欠片」を最小二乗の傾きで出し（bi 指定。手入力の欄は作らない、bi 指定）、
+ *  - 予測: 「1日あたりの欠片」を直近7日間の平均（記録のない日は前後の記録を直線で結んで補完）で出し（bi 指定。手入力の欄は作らない、bi 指定）、
  *    開始日以前の最新の記録からそのペースで欠片が増えるとして終了日まで伸ばす。開始日は最初の記録より前にもでき、
  *    その間はペースから逆算する。記録が1日分しかないときは、最初の記録より前の開始日を欠片0の点として足す（bi 決定）。
  *    増えた欠片は HEXA Tracker の強化順マップと同じ順（並び・上限・討伐時間の補正も同じ設定）で振ったとして、
@@ -169,25 +169,35 @@ const quanahHexa = (() => {
         // 手入力があればそちら
         let auto = null;
         const daysOf = (rs) => new Set(rs.map((r) => r.date)).size;
+        // ペース: 直近7日間の平均（bi 指定）。記録が飛んでいる日は前後の記録を直線で結んで埋め、
+        // (基準日の欠片 − 7日前の欠片) ÷ 7 で出す。基準日は開始日以前で一番新しい記録の日
+        // （開始日が最初の記録より前なら、最初の記録から1週間のうち一番新しい記録の日）。
+        // 7日前が最初の記録より前なら、最初の記録からの平均にする。
         const refN = base.length ? dayNum(start) : dayNum(recs[0].date) + PACE_DAYS;
-        const upTo = recs.filter((r) => dayNum(r.date) <= refN);
-        let paceRecs = upTo.filter((r) => dayNum(r.date) >= refN - PACE_DAYS);
-        while (daysOf(paceRecs) < 2 && paceRecs.length < upTo.length) paceRecs = upTo.slice(upTo.length - paceRecs.length - 1);
+        let pts = recs.filter((r) => dayNum(r.date) <= refN).map((r) => ({ n: dayNum(r.date), f: r.st.frag }));
         // 記録が1日分しかなく、開始日が最初の記録より前なら、開始日を欠片0の点として足す（bi 決定）
-        const zeroStart = daysOf(paceRecs) < 2 && start < recs[0].date;
-        if (zeroStart) paceRecs = [{ date: start, st: { frag: 0 } }, ...paceRecs];
-        if (daysOf(paceRecs) >= 2) {
-            const xs = paceRecs.map((r) => dayNum(r.date)), ys = paceRecs.map((r) => r.st.frag);
-            const mx = xs.reduce((a, b) => a + b, 0) / xs.length, my = ys.reduce((a, b) => a + b, 0) / ys.length;
-            let num = 0, den = 0;
-            xs.forEach((x, i) => { num += (x - mx) * (ys[i] - my); den += (x - mx) * (x - mx); });
-            auto = den > 0 ? num / den : null;
+        const zeroStart = daysOf(recs.filter((r) => dayNum(r.date) <= refN)) < 2 && start < recs[0].date;
+        if (zeroStart) pts = [{ n: dayNum(start), f: 0 }, ...pts];
+        // 埋めた値（直線補間）
+        const fillAt = (n) => {
+            if (n <= pts[0].n) return pts[0].f;
+            for (let i = 1; i < pts.length; i++) {
+                const a = pts[i - 1], b = pts[i];
+                if (n <= b.n) return b.n === a.n ? b.f : a.f + (b.f - a.f) * (n - a.n) / (b.n - a.n);
+            }
+            return pts[pts.length - 1].f;
+        };
+        let paceFromN = null, paceToN = null;
+        if (pts.length && pts[pts.length - 1].n > pts[0].n) {
+            paceToN = pts[pts.length - 1].n;
+            paceFromN = Math.max(pts[0].n, paceToN - PACE_DAYS);
+            auto = (fillAt(paceToN) - fillAt(paceFromN)) / (paceToN - paceFromN);
         }
         const pace = auto;
-        const out = { recs, start, end, anchor, pace, baseCount: paceRecs.length, paceFrom: paceRecs.length ? paceRecs[0].date : null, paceTo: paceRecs.length ? paceRecs[paceRecs.length - 1].date : null, zeroStart, fragMax: anchor.st.fragMax, order: orderFrom(classId, skills, anchor.levels) };
+        const out = { recs, start, end, anchor, pace, paceFrom: paceFromN != null ? fromDay(paceFromN) : null, paceTo: paceToN != null ? fromDay(paceToN) : null, paceDays: paceToN != null ? paceToN - paceFromN : 0, zeroStart, fragMax: anchor.st.fragMax, order: orderFrom(classId, skills, anchor.levels) };
         if (end <= start) return { ...out, ok: false, why: '終了日を開始日より後にしてください。' };
         if (pace == null) return { ...out, ok: false, why: daysOf(recs) < 2 ? '日付の違う記録が2件以上あるか、開始日を最初の記録より前（6次を始めた日など、欠片0とみなします）にするとペースを出して予測します。' : 'ペースを出せませんでした。' };
-        if (!(pace > 0)) return { ...out, ok: false, why: `${short(paceRecs[0].date)}〜${short(paceRecs[paceRecs.length - 1].date)} の記録で欠片が増えていないため、予測できません。` };
+        if (!(pace > 0)) return { ...out, ok: false, why: `${short(fromDay(paceFromN))}〜${short(fromDay(paceToN))} の間に欠片が増えていないため、予測できません。` };
 
         // 強化順に振ったとき、各段が何日目に届くか
         const singles = chain(classId, skills, anchor.levels);
@@ -465,7 +475,7 @@ const quanahHexa = (() => {
                     <span class="ml-auto font-mono text-[12px] whitespace-nowrap">${st.from} → <b class="text-white">${st.to}</b></span>
                 </li>`;
             }).join('');
-            body = `<div class="text-[11px] text-base-content/55">${withWd(fc.anchor.date)} の記録から <b class="text-white">${fmt(fc.pace)}</b> 欠片/日 で進んだ場合（${fc.zeroStart ? `開始日 ${short(fc.paceFrom)} を欠片0として ${short(fc.paceTo)} の記録まで` : `直近1週間 ${short(fc.paceFrom)}〜${short(fc.paceTo)} の記録から`}）。${fc.back && !fc.zeroStart ? '開始日は最初の記録より前なので、その間はペースから逆算しています。' : ''}${withWd(fc.start)}〜${withWd(fc.end)}（${daysN}日）で <b class="text-violet-300">+${fmt(s1.frag - s0.frag)}</b> 欠片。</div>
+            body = `<div class="text-[11px] text-base-content/55">${withWd(fc.anchor.date)} の記録から <b class="text-white">${fmt(fc.pace)}</b> 欠片/日 で進んだ場合（${fc.zeroStart && fc.paceFrom === fc.start ? `開始日 ${short(fc.paceFrom)} を欠片0として ${short(fc.paceTo)} の記録まで` : `${short(fc.paceFrom)}〜${short(fc.paceTo)} の${fc.paceDays}日間の平均、記録のない日は前後の記録から補完`}）。${fc.back && !fc.zeroStart ? '開始日は最初の記録より前なので、その間はペースから逆算しています。' : ''}${withWd(fc.start)}〜${withWd(fc.end)}（${daysN}日）で <b class="text-violet-300">+${fmt(s1.frag - s0.frag)}</b> 欠片。</div>
                 <div class="grid ${noFd ? 'grid-cols-2' : 'grid-cols-3'} gap-2">
                     ${cell(`欠片（${short(fc.end)}）`, fmt(s0.frag), fmt(s1.frag), 'text-violet-300')}
                     ${cell(`HEXA（${short(fc.end)}）`, `${s0.pct.toFixed(1)}%`, `${s1.pct.toFixed(1)}%`, '')}
