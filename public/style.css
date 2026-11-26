@@ -542,12 +542,29 @@ body {
 .sc-big-empty b { color: #334155; }
 .sc-bc-skel td, .sc-bc-skel tbody th { height: 30px; }
 /* Scouter ステータス換算: 入力は1枚の面。中は見出しと区切り線で分け、箱の中に箱を作らない */
-.sc-sec { padding: 12px 16px; display: grid; gap: 8px; align-content: start; }
-.sc-sec-h { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.sc-sec-h h3 { font-size: 14px; font-weight: 700; color: #fff; }
-.sc-sec-h span { font-size: 11px; color: #64748b; }
-.sc-sec-h em { margin-left: auto; font: 500 11px "IBM Plex Mono", monospace; font-style: normal; color: #94a3b8; }
+.sc-sec, .mm-sec { padding: 12px 16px; display: grid; gap: 8px; align-content: start; }
+.sc-sec-h, .mm-sec-h { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.sc-sec-h h3, .mm-sec-h h3 { font-size: 14px; font-weight: 700; color: #fff; }
+.sc-sec-h > span, .mm-sec-h > span { font-size: 11px; color: #64748b; }
+.sc-sec-h em, .mm-sec-h em { margin-left: auto; font: 500 11px "IBM Plex Mono", monospace; font-style: normal; color: #94a3b8; }
 .sc-steps { border-bottom: 1px solid #1e293b; }
+/* 共通: 1列＝1面。面（.mm-face）の中を見出しつきの区切り（.mm-sec）で分ける。区切りの間は線1本 */
+.mm-face { background: var(--color-base-100); border: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent); border-radius: var(--radius-box, .5rem); min-width: 0; }
+.mm-face > * + * { border-top: 1px solid #1e293b; }
+.mm-cols { display: grid; grid-template-columns: minmax(0, 1fr); }
+.mm-col > * + * { border-top: 1px solid #1e293b; }
+.mm-cols > .mm-col + .mm-col { border-top: 1px solid #1e293b; }
+@media (min-width: 48rem) {
+    .mm-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .mm-cols > .mm-col + .mm-col { border-top: none; border-left: 1px solid #1e293b; }
+}
+.mm-mark { width: 8px; height: 8px; border-radius: 2px; align-self: center; flex: none; }
+.mm-sec-h .mm-sec-r { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.mm-note { font-size: 11px; line-height: 1.7; color: color-mix(in oklab, var(--color-base-content) 55%, transparent); }
+details.mm-sec > summary { list-style: none; cursor: pointer; }
+details.mm-sec > summary::-webkit-details-marker { display: none; }
+details.mm-sec > summary .mm-caret { align-self: center; width: 0; height: 0; border-left: 5px solid #64748b; border-top: 4px solid transparent; border-bottom: 4px solid transparent; transition: transform .15s; }
+details.mm-sec[open] > summary .mm-caret { transform: rotate(90deg); }
 .sc-cols { display: grid; grid-template-columns: minmax(0, 1fr); }
 .sc-col > .sc-sec + .sc-sec { border-top: 1px solid #1e293b; }
 .sc-cols > .sc-col + .sc-col { border-top: 1px solid #1e293b; }
