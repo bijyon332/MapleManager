@@ -261,12 +261,9 @@ body {
 }
 
 .exp-stat-lbl {
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: #475569;
-    margin-bottom: 5px;
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 6px;
 }
 
 .exp-stat-val {

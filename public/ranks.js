@@ -1424,7 +1424,7 @@ const ranks = {
             wrap.classList.add('hidden');
             empty.classList.remove('hidden');
             const msg = empty.querySelector('[data-empty-msg]');
-            if (msg) msg.textContent = '左のリストからキャラクターを選択してください';
+            if (msg) msg.textContent = '左のキャラを押すと出ます';
             if (this.chart) { this.chart.destroy(); this.chart = null; }
             return;
         }

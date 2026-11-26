@@ -95,7 +95,7 @@ color:var(--tx);font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",sy
 .cm *,.cm-veil *{box-sizing:border-box}
 .cm .wrap{max-width:1480px}
 .cm .head{display:flex;align-items:baseline;gap:12px;margin:0 0 8px}
-.cm .head .cm-stat{margin-left:auto;color:var(--mu);font-size:11.5px;font-family:"IBM Plex Mono",ui-monospace,monospace;white-space:nowrap}
+.cm .cm-stat{margin-left:auto;color:var(--mu);font-size:11.5px;font-family:"IBM Plex Mono",ui-monospace,monospace;white-space:nowrap}
 .cm .meg{display:flex;align-items:center;gap:6px;flex:1 1 100%;min-width:0;padding-top:6px;border-top:1px solid var(--ln)}
 .cm h1{font-size:18px;font-weight:700;margin:0;color:#fff;white-space:nowrap}
 .cm .sub{color:var(--mu);margin:0;font-size:11.5px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -129,7 +129,7 @@ border:1px solid var(--ln);border-radius:var(--r);padding:8px 10px;margin-bottom
 .cm .bar #cm-me{min-width:150px}
 .cm .menote{color:var(--mu);font-size:11px}
 .cm .sync{font-size:11px;color:var(--mu);border:1px solid var(--ln2);border-radius:var(--r);
-padding:1px 8px;white-space:nowrap;margin-left:auto}
+padding:1px 8px;white-space:nowrap}
 .cm .sync.synced{border-color:#047857;color:#6ee7b7;background:#052e1b}
 .cm .sync.saving{border-color:#6366f1;color:#c7d2fe;background:#1e1b4b}
 .cm .sync.local{border-color:var(--ln2);color:var(--mu)}
@@ -390,9 +390,6 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
         shell() {
             return '<style>' + CSS + '</style>' +
                 '<div class="cm"><div class="wrap">' +
-                '<div class="head"><h1>Community Members</h1>' +
-                '<p class="sub">Discord名にキャラクターを紐づけた名簿。キャラ名を入れると レベル・職・画像 をランキングAPIから取得します（ギルドは手入力）。</p>' +
-                '<span class="cm-stat" id="cm-stat"></span></div>' +
                 '<div class="bar">' +
                 // Discord名は「誰か」を決める識別子、表示名は各ツールに出る呼び名。
                 // 別物なので入口で両方受け取る（表示名は後から編集でも可）。
@@ -412,6 +409,7 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
                 '<span class="meg"><span class="melabel">自分</span>' +
                 '<select id="cm-me" data-cm="me" title="この端末の持ち主。Planner・Scheduler・Leaderboardの初期選択に使います"></select>' +
                 '<span id="cm-me-note" class="menote"></span>' +
+                '<span class="cm-stat" id="cm-stat"></span>' +
                 '<span id="cm-sync" class="sync"></span></span>' +
                 '</div>' +
                 '<div id="cm-body"></div>' +
@@ -476,8 +474,8 @@ font-family:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-ser
             }
             if (meNote) {
                 meNote.textContent = me
-                    ? `${me.characters.length}キャラ・Plannerのデータはこの名前ごとに分かれます`
-                    : '選ぶと Planner / Scheduler / Leaderboard で自分の行が最初に出ます';
+                    ? `${me.characters.length}キャラ・Character Manager のデータはこの名前ごとに分かれます`
+                    : '選ぶと Character Manager・Party Builder・EXP Tracker で自分の行が最初に出ます';
             }
             const sync = this.root.querySelector('#cm-sync');
             if (sync && cs) {

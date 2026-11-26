@@ -171,7 +171,7 @@
             wishes: [],    // { characterId, bossId, difficulty, note, updatedBy, updatedAt }
             parties: [],   // { id, seasonId, bossId, difficulty, label, slots:[charId], status, memo, createdAt }
             ui: {
-                screen: "members",
+                screen: "dashboard",
                 editorMemberId: null,
                 editorCharId: null,
                 viewerMemberId: null,
@@ -668,12 +668,6 @@
         });
         panel.appendChild(el("div", { class: "panel-head" },
             el("h2", { text: "メンバー" }),
-            el("span", {
-                class: "sub",
-                text: CS()
-                    ? "コミュニティ名簿と共有です。名前を押すと、そのメンバーのキャラクターと参加希望を編集できます"
-                    : "名前を押すと、そのメンバーのキャラクターと参加希望を編集できます"
-            }),
             el("span", { class: "spacer" }),
             nameInput,
             el("button", {
@@ -994,7 +988,7 @@
         bar.textContent = "";
         const b = bossById(state.ui.bossId);
 
-        bar.appendChild(el("span", { class: "bar-label", text: "Boss" }));
+        bar.appendChild(el("span", { class: "bar-label", text: "ボス" }));
         const chips = el("div", { class: "boss-chip-list" });
         bossList().forEach((x) => {
             const n = partiesOf(x.id, null).length;
@@ -1080,8 +1074,6 @@
         const d = state.ui.difficulty;
 
         pane.appendChild(el("div", { class: "col-header", text: "希望を出している人" }));
-        pane.appendChild(el("p", { class: "hint" },
-            "カードを押して選び、PTの「ここに追加」で配置します。ドラッグでも動かせます。難しい難易度から先に組むと取りこぼしが減ります。"));
 
         // 検索欄はここで作り直されるため、入力中だったらフォーカスとカーソル位置を戻す
         const searchWasFocused = document.activeElement && document.activeElement.id === "cand-search";
@@ -1206,7 +1198,7 @@
         ));
 
         if (!slots.length) {
-            card.appendChild(el("div", { class: "solo-empty", text: "PTを組まずに、ソロで行く人・サブキャラで行く人はここへ。ドラッグでも、候補を選んで「ここに追加」でも入ります。" }));
+            card.appendChild(el("div", { class: "solo-empty", text: "ソロ・サブキャラで行く人はここへ" }));
         } else {
             const listEl = el("div", { class: "solo-list" });
             slots.forEach((id) => {
@@ -1440,7 +1432,6 @@
         const all = el("section", { class: "panel" });
         const allHead = el("div", { class: "panel-head" },
             el("h2", { text: "編成全体" }),
-            el("span", { class: "sub", text: ui.includeDraft ? "下書きも表示しています" : "公開されているPTのみ表示しています" }),
             el("span", { class: "spacer" }),
             !VIEW_ONLY && el("label", { class: "check" },
                 el("input", {
@@ -1910,8 +1901,7 @@
     function gapPanel(shown) {
         const panel = el("section", { class: "panel" });
         panel.appendChild(el("div", { class: "panel-head" },
-            el("h2", { text: "空き枠と、まだ入れていない人" }),
-            el("span", { class: "sub", text: "表示している難易度は、その人が希望した中で最も難しいものです" })
+            el("h2", { text: "空き枠と、まだ入れていない人" })
         ));
         const body = el("div", { class: "panel-body" });
         const grid = el("div", { class: "gap-grid" });
@@ -1971,7 +1961,6 @@
 
         right.appendChild(el("div", { class: "col-header",
             text: "希望を出しているのに、行き先が決まっていない人（" + unplaced.length + "）" }));
-        right.appendChild(el("p", { class: "hint", text: "メインキャラのみ。" + SOLO_LABEL + " に入れた人はここから外れます。" }));
         if (!unplaced.length) {
             right.appendChild(el("div", { class: "empty-state", text: "取りこぼしはありません。" }));
         } else {

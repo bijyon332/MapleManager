@@ -1161,7 +1161,7 @@ const scouter = (() => {
     }
     function quickOutHTML(e) {
         const min = quickMin(e);
-        if (!(num(e.form.level) > 0) || !min) return `<div class="sc-res-empty">Lv と EXスウのソロタイムを入れると出ます。</div>`;
+        if (!(num(e.form.level) > 0) || !min) return cutSkeletonHTML();
         const q = quickCuts(e.form, min);
         if (!q) return `<div class="sc-res-empty">計算できませんでした。</div>`;
         const { legend, table } = cutTableHTML(q.cuts);

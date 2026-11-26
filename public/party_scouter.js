@@ -169,7 +169,8 @@ const partyScouter = (() => {
     }
     function outHTML() {
         const q = compute(state);
-        if (q.error) return `<div class="sc-res-empty">${q.error === 'empty' ? 'Lv と討伐時間を入れると出ます。' : esc(q.error)}</div>`;
+        if (q.error === 'empty') return skeletonHTML();
+        if (q.error) return `<div class="sc-res-empty">${esc(q.error)}</div>`;
         const L = q.limit;
         const cls = (c) => (c.lv || c.t > L ? 'c-no' : c.t <= L / 2 ? 'c-solo2' : c.t <= L * 0.75 ? 'c-solo1' : 'c-solo0');
         const by = {};
@@ -202,6 +203,15 @@ const partyScouter = (() => {
             <table class="sc-bctbl ps-tbl">
                 <thead><tr><th></th>${COLS.map((ds) => `<th>${ds.join(' / ')}</th>`).join('')}</tr></thead>
                 <tbody>${body}</tbody>
+            </table>`;
+    }
+    // 入力する前も表の形（ボスの行と難易度の列）を見せる。時間の所は空のまま。
+    function skeletonHTML() {
+        const rows = bossChoices().map((c) => `<tr><th><b>${esc(bossName(c.ko))}</b></th>${COLS.map(() => '<td class="sc-bc-none"></td>').join('')}</tr>`).join('');
+        return `<h3 class="sc-bc-h"><i data-lucide="timer"></i>3人PTの推定討伐時間</h3>
+            <table class="sc-bctbl sc-bc-skel ps-tbl">
+                <thead><tr><th></th>${COLS.map((ds) => `<th>${ds.join(' / ')}</th>`).join('')}</tr></thead>
+                <tbody>${rows}</tbody>
             </table>`;
     }
     // 打っている間は表と左の数字だけ書き換える（入力欄を作り直すとフォーカスが外れる）。
