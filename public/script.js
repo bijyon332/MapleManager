@@ -126,7 +126,7 @@ const app = {
         if (typeof CLASS_DATA === 'undefined') return;
         const sel = document.getElementById('char-job-select');
         if (!sel) return;
-        sel.innerHTML = '<option value="">Select a Class</option>';
+        sel.innerHTML = '<option value="">職業を選ぶ</option>';
         Object.keys(CLASS_DATA).forEach(group => {
             const grp = document.createElement('optgroup');
             grp.label = group;
@@ -1130,8 +1130,8 @@ const app = {
         const addCardHTML = `
             <button type="button" onclick="app.openAddCharacterFromDashboard()" class="btn btn-dashed h-auto min-h-24 flex-col gap-1 font-normal text-slate-500 hover:text-indigo-300">
                 <i data-lucide="plus" class="w-6 h-6"></i>
-                <span class="text-sm font-bold">Add Character</span>
-                <span class="text-[10px]">Fetch from Ranking API by name</span>
+                <span class="text-sm font-bold">キャラを追加</span>
+                <span class="text-[10px]">名前を入れるとランキングから Lv・職業を取得</span>
             </button>`;
 
         c.innerHTML = activeChars.map(char => {
@@ -1183,7 +1183,7 @@ const app = {
 
             return `
             <div class="mx-card ${allDone ? 'mx-done' : ''}" style="--sc:${this.SERVER_HEX[sCol] || '#94a3b8'}${char.classImage ? `;--wm:url('${(art && art.src) || char.classImage}')${this.jobArtVars(art || JOB_ART_DEFAULT)}` : ''}">
-                <div class="mx-art" onclick="app.openCharModal('${char.id}')" title="Edit ${char.name}">
+                <div class="mx-art" onclick="app.openCharModal('${char.id}')" title="${char.name} を編集">
                     ${char.image ? `
                     <img class="mx-avatar" src="${char.image}" alt="${char.name}" onerror="this.remove()">` : (char.classImage ? `<img src="${char.classImage}" style="${this.getCharImgStyle(char)}">` : '')}
                     ${char.role ? `<span class="mx-role badge badge-xs font-mono font-bold ${char.role === 'MAIN' ? 'badge-warning' : char.role === 'SUB' ? 'badge-info' : 'badge-neutral'}">${char.role}</span>` : ''}
@@ -1195,7 +1195,7 @@ const app = {
                 </div>
                 <div class="mx-main">
                     <div class="mx-top">
-                        <div class="mx-meso" title="週の収入（上位${charLimit}体）${rentCost ? `\nレンタル費 −${Math.floor(rentCost).toLocaleString()} を引いた額` : ''}">${Math.floor(localMaxTotal).toLocaleString()}<small>mesos</small></div>
+                        <div class="mx-meso" title="週の収入（上位${charLimit}体）${rentCost ? `\nレンタル費 −${Math.floor(rentCost).toLocaleString()} を引いた額` : ''}">${Math.floor(localMaxTotal).toLocaleString()}<small>メル</small></div>
                         <div class="mx-count"><b>${countAll}</b>/${wkSorted.length}</div>
                     </div>
                     ${mB.length ? `
@@ -1246,7 +1246,7 @@ const app = {
         const c = document.getElementById('char-list-container');
         const activeChars = this.data.characters.filter(char => this.data.config.activeServer === 'ALL' || char.server === this.data.config.activeServer);
         const countBadge = document.getElementById('roster-count-badge');
-        if (countBadge) countBadge.innerText = `${activeChars.length} Character${activeChars.length === 1 ? '' : 's'}`;
+        if (countBadge) countBadge.innerText = `${activeChars.length}キャラ`;
 
         // 表計算調の一覧。1行1キャラで、Lv・週ボス数・HEXA進捗を横に並べる。
         const charLimit = this.data.config.charMaxCrystals || 14;
@@ -1265,12 +1265,12 @@ const app = {
                     <span class="mm-drag-handle inline-flex items-center gap-1 cursor-grab active:cursor-grabbing hover:text-base-content/80" title="ドラッグで並べ替え"><i data-lucide="grip-vertical" class="w-3.5 h-3.5"></i><span class="w-4 inline-block">${idx + 1}</span></span>
                 </td>
                 <td>
-                    <div class="flex items-center gap-2.5 min-w-0 cursor-pointer" onclick="app.openCharModal('${x.id}')" title="Edit ${x.name}">
+                    <div class="flex items-center gap-2.5 min-w-0 cursor-pointer" onclick="app.openCharModal('${x.id}')" title="${x.name} を編集">
                         <span class="w-8 h-8 shrink-0 border-l-[3px] border-${sCol}-500 bg-base-300 relative overflow-hidden">${x.image
                             ? `<img src="${x.image}" alt="" class="absolute left-1/2 top-[66%] w-[52px] max-w-none -translate-x-1/2 -translate-y-1/2" onerror="this.remove()">`
                             : (x.classImage ? `<img src="${x.classImage}" style="${this.getCharImgStyle(x)}">` : '')}</span>
                         <span class="font-bold text-white truncate">${x.name}</span>
-                        ${x.hidden ? '<span class="badge badge-xs badge-ghost gap-0.5"><i data-lucide="eye-off" class="w-3 h-3"></i>Hidden</span>' : ''}
+                        ${x.hidden ? '<span class="badge badge-xs badge-ghost gap-0.5"><i data-lucide="eye-off" class="w-3 h-3"></i>非表示</span>' : ''}
                     </div>
                 </td>
                 <td class="text-right font-mono font-bold text-${sCol}-300">${x.level || '?'}</td>
@@ -1282,31 +1282,31 @@ const app = {
                     : `<div class="flex items-center gap-2"><progress class="progress progress-secondary w-16 h-1.5" value="${hexaPct}" max="100"></progress><span class="font-mono text-violet-300 w-9 text-right">${hexaPct}%</span></div>`}</td>
                 <td>
                     <div class="flex items-center gap-0.5 justify-end">
-                        ${act(`app.openCharModal('${x.id}')`, 'pencil', 'Edit', 'hover:text-white')}
-                        ${act(`app.refreshCharacter('${x.id}')`, 'refresh-cw', 'Refresh', 'hover:text-emerald-300')}
-                        ${act(`app.toggleCharHidden('${x.id}')`, x.hidden ? 'eye' : 'eye-off', x.hidden ? 'Show' : 'Hide', 'hover:text-white')}
-                        ${act(`app.deleteCharacter('${x.id}')`, 'trash-2', 'Delete', 'hover:text-rose-400')}
+                        ${act(`app.openCharModal('${x.id}')`, 'pencil', '編集', 'hover:text-white')}
+                        ${act(`app.refreshCharacter('${x.id}')`, 'refresh-cw', '更新', 'hover:text-emerald-300')}
+                        ${act(`app.toggleCharHidden('${x.id}')`, x.hidden ? 'eye' : 'eye-off', x.hidden ? '表示' : '隠す', 'hover:text-white')}
+                        ${act(`app.deleteCharacter('${x.id}')`, 'trash-2', '削除', 'hover:text-rose-400')}
                     </div>
                 </td>
             </tr>`;
         }).join('');
         if (c) c.innerHTML = activeChars.length ? `
-            <div class="flex items-center gap-2 mb-2">
+            <div class="flex items-center gap-2 px-4 py-2">
                 <span class="text-[11px] text-base-content/50 font-bold">並べ直す</span>
                 <div class="join">
                     <button type="button" onclick="app.sortCharacters('level')" title="Lv の高い順に並べ直す（あとからドラッグで手直しできます）" class="join-item btn btn-xs gap-1 text-base-content/70"><i data-lucide="arrow-down-wide-narrow" class="w-3 h-3"></i>Lv順</button>
                     <button type="button" onclick="app.sortCharacters('job')" title="職業のグループ順（冒険家・シグナス…）に並べ直す" class="join-item btn btn-xs gap-1 text-base-content/70"><i data-lucide="swords" class="w-3 h-3"></i>職業順</button>
                 </div>
             </div>
-            <div class="card bg-base-100 border border-base-content/10 overflow-x-auto">
+            <div class="overflow-x-auto border-t border-base-content/10">
                 <table class="table table-sm [&_td]:py-1">
                     <thead><tr class="text-[11px] text-base-content/50">
-                        <th class="w-14 text-right">#</th><th>Name</th><th class="w-12 text-right">Lv</th><th>Job</th><th class="w-24">Server</th>
-                        <th class="w-16">Role</th><th class="w-16 text-right">Weekly</th><th class="w-32">HEXA</th><th class="w-72"></th>
+                        <th class="w-14 text-right">#</th><th>キャラ</th><th class="w-12 text-right">Lv</th><th>職業</th><th class="w-24">サーバー</th>
+                        <th class="w-16">役割</th><th class="w-16 text-right">週ボス</th><th class="w-32">HEXA</th><th class="w-72"></th>
                     </tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
-            </div>` : `<div class="card bg-base-100 border border-dashed border-base-content/20 py-10 text-center text-base-content/50 text-xs">このサーバーにはキャラがいません。上の欄から追加できます。</div>`;
+            </div>` : `<div class="py-10 text-center text-base-content/50 text-xs">このサーバーにはキャラがいません。上の欄から追加できます。</div>`;
         lucide.createIcons();
         this.bindCharRowDrag(c);
     },
@@ -1427,7 +1427,7 @@ const app = {
                 this.renderCharacters();
                 this.renderDashboard();
             }
-        } catch (e) { console.error(e); alert('Failed to refresh character'); }
+        } catch (e) { console.error(e); alert('ランキングから取り直せませんでした'); }
     },
 
     async quickAddCharacter(e) {
@@ -1438,12 +1438,12 @@ const app = {
         const name = (input?.value || '').trim();
         if (!name) return;
         if (this.data.characters.some(c => c.name.toLowerCase() === name.toLowerCase())) {
-            if (msg) { msg.textContent = `"${name}" is already in your roster.`; msg.className = 'text-[11px] font-medium text-amber-400'; msg.classList.remove('hidden'); }
+            if (msg) { msg.textContent = `「${name}」はもう入っています。`; msg.className = 'text-[11px] font-medium text-amber-400'; msg.classList.remove('hidden'); }
             return;
         }
 
         if (btn) { btn.disabled = true; btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>`; lucide.createIcons(); }
-        if (msg) { msg.textContent = `Fetching "${name}"...`; msg.className = 'text-[11px] font-medium text-slate-400'; msg.classList.remove('hidden'); }
+        if (msg) { msg.textContent = `「${name}」を取得中…`; msg.className = 'text-[11px] font-medium text-slate-400'; msg.classList.remove('hidden'); }
 
         let level = 0, job = '', classImage = '', image = '';
         try {
@@ -1458,11 +1458,11 @@ const app = {
                     if (m) classImage = m.path;
                 }
             } else {
-                if (msg) { msg.textContent = `No character found: "${name}". Added anyway with defaults.`; msg.className = 'text-[11px] font-medium text-amber-400'; }
+                if (msg) { msg.textContent = `「${name}」がランキングに見つからないため、Lv・職業なしで追加しました。`; msg.className = 'text-[11px] font-medium text-amber-400'; }
             }
         } catch (err) {
             console.error(err);
-            if (msg) { msg.textContent = `API failed. Added "${name}" with defaults.`; msg.className = 'text-[11px] font-medium text-amber-400'; }
+            if (msg) { msg.textContent = `ランキングを取得できなかったため、「${name}」を Lv・職業なしで追加しました。`; msg.className = 'text-[11px] font-medium text-amber-400'; }
         }
 
         const server = this.data.config.activeServer === 'CHALLENGER' ? 'CHALLENGER' : 'KRONOS';
@@ -1477,7 +1477,7 @@ const app = {
         this.saveData();
         if (input) input.value = '';
         if (btn) { btn.disabled = false; btn.innerHTML = `<i data-lucide="plus" class="w-4 h-4"></i>`; lucide.createIcons(); }
-        if (msg) { msg.textContent = `Added "${name}"${level ? ` (Lv.${level} ${job})` : ''}`; msg.className = 'text-[11px] font-medium text-emerald-400'; setTimeout(() => msg.classList.add('hidden'), 3000); }
+        if (msg) { msg.textContent = `「${name}」を追加しました${level ? `（Lv.${level} ${job}）` : ''}`; msg.className = 'text-[11px] font-medium text-emerald-400'; setTimeout(() => msg.classList.add('hidden'), 3000); }
         this.renderCharacters();
         this.renderDashboard();
     },
@@ -1670,7 +1670,7 @@ const app = {
         this.activeCharId = cid;
         const c = cid ? this.data.characters.find(x => x.id === cid) : null;
 
-        document.getElementById('modal-title').innerText = c ? 'Edit Character' : 'Add Character';
+        document.getElementById('modal-title').innerText = c ? 'キャラを編集' : 'キャラを追加';
         document.getElementById('modal-subtitle').innerText = c ? c.name : '';
         f.id.value = c ? c.id : '';
         f.name.value = c ? c.name : '';
@@ -1788,9 +1788,9 @@ const app = {
         this.saveData(); this.closeCharModal(); this.renderCharacters(); this.renderDashboard();
     },
     // 最後の1体を消したときも保存する必要があるので、空データを許可して呼ぶ。
-    deleteCharacter(id) { if (confirm('Delete?')) { this.data.characters = this.data.characters.filter(x => x.id !== id); this.saveData({ allowEmpty: true }); this.renderCharacters(); this.renderDashboard(); } },
+    deleteCharacter(id) { if (confirm('このキャラを削除しますか？')) { this.data.characters = this.data.characters.filter(x => x.id !== id); this.saveData({ allowEmpty: true }); this.renderCharacters(); this.renderDashboard(); } },
     // 消すのは「いま開いている人」の分だけ。他の人の記録は残す。
-    resetAllData() { if (confirm('Factory Reset?')) { localStorage.removeItem(this.plannerKey()); location.reload(); } },
+    resetAllData() { if (confirm('Character Manager のキャラ・ボス設定を消して初期状態に戻しますか？')) { localStorage.removeItem(this.plannerKey()); location.reload(); } },
 
     // ========== Boss Config Modal (MapleHub style) ==========
     DIFF_ORDER: ['EASY', 'NORMAL', 'HARD', 'CHAOS', 'EXTREME'],
@@ -1899,11 +1899,11 @@ const app = {
                 let head = '';
                 if (it.type !== last) {
                     last = it.type;
-                    head = `<tr><td colspan="6" class="pt-1.5 pb-0.5 px-2"><div class="flex items-center gap-2 text-[11px] font-bold ${it.type === 'WEEKLY' ? 'text-violet-400' : 'text-amber-400'}">${it.type}<span class="flex-1 h-px bg-current opacity-30"></span></div></td></tr>`;
+                    head = `<tr><td colspan="6" class="pt-1.5 pb-0.5 px-2"><div class="flex items-center gap-2 text-[11px] font-bold ${it.type === 'WEEKLY' ? 'text-violet-400' : 'text-amber-400'}">${it.type === 'WEEKLY' ? '週ボス' : '月ボス'}<span class="flex-1 h-px bg-current opacity-30"></span></div></td></tr>`;
                 }
                 return head + row(it);
             }).join('');
-            return `<table class="ed-boss"><thead><tr><th></th><th class="text-left">ボス</th><th class="text-right px-2">結晶</th><th class="text-right px-2">獲得メル</th><th class="text-left px-1.5">難易度</th><th class="text-left pl-1.5">人数</th></tr></thead><tbody>${rows}</tbody></table>`;
+            return `<table class="ed-boss"><thead><tr><th></th><th class="text-left">ボス</th><th class="text-right px-2 whitespace-nowrap min-w-[96px]">結晶</th><th class="text-right px-2 whitespace-nowrap min-w-[110px]">獲得メル</th><th class="text-left px-1.5">難易度</th><th class="text-left pl-1.5">人数</th></tr></thead><tbody>${rows}</tbody></table>`;
         };
         body.innerHTML = table(items);
         this.updateBossConfigCounter();
@@ -1967,7 +1967,7 @@ const app = {
                 <span class="ed-rt-ic"><img src="assets/rental/${it.image}.png" alt=""></span>
                 <span class="ed-rt-p">${this.fmtMesoShort(it.price)}</span></button>`;
         }).join('');
-        el.innerHTML = `<span class="text-[11px] font-bold text-rose-400 w-[52px] shrink-0">RENTAL</span>
+        el.innerHTML = `<span class="text-[11px] font-bold text-rose-400 w-[52px] shrink-0">レンタル</span>
             <div class="flex gap-1">${items}</div>
             <label class="flex items-center gap-1.5 ml-2 cursor-pointer select-none text-[12px] ${r.cross ? 'text-rose-300 font-bold' : 'text-slate-400'}" title="週リセットをまたいで借りたとき（2日間を2週で使う）は費用を半分にして引きます">
                 <input type="checkbox" class="checkbox checkbox-xs" ${r.cross ? 'checked' : ''} onchange="app.setRentalCross(this.checked)">週跨ぎ（½）</label>
