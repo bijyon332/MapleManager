@@ -149,8 +149,8 @@ const partyScouter = (() => {
                     <div class="sc-q-grid">
                         ${field('Lv', inp('level'))}
                         <span></span>
-                        ${field('アーケインフォース', inp('arcane'))}
-                        ${field('オーセンティックフォース', inp('sacred'))}
+                        ${field('アーケイン', inp('arcane'))}
+                        ${field('オーセンティック', inp('sacred'))}
                     </div>
                     <div id="ps-sum">${sumHTML()}</div>
                 </div>

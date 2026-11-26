@@ -1185,8 +1185,8 @@ const scouter = (() => {
                     <div class="sc-q-grid">
                         ${field('Lv', inp('level', f.level))}
                         ${field('EXスウ ソロ（秒）', `<input data-sc="qmin" inputmode="numeric" class="input input-xs w-full font-mono text-right ${min ? 'font-bold' : 'text-base-content/35'}" value="${min ? fmtSeconds(min) : ''}" placeholder="秒" title="EXスウをソロで倒した時間を秒数で（例 10分30秒なら 630）">`)}
-                        ${field('アーケインフォース', inp('arcane', f.arcane))}
-                        ${field('オーセンティックフォース', inp('sacred', f.sacred))}
+                        ${field('アーケイン', inp('arcane', f.arcane))}
+                        ${field('オーセンティック', inp('sacred', f.sacred))}
                     </div>
                     <div id="sc-quick-sum">${quickSumHTML(e)}</div>
                     <h3 class="mt-3"><i data-lucide="gem"></i>シンボル Lv11 以上<small>最終ダメージ +${QUICK_SYM_FD}%</small></h3>

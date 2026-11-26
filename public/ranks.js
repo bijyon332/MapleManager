@@ -1326,7 +1326,7 @@ const ranks = {
         if (!wrap) return;
 
         if (this.roster.length === 0) {
-            wrap.innerHTML = '<div class="text-[11px] text-base-content/50 px-1 py-2">キャラクターがいません。上の検索バーから追加してください。</div>';
+            wrap.innerHTML = '<div class="text-[11px] text-base-content/50 px-1 py-2">まだキャラがいません</div>';
             return;
         }
 

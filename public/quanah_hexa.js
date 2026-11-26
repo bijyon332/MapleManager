@@ -345,7 +345,7 @@ const quanahHexa = (() => {
         const tiers = H().TIERS.map((t) => {
             const ss = skills.filter((s) => s.tier === t.id);
             if (!ss.length) return '';
-            return `<div class="lg-inset qh-tier"><div class="text-[11px] font-black tracking-wider uppercase mb-1" style="color:${t.color}">${t.label}</div>
+            return `<div class="qh-tier"><div class="flex items-center gap-2 mb-1 text-[12px] font-bold text-white"><span class="mm-mark" style="background:${t.color}"></span>${t.label}</div>
                 <ul class="flex flex-col">${ss.map((s) => {
                     const lv = lvOf(d.levels, s), pv = prev ? lvOf(prev.levels, s) : null;
                     const up = pv != null && lv > pv ? `<span class="qh-up">+${lv - pv}</span>` : pv != null && lv < pv ? `<span class="qh-down">${lv - pv}</span>` : '<span class="qh-up qh-zero">+0</span>';
@@ -367,7 +367,7 @@ const quanahHexa = (() => {
         }).join('');
         const title = d.auto ? `今日 ${withWd(d.editing)} の記録を更新` : d.editing ? `<span class="text-warning">${withWd(d.editing)} の記録を編集中</span>` : '記録を追加';
         return `<div class="card card-sm bg-base-100 border border-base-content/10 overflow-hidden">
-            <div class="lg-equip-head"><span>RECORD <span class="text-base-content/55 font-bold ml-1">${title}</span></span>${head}</div>
+            <div class="lg-equip-head"><span>${title}</span>${head}</div>
             <div class="p-3 flex flex-col gap-3">
                 <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
                     <label class="flex items-center gap-2 text-[12px] font-bold text-base-content/70">日付
@@ -413,7 +413,7 @@ const quanahHexa = (() => {
             </tr>`;
         }).join('');
         return `<div class="card card-sm bg-base-100 border border-base-content/10 overflow-hidden">
-            <div class="lg-equip-head"><span>HISTORY <span class="text-base-content/55 font-bold ml-1">記録一覧</span></span>
+            <div class="lg-equip-head"><span>記録一覧</span>
                 <span class="flex items-center gap-1">
                     <span class="badge badge-sm font-mono mr-1">${fc.recs.length} 件</span>
                     <button type="button" class="btn btn-xs btn-ghost" data-qh="export" ${fc.recs.length ? '' : 'disabled'}><i data-lucide="download" class="w-3 h-3"></i>JSON 保存</button>
@@ -489,7 +489,7 @@ const quanahHexa = (() => {
                 </div>`;
         }
         return `<div class="card card-sm bg-base-100 border border-base-content/10 overflow-hidden">
-            <div class="lg-equip-head"><span>FORECAST <span class="text-base-content/55 font-bold ml-1">予測と振り順</span></span>
+            <div class="lg-equip-head"><span>予測と振り順</span>
                 <button type="button" class="btn btn-xs btn-ghost" data-qh="map" title="HEXA Tracker の強化順マップ（効率順／マス／タイムライン）をこの上に開きます"><i data-lucide="map" class="w-3 h-3"></i>強化順マップを開く</button></div>
             <div class="p-3 flex flex-col gap-3">${settings}${body}</div>
         </div>`;
