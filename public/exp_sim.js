@@ -55,8 +55,8 @@ const expSim = {
     renderEpicDungeonOptions() {
         const sel = document.getElementById('exp-edDungeon');
         if (!sel) return;
-        sel.innerHTML = '<option value="auto">Auto (highest unlocked)</option><option value="none">None</option>' +
-            EPIC_DUNGEONS.map(d => `<option value="${d.id}">${d.name} (${d.lv}+)${d.gms ? '' : ' - KMS only'}</option>`).join('');
+        sel.innerHTML = '<option value="auto">自動（入れる中で一番上）</option><option value="none">なし</option>' +
+            EPIC_DUNGEONS.map(d => `<option value="${d.id}">${d.name} (${d.lv}+)${d.gms ? '' : '（KMSのみ）'}</option>`).join('');
     },
 
     // "auto" picks the strongest GMS dungeon the character can enter; an explicit
@@ -135,7 +135,7 @@ const expSim = {
         if (!charName) return;
 
         searchBtn.disabled = true;
-        searchBtn.innerHTML = `<svg class="animate-spin w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>Searching`;
+        searchBtn.innerHTML = `<svg class="animate-spin w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>取得中`;
         previewEl.classList.add('hidden');
         errEl.classList.add('hidden');
 
@@ -160,7 +160,7 @@ const expSim = {
 
         try {
             if (!resData) throw lastErr;
-            if (!resData.ranks || resData.ranks.length === 0) throw new Error(`"${charName}" was not found`);
+            if (!resData.ranks || resData.ranks.length === 0) throw new Error(`「${charName}」が見つかりません`);
             const c = resData.ranks[0];
             const charTnl = tnlData[c.level] || 1;
             const charPct = ((c.exp / charTnl) * 100).toFixed(4);
@@ -169,15 +169,15 @@ const expSim = {
             document.getElementById('exp-startPct').value = charPct;
             document.getElementById('exp-charAvatar').src = c.characterImgURL || '';
             document.getElementById('exp-charName').textContent = c.characterName;
-            document.getElementById('exp-charJob').textContent = `${c.jobName}  |  Lv.${c.level}  |  Rank #${c.rank.toLocaleString()}`;
+            document.getElementById('exp-charJob').textContent = `${c.jobName}  |  Lv ${c.level}  |  ${c.rank.toLocaleString()}位`;
             document.getElementById('exp-charExpTxt').textContent = `EXP: ${c.exp.toLocaleString()} / ${charTnl.toLocaleString()}  (${charPct}%)`;
             previewEl.classList.remove('hidden');
         } catch (e) {
-            errEl.textContent = `⚠ ${e instanceof TypeError ? 'Network error' : (e.message || 'Unknown error')}`;
+            errEl.textContent = `⚠ ${e instanceof TypeError ? '通信できませんでした' : (e.message || '取得できませんでした')}`;
             errEl.classList.remove('hidden');
         } finally {
             searchBtn.disabled = false;
-            searchBtn.innerHTML = `<i data-lucide="search" class="w-3 h-3"></i>Search`;
+            searchBtn.innerHTML = `<i data-lucide="search" class="w-3 h-3"></i>取得`;
             lucide.createIcons();
         }
     },
@@ -231,7 +231,7 @@ const expSim = {
         startD.setHours(0, 0, 0, 0);
         const endDateVal = document.getElementById('exp-endDate').value;
         const endD = endDateVal ? (() => { const d = new Date(endDateVal); d.setHours(0, 0, 0, 0); return d; })() : null;
-        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const dayNames = ["日", "月", "火", "水", "木", "金", "土"];
 
         const potions = this.getPotions().map(p => ({
             capLv: p.capLv, minLv: p.minLv, qty: p.qty,
@@ -256,7 +256,7 @@ const expSim = {
                 if (pot.qty <= 0) continue;
                 const deadlineHit = pot.deadline && loopDate >= pot.deadline;
                 if (curLv < pot.minLv) {
-                    if (deadlineHit) { lbls.push(`Potion×${pot.qty}(wasted)`); pot.qty = 0; }
+                    if (deadlineHit) { lbls.push(`秘薬×${pot.qty}（期限切れ）`); pot.qty = 0; }
                     continue;
                 }
                 // 全部使い切ってちょうど上限 Lv を越えるように、上限 Lv から本数分さかのぼった Lv で使い始める（〜259 が3本なら Lv257）
@@ -267,7 +267,7 @@ const expSim = {
                     const potExp = tnlData[Math.min(curLv, pot.capLv)] || 0;
                     [curLv, curExp] = self.addExp(potExp, curLv, curExp, goalLv);
                 }
-                lbls.push(deadlineHit ? `Potion×${useQty}(expired)` : `Potion×${useQty}`);
+                lbls.push(deadlineHit ? `秘薬×${useQty}（期日）` : `秘薬×${useQty}`);
             }
             return lbls;
         }
@@ -413,7 +413,7 @@ const expSim = {
 
         const endCard = endD && endDateLv ? `
         <div class="exp-stat-card">
-            <div class="exp-stat-lbl">End Date Lv</div>
+            <div class="exp-stat-lbl">期日の Lv</div>
             <div class="exp-stat-val text-amber-400">Lv.${endDateLv}</div>
             <div class="exp-stat-sub">${endDatePct}% | ${fmt(endD)}</div>
         </div>` : '';
@@ -422,19 +422,19 @@ const expSim = {
         summaryEl.style.gridTemplateColumns = endCard ? 'repeat(4,1fr)' : 'repeat(3,1fr)';
         summaryEl.innerHTML = `
         <div class="exp-stat-card">
-            <div class="exp-stat-lbl">Target Date</div>
+            <div class="exp-stat-lbl">目標 Lv の日</div>
             <div class="exp-stat-val text-indigo-400">${fmt(finishDate)}</div>
-            <div class="exp-stat-sub">${dayNames[finishDate.getDay()]}</div>
+            <div class="exp-stat-sub">${dayNames[finishDate.getDay()]}曜</div>
         </div>
         <div class="exp-stat-card">
-            <div class="exp-stat-lbl">Days Required</div>
-            <div class="exp-stat-val text-slate-200">${totalDays}<span class="text-slate-500 text-xs ml-1">days</span></div>
-            <div class="exp-stat-sub">${(totalDays / 7).toFixed(1)} weeks</div>
+            <div class="exp-stat-lbl">かかる日数</div>
+            <div class="exp-stat-val text-slate-200">${totalDays}<span class="text-slate-500 text-xs ml-1">日</span></div>
+            <div class="exp-stat-sub">${(totalDays / 7).toFixed(1)}週</div>
         </div>
         <div class="exp-stat-card">
-            <div class="exp-stat-lbl">Levels Gained</div>
-            <div class="exp-stat-val text-emerald-400">+${lvGained}<span class="text-slate-500 text-xs ml-1">lv</span></div>
-            <div class="exp-stat-sub">LV UP ${lvUps} times</div>
+            <div class="exp-stat-lbl">上がる Lv</div>
+            <div class="exp-stat-val text-emerald-400">+${lvGained}</div>
+            <div class="exp-stat-sub">Lv アップ ${lvUps}回</div>
         </div>
         ${endCard}`;
 
@@ -442,7 +442,7 @@ const expSim = {
         <tr class="${e.lvUp ? 'exp-is-lvup' : ''}${e.potionLabels.length ? ' exp-is-pot' : ''}">
             <td class="${e.isSun ? 'text-red-400 font-bold' : e.isThu ? 'text-cyan-400 font-bold' : ''}">${e.date}</td>
             <td class="font-mono">${e.days}</td>
-            <td class="font-mono">Lv.${e.lv}</td>
+            <td class="font-mono">Lv ${e.lv}</td>
             <td>
                 <div class="flex items-center gap-2">
                     <div class="flex-1 h-1 bg-base-content/10 rounded overflow-hidden min-w-[60px]">
@@ -454,6 +454,5 @@ const expSim = {
         </tr>`).join('');
 
         document.getElementById('exp-emptyState').classList.add('hidden');
-        document.getElementById('exp-resultContent').classList.remove('hidden');
     }
 };

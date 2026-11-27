@@ -256,31 +256,31 @@
             <!-- Scouter の入力／結果（Scouter のときだけ出す）。「計算する」を押すと結果へ移る。押したときの切り替えは scouter.js -->
             <nav id="scouter-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="scouter.setTab('input')" data-tab="input" role="tab" class="tab tab-active gap-1.5">
-                    <i data-lucide="pencil-line" class="w-3.5 h-3.5"></i>入力
+                    <i data-lucide="pencil-line" class="w-3.5 h-3.5"></i>Input
                 </button>
                 <button onclick="scouter.setTab('result')" data-tab="result" role="tab" class="tab gap-1.5">
-                    <i data-lucide="gauge" class="w-3.5 h-3.5"></i>結果
+                    <i data-lucide="gauge" class="w-3.5 h-3.5"></i>Result
                 </button>
                 <button onclick="scouter.setTab('quick')" data-tab="quick" role="tab" class="tab gap-1.5">
-                    <i data-lucide="timer" class="w-3.5 h-3.5"></i>簡易換算
+                    <i data-lucide="timer" class="w-3.5 h-3.5"></i>Quick
                 </button>
                 <button onclick="scouter.setTab('hyper')" data-tab="hyper" role="tab" class="tab gap-1.5">
-                    <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>ハイパー最適化
+                    <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>Hyper Stat
                 </button>
                 <button onclick="scouter.setTab('hstat')" data-tab="hstat" role="tab" class="tab gap-1.5">
-                    <i data-lucide="hexagon" class="w-3.5 h-3.5"></i>HEXAステ最適化
+                    <i data-lucide="hexagon" class="w-3.5 h-3.5"></i>HEXA Stat
                 </button>
             </nav>
             <!-- Symbol Planner の 進捗／イベント（Symbol Planner のときだけ出す）。押したときの切り替えは symbol_planner.js -->
             <nav id="symbol-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="symbolPlanner.setTab('progress')" data-tab="progress" role="tab" class="tab tab-active gap-1.5">
-                    <i data-lucide="chart-gantt" class="w-3.5 h-3.5"></i>進捗
+                    <i data-lucide="chart-gantt" class="w-3.5 h-3.5"></i>Progress
                 </button>
                 <button onclick="symbolPlanner.setTab('timeline')" data-tab="timeline" role="tab" class="tab gap-1.5">
-                    <i data-lucide="calendar-days" class="w-3.5 h-3.5"></i>早見表
+                    <i data-lucide="calendar-days" class="w-3.5 h-3.5"></i>Timeline
                 </button>
                 <button onclick="symbolPlanner.setTab('events')" data-tab="events" role="tab" class="tab gap-1.5">
-                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>イベント
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>Events
                 </button>
             </nav>
             <!-- Journal の GMS／KMS（パッチ情報）と、少し離して Column（Journal のときだけ出す）。押したときの切り替えは gms_updates.js -->
@@ -304,13 +304,13 @@
             <div id="exp-nav" class="hidden items-center gap-4 mr-3 shrink-0">
                 <nav role="tablist" class="tabs tabs-box tabs-sm flex-nowrap shrink-0">
                     <button onclick="expPlan.setTab('sim')" data-tab="sim" role="tab" class="tab tab-active gap-1.5">
-                        <i data-lucide="user" class="w-3.5 h-3.5"></i>1キャラ
+                        <i data-lucide="user" class="w-3.5 h-3.5"></i>Character
                     </button>
                     <button onclick="expPlan.setTab('plan')" data-tab="plan" role="tab" class="tab gap-1.5">
-                        <i data-lucide="users" class="w-3.5 h-3.5"></i>アカウント計画
+                        <i data-lucide="users" class="w-3.5 h-3.5"></i>Account Plan
                     </button>
                     <button onclick="expPlan.setTab('buffs')" data-tab="buffs" role="tab" class="tab gap-1.5">
-                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>イベントバフ
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>Event Buffs
                     </button>
                 </nav>
                 <nav id="exp-world-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap shrink-0 hidden">
@@ -330,22 +330,22 @@
             <div id="quanah-nav" class="hidden items-center gap-3 mr-3 shrink-0">
             <nav role="tablist" class="tabs tabs-box tabs-sm flex-nowrap shrink-0">
                 <button onclick="libaeGear.setTab('gear')" data-tab="gear" role="tab" class="tab tab-active gap-1.5">
-                    <i data-lucide="shirt" class="w-3.5 h-3.5"></i>装備管理
+                    <i data-lucide="shirt" class="w-3.5 h-3.5"></i>Gear
                 </button>
                 <button onclick="libaeGear.setTab('pieces')" data-tab="pieces" role="tab" class="tab gap-1.5">
-                    <i data-lucide="puzzle" class="w-3.5 h-3.5"></i>所有ピース
+                    <i data-lucide="puzzle" class="w-3.5 h-3.5"></i>Pieces
                 </button>
                 <button onclick="libaeGear.setTab('jewel')" data-tab="jewel" role="tab" class="tab gap-1.5">
-                    <i data-lucide="gem" class="w-3.5 h-3.5"></i>ジュエル強化
+                    <i data-lucide="gem" class="w-3.5 h-3.5"></i>Jewels
                 </button>
                 <button onclick="libaeGear.setTab('battlesim')" data-tab="battlesim" role="tab" class="tab gap-1.5">
-                    <i data-lucide="cpu" class="w-3.5 h-3.5"></i>バトルシム
+                    <i data-lucide="cpu" class="w-3.5 h-3.5"></i>Battle Sim
                 </button>
                 <button onclick="libaeGear.setTab('hexa')" data-tab="hexa" role="tab" class="tab gap-1.5">
-                    <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>6次進捗
+                    <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>6th Job
                 </button>
                 <button onclick="libaeGear.setTab('reference')" data-tab="reference" role="tab" class="tab gap-1.5">
-                    <i data-lucide="book-open" class="w-3.5 h-3.5"></i>資料
+                    <i data-lucide="book-open" class="w-3.5 h-3.5"></i>Reference
                 </button>
             </nav>
             <div id="quanah-hexa-head" class="hidden items-center gap-2 shrink-0">
@@ -372,20 +372,20 @@
             <nav id="hexa-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="hexaTracker.setPage('ranking')" id="hnav-ranking"
                     role="tab" class="tab tab-active gap-1.5">
-                    <i data-lucide="trophy" class="w-3.5 h-3.5"></i>効率ランキング
+                    <i data-lucide="trophy" class="w-3.5 h-3.5"></i>Ranking
                 </button>
                 <button onclick="hexaTracker.setPage('tracker')" id="hnav-tracker"
                     role="tab" class="tab gap-1.5">
-                    <i data-lucide="hexagon" class="w-3.5 h-3.5"></i>トラッカー
+                    <i data-lucide="hexagon" class="w-3.5 h-3.5"></i>Tracker
                 </button>
             </nav>
             <!-- EXP Tracker sub navigation (shown only for the ranks app) -->
             <nav id="ranks-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button type="button" data-tab="board" role="tab" class="ranks-tab-btn tab tab-active gap-1.5">
-                    <i data-lucide="list-ordered" class="w-3.5 h-3.5"></i>リーダーボード
+                    <i data-lucide="list-ordered" class="w-3.5 h-3.5"></i>Leaderboard
                 </button>
                 <button type="button" data-tab="trend" role="tab" class="ranks-tab-btn tab gap-1.5">
-                    <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>推移
+                    <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>Trend
                 </button>
             </nav>
             <!-- Weapon Liberation sub navigation (shown only for the liberation app) -->
@@ -401,19 +401,19 @@
             <nav id="community-nav" role="tablist" class="tabs tabs-box tabs-sm flex-nowrap hidden mr-3 shrink-0">
                 <button onclick="community.setTab('roster')" id="cnav-roster"
                     role="tab" class="tab tab-active gap-1.5">
-                    <i data-lucide="contact" class="w-3.5 h-3.5"></i>名簿
+                    <i data-lucide="contact" class="w-3.5 h-3.5"></i>Roster
                 </button>
                 <button onclick="community.setTab('list')" id="cnav-list"
                     role="tab" class="tab gap-1.5">
-                    <i data-lucide="table" class="w-3.5 h-3.5"></i>キャラ一覧
+                    <i data-lucide="table" class="w-3.5 h-3.5"></i>Characters
                 </button>
                 <button onclick="community.setTab('guild')" id="cnav-guild"
                     role="tab" class="tab gap-1.5">
-                    <i data-lucide="shield" class="w-3.5 h-3.5"></i>ギルド別
+                    <i data-lucide="shield" class="w-3.5 h-3.5"></i>Guilds
                 </button>
                 <button onclick="community.setTab('todo')" id="cnav-todo"
                     role="tab" class="tab gap-1.5">
-                    <i data-lucide="inbox" class="w-3.5 h-3.5"></i>未割り当て<span id="cm-todo-badge" class="cm-nav-badge"></span>
+                    <i data-lucide="inbox" class="w-3.5 h-3.5"></i>Unassigned<span id="cm-todo-badge" class="cm-nav-badge"></span>
                 </button>
             </nav>
             <!-- Dashboard Stats -->
@@ -439,34 +439,31 @@
                     <div id="empty-state" class="hidden text-center py-20">
                         <div class="bg-slate-900/50 inline-block p-6 rounded-full mb-4"><i data-lucide="ghost"
                                 class="w-12 h-12 text-slate-600"></i></div>
-                        <h3 class="text-slate-300 font-bold text-lg">No Characters in <span
-                                class="server-label text-indigo-400">Kronos</span></h3>
-                        <p class="text-slate-500 text-xs mt-1">Add characters in the "Characters" tab.</p>
+                        <h3 class="text-slate-300 font-bold text-lg"><span
+                                class="server-label text-indigo-400">Kronos</span> にキャラがいません</h3>
+                        <p class="text-slate-500 text-xs mt-1">「Characters」で追加できます。</p>
                         <button onclick="app.navigate('characters')"
-                            class="mt-4 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-lg font-medium transition-colors">Manage
-                            Characters</button>
+                            class="mt-4 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-lg font-medium transition-colors">キャラを追加する</button>
                     </div>
                 </div>
 
                 <div id="view-characters" class="hidden-page fade-in">
-                    <!-- 登録の1行: 見出し・人数・サーバー・名前で追加（ランキングAPIから取得）・手動・全更新 -->
-                    <section class="card card-sm bg-base-100 border border-base-content/10 mb-3"><div class="card-body gap-2">
+                    <!-- 1面: 追加の1行（サーバー・名前で追加＝ランキングから取得・手入力・全員更新）→ 並べ直す → 表。見出しと説明文は置かない -->
+                    <div class="mm-face">
+                    <section class="mm-sec">
                         <form onsubmit="app.quickAddCharacter(event)" class="flex items-center gap-2 flex-wrap">
-                            <div class="leading-tight mr-2 shrink-0">
-                                <div class="flex items-baseline gap-2"><h2 class="font-bold text-sm text-white">Manage Roster</h2><span id="roster-count-badge" class="badge badge-sm badge-ghost">0 Characters</span></div>
-                                <p class="text-[11px] text-base-content/50">Add characters and pull live data from the Ranking API</p>
-                            </div>
                             <div class="join shrink-0">
                                 <button type="button" onclick="app.setServer('KRONOS')" id="btn-quick-srv-kronos" class="join-item btn btn-sm">Kronos</button>
                                 <button type="button" onclick="app.setServer('CHALLENGER')" id="btn-quick-srv-challenger" class="join-item btn btn-sm">Challenger</button>
                             </div>
                             <label class="input input-sm flex-1 min-w-[220px]">
                                 <i data-lucide="user-plus" class="w-3.5 h-3.5 text-base-content/40"></i>
-                                <input type="text" id="quick-add-name" required placeholder="Add character to roster...">
+                                <input type="text" id="quick-add-name" required placeholder="キャラ名を入れて追加（ランキングから Lv・職業を取得）">
                             </label>
-                            <button type="submit" id="btn-quick-add" title="Add with API fetch" class="btn btn-sm btn-primary min-w-[44px]"><i data-lucide="plus" class="w-4 h-4"></i></button>
-                            <button type="button" onclick="app.openCharModal()" title="Add manually (no API)" class="btn btn-sm"><i data-lucide="pencil" class="w-3.5 h-3.5"></i>Manual</button>
-                            <button type="button" onclick="app.updateAllCharacters()" id="btn-update-all" title="Refresh all characters" class="btn btn-sm"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>Update All</button>
+                            <button type="submit" id="btn-quick-add" title="ランキングから取得して追加" class="btn btn-sm btn-primary min-w-[44px]"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                            <button type="button" onclick="app.openCharModal()" title="ランキングを使わずに手で入れる" class="btn btn-sm"><i data-lucide="pencil" class="w-3.5 h-3.5"></i>手入力</button>
+                            <button type="button" onclick="app.updateAllCharacters()" id="btn-update-all" title="全員の Lv・職業・画像をランキングから取り直す" class="btn btn-sm"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>全員を更新</button>
+                            <span id="roster-count-badge" class="badge badge-sm badge-ghost shrink-0 ml-auto">0キャラ</span>
                         </form>
                         <div id="quick-add-msg" class="hidden text-[11px] font-medium"></div>
 
@@ -482,8 +479,9 @@
                             </label>
                             <span id="planner-community-note" class="text-[11px] text-base-content/50"></span>
                         </div>
-                    </div></section>
+                    </section>
                     <div id="char-list-container"></div>
+                    </div>
                 </div>
 
                 <!-- ========== CHEAT SHEET APP ========== -->
@@ -546,41 +544,41 @@
                 <div id="view-ranks" class="hidden-page fade-in"></div>
 
                 <div id="view-system" class="hidden-page fade-in">
-                    <!-- 設定は3枚のカードを横に並べる。値は変えたらすぐ保存（app.saveConfig）。 -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-5xl">
-                        <section class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
-                            <h3 class="font-bold text-sm text-white flex items-center gap-1.5"><i data-lucide="coins" class="w-4 h-4 text-base-content/50"></i>Revenue Calculation</h3>
+                    <!-- 設定は1面に3つの区切りを横に並べる。値は変えたらすぐ保存（app.saveConfig）。 -->
+                    <div class="mm-face mm-row max-w-5xl">
+                        <section class="mm-sec">
+                            <div class="mm-sec-h"><h3>結晶の上限</h3></div>
                             <div class="flex justify-between items-center gap-3">
                                 <div class="leading-tight">
-                                    <div class="text-sm">World Max Crystals</div>
-                                    <div class="text-[11px] text-base-content/50">Total limit for account</div>
+                                    <div class="text-sm">ワールド</div>
+                                    <div class="text-[11px] text-base-content/50">アカウント全体で1週間</div>
                                 </div>
                                 <input type="number" id="config-world-crystals" class="input input-sm w-20 font-mono font-bold text-right" value="180" min="1" onchange="app.saveConfig()">
                             </div>
                             <div class="flex justify-between items-center gap-3">
                                 <div class="leading-tight">
-                                    <div class="text-sm">Character Max Crystals</div>
-                                    <div class="text-[11px] text-base-content/50">Per character limit</div>
+                                    <div class="text-sm">キャラ</div>
+                                    <div class="text-[11px] text-base-content/50">1キャラあたり</div>
                                 </div>
                                 <input type="number" id="config-char-crystals" class="input input-sm w-20 font-mono font-bold text-right" value="14" min="1" onchange="app.saveConfig()">
                             </div>
-                        </div></section>
-                        <section class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
-                            <h3 class="font-bold text-sm text-white flex items-center gap-1.5"><i data-lucide="server" class="w-4 h-4 text-base-content/50"></i>Server Names</h3>
+                        </section>
+                        <section class="mm-sec">
+                            <div class="mm-sec-h"><h3>サーバー名</h3></div>
                             <label class="block">
-                                <span class="block text-[11px] text-base-content/50 mb-1">Server 1 (Default: Kronos)</span>
+                                <span class="block text-[11px] text-base-content/50 mb-1">サーバー1（既定: Kronos）</span>
                                 <input type="text" id="config-server-kronos" class="input input-sm w-full border-l-[3px] border-l-emerald-500" placeholder="Kronos" onchange="app.saveConfig()">
                             </label>
                             <label class="block">
-                                <span class="block text-[11px] text-base-content/50 mb-1">Server 2 (Default: Challenger)</span>
+                                <span class="block text-[11px] text-base-content/50 mb-1">サーバー2（既定: Challenger）</span>
                                 <input type="text" id="config-server-challenger" class="input input-sm w-full border-l-[3px] border-l-purple-500" placeholder="Challenger" onchange="app.saveConfig()">
                             </label>
-                        </div></section>
-                        <section class="card card-sm bg-base-100 border border-error/30"><div class="card-body gap-2">
-                            <h3 class="font-bold text-sm text-error flex items-center gap-1.5"><i data-lucide="database" class="w-4 h-4"></i>Data Management</h3>
+                        </section>
+                        <section class="mm-sec">
+                            <div class="mm-sec-h"><h3>データ</h3></div>
                             <p class="text-[11px] text-base-content/50">Character Manager のキャラ・ボス設定を消して初期状態に戻します（他のアプリのデータは残ります）。</p>
-                            <button onclick="app.resetAllData()" class="btn btn-sm btn-error btn-outline mt-auto"><i data-lucide="trash-2" class="w-4 h-4"></i>Factory Reset</button>
-                        </div></section>
+                            <button onclick="app.resetAllData()" class="btn btn-sm btn-error btn-outline mt-auto"><i data-lucide="trash-2" class="w-4 h-4"></i>初期化</button>
+                        </section>
                     </div>
                 </div>
 
@@ -602,7 +600,7 @@
     <div id="char-modal" class="modal modal-open hidden bg-slate-950/80 z-50">
         <div class="modal-box max-w-[96vw] w-[1012px] max-h-[94vh] p-0 flex flex-col bg-base-100 border border-base-content/15">
             <div class="flex items-center gap-2 px-4 h-11 border-b border-base-content/10 shrink-0">
-                <h3 class="font-bold text-white" id="modal-title">Edit Character</h3>
+                <h3 class="font-bold text-white" id="modal-title">キャラを編集</h3>
                 <span id="modal-subtitle" class="text-xs text-slate-500"></span>
                 <button type="button" onclick="app.closeCharModal()" class="btn btn-sm btn-ghost btn-square ml-auto"><i data-lucide="x" class="w-4 h-4"></i></button>
             </div>
@@ -626,27 +624,27 @@
                     <div class="flex flex-col gap-2 shrink-0">
                         <div class="flex items-end gap-3">
                             <label class="ed-f">
-                                <span class="ed-lbl">IGN</span>
+                                <span class="ed-lbl">キャラ名</span>
                                 <div class="join">
                                     <input type="text" name="name" required class="input input-sm join-item w-40" onblur="app.fetchCharacterData()">
-                                    <button type="button" id="btn-fetch" onclick="app.fetchCharacterData()" class="btn btn-sm join-item gap-1 min-w-[76px]"><i data-lucide="download" class="w-3.5 h-3.5"></i>Fetch</button>
+                                    <button type="button" id="btn-fetch" onclick="app.fetchCharacterData()" class="btn btn-sm join-item gap-1 min-w-[76px]"><i data-lucide="download" class="w-3.5 h-3.5"></i>取得</button>
                                 </div>
                             </label>
                             <label class="ed-f">
-                                <span class="ed-lbl">Level</span>
+                                <span class="ed-lbl">Lv</span>
                                 <input type="number" name="level" placeholder="—" class="input input-sm w-20 font-mono text-right">
                             </label>
                             <label class="ed-f">
-                                <span class="ed-lbl">Class</span>
+                                <span class="ed-lbl">職業</span>
                                 <select name="job-select" id="char-job-select" onchange="app.onJobSelect(this.value)" class="select select-sm w-48">
-                                    <option value="">Select a Class</option>
+                                    <option value="">職業を選ぶ</option>
                                 </select>
                             </label>
                         </div>
                         <div id="fetch-error-msg" class="hidden -mt-1 text-[10px] text-rose-400"></div>
                         <div class="flex items-end gap-3">
                             <div class="ed-f">
-                                <span class="ed-lbl">Role</span>
+                                <span class="ed-lbl">役割</span>
                                 <div class="join" id="cm-role">
                                     <button type="button" data-v="MAIN" onclick="app.setCharRole('MAIN')" class="btn btn-sm join-item" style="--c:#818cf8">Main</button>
                                     <button type="button" data-v="SUB" onclick="app.setCharRole('SUB')" class="btn btn-sm join-item" style="--c:#818cf8">Sub</button>
@@ -654,14 +652,14 @@
                                 </div>
                             </div>
                             <div class="ed-f">
-                                <span class="ed-lbl">Server</span>
+                                <span class="ed-lbl">サーバー</span>
                                 <div class="join" id="cm-server">
                                     <button type="button" data-v="KRONOS" onclick="app.setCharServer('KRONOS')" class="btn btn-sm join-item">Kronos</button>
                                     <button type="button" data-v="CHALLENGER" onclick="app.setCharServer('CHALLENGER')" class="btn btn-sm join-item">Challenger</button>
                                 </div>
                             </div>
                             <div class="ed-f">
-                                <span class="ed-lbl">Linked</span>
+                                <span class="ed-lbl">このキャラで開く</span>
                                 <div class="flex gap-1">
                                     <button type="button" id="cm-link-hexa" onclick="app.openLinkedFromModal('hexa')" class="btn btn-sm btn-soft btn-secondary">HEXA</button>
                                     <button type="button" id="cm-link-gear" onclick="app.openLinkedFromModal('gear')" class="btn btn-sm btn-soft btn-info">UPGRADE</button>
@@ -672,8 +670,8 @@
                         </div>
                     </div>
                     <label class="ed-f flex-1 min-w-0">
-                        <span class="ed-lbl">Memo</span>
-                        <textarea name="memo" placeholder="Notes, goals, reminders..." class="textarea textarea-sm w-full flex-1 min-h-0 resize-none"></textarea>
+                        <span class="ed-lbl">メモ</span>
+                        <textarea name="memo" placeholder="目標や覚え書きなど" class="textarea textarea-sm w-full flex-1 min-h-0 resize-none"></textarea>
                     </label>
 
                     <!-- 立ち絵の位置（キャラ画像のクリックで開く） -->
@@ -706,11 +704,11 @@
                 <div id="bc-grid" class="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-3 pb-1"></div>
 
                 <div class="flex items-center gap-5 px-4 h-12 border-t border-base-content/10 shrink-0 bg-base-200">
-                    <span class="text-[11px] font-bold text-violet-400">WEEKLY <span id="bc-counter" class="font-mono text-sm text-white ml-1">0/14</span></span>
+                    <span class="text-[11px] font-bold text-violet-400">週ボス <span id="bc-counter" class="font-mono text-sm text-white ml-1">0/14</span></span>
                     <span class="text-[11px] text-slate-500">週の見込み <span id="bc-weekly-earnings" class="ml-1 font-['Saira_Condensed'] text-xl font-bold text-amber-300 tabular-nums">0</span><span id="bc-rental-note" class="ml-2 text-[11px] text-rose-400 tabular-nums"></span></span>
                     <div class="ml-auto flex gap-2">
-                        <button type="button" onclick="app.closeCharModal()" class="btn btn-sm btn-ghost">Cancel</button>
-                        <button type="submit" class="btn btn-sm btn-primary gap-1.5"><i data-lucide="save" class="w-3.5 h-3.5"></i>Save</button>
+                        <button type="button" onclick="app.closeCharModal()" class="btn btn-sm btn-ghost">キャンセル</button>
+                        <button type="submit" class="btn btn-sm btn-primary gap-1.5"><i data-lucide="save" class="w-3.5 h-3.5"></i>保存</button>
                     </div>
                 </div>
             </form>

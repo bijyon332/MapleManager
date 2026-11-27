@@ -1326,7 +1326,7 @@ const ranks = {
         if (!wrap) return;
 
         if (this.roster.length === 0) {
-            wrap.innerHTML = '<div class="text-[11px] text-base-content/50 px-1 py-2">キャラクターがいません。上の検索バーから追加してください。</div>';
+            wrap.innerHTML = '<div class="text-[11px] text-base-content/50 px-1 py-2">まだキャラがいません</div>';
             return;
         }
 
@@ -1424,7 +1424,7 @@ const ranks = {
             wrap.classList.add('hidden');
             empty.classList.remove('hidden');
             const msg = empty.querySelector('[data-empty-msg]');
-            if (msg) msg.textContent = '左のリストからキャラクターを選択してください';
+            if (msg) msg.textContent = '左のキャラを押すと出ます';
             if (this.chart) { this.chart.destroy(); this.chart = null; }
             return;
         }

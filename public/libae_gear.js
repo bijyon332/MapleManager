@@ -624,7 +624,7 @@ const libaeGear = (() => {
         const legend = Object.values(VERDICT).map((v) => `<span class="lg-vkey ${v.cls}"><i></i>${v.label}</span>`).join('');
         return `<div class="lg-gear">
             <div class="card card-sm bg-base-100 border border-base-content/10 overflow-hidden">
-                <div class="lg-equip-head"><span>EQUIP <span class="text-base-content/55 font-bold ml-1">Libae's Supercharged</span></span>
+                <div class="lg-equip-head"><span>装備<span class="lg-equip-sub">Libae's Supercharged</span></span>
                     <span class="flex items-center gap-3"><span class="flex items-center gap-2.5 font-normal" title="目標ラインに対するラインの判定。プリズマティックジュエルの分を先に数え、次に 帽子→マント→服（上）→服（下）→手袋→靴 の順に数えます。">${legend}</span><span class="badge badge-sm font-mono" id="lg-count">${filledCount()} / 6</span></span></div>
                 <div class="lg-equip-grid">${GRID_ORDER.map(cellHTML).join('')}</div>
             </div>
@@ -688,7 +688,7 @@ const libaeGear = (() => {
         const dup = duplicatePieces(pieces), dupCount = Object.keys(dup).length;
         // 左: 部位ごとの所有ピース
         let left = `<div class="card card-sm bg-base-100 border border-base-content/10 overflow-hidden">
-            <div class="lg-equip-head"><span>PIECES <span class="text-base-content/55 font-bold ml-1">所有ピース</span></span><span class="badge badge-sm font-mono">${pieces.length} 件</span></div>
+            <div class="lg-equip-head"><span>所有ピース</span><span class="badge badge-sm font-mono">${pieces.length} 件</span></div>
             <div class="lg-equip-grid">`;
         GRID_ORDER.forEach((slot) => {
             const sp = pieces.filter((p) => p.slot === slot), sd = sp.filter((p) => dup[p.id]).length, so = sp.filter((p) => p.own).length;

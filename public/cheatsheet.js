@@ -359,10 +359,6 @@ const cheatsheet = {
         const sources = this.SOURCES.map(s =>
             `<a href="${s.url}" target="_blank" rel="noopener" class="text-indigo-300 hover:text-indigo-200 underline decoration-slate-700">${s.label}</a>`).join('<span class="text-slate-700"> / </span>');
         return `<div class="max-w-[1500px] mx-auto space-y-3">
-            <div class="flex items-baseline gap-3 flex-wrap">
-                <h1 class="text-[18px] font-bold text-white">Cheat Sheet</h1>
-                <span class="text-[11px] text-slate-500">GMS基準（2026-09-24 時点）</span>
-            </div>
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 items-start">
                 <div class="space-y-3">
                     ${this.renderSacred()}
@@ -377,7 +373,7 @@ const cheatsheet = {
             ${this.renderLevel()}
             ${this.renderCrystal()}
             <div class="text-[10px] text-slate-500 leading-relaxed">
-                <span class="text-slate-400">出典</span> ${sources}
+                <span class="text-slate-400">GMS基準（2026-09-24 時点）</span><span class="text-slate-700"> ・ </span><span class="text-slate-400">出典</span> ${sources}
             </div>
         </div>`;
     },

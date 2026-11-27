@@ -1344,8 +1344,19 @@ const expPlan = {
     resultHTML(results, st) {
         const rows = this.planChars().map(ch => ({ ch, r: results.get(ch.id) })).filter(x => x.r);
         if (!rows.length) {
-            return `<div class="bg-base-100 border border-base-content/10 rounded-box flex flex-col items-center justify-center py-16 text-slate-500 gap-2">
-                <i data-lucide="chart-line" class="w-10 h-10 opacity-30"></i><p class="text-sm">左のキャラをオンにすると計算します</p></div>`;
+            // 計算する前も表の形を見せる
+            return `<div class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden">
+                <div class="flex items-center gap-2 px-3 py-2 bg-base-200 border-b border-base-content/10">
+                    <i data-lucide="flag" class="w-4 h-4 text-amber-400"></i>
+                    <span class="text-sm font-bold text-white">${expDate.short(st.end)} 時点</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="table table-sm expp-result">
+                        <thead><tr><th>キャラ</th><th>開始</th><th>期日</th><th>目標</th><th>期間中の EXP の内訳</th></tr></thead>
+                        <tbody><tr><td colspan="5" class="text-center text-slate-500 py-6">下の「キャラを選ぶ」でキャラを入れると出ます</td></tr></tbody>
+                    </table>
+                </div>
+            </div>`;
         }
         const focus = ch => this.world === 'ALL' || ch.server === this.world ? 0 : 1;
         rows.sort((a, b) => focus(a.ch) - focus(b.ch) || b.ch.server.localeCompare(a.ch.server) || b.r.endLv - a.r.endLv);

@@ -1,21 +1,17 @@
 <!-- EXP Leaderboard & Progress のマークアップ。
      index.html の #view-ranks に、初回オープン時に読み込まれる
      （script.js の APPS テーブルを参照）。動かすのは ranks.js。 -->
-<div class="max-w-[1600px] flex flex-col gap-3">
-    <!-- キャラ追加の1行: 見出し・地域・検索・追加・全更新・名簿から追加 -->
-    <section class="card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
+<div class="max-w-[1600px] mm-face overflow-hidden">
+    <!-- キャラ追加の1行: 地域・検索・追加・全更新・名簿から追加。表と同じ面に置く -->
+    <section class="mm-sec">
         <form id="ranks-import-form" class="flex flex-wrap items-center gap-2">
-            <div class="leading-tight mr-2 shrink-0">
-                <h2 class="font-bold text-sm text-white">EXP Tracker</h2>
-                <p class="text-[11px] text-base-content/50">キャラ名で検索して追加。Nexon 公式ランキングから1日1回（1時以降に開いたとき）自動で取得し、このブラウザに貯めます。</p>
-            </div>
             <div class="join shrink-0">
                 <button type="button" data-region="na" class="ranks-region-btn join-item btn btn-sm">NA</button>
                 <button type="button" data-region="eu" class="ranks-region-btn join-item btn btn-sm">EU</button>
             </div>
             <label class="input input-sm flex-1 min-w-[220px]">
                 <i data-lucide="search" class="w-3.5 h-3.5 text-base-content/40"></i>
-                <input type="text" id="ranks-input-name" placeholder="キャラクター名で検索して追加">
+                <input type="text" id="ranks-input-name" placeholder="キャラ名">
             </label>
             <button type="submit" id="ranks-import-btn" class="btn btn-sm btn-primary">
                 <i data-lucide="plus" class="w-3.5 h-3.5"></i>追加
@@ -32,16 +28,16 @@
             </div>
         </form>
         <div id="ranks-msg" class="hidden text-[11px] font-medium"></div>
-    </div></section>
+    </section>
 
     <!-- リーダーボード / 推移 の切り替えは上部バー（index.html の ranks-nav）にある。 -->
 
     <!-- ===== Leaderboard tab ===== -->
     <div id="ranks-tab-board">
-        <div class="card bg-base-100 border border-base-content/10 overflow-hidden">
+        <div>
             <div id="ranks-board-empty" class="flex flex-col items-center justify-center py-16 text-base-content/40">
                 <i data-lucide="users" class="w-10 h-10 mb-3 opacity-40"></i>
-                <p class="text-xs">上の検索バーからキャラクターを追加してください</p>
+                <p class="text-xs">キャラ名を入れて「追加」で並びます</p>
             </div>
             <div id="ranks-board-wrap" class="overflow-x-auto hidden">
                 <table class="table table-sm min-w-[1200px]">
@@ -50,21 +46,21 @@
                 </table>
             </div>
             <div class="px-3 py-1.5 border-t border-base-content/10 text-[11px] text-base-content/40">
-                ヘッダークリックでソート / 行クリックで推移グラフを表示 / +1〜5Lv予測は14日平均、290・295到達予測は30日平均(無い場合は90日)ベース
+                行を押すと推移グラフ。+1〜5Lv の予測は14日平均、290・295 到達は30日平均（なければ90日）から
             </div>
         </div>
     </div>
 
     <!-- ===== Trend tab ===== -->
     <div id="ranks-tab-trend" class="hidden">
-        <div class="flex flex-col lg:flex-row gap-3 items-stretch">
+        <div class="flex flex-col lg:flex-row items-stretch">
             <!-- Character list (click to toggle) -->
-            <section class="lg:w-[280px] shrink-0 card card-sm bg-base-100 border border-base-content/10"><div class="card-body gap-2">
-                <h3 class="font-bold text-sm text-white">キャラクター <span class="text-[11px] font-normal text-base-content/50">クリックでグラフ表示切替</span></h3>
+            <section class="mm-sec lg:w-[280px] shrink-0">
+                <div class="mm-sec-h"><h3>キャラ</h3><span>押すとグラフに出す・消す</span></div>
                 <div id="ranks-trend-list" class="flex flex-col gap-1"></div>
-            </div></section>
+            </section>
             <!-- Chart -->
-            <section class="flex-1 card card-sm bg-base-100 border border-base-content/10 min-w-0"><div class="card-body gap-2">
+            <section class="mm-sec flex-1 min-w-0 border-t lg:border-t-0 lg:border-l border-[#1e293b]">
                 <div class="flex items-center justify-between gap-3 flex-wrap">
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-[11px] text-base-content/50">期間</span>
@@ -94,14 +90,14 @@
                 </div>
                 <div id="ranks-empty" class="flex flex-col items-center justify-center py-16 text-base-content/40">
                     <i data-lucide="bar-chart-2" class="w-10 h-10 mb-3 opacity-40"></i>
-                    <p class="text-xs" data-empty-msg>左のリストからキャラクターを選択してください</p>
+                    <p class="text-xs" data-empty-msg>左のキャラを押すと出ます</p>
                 </div>
                 <div id="ranks-chart-wrap" class="hidden">
                     <div class="relative h-[480px]">
                         <canvas id="ranks-chart"></canvas>
                     </div>
                 </div>
-            </div></section>
+            </section>
         </div>
     </div>
 </div>

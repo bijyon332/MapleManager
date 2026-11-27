@@ -139,7 +139,7 @@ select option { background: #0f172a; }
 /* === App bar (season + data) === */
 .app-bar {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    padding: 6px 16px;
+    padding: 6px 24px;
     background: #0b1222;
     border-bottom: 1px solid var(--line);
 }

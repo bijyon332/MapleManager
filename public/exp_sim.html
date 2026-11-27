@@ -2,320 +2,123 @@
      index.html の #view-exp-sim に、初回オープン時に読み込まれる
      （script.js の APPS テーブルを参照）。動かすのは exp_sim.js。 -->
 <div id="exp-tab-sim">
-<div class="grid grid-cols-1 xl:grid-cols-[480px_1fr] gap-0 h-[calc(100vh-7rem)]">
-    <!-- Left: Settings -->
-    <div class="overflow-y-auto custom-scrollbar pr-3 space-y-2 pb-6">
-        <!-- Character Info -->
-        <div class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden">
-            <div
-                class="exp-section-head flex items-center gap-2 px-3 py-1.5 bg-base-200 border-b border-base-content/10 cursor-pointer select-none">
-                <i data-lucide="user" class="w-3.5 h-3.5 text-indigo-400"></i>
-                <span
-                    class="text-[11px] font-bold uppercase tracking-wider text-slate-200 flex-1">Character
-                    Info</span>
-                <i data-lucide="chevron-up"
-                    class="w-3 h-3 text-slate-500 exp-section-toggle open"></i>
-            </div>
-            <div class="p-2.5 space-y-2">
+<div class="grid grid-cols-1 xl:grid-cols-[480px_1fr] gap-4 xl:h-[calc(100vh-7rem)]">
+    <!-- 左: 入力（1面、中は見出しで区切る） -->
+    <div class="overflow-y-auto custom-scrollbar pb-6">
+        <div class="mm-face">
+            <section class="mm-sec">
+                <div class="mm-sec-h"><h3>キャラ</h3></div>
                 <div class="flex gap-2">
-                    <input type="text" id="exp-charNameInput"
-                        placeholder="Enter character name (GMS)"
-                        class="input input-sm flex-1 font-mono">
-                    <button id="exp-charSearchBtn"
-                        class="btn btn-sm btn-primary gap-1.5">
-                        <i data-lucide="search" class="w-3 h-3"></i>Search
-                    </button>
+                    <input type="text" id="exp-charNameInput" placeholder="キャラ名（GMS）" class="input input-sm flex-1">
+                    <button id="exp-charSearchBtn" class="btn btn-sm gap-1.5"><i data-lucide="search" class="w-3 h-3"></i>取得</button>
                 </div>
-                <div id="exp-charPreview"
-                    class="hidden flex items-center gap-3 p-3 bg-indigo-950/30 border border-indigo-500/20 rounded-lg">
+                <div id="exp-charPreview" class="hidden flex items-center gap-3">
                     <img id="exp-charAvatar" class="w-10 h-10 object-contain shrink-0" src="">
                     <div class="min-w-0">
                         <div id="exp-charName" class="text-sm font-bold text-white truncate"></div>
-                        <div id="exp-charJob" class="text-[10px] text-slate-400 truncate"></div>
-                        <div id="exp-charExpTxt"
-                            class="text-[10px] text-emerald-400 font-mono truncate"></div>
+                        <div id="exp-charJob" class="text-[11px] text-slate-400 truncate"></div>
+                        <div id="exp-charExpTxt" class="text-[11px] text-emerald-400 font-mono truncate"></div>
                     </div>
                 </div>
-                <div id="exp-charError"
-                    class="hidden text-xs text-red-400 p-2 bg-red-950/20 border border-red-500/20 rounded-lg">
+                <div id="exp-charError" class="hidden text-xs text-red-400"></div>
+                <div class="sc-q-grid">
+                    <label class="sc-q-f"><span>今の Lv</span><input type="number" id="exp-startLv" value="236" class="input input-sm w-full font-mono"></label>
+                    <label class="sc-q-f"><span>今の経験値（%）</span><input type="number" id="exp-startPct" value="0" step="0.01" class="input input-sm w-full font-mono"></label>
+                    <label class="sc-q-f"><span>開始日</span><input type="date" id="exp-startDate" class="input input-sm w-full font-mono"></label>
+                    <label class="sc-q-f"><span>目標 Lv</span><input type="number" id="exp-targetLv" value="260" class="input input-sm w-full font-mono"></label>
+                    <label class="sc-q-f"><span>期日（任意）</span><input type="date" id="exp-endDate" class="input input-sm w-full font-mono"></label>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div><label
-                            class="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Current
-                            Level</label>
-                        <input type="number" id="exp-startLv" value="236"
-                            class="input input-sm w-full font-mono">
-                    </div>
-                    <div><label
-                            class="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Current
-                            EXP (%)</label>
-                        <input type="number" id="exp-startPct" value="0" step="0.01"
-                            class="input input-sm w-full font-mono">
-                    </div>
-                    <div><label
-                            class="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Start
-                            Date</label>
-                        <input type="date" id="exp-startDate"
-                            class="input input-sm w-full font-mono">
-                    </div>
-                    <div><label
-                            class="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Target
-                            Level</label>
-                        <input type="number" id="exp-targetLv" value="260"
-                            class="input input-sm w-full font-mono">
-                    </div>
-                    <div class="col-span-2"><label
-                            class="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">End
-                            Date <span
-                                class="normal-case tracking-normal text-slate-600">(optional)</span></label>
-                        <input type="date" id="exp-endDate"
-                            class="input input-sm w-full font-mono">
-                    </div>
-                </div>
-            </div>
-        </div>
+            </section>
 
-        <!-- Hyper Burning -->
-        <div class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden">
-            <div
-                class="exp-section-head flex items-center gap-2 px-3 py-1.5 bg-base-200 border-b border-base-content/10 cursor-pointer select-none">
-                <i data-lucide="flame" class="w-3.5 h-3.5 text-orange-400"></i>
-                <span
-                    class="text-[11px] font-bold uppercase tracking-wider text-slate-200 flex-1">Hyper
-                    Burning</span>
-                <i data-lucide="chevron-up"
-                    class="w-3 h-3 text-slate-500 exp-section-toggle open"></i>
-            </div>
-            <div class="p-2.5 space-y-1.5">
+            <section class="mm-sec">
+                <div class="mm-sec-h"><h3>バーニング</h3></div>
                 <div class="grid grid-cols-2 gap-2">
-                    <button id="exp-hyperBurning" type="button" class="exp-toggle-btn">
-                        Hyper Burning
-                        <span class="exp-toggle-sub">~Lv.260 (+5/up)</span>
-                    </button>
-                    <button id="exp-hyperBurningBeyond" type="button" class="exp-toggle-btn">
-                        Burning Beyond
-                        <span class="exp-toggle-sub">Lv.260-270 (+2/up)</span>
-                    </button>
+                    <button id="exp-hyperBurning" type="button" class="exp-toggle-btn">Hyper Burning<span class="exp-toggle-sub">〜Lv260（+5/Lv）</span></button>
+                    <button id="exp-hyperBurningBeyond" type="button" class="exp-toggle-btn">Burning Beyond<span class="exp-toggle-sub">Lv260〜270（+2/Lv）</span></button>
                 </div>
-                <p class="text-[9px] text-slate-600 italic">* Bonus levels are granted free on each
-                    level-up during the simulation</p>
-            </div>
-        </div>
+            </section>
 
-        <!-- Daily Settings -->
-        <div class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden">
-            <div
-                class="exp-section-head flex items-center gap-2 px-3 py-1.5 bg-base-200 border-b border-base-content/10 cursor-pointer select-none">
-                <i data-lucide="list-checks" class="w-3.5 h-3.5 text-indigo-400"></i>
-                <span
-                    class="text-[11px] font-bold uppercase tracking-wider text-slate-200 flex-1">Daily
-                    Settings</span>
-                <i data-lucide="chevron-up"
-                    class="w-3 h-3 text-slate-500 exp-section-toggle open"></i>
-            </div>
-            <div class="p-2.5 space-y-1.5">
-                <div class="grid grid-cols-2 gap-2">
-                    <div><label
-                            class="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Daily
-                            EXP Multiplier</label>
-                        <input type="number" id="exp-dailyMult" value="1.0" step="0.1" min="0.1"
-                            class="input input-sm w-full font-mono">
-                    </div>
+            <section class="mm-sec">
+                <div class="mm-sec-h"><h3>デイリー</h3><span>セラス（Lv240）はデイリーなし</span></div>
+                <div class="sc-q-grid">
+                    <label class="sc-q-f"><span>倍率</span><input type="number" id="exp-dailyMult" value="1.0" step="0.1" min="0.1" class="input input-sm w-full font-mono"></label>
                 </div>
-                <p class="text-[9px] text-slate-500">Daily Quest Regions</p>
                 <div id="exp-regionCheckboxes"></div>
-                <p class="text-[9px] text-slate-600 italic">* Ceras (Lv.240) has no daily quests</p>
-            </div>
-        </div>
+            </section>
 
-        <!-- Weekly Content -->
-        <div class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden">
-            <div
-                class="exp-section-head flex items-center gap-2 px-3 py-1.5 bg-base-200 border-b border-base-content/10 cursor-pointer select-none">
-                <i data-lucide="calendar-range" class="w-3.5 h-3.5 text-cyan-400"></i>
-                <span
-                    class="text-[11px] font-bold uppercase tracking-wider text-slate-200 flex-1">Weekly
-                    Content</span>
-                <i data-lucide="chevron-up"
-                    class="w-3 h-3 text-slate-500 exp-section-toggle open"></i>
-            </div>
-            <div class="p-2.5 space-y-1.5">
-                <p class="text-[9px] text-slate-500">Epic Dungeon <span
-                        class="text-slate-600">(each dungeon 1 clear/week per account)</span></p>
-                <div><label
-                        class="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Dungeon</label>
-                    <select id="exp-edDungeon" class="select select-sm w-full font-mono"></select>
+            <section class="mm-sec">
+                <div class="mm-sec-h"><h3>毎週</h3><span>エピダン・MPE は木曜、週課は月曜にリセット</span></div>
+                <label class="sc-q-f"><span>エピックダンジョン（ダンジョンごとにアカウント週1回）</span><select id="exp-edDungeon" class="select select-sm w-full"></select></label>
+                <div class="sc-q-grid">
+                    <label class="sc-q-f"><span>MPE 週の回数（Lv260+）</span><input type="number" id="exp-mpeRuns" value="1" min="0" max="2" class="input input-sm w-full font-mono"></label>
+                    <label class="sc-q-f"><span>MPE 倍率</span><input type="number" id="exp-mpeMult" value="1.0" step="0.1" min="0.1" class="input input-sm w-full font-mono"></label>
                 </div>
-                <div class="exp-cb-divider"></div>
-                <p class="text-[9px] text-slate-500">Monster Park Extreme <span
-                        class="text-slate-600">(Lv.260+)</span></p>
-                <div class="grid grid-cols-2 gap-2">
-                    <div><label
-                            class="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Weekly
-                            Clears</label>
-                        <input type="number" id="exp-mpeRuns" value="1" min="0" max="2"
-                            class="input input-sm w-full font-mono">
-                    </div>
-                    <div><label
-                            class="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">EXP
-                            Mult.</label>
-                        <input type="number" id="exp-mpeMult" value="1.0" step="0.1" min="0.1"
-                            class="input input-sm w-full font-mono">
-                    </div>
-                </div>
-                <div class="exp-cb-divider"></div>
-                <p class="text-[9px] text-slate-500">Arcane River Weekly Quests</p>
+                <div class="sc-q-f"><span>アーケインリバーの週課</span></div>
                 <div id="exp-weeklyCheckboxes"></div>
-                <p class="text-[9px] text-slate-600 italic">* Epic Dungeon / MPE reset Thursday,
-                    weekly quests reset Monday</p>
-            </div>
-        </div>
+            </section>
 
-        <div class="grid grid-cols-2 gap-3">
-            <!-- Monster Park -->
-            <div class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden">
-                <div
-                    class="exp-section-head flex items-center gap-2 px-3 py-1.5 bg-base-200 border-b border-base-content/10 cursor-pointer select-none">
-                    <i data-lucide="swords" class="w-3.5 h-3.5 text-indigo-400"></i>
-                    <span
-                        class="text-[11px] font-bold uppercase tracking-wider text-slate-200 flex-1">Monster
-                        Park</span>
-                    <i data-lucide="chevron-up"
-                        class="w-3 h-3 text-slate-500 exp-section-toggle open"></i>
+            <section class="mm-sec">
+                <div class="mm-sec-h"><h3>モンパ</h3><span>日曜 +0.5。イベントは Event Buffs の一覧を反映</span></div>
+                <div class="sc-q-grid">
+                    <label class="sc-q-f"><span>1日の回数</span><input type="number" id="exp-monpaRuns" value="7" class="input input-sm w-full font-mono"></label>
+                    <label class="sc-q-f"><span>倍率</span><input type="number" id="exp-monpaMult" value="1.0" step="0.1" min="0.1" class="input input-sm w-full font-mono"></label>
                 </div>
-                <div class="p-2.5 space-y-1.5">
-                    <div class="grid grid-cols-2 gap-2">
-                        <div><label
-                                class="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Daily
-                                Runs</label>
-                            <input type="number" id="exp-monpaRuns" value="7"
-                                class="input input-sm w-full font-mono">
-                        </div>
-                        <div><label
-                                class="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">EXP
-                                Mult.</label>
-                            <input type="number" id="exp-monpaMult" value="1.0" step="0.1" min="0.1"
-                                class="input input-sm w-full font-mono">
-                        </div>
-                    </div>
-                    <p class="text-[9px] text-slate-600 italic">* Sun: +0.5 / イベントは「イベントバフ」タブの一覧を反映</p>
-                </div>
-            </div>
+            </section>
 
-            <!-- Strawberry Farm -->
-            <div class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden">
-                <div
-                    class="exp-section-head flex items-center gap-2 px-3 py-1.5 bg-base-200 border-b border-base-content/10 cursor-pointer select-none">
-                    <i data-lucide="leaf" class="w-3.5 h-3.5 text-emerald-400"></i>
-                    <span
-                        class="text-[11px] font-bold uppercase tracking-wider text-slate-200 flex-1">Farms</span>
-                    <i data-lucide="chevron-up"
-                        class="w-3 h-3 text-slate-500 exp-section-toggle open"></i>
+            <section class="mm-sec">
+                <div class="mm-sec-h"><h3>農場</h3><span>週の回数（木曜リセット）</span></div>
+                <div class="sc-q-grid">
+                    <label class="sc-q-f"><span>いちご農場</span><input type="number" id="exp-farmRuns" value="0" class="input input-sm w-full font-mono"></label>
+                    <label class="sc-q-f"><span>ブルーベリー（Lv260+）</span><input type="number" id="exp-blueberryRuns" value="0" class="input input-sm w-full font-mono"></label>
+                    <label class="sc-q-f"><span>メカいちご（Lv280+）</span><input type="number" id="exp-mechaFarmRuns" value="0" class="input input-sm w-full font-mono"></label>
+                    <label class="sc-q-f"><span>クリムゾン（Lv280+）</span><input type="number" id="exp-crimsonRuns" value="0" class="input input-sm w-full font-mono"></label>
                 </div>
-                <div class="p-2.5 space-y-1.5">
-                    <div><label
-                            class="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Strawberry
-                            Runs</label>
-                        <input type="number" id="exp-farmRuns" value="0"
-                            class="input input-sm w-full font-mono">
-                    </div>
-                    <div><label
-                            class="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Blueberry
-                            Runs <span class="normal-case tracking-normal text-slate-600">(Lv.260+)</span></label>
-                        <input type="number" id="exp-blueberryRuns" value="0"
-                            class="input input-sm w-full font-mono">
-                    </div>
-                    <div><label
-                            class="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Mecha
-                            Runs <span class="normal-case tracking-normal text-slate-600">(Lv.280+)</span></label>
-                        <input type="number" id="exp-mechaFarmRuns" value="0"
-                            class="input input-sm w-full font-mono">
-                    </div>
-                    <div><label
-                            class="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Crimson
-                            Mecha <span class="normal-case tracking-normal text-slate-600">(Lv.280+)</span></label>
-                        <input type="number" id="exp-crimsonRuns" value="0"
-                            class="input input-sm w-full font-mono">
-                    </div>
-                    <p class="text-[9px] text-slate-600 italic">* Weekly runs, reset every Thursday</p>
-                </div>
-            </div>
-        </div>
+            </section>
 
-        <!-- EXP Potions -->
-        <div class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden">
-            <div
-                class="exp-section-head flex items-center gap-2 px-3 py-1.5 bg-base-200 border-b border-base-content/10 cursor-pointer select-none">
-                <i data-lucide="flask-conical" class="w-3.5 h-3.5 text-purple-400"></i>
-                <span
-                    class="text-[11px] font-bold uppercase tracking-wider text-slate-200 flex-1">EXP
-                    Potions</span>
-                <i data-lucide="chevron-up"
-                    class="w-3 h-3 text-slate-500 exp-section-toggle open"></i>
-            </div>
-            <div class="p-2.5 space-y-1.5">
-                <div
-                    class="grid grid-cols-[1fr_60px_110px_28px] gap-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 pb-1 border-b border-slate-800">
-                    <span>Type</span><span>Qty</span><span>Deadline</span><span></span>
+            <section class="mm-sec">
+                <div class="mm-sec-h"><h3>成長の秘薬</h3><span>上限 Lv で使い切るように使う。期日が来たら使う</span></div>
+                <div class="grid grid-cols-[1fr_60px_110px_28px] gap-1.5 text-[11px] text-slate-500">
+                    <span>種類</span><span>本数</span><span>期日</span><span></span>
                 </div>
                 <div id="exp-potionRows"></div>
-                <button id="exp-addPotionBtn"
-                    class="btn btn-xs btn-dash w-full gap-1">
-                    <i data-lucide="plus" class="w-3 h-3"></i>Add Potion
-                </button>
-                <p class="text-[9px] text-slate-600 italic">* Auto-used so that all of them end exactly at the cap
-                    level is reached<br>* Force-used on the deadline date</p>
-            </div>
-        </div>
+                <button id="exp-addPotionBtn" class="btn btn-xs btn-dash w-full gap-1"><i data-lucide="plus" class="w-3 h-3"></i>秘薬を追加</button>
+            </section>
 
-        <!-- Run Button -->
-        <button id="exp-runBtn"
-            class="btn btn-primary w-full gap-2">
-            <i data-lucide="play" class="w-4 h-4"></i>Run Simulation
-        </button>
-        <p class="text-[9px] text-slate-600 text-center">EXP table: GMS v.271 (Lv.210-259
-            reduced) · Content EXP: whackybeanz (Sep 2026)</p>
+            <section class="mm-sec">
+                <button id="exp-runBtn" class="btn btn-primary w-full gap-2"><i data-lucide="play" class="w-4 h-4"></i>計算する</button>
+                <p class="mm-note text-center">必要経験値: GMS v.271（Lv210〜259 削減後）・コンテンツの経験値: whackybeanz（2026年9月）</p>
+            </section>
+        </div>
     </div>
 
-    <!-- Right: Results -->
-    <div class="overflow-y-auto custom-scrollbar xl:pl-4">
-        <div id="exp-emptyState"
-            class="flex flex-col items-center justify-center h-full text-slate-600">
-            <i data-lucide="bar-chart-2" class="w-12 h-12 mb-3 opacity-25"></i>
-            <p class="text-xs font-mono">Enter settings and run the simulation</p>
-        </div>
-        <div id="exp-resultContent" class="hidden space-y-4 pb-6">
-            <div id="exp-summaryStrip" class="grid grid-cols-3 gap-3"></div>
-            <div class="bg-base-100 border border-base-content/10 rounded-box overflow-hidden">
-                <div
-                    class="flex items-center gap-2 px-3 py-1.5 border-b border-base-content/10 bg-base-200">
-                    <i data-lucide="table-2" class="w-3.5 h-3.5 text-indigo-400"></i>
-                    <span
-                        class="text-[11px] font-bold uppercase tracking-wider text-slate-200">Detailed
-                        Log</span>
+    <!-- 右: 結果（計算前も形を見せる） -->
+    <div class="overflow-y-auto custom-scrollbar pb-6">
+        <div class="mm-face">
+            <section class="mm-sec">
+                <div class="mm-sec-h"><h3>到達</h3></div>
+                <div id="exp-summaryStrip" class="grid grid-cols-3 gap-3">
+                    <div class="exp-stat-card"><div class="exp-stat-lbl">目標 Lv の日</div><div class="exp-stat-val text-slate-600">—</div><div class="exp-stat-sub">&nbsp;</div></div>
+                    <div class="exp-stat-card"><div class="exp-stat-lbl">かかる日数</div><div class="exp-stat-val text-slate-600">—</div><div class="exp-stat-sub">&nbsp;</div></div>
+                    <div class="exp-stat-card"><div class="exp-stat-lbl">上がる Lv</div><div class="exp-stat-val text-slate-600">—</div><div class="exp-stat-sub">&nbsp;</div></div>
                 </div>
+            </section>
+            <section class="mm-sec" style="padding-left:0;padding-right:0">
+                <div class="mm-sec-h" style="padding:0 16px"><h3>日ごとの記録</h3><span id="exp-emptyState">左を入れて「計算する」を押すと出ます</span></div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-xs">
                         <thead>
-                            <tr class="border-b border-base-content/10">
-                                <th
-                                    class="px-3 py-2 text-left text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                                    Date</th>
-                                <th
-                                    class="px-3 py-2 text-left text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                                    Day</th>
-                                <th
-                                    class="px-3 py-2 text-left text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                                    Level</th>
-                                <th
-                                    class="px-3 py-2 text-left text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                                    EXP Progress</th>
+                            <tr class="border-b border-base-content/10 text-[11px] text-slate-500">
+                                <th class="px-3 py-2 text-left font-semibold">日付</th>
+                                <th class="px-3 py-2 text-left font-semibold">日目</th>
+                                <th class="px-3 py-2 text-left font-semibold">Lv</th>
+                                <th class="px-3 py-2 text-left font-semibold">経験値</th>
                             </tr>
                         </thead>
                         <tbody id="exp-logBody" class="divide-y divide-base-content/10"></tbody>
                     </table>
                 </div>
-            </div>
+                <div id="exp-resultContent" class="hidden"></div>
+            </section>
         </div>
     </div>
 </div>

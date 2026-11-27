@@ -911,7 +911,7 @@ const hexaTracker = {
                 <div class="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-1">${cards}</div>
             </section>`;
         }
-        // 見出しと説明文は置かない（上部のタブが「トラッカー」、職業のカードは押せる見た目）。
+        // 見出しと説明文は置かない（上部のタブが「Tracker」、職業のカードは押せる見た目）。
         return `<div class="mm-face">${html}</div>`;
     },
 
@@ -932,10 +932,10 @@ const hexaTracker = {
             class="tab gap-1.5 ${this.modalTab === id ? 'tab-active' : ''}">
             <i data-lucide="${icon}" class="w-3.5 h-3.5"></i>${label}
         </button>`;
-        return tab('progress', '進捗入力', 'sliders-horizontal')
-            + tab('map', '強化順マップ', 'layout-grid')
-            + tab('curve', '効率カーブ', 'activity')
-            + (this.isProvisional(this.modalClassId) ? '' : tab('ct', 'CT設定', 'timer'));
+        return tab('progress', 'Progress', 'sliders-horizontal')
+            + tab('map', 'Order Map', 'layout-grid')
+            + tab('curve', 'Curve', 'activity')
+            + (this.isProvisional(this.modalClassId) ? '' : tab('ct', 'CT', 'timer'));
     },
 
     setTab(tab) {
@@ -1176,7 +1176,7 @@ const hexaTracker = {
         return `<span class="text-[10px] font-bold tabular-nums shrink-0 ${up ? 'text-amber-300' : 'text-sky-300'}" title="討伐時間の補正で、順番を決めるときの最終ダメージを ${m.toFixed(2)} 倍にしています（表示の最終ダメージは元の値）">×${m >= 10 ? m.toFixed(0) : m.toFixed(1)}</span>`;
     },
 
-    // 討伐時間の補正: 戦闘の長さ。ノードごとのCTは上の「CT設定」タブ。
+    // 討伐時間の補正: 戦闘の長さ。ノードごとのCTは上の「CT」タブ。
     buildFightControls() {
         const sec = this.fightOf(this.modalTrackingId);
         const fightBtns = this.FIGHT_OPTIONS.map(o => `<button onclick="hexaTracker.setFight(${o.sec})" title="${o.hint}"
@@ -1187,7 +1187,7 @@ const hexaTracker = {
                 <span class="text-[10px] text-slate-500">討伐時間</span>
                 <div class="inline-flex border border-slate-700 bg-slate-950 divide-x divide-slate-700">${fightBtns}</div>
             </div>
-            ${sec ? `<button onclick="hexaTracker.setTab('ct')" class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-slate-200 transition-colors" title="ノードごとのCTは「CT設定」タブで選びます">
+            ${sec ? `<button onclick="hexaTracker.setTab('ct')" class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-slate-200 transition-colors" title="ノードごとのCTは「CT」タブで選びます">
                 <i data-lucide="timer" class="w-3.5 h-3.5"></i>CT設定 <span class="font-bold text-slate-200">${set}</span></button>` : ''}
         </div>`;
     },

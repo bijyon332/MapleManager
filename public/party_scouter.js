@@ -2,7 +2,7 @@
  *  Party Scouter（簡易PT火力換算）
  *  3人PTで倒したボス1体の討伐時間から、ほかのボスを同じ3人で倒すと約何分かかるかを出す（bi 依頼 2026-11-06）。
  *
- *  考え方は Scouter の「簡易換算」タブ（EXスウのソロタイムから）の3人版:
+ *  考え方は Scouter の「Quick」タブ（EXスウのソロタイムから）の3人版:
  *    - ボスカットの率は火力に比例し、率 100% でちょうど制限時間、時間は率に反比例とみる
  *      （Scouter の実測補正と同じ。EXスウ 100% = 30分）。
  *    - 討伐時間 → PT の率 → 3で割って1人あたりの率 → 1人あたりの火力。3人とも同じ火力とみなす。
@@ -149,8 +149,8 @@ const partyScouter = (() => {
                     <div class="sc-q-grid">
                         ${field('Lv', inp('level'))}
                         <span></span>
-                        ${field('アーケインフォース', inp('arcane'))}
-                        ${field('オーセンティックフォース', inp('sacred'))}
+                        ${field('アーケイン', inp('arcane'))}
+                        ${field('オーセンティック', inp('sacred'))}
                     </div>
                     <div id="ps-sum">${sumHTML()}</div>
                 </div>
@@ -169,7 +169,8 @@ const partyScouter = (() => {
     }
     function outHTML() {
         const q = compute(state);
-        if (q.error) return `<div class="sc-res-empty">${q.error === 'empty' ? 'Lv と討伐時間を入れると出ます。' : esc(q.error)}</div>`;
+        if (q.error === 'empty') return skeletonHTML();
+        if (q.error) return `<div class="sc-res-empty">${esc(q.error)}</div>`;
         const L = q.limit;
         const cls = (c) => (c.lv || c.t > L ? 'c-no' : c.t <= L / 2 ? 'c-solo2' : c.t <= L * 0.75 ? 'c-solo1' : 'c-solo0');
         const by = {};
@@ -202,6 +203,15 @@ const partyScouter = (() => {
             <table class="sc-bctbl ps-tbl">
                 <thead><tr><th></th>${COLS.map((ds) => `<th>${ds.join(' / ')}</th>`).join('')}</tr></thead>
                 <tbody>${body}</tbody>
+            </table>`;
+    }
+    // 入力する前も表の形（ボスの行と難易度の列）を見せる。時間の所は空のまま。
+    function skeletonHTML() {
+        const rows = bossChoices().map((c) => `<tr><th><b>${esc(bossName(c.ko))}</b></th>${COLS.map(() => '<td class="sc-bc-none"></td>').join('')}</tr>`).join('');
+        return `<h3 class="sc-bc-h"><i data-lucide="timer"></i>3人PTの推定討伐時間</h3>
+            <table class="sc-bctbl sc-bc-skel ps-tbl">
+                <thead><tr><th></th>${COLS.map((ds) => `<th>${ds.join(' / ')}</th>`).join('')}</tr></thead>
+                <tbody>${rows}</tbody>
             </table>`;
     }
     // 打っている間は表と左の数字だけ書き換える（入力欄を作り直すとフォーカスが外れる）。

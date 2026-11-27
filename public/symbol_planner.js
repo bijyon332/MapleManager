@@ -292,7 +292,7 @@ const symbolPlanner = (() => {
                     ${portrait ? `<img src="${esc(portrait)}" alt="" class="w-8 h-8 object-contain bg-base-300 border border-base-content/10">` : ''}
                     <b class="text-white">${esc(char ? char.name : '?')}</b>
                     <span class="text-xs text-base-content/50">の Symbol Planner</span>
-                    <nav role="tablist" class="tabs tabs-box tabs-sm ml-2">${tab('progress', 'chart-gantt', '進捗')}${tab('timeline', 'calendar-days', '早見表')}${tab('events', 'sparkles', 'イベント')}</nav>
+                    <nav role="tablist" class="tabs tabs-box tabs-sm ml-2">${tab('progress', 'chart-gantt', 'Progress')}${tab('timeline', 'calendar-days', 'Timeline')}${tab('events', 'sparkles', 'Events')}</nav>
                     <button onclick="symbolPlanner.close()" class="btn btn-sm btn-ghost btn-square ml-auto" title="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>
                 </div>
                 <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3">${body}</div>
@@ -471,7 +471,7 @@ const symbolPlanner = (() => {
                 <div class="overflow-x-auto">
                     <table class="table table-sm sp-tl">
                         <thead><tr><th class="w-24">日付</th><th class="w-16"></th><th>上がるシンボル</th><th class="w-40 text-right">アーケインフォース</th><th class="w-44 text-right">オーセンティックフォース</th><th class="w-28 text-right">シンボル Lv 合計</th></tr></thead>
-                        <tbody>${rows || `<tr><td colspan="6" class="text-center text-base-content/40 py-6">${p.allReach ? 'これから上がるシンボルはありません' : '「進捗」でシンボルの Lv を入れてください'}</td></tr>`}</tbody>
+                        <tbody>${rows || `<tr><td colspan="6" class="text-center text-base-content/40 py-6">${p.allReach ? 'これから上がるシンボルはありません' : '「Progress」でシンボルの Lv を入れてください'}</td></tr>`}</tbody>
                     </table>
                 </div>
             </div>
