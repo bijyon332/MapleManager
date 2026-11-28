@@ -98,7 +98,14 @@ const quanahHexa = (() => {
     }
 
     /* ---------- HEXA の計算（hexa_tracker.js を使う） ---------- */
-    const H = () => (typeof hexaTracker !== 'undefined' ? hexaTracker : null);
+    // hexa_tracker.js は Dashboard 用に裏で先に読まれていることがあり、そのときは保存データがまだ
+    // 読み込まれていない（init を通らない）。空のまま保存すると他キャラの進捗まで消えるので、
+    // 触る前に必ず ensureLoaded() を通す。
+    const H = () => {
+        const h = typeof hexaTracker !== 'undefined' ? hexaTracker : null;
+        if (h && !h._loaded) h.ensureLoaded();
+        return h;
+    };
     function classIdOf(char) {
         const t = H().data['char:' + char.id];
         if (t && t.classId && H().getClassSkills(t.classId)) return t.classId;

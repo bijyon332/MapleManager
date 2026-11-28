@@ -89,7 +89,15 @@ const hexaTracker = {
         if (!this._loaded) this.loadData();
     },
 
+    // 保存データを読み込む前に書くと、ここにない他キャラの進捗が消える。万一そうなっても、
+    // 保存済みのデータに今あるキャラの分だけを重ねて書く（キャラ単位で上書き）。
     saveData() {
+        if (!this._loaded) {
+            let stored = {};
+            try { stored = JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '{}') || {}; } catch (e) { stored = {}; }
+            this.data = Object.assign(stored, this.data);
+            this._loaded = true;
+        }
         try { localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data)); } catch (e) {}
     },
 
